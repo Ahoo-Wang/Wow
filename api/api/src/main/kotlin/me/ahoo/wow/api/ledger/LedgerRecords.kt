@@ -34,8 +34,8 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * - [fromVersion] and [fromPosition]: where the aggregate is parked; [skipOnly] when the source no longer holds what it
  *   is parked from, so it is never retried, only skipped; [reason] and [failedAt] (epoch milliseconds): why and when it
  *   last failed, which also tells one parking of the aggregate from the next.
- * - [retries] made so far, the last started at [retryAt]; [retrySpec], the spec it is retried by; [nextRetryAt] the next
- *   automatic retry, null when there is none.
+ * - [retries] made so far, the last started at [lastRetryAt]; [retrySpec], the spec it is retried by; [nextRetryAt]
+ *   the next automatic retry, null when there is none.
  * - [recoverable]: `unknown`, `recoverable` or `unrecoverable`, what an operator marked it; [request]: `retry` or
  *   `skip` while an operator's request waits for the owner of its partition, else null.
  * - [status]: `scheduled` (retried automatically), `exhausted` (its retries spent) or `unrecoverable`.
@@ -59,7 +59,7 @@ class LedgerEntry @InternalWowApi constructor(
     val reason: String,
     val failedAt: Long,
     val retries: Int = 0,
-    val retryAt: Long? = null,
+    val lastRetryAt: Long? = null,
     val retrySpec: LedgerRetrySpec,
     val recoverable: String = UNKNOWN,
     val request: String? = null,
@@ -80,7 +80,7 @@ class LedgerEntry @InternalWowApi constructor(
         reason: String = this.reason,
         failedAt: Long = this.failedAt,
         retries: Int = this.retries,
-        retryAt: Long? = this.retryAt,
+        lastRetryAt: Long? = this.lastRetryAt,
         retrySpec: LedgerRetrySpec = this.retrySpec,
         recoverable: String = this.recoverable,
         request: String? = this.request,
@@ -98,7 +98,7 @@ class LedgerEntry @InternalWowApi constructor(
         reason,
         failedAt,
         retries,
-        retryAt,
+        lastRetryAt,
         retrySpec,
         recoverable,
         request,
@@ -115,12 +115,12 @@ class LedgerEntry @InternalWowApi constructor(
     override fun toString(): String =
         "LedgerEntry(service=$service, context=$context, subscription=$subscription, aggregate=$aggregate, " +
             "fromVersion=$fromVersion, fromPosition=$fromPosition, skipOnly=$skipOnly, reason=$reason, " +
-            "failedAt=$failedAt, retries=$retries, retryAt=$retryAt, retrySpec=$retrySpec, recoverable=$recoverable, " +
-            "request=$request, status=$status, nextRetryAt=$nextRetryAt, recordedAt=$recordedAt)"
+            "failedAt=$failedAt, retries=$retries, lastRetryAt=$lastRetryAt, retrySpec=$retrySpec, " +
+            "recoverable=$recoverable, request=$request, status=$status, nextRetryAt=$nextRetryAt, recordedAt=$recordedAt)"
 
     private fun valueFields(): List<Any?> = listOf(
         service, context, subscription, aggregate, fromVersion, fromPosition, skipOnly, reason, failedAt, retries,
-        retryAt, retrySpec, recoverable, request, status, nextRetryAt, recordedAt
+        lastRetryAt, retrySpec, recoverable, request, status, nextRetryAt, recordedAt
     )
 
     @InternalWowApi

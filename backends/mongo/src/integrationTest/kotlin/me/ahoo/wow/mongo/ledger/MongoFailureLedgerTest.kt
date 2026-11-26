@@ -20,8 +20,10 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.mongo.log.MongoLogFixture
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
+import me.ahoo.wow.spi.ledger.ParkedAmendment
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.tck.ledger.FailureLedgerSpec
+import org.bson.Document
 import org.junit.jupiter.api.Test
 
 class MongoFailureLedgerTest : FailureLedgerSpec() {
@@ -71,6 +73,21 @@ class MongoFailureLedgerTest : FailureLedgerSpec() {
         MongoLogFixture.bumpFormat("ledger_other_format")
         assertThrownBy<IllegalStateException> { ledger("ledger_other_format") }
             .message().contains("format 2", "format 1")
+    }
+
+    @Test
+    fun `the start of the last retry is stored as last_retry_at`(): Unit = runBlocking {
+        val ledger = ledger("ledger_last_retry_at")
+        val subscription = SubscriptionId("ledger", "last-retry-" + System.nanoTime())
+        val ref = AggregateType("ledger", "order").ref("tenant", "a")
+        ledger.park(ParkedAggregate(subscription, ref, 0, 1, "failed", 7)).assert().isTrue()
+        ledger.amend(subscription, ref, ParkedAmendment.ClaimRetry(0, 42))!!.lastRetryAt.assert().isEqualTo(42L)
+        val stored = MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE)
+            .getCollection("ledger_last_retry_at")
+            .find(Document("subscription", subscription.name))
+            .first()!!
+        stored.getLong("last_retry_at").assert().isEqualTo(42L)
+        stored.containsKey("retry_at").assert().isFalse()
     }
 
     /** "￿" sorts before "😀" (U+1F600) by code point but after it by UTF-16 unit, as Java orders strings. */

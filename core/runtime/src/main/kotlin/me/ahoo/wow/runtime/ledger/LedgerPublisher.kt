@@ -333,7 +333,7 @@ class LedgerPublisher internal constructor(
             reason = entry.reason,
             failedAt = entry.failedAt,
             retries = entry.retries,
-            retryAt = entry.retryAt,
+            lastRetryAt = entry.lastRetryAt,
             retrySpec = LedgerRetrySpec(
                 maxRetries = view.spec.maxRetries,
                 initialBackoff = view.spec.initialBackoff.toIsoString(),

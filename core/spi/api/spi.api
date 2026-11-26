@@ -230,6 +230,7 @@ public final class me/ahoo/wow/spi/ledger/ParkedAggregate {
 	public final fun getFailedAt ()J
 	public final fun getFromPosition ()Ljava/lang/Long;
 	public final fun getFromVersion ()I
+	public final fun getLastRetryAt ()Ljava/lang/Long;
 	public final fun getNextAttemptAt ()Ljava/lang/Long;
 	public final fun getPartition ()I
 	public final fun getReason ()Ljava/lang/String;
@@ -237,7 +238,6 @@ public final class me/ahoo/wow/spi/ledger/ParkedAggregate {
 	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
 	public final fun getRequest ()Lme/ahoo/wow/api/ledger/LedgerRequest;
 	public final fun getRetries ()I
-	public final fun getRetryAt ()Ljava/lang/Long;
 	public final fun getRetrySpec ()Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
 	public final fun getRevision ()J
 	public final fun getSkipOnly ()Z
@@ -344,10 +344,10 @@ public final class me/ahoo/wow/spi/ledger/ParkedAmendment$Restate : me/ahoo/wow/
 	public static final field Companion Lme/ahoo/wow/spi/ledger/ParkedAmendment$Restate$Companion;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getFailedAt ()J
+	public final fun getLastRetryAt ()Ljava/lang/Long;
 	public final fun getReason ()Ljava/lang/String;
 	public final fun getRecoverable ()Lme/ahoo/wow/api/ledger/Recoverable;
 	public final fun getRetries ()I
-	public final fun getRetryAt ()Ljava/lang/Long;
 	public final fun getRetrySpec ()Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
 	public final fun getRevision ()J
 	public fun hashCode ()I

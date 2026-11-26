@@ -145,7 +145,7 @@ class MongoFailureLedger(
             .append(FROM_POSITION, literal(entry.fromPosition))
             .append(SKIP_ONLY, literal(entry.skipOnly))
             .append(RETRIES, kept(RETRIES, entry.retries))
-            .append(RETRY_AT, kept(RETRY_AT, entry.retryAt))
+            .append(LAST_RETRY_AT, kept(LAST_RETRY_AT, entry.lastRetryAt))
             .append(RETRY_SPEC, kept(RETRY_SPEC, specOf(entry.retrySpec)))
             .append(RECOVERABLE, kept(RECOVERABLE, entry.recoverable.name))
             // A request belongs to the parking it was made for: kept while the failure time is.
@@ -260,7 +260,7 @@ class MongoFailureLedger(
         val key = keyFilter(subscription, ref)
         val (filter, update) = when (amendment) {
             is ParkedAmendment.ClaimRetry -> at(key, amendment.revision) to
-                Updates.combine(Updates.inc(RETRIES, 1), Updates.set(RETRY_AT, amendment.at), UNSCHEDULED)
+                Updates.combine(Updates.inc(RETRIES, 1), Updates.set(LAST_RETRY_AT, amendment.at), UNSCHEDULED)
 
             is ParkedAmendment.MarkRecoverable -> ofParking(key, amendment.failedAt) to
                 Updates.combine(Updates.set(RECOVERABLE, amendment.recoverable.name), UNSCHEDULED)
@@ -273,7 +273,7 @@ class MongoFailureLedger(
                 Updates.set(REASON, amendment.reason),
                 Updates.set(FAILED_AT, amendment.failedAt),
                 Updates.set(RETRIES, amendment.retries),
-                Updates.set(RETRY_AT, amendment.retryAt),
+                Updates.set(LAST_RETRY_AT, amendment.lastRetryAt),
                 Updates.set(RETRY_SPEC, specOf(amendment.retrySpec)),
                 Updates.set(RECOVERABLE, amendment.recoverable.name),
                 UNSCHEDULED,
@@ -300,7 +300,7 @@ class MongoFailureLedger(
             Updates.set(FROM_POSITION, amended.fromPosition),
             Updates.set(SKIP_ONLY, amended.skipOnly),
             Updates.set(RETRIES, amended.retries),
-            Updates.set(RETRY_AT, amended.retryAt),
+            Updates.set(LAST_RETRY_AT, amended.lastRetryAt),
             Updates.set(RETRY_SPEC, specOf(amended.retrySpec)),
             Updates.set(RECOVERABLE, amended.recoverable.name),
             Updates.set(REQUEST, amended.request?.name),
@@ -356,7 +356,7 @@ class MongoFailureLedger(
         fromPosition = document.getLong(FROM_POSITION),
         skipOnly = document.getBoolean(SKIP_ONLY),
         retries = document.getInteger(RETRIES),
-        retryAt = document.getLong(RETRY_AT),
+        lastRetryAt = document.getLong(LAST_RETRY_AT),
         retrySpec = document.get(RETRY_SPEC, Document::class.java)?.let { spec ->
             ParkedRetrySpec(
                 maxRetries = spec.getInteger(MAX_RETRIES),
@@ -407,7 +407,7 @@ class MongoFailureLedger(
         /** Whether the source no longer holds what the entry is parked from, a boolean every document has. */
         const val SKIP_ONLY = "skip_only"
         const val RETRIES = "retries"
-        const val RETRY_AT = "retry_at"
+        const val LAST_RETRY_AT = "last_retry_at"
         const val RETRY_SPEC = "retry_spec"
         const val MAX_RETRIES = "max_retries"
         const val INITIAL_BACKOFF = "initial_backoff_millis"

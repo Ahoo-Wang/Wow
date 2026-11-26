@@ -151,13 +151,13 @@ public final class me/ahoo/wow/ops/api/parked/ParkedEntry {
 	public final fun getFailedAt ()J
 	public final fun getFromPosition ()Ljava/lang/Long;
 	public final fun getFromVersion ()I
+	public final fun getLastRetryAt ()Ljava/lang/Long;
 	public final fun getNextRetryAt ()Ljava/lang/Long;
 	public final fun getReason ()Ljava/lang/String;
 	public final fun getRecordedAt ()J
 	public final fun getRecoverable ()Ljava/lang/String;
 	public final fun getRequest ()Ljava/lang/String;
 	public final fun getRetries ()I
-	public final fun getRetryAt ()Ljava/lang/Long;
 	public final fun getRetrySpec ()Lme/ahoo/wow/ops/api/parked/EntryRetrySpec;
 	public final fun getService ()Ljava/lang/String;
 	public final fun getSkipOnly ()Z

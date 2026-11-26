@@ -193,7 +193,7 @@ class ParkedRoutesTest {
         body["reason"].asString().assert().isEqualTo("a failed")
         body["failedAt"].asLong().assert().isEqualTo(FAILED_AT)
         body["retries"].asInt().assert().isEqualTo(0)
-        body["retryAt"].isNull.assert().isTrue()
+        body["lastRetryAt"].isNull.assert().isTrue()
         body["retrySpec"]["maxRetries"].asInt().assert().isEqualTo(3)
         body["retrySpec"]["initialBackoff"].asString().assert().isEqualTo("PT1H")
         body["retrySpec"]["claimTtl"].asString().assert().isEqualTo("PT1M")

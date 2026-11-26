@@ -82,16 +82,16 @@ class ParkedRetryTest {
 
     @Test
     fun `a later retry is due its backoff after the last one started, not before its claim expires`() {
-        val retried = entry.copyWith(retries = 1, retryAt = FAILED_AT + 10_000)
+        val retried = entry.copyWith(retries = 1, lastRetryAt = FAILED_AT + 10_000)
         retried.nextRetryAt(spec).assert().isEqualTo(FAILED_AT + 10_000 + 30_000)
-        val later = entry.copyWith(retries = 2, retryAt = FAILED_AT + 40_000)
+        val later = entry.copyWith(retries = 2, lastRetryAt = FAILED_AT + 40_000)
         later.nextRetryAt(spec).assert().isEqualTo(FAILED_AT + 40_000 + 40_000)
-        entry.copyWith(retryAt = Long.MAX_VALUE - 1).nextRetryAt(spec).assert().isEqualTo(Long.MAX_VALUE)
+        entry.copyWith(lastRetryAt = Long.MAX_VALUE - 1).nextRetryAt(spec).assert().isEqualTo(Long.MAX_VALUE)
     }
 
     @Test
     fun `an entry spent, marked unrecoverable or gone from its source is not retried automatically`() {
-        val spent = entry.copyWith(retries = 3, retryAt = FAILED_AT)
+        val spent = entry.copyWith(retries = 3, lastRetryAt = FAILED_AT)
         spent.exhausted(spec).assert().isTrue()
         spent.nextRetryAt(spec).assert().isNull()
         entry.copyWith(recoverable = Recoverable.UNRECOVERABLE).nextRetryAt(spec).assert().isNull()
@@ -105,7 +105,7 @@ class ParkedRetryTest {
     @Test
     fun `amendments apply as the ledger applies them, each at the next revision`() {
         entry.amended(ParkedAmendment.ClaimRetry(0, 5)).assert()
-            .isEqualTo(entry.copyWith(retries = 1, retryAt = 5, revision = 1))
+            .isEqualTo(entry.copyWith(retries = 1, lastRetryAt = 5, revision = 1))
         entry.amended(ParkedAmendment.ClaimRetry(1, 5)).assert().isNull()
         entry.amended(ParkedAmendment.ApplyRetrySpec(spec))!!.retrySpec.assert().isEqualTo(spec)
         entry.amended(ParkedAmendment.MarkRecoverable(Recoverable.RECOVERABLE))!!
@@ -137,7 +137,7 @@ class ParkedRetryTest {
                 reason = "again",
                 failedAt = FAILED_AT + 1,
                 retries = 2,
-                retryAt = FAILED_AT + 2,
+                lastRetryAt = FAILED_AT + 2,
                 retrySpec = spec,
                 recoverable = Recoverable.UNRECOVERABLE,
                 nextAttemptAt = null,

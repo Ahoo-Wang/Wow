@@ -1843,7 +1843,7 @@
       "aliases": []
     },
     {
-      "path": "state.retryAt",
+      "path": "state.lastRetryAt",
       "types": [
         "integer"
       ],

@@ -64,7 +64,7 @@ class ParkedSpec {
                     errorType.assert().isEqualTo("java.net.ConnectException")
                     failedAt.assert().isEqualTo(100L)
                     retries.assert().isEqualTo(0)
-                    retryAt.assert().isNull()
+                    lastRetryAt.assert().isNull()
                     retrySpec.maxRetries.assert().isEqualTo(10)
                     recoverable.assert().isEqualTo(ParkedEntry.UNKNOWN)
                     request.assert().isNull()
