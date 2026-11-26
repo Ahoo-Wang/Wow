@@ -21,7 +21,7 @@
       {
         "name": "bank.account.Deposited",
         "revision": 1,
-        "payload": {
+        "body": {
           "amount": 100
         }
       }

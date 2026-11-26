@@ -180,7 +180,7 @@ class WebhookNotifierTest {
         const val ENVELOPE = """{"format":1,"kind":"state-event","id":"shop.cart/t/c-1@1","type":"shop.cart",""" +
             """"payload":{"ref":{"type":{"context":"shop","name":"cart"},"tenantId":"t","id":"c-1"},"version":1,""" +
             """"commandId":"c","requestId":"r","commandType":"shop.cart.Open","commitTime":1000,""" +
-            """"events":[{"name":"shop.cart.Opened","revision":1,"payload":{}}],"state":null,""" +
+            """"events":[{"name":"shop.cart.Opened","revision":1,"body":{}}],"state":null,""" +
             """"scope":{"ownerId":null,"spaceId":null},"deleted":false,"access":null,"accessVersion":null,""" +
             """"causation":null,"headers":{},"operator":null},"transport":null}"""
     }
