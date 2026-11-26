@@ -23,6 +23,7 @@ import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.kernel.AggregateIds
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CallerAdmission
+import me.ahoo.wow.spi.id.DerivedIds
 
 /**
  * The rules that decide a request's identity facts, step 2 of admission ([CommandGateway]), which a command of this
@@ -154,6 +155,9 @@ internal object AdmissionIdentity {
         return when {
             reserved != null -> "Header $reserved is reserved: identity, ids and the wait have fields of their own."
             request.requestId?.isBlank() == true -> "A request id, when given, is not blank."
+            request.requestId?.let(DerivedIds::isFrameworkRequestId) == true &&
+                request.call == null && !request.frameworkRequestId ->
+                "A request id never starts with ${DerivedIds.PREFIX}: the framework gives those to its own commands."
             request.aggregateId?.isBlank() == true -> "An aggregate id, when given, is not blank."
             request.aggregateId == AggregateRef.UNASSIGNED ->
                 "An aggregate id is never ${AggregateRef.UNASSIGNED}: leave it out for admission to choose one."

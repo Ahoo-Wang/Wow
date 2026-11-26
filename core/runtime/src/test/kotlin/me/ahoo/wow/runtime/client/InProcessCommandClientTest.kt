@@ -253,6 +253,12 @@ class InProcessCommandClientTest {
             commands.last().requestId.assert().isEqualTo(derived(1))
             client.wait(CommandRequest.of(AddItem("plum"), "c-8", requestId = "own"))
             commands.last().requestId.assert().isEqualTo("own")
+            // The derived ids are the framework's (#7064): admission takes their prefix from this client alone.
+            derived(0).assert().startsWith("wow:")
+            val named = assertThrows<CommandRejectedException> {
+                runBlocking { client.wait(CommandRequest.of(AddItem("plum"), "c-8", requestId = derived(2))) }
+            }
+            named.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
         }
     }
 

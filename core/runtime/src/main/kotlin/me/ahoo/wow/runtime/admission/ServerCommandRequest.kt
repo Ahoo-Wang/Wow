@@ -48,6 +48,10 @@ import tools.jackson.databind.JsonNode
  * [call] is the root command a service identity's synchronous call acts for (the `Wow-Call` header):
  * admission takes it only from a caller that is a [service][Caller.service] identity.
  *
+ * [frameworkRequestId] says that [requestId] is one the framework derived while deciding a command, for a call the
+ * decide function sends: admission takes its prefix (`wow:`), which it refuses from any other request but a service's
+ * call (#7064). Only the in-process client sets it.
+ *
  * Fields may be added: construct a request with [of], naming the facts it has; the constructor is internal to Wow.
  */
 class ServerCommandRequest @InternalWowApi constructor(
@@ -65,6 +69,8 @@ class ServerCommandRequest @InternalWowApi constructor(
     val trace: Map<String, String> = emptyMap(),
     val call: CallContext? = null,
     val tenantId: String? = null,
+    @property:InternalWowApi
+    val frameworkRequestId: Boolean = false,
 ) {
     init {
         require(context.isNotBlank()) { "A command request names its context." }
@@ -89,6 +95,7 @@ class ServerCommandRequest @InternalWowApi constructor(
         trace: Map<String, String> = this.trace,
         call: CallContext? = this.call,
         tenantId: String? = this.tenantId,
+        frameworkRequestId: Boolean = this.frameworkRequestId,
     ): ServerCommandRequest = ServerCommandRequest(
         context,
         aggregate,
@@ -104,6 +111,7 @@ class ServerCommandRequest @InternalWowApi constructor(
         trace,
         call,
         tenantId,
+        frameworkRequestId,
     )
 
     override fun equals(other: Any?): Boolean =
@@ -115,11 +123,11 @@ class ServerCommandRequest @InternalWowApi constructor(
         "ServerCommandRequest(context=$context, aggregate=$aggregate, command=$command, body=$body, " +
             "caller=$caller, aggregateId=$aggregateId, targetScope=$targetScope, requestId=$requestId, " +
             "expectedVersion=$expectedVersion, headers=$headers, wait=$wait, trace=$trace, call=$call, " +
-            "tenantId=$tenantId)"
+            "tenantId=$tenantId, frameworkRequestId=$frameworkRequestId)"
 
     private fun valueFields(): List<Any?> = listOf(
         context, aggregate, command, body, caller, aggregateId, targetScope, requestId, expectedVersion, headers, wait,
-        trace, call, tenantId
+        trace, call, tenantId, frameworkRequestId
     )
 
     companion object {
