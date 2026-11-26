@@ -60,6 +60,7 @@ class ElasticsearchSinkGenerationTest {
 
     /** The documents of [index], none while it does not exist. */
     private fun Rest5Client.count(index: String): Long {
+        if (!ready(index)) return 0L
         performRequest(Request("POST", "/$index/_refresh"))
         val response = performRequest(Request("GET", "/$index/_count"))
         if (response.statusCode == NOT_FOUND) return 0L
@@ -68,6 +69,7 @@ class ElasticsearchSinkGenerationTest {
 
     /** The versions of the commits [index] holds, none while it does not exist. */
     private fun Rest5Client.versions(index: String): List<Int> {
+        if (!ready(index)) return emptyList()
         performRequest(Request("POST", "/$index/_refresh"))
         val response = performRequest(
             Request("POST", "/$index/_search").apply {
@@ -83,6 +85,19 @@ class ElasticsearchSinkGenerationTest {
     /** Whether [index] exists, as an alias or an index. */
     private fun Rest5Client.exists(index: String): Boolean =
         performRequest(Request("HEAD", "/$index")).statusCode == OK
+
+    /**
+     * Whether [index] exists and its primary shards are assigned: the sink makes the index at its first write, and a
+     * read of one made a moment before, its shards not yet assigned, is refused with a 503
+     * (`no_shard_available_action_exception`).
+     */
+    private fun Rest5Client.ready(index: String): Boolean = exists(index) &&
+        performRequest(
+            Request("GET", "/_cluster/health/$index").apply {
+                addParameter("wait_for_status", "yellow")
+                addParameter("timeout", "30s")
+            },
+        ).statusCode == OK
 
     private fun eventually(condition: () -> Boolean) {
         val deadline = System.nanoTime() + TIMEOUT_NANOS
