@@ -24,8 +24,10 @@ import tools.jackson.databind.ValueSerializer
 import tools.jackson.databind.module.SimpleModule
 
 /**
- * How Wow's JSON writes and reads a state event's [StateEventPayload] and [PublishedState]: `{name, revision, payload}`
+ * How Wow's JSON writes and reads a state event's [StateEventPayload] and [PublishedState]: `{name, revision, body}`
  * and `{version, schemaFingerprint, state}`, the fields in that order, as the envelope of a state event carries them.
+ * An event's data is its `body`, as the log and the events query model name it; a record that names it otherwise is
+ * refused, as one missing a field is.
  *
  * One made from its JSON text ([StateEventPayload.ofText], [PublishedState.ofText]) is written with that text as it is
  * ([JsonGenerator.writeRawValue]) when the generator writes JSON text to an output ([JsonGeneratorBase]): the codec's
@@ -43,7 +45,7 @@ internal object StateEventJson {
 
     private const val NAME = "name"
     private const val REVISION = "revision"
-    private const val PAYLOAD = "payload"
+    private const val BODY = "body"
     private const val VERSION = "version"
     private const val SCHEMA_FINGERPRINT = "schemaFingerprint"
     private const val STATE = "state"
@@ -79,7 +81,7 @@ internal object StateEventJson {
             gen.writeStartObject(value)
             gen.writeStringProperty(NAME, value.name)
             gen.writeNumberProperty(REVISION, value.revision)
-            writeJson(gen, ctxt, PAYLOAD, value.payloadText) { value.payload }
+            writeJson(gen, ctxt, BODY, value.payloadText) { value.payload }
             gen.writeEndObject()
         }
     }
@@ -91,7 +93,7 @@ internal object StateEventJson {
             return StateEventPayload(
                 required(ctxt, node, NAME, type).asString(),
                 required(ctxt, node, REVISION, type).asInt(),
-                required(ctxt, node, PAYLOAD, type),
+                required(ctxt, node, BODY, type),
             )
         }
     }

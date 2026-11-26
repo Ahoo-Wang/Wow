@@ -45,7 +45,7 @@ import tools.jackson.databind.JsonNode
  *   `{ref, version, commandId, requestId, commandType, commitTime, events, state, scope, deleted, access,
  *   accessVersion, causation, headers, operator, imported}` (`imported` only when true; `access` in its stored form,
  *   [AccessValues], or null when not stamped; `accessVersion` the version it is of, null with it) with each event
- *   `{name, revision, payload}` and the state `{version, schemaFingerprint, state}` or null.
+ *   `{name, revision, body}` and the state `{version, schemaFingerprint, state}` or null.
  */
 @InternalWowApi
 object EnvelopeCodec {

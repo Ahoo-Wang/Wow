@@ -151,7 +151,7 @@ class StateEventJsonTest {
         // A token buffer gets the trees, never the text as an opaque raw value: the payload and the state are objects.
         val asTree = WowJson.mapper.valueToTree<tools.jackson.databind.JsonNode>(raw)
         asTree.assert().isEqualTo(WowJson.mapper.valueToTree<tools.jackson.databind.JsonNode>(trees))
-        asTree.get("events").get(0).get("payload").isObject.assert().isTrue()
+        asTree.get("events").get(0).get("body").isObject.assert().isTrue()
         asTree.get("state").get("state").isObject.assert().isTrue()
         WowJson.mapper.convertValue(raw, Map::class.java)
             .assert().isEqualTo(WowJson.mapper.convertValue(trees, Map::class.java))
@@ -162,13 +162,13 @@ class StateEventJsonTest {
     @Test
     fun `read, an event and a state should be made from trees and refuse what they cannot hold`() {
         val event = WowJson.mapper.readValue(
-            """{"name":"shop.order.Placed","revision":2,"payload":{"amount":2.50},"unknown":1}""",
+            """{"name":"shop.order.Placed","revision":2,"body":{"amount":2.50},"unknown":1}""",
             StateEventPayload::class.java,
         )
         event.payloadText.assert().isNull()
         event.revision.assert().isEqualTo(2)
         WowJson.mapper.writeValueAsString(event)
-            .assert().isEqualTo("""{"name":"shop.order.Placed","revision":2,"payload":{"amount":2.50}}""")
+            .assert().isEqualTo("""{"name":"shop.order.Placed","revision":2,"body":{"amount":2.50}}""")
         val written = """{"version":3,"schemaFingerprint":"f","state":{}}"""
         val state = WowJson.mapper.readValue(written, PublishedState::class.java)
         state.stateText.assert().isNull()
@@ -176,6 +176,13 @@ class StateEventJsonTest {
         assertThrownBy<DatabindException> {
             WowJson.mapper.readValue("""{"name":"shop.order.Placed","revision":1}""", StateEventPayload::class.java)
         }
+        // An event's data named `payload`, as a pre-release publisher wrote it, is no body: refused, naming it.
+        assertThrownBy<DatabindException> {
+            WowJson.mapper.readValue(
+                """{"name":"shop.order.Placed","revision":1,"payload":{"amount":1}}""",
+                StateEventPayload::class.java,
+            )
+        }.message().contains("body")
         assertThrownBy<DatabindException> {
             WowJson.mapper.readValue(
                 """{"version":1,"schemaFingerprint":"f","state":null}""",

@@ -99,7 +99,7 @@ class EnvelopeCodecTest {
             "deleted", "access", "accessVersion", "causation", "headers", "operator",
         )
         payload["operator"].properties().map { it.key }.assert().containsExactly("id", "tenantId", "actedElsewhere")
-        payload["events"][0]["payload"]["amount"].isNumber.assert().isTrue()
+        payload["events"][0]["body"]["amount"].isNumber.assert().isTrue()
         payload["state"]["schemaFingerprint"].stringValue().assert().isEqualTo("f1")
         payload["state"]["state"].isObject.assert().isTrue()
         value["transport"].properties().map { it.key }.assert().containsExactly("wait", "trace")
