@@ -45,6 +45,7 @@ import { recordValue, timeUnitOf, type RecordRow } from './project.js';
 import { summaryAlias } from './summaryAlias.js';
 import { summaryCurrency } from './summaryCurrency.js';
 
+/** One summary's value under a column. */
 export interface SummaryCell {
   field: string;
   label: string;
@@ -80,6 +81,10 @@ export interface SummaryCell {
   cell?: string;
 }
 
+/**
+ * A row of summaries under a record view: over the page, or over the whole
+ * result.
+ */
 export interface SummaryRow {
   /** What it is over: `page`, the visible rows; `total`, its own query. */
   over: 'page' | 'total';

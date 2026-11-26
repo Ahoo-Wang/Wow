@@ -37,6 +37,9 @@ import { metricReach } from './metricWindow.js';
 import { isAdditiveMetric, readsOffSums } from './additive.js';
 import { yearAgoAlias } from './serverLines.js';
 
+/**
+ * What a metric card draws: its value, its change, its target and its trend.
+ */
 export interface MetricCardData {
   type: 'metric';
   /**

@@ -36,7 +36,6 @@ import { describe, expect, it } from 'vitest';
 import {
   builtinFieldKindRegistry,
   compileAnalysis,
-  DEFAULT_MISSING_KEY,
   defaultAnalysisConfig,
   validateAnalysis,
   type AnalysisMetric,
@@ -49,6 +48,7 @@ import {
   analysisKernelConfig as config,
   errorCodes as codes,
 } from './fixtures/analysis.js';
+import { DEFAULT_MISSING_KEY } from '../src/analysis/defaults.js';
 
 const check = (overrides: Partial<AnalysisViewConfig>) =>
   codes(

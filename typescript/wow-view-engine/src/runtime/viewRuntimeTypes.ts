@@ -346,8 +346,10 @@ export type RuntimeFor<C extends ViewConfig> = [C] extends [RecordViewConfig]
       ? DashboardRuntime
       : AnyViewRuntime;
 
+/** Where a view's query stands. */
 export type QueryStatus = 'idle' | 'loading' | 'success' | 'error';
 
+/** Where a view's query stands, and its error when it failed. */
 export interface ViewQueryState {
   status: QueryStatus;
   error?: Issue;
@@ -364,6 +366,7 @@ export interface ViewQueryState {
   conditionsChanged?: true;
 }
 
+/** A view's result: the data, and the config that produced it. */
 export interface ViewResult<C> {
   /** The config that produced this data, scope filter included. */
   config: C;
@@ -392,6 +395,10 @@ export interface ViewResult<C> {
   elapsedMs: number;
 }
 
+/**
+ * A view runtime's state: the saved view, the draft, the applied config and its
+ * result.
+ */
 export interface ViewRuntimeState<C> {
   /** The saved baseline; `null` while the view has never been saved. */
   saved: ViewInstance | null;

@@ -34,7 +34,7 @@ import {
 import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
 import { queryFailureIssue } from '../src/runtime/failure/queryFailure.js';
 import { sourceFailure } from '../src/runtime/failure/sourceReason.js';
-import { formatIssue, QueryStrip, zhCN } from '../src/ui/index.js';
+import { formatIssue, zhCN } from '../src/ui/index.js';
 import { en } from '../src/ui/messages/en.js';
 import {
   dashboardConfig,
@@ -47,6 +47,7 @@ import {
   testSource,
   resourcesOf,
 } from './fixtures.js';
+import { QueryStrip } from '../src/ui/kit/StatusStrip.js';
 
 afterEach(cleanup);
 

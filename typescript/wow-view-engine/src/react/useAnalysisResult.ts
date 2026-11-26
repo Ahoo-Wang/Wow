@@ -70,6 +70,10 @@ export type AnalysisResultInput = Pick<
   | 'windows'
 >;
 
+/**
+ * Options of `useAnalysisResult`: the draft it reads the result through, and
+ * where a follow-up opens.
+ */
 export interface AnalysisResultOptions {
   /** The draft the result is looked at through. */
   analysis: AnalysisResultInput;
@@ -80,6 +84,10 @@ export interface AnalysisResultOptions {
   workbench: FollowUpHost;
 }
 
+/**
+ * What `useAnalysisResult` answers: the result on screen, its chart and the
+ * follow-ups a group offers.
+ */
 export interface AnalysisResultController {
   /** The rows on screen, or null while there are none of an analysis. */
   view: AnalysisProjection | null;

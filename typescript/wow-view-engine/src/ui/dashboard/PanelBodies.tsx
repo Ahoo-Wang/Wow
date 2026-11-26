@@ -26,7 +26,6 @@ import {
   useAnalysisEditor,
   useAnalysisResult,
   useFilterEditor,
-  usePanelFollowUps,
   useRecordKanban,
   useRecordTable,
   useViewRuntime,
@@ -79,6 +78,7 @@ import {
   EmptyTitle,
 } from '../components/empty.js';
 import { Skeleton } from '../components/skeleton.js';
+import { usePanelFollowUps } from '../../react/usePanelFollowUps.js';
 
 /**
  * What a host puts on a board's record panels: its declared actions

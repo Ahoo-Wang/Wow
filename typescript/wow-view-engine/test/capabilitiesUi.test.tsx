@@ -29,7 +29,7 @@ import {
 import { elementFields } from '../src/filter/kinds/elementMatch.js';
 import { emptyFilter } from '../src/filter/tree.js';
 import { maxSortFields } from '../src/record/validate.js';
-import { useFilterEditor, useSearchBox } from '../src/react/index.js';
+import { useFilterEditor } from '../src/react/index.js';
 import { treeController } from '../src/react/filterTree.js';
 import { narrowDefinition } from '../src/capabilities/index.js';
 import {
@@ -43,6 +43,7 @@ import {
   ordersDescriptor,
   read,
 } from './fixtures/descriptor.js';
+import { useSearchBox } from '../src/react/useSearchBox.js';
 
 afterEach(cleanup);
 

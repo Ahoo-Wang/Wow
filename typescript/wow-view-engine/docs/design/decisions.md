@@ -708,6 +708,11 @@
   - **再收回一批没有宿主用的名字**：`/react` 的写入簿记（`settle`、`refused`、`recovered`、`unsettled`、`savesView`、`mayRefuse`、`mayReplace`、`holdsHandle`、`strandedHandle`、`blocksNewIntent`、`UNSENT`、`UNRECOVERED`，只留结局的两个类型）与 `blankView`、`PREFERENCES_KEY`、`treeController`；`/ui` 的 `crossesBoundary`、`leavesEditor`、`NO_PARTS`、`LAYOUT_LABEL`、`panelName(s)`、`tabTitle`、`describeConfig`、`featuresOf`、`downloadFile`；根入口的 `LEGACY_GRID_COLUMNS`、`migrateDashboardConfig`（存储迁移只在 `readStored` 一处跑）、`overlaid`／`sameJson`／`without`、`isFiniteNumber`／`isNonBlankString`／`isNonEmptyString`／`isPlainObject`、`freshId`。`keptKey` 留着：README 教宿主的编辑器用它。包内从各自的文件取。
   - **改两处歧义最大的名字**：投影 `RecordView`／`AnalysisView` → `RecordProjection`／`AnalysisProjection`（`projectRecord`／`projectAnalysis` 的产物，不是组件也不是保存的视图）；`DataWorkbenchProps.kinds` → `viewKinds`（引擎的 `kinds` 是字段类型注册表）。`Spec` 的两种意思（宿主提供的 vs 视图存下的）不改名，README「Concepts」后写明。
   - **每个目录一个名字**：`/ui` 的英文目录只叫 `en`（与 `zhCN` 对称），`defaultMessages` 退出入口，包内仍用它作回退。
+- **Wow 10 RC1 前的收口**（2026-11-26，Wow D486 ⑥，#7022）：冻结后删一个导出是破坏性改动、加一个不是，所以包外没人用、没人写进文档的名字现在就收回，有宿主要时带着文档再放回来。
+  - **另外三条规则**：Storybook 不是宿主，只有故事用的名字收回，故事按源码路径引用；宿主能收到的每个错误类（抛出、拒绝或在 `ViewErrorEvent` 里）连同分辨它的守卫一起留着；留下的名字提供的能力，只用留下的名字就够得着。
+  - **收回**：根入口 29 个、`/react` 24 个、`/ui` 103 个，名单在那次改动的 `## Breaking`。
+  - **按规则留下的**：`ReferenceLabelTimeoutError` 加守卫 `isReferenceLabelTimeoutError`（它经 `onError` 报出，也是查名字的 signal 的中止原因）；`registerChartMap`、`ChartMapGeoJson`、`ChartMapSource`（本包不带地图数据，宿主不注册地图图就画不出来）；参考页写给宿主的 `formatIssue`、`formatMessage`、`serializeCsv` 及其参数类型、`useViewExpansion`、`/testing` 签名里的 `ActionRow`、`ActionRefusal`、`ViewRouteOf`；`renderCell` 回退到 `cellValue` 时要的 `useViewMessages`、`useSurfaceDisplay`、`useSay`；把 `DashboardEditExtensions` 交给看板的 `DashboardEditExtensionsContext`；留下的签名跨入口点名的类型，以及 `ResultToolbar` 的导出与看板两项要的 `useRecordExport`、`useRecordKanban`、`RecordKanban`。
+  - **每个留下的名字都有一句**：没有手写参考页覆盖的，TSDoc 首句就是符号索引里它的那一行。
 
 ## D65 内存数据源是公开入口 `/testing`（2026-09-27）
 

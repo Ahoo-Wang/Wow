@@ -144,6 +144,7 @@ export type {
 } from './source.js';
 export {
   ReferenceLabelTimeoutError,
+  isReferenceLabelTimeoutError,
   type ReferenceId,
   type ReferenceLabel,
   type ReferenceLabelReader,

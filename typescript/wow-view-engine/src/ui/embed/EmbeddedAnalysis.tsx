@@ -19,7 +19,6 @@ import {
   useAnalysisEditor,
   useAnalysisResult,
   useFilterEditor,
-  usePanelFollowUps,
   useViewRuntime,
 } from '../../react/index.js';
 import { AnalysisChart } from '../analysis/AnalysisChart.js';
@@ -37,6 +36,7 @@ import { Skeleton } from '../components/skeleton.js';
 import { QueryStrip } from '../kit/StatusStrip.js';
 import { STALE } from '../kit/stale.js';
 import { cn } from 'cn';
+import { usePanelFollowUps } from '../../react/usePanelFollowUps.js';
 
 const NO_SORT: readonly AnalysisSort[] = [];
 

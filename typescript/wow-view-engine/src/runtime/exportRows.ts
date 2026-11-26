@@ -33,6 +33,10 @@ import type { KernelContext } from './execute.js';
 import { idsOf } from './labelIds.js';
 import type { ReferenceLabels } from './referenceLabels.js';
 
+/**
+ * How `RecordViewRuntime.exportRows` runs: its signal, its progress callback
+ * and its row cap.
+ */
 export interface ExportRowsOptions {
   /** Stops the run; the promise then rejects with an `ExportCancelledError`. */
   signal?: AbortSignal;
@@ -46,6 +50,10 @@ export interface ExportRowsOptions {
   max?: number;
 }
 
+/**
+ * What `RecordViewRuntime.exportRows` answers: the rows read, and the total
+ * when the source says it.
+ */
 export interface ExportedRows {
   rows: RecordData[];
   /** What the source said there are in all, when it says at all. */

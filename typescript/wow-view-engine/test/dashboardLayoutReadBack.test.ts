@@ -21,11 +21,10 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import {
-  type ArrangeStep,
-  type DashboardPanel,
-  type DashboardViewConfig,
-  type PanelLayout,
+import type {
+  DashboardPanel,
+  DashboardViewConfig,
+  PanelLayout,
 } from '../src/index.js';
 import {
   arrangePanel,
@@ -37,6 +36,7 @@ import {
   type PlacedPanel,
 } from '../src/dashboard/layout.js';
 import { dashboardConfig } from './fixtures.js';
+import type { ArrangeStep } from '../src/dashboard/layout.js';
 
 const COLUMNS = 24;
 

@@ -20,11 +20,7 @@ import {
   type ValueCandidateSource,
   type ValueCandidates,
 } from '../src/index.js';
-import {
-  useFilterEditor,
-  useOpenView,
-  useValueCandidates,
-} from '../src/react/index.js';
+import { useFilterEditor, useOpenView } from '../src/react/index.js';
 import {
   dashboardConfig,
   ordersDefinition,
@@ -35,6 +31,7 @@ import {
 } from './fixtures.js';
 import { mine, settle } from './fixtures/ui.js';
 import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
+import { useValueCandidates } from '../src/react/useValueCandidates.js';
 
 afterEach(cleanup);
 

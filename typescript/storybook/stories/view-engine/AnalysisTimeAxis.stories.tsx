@@ -12,13 +12,12 @@
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { CSSProperties } from 'react';
-import {
-  fitChartSlots,
-  type AnalysisViewConfig,
-  type ChartType,
-  type DataViewDefinition,
-  type FilterLeaf,
-  type ViewInstance,
+import type {
+  AnalysisViewConfig,
+  ChartType,
+  DataViewDefinition,
+  FilterLeaf,
+  ViewInstance,
 } from '@ahoo-wang/wow-view-engine';
 import { DataWorkbench } from '@ahoo-wang/wow-view-engine/ui';
 import { HOST_LANGUAGE } from './fixtures.js';
@@ -36,6 +35,7 @@ import {
   FilterOperator,
   SortDirection,
 } from '@ahoo-wang/wow-client/dsl';
+import { fitChartSlots } from '../../../wow-view-engine/src/analysis/chartSlots.js';
 
 /**
  * 零售的交易订单，分析上限放到一万组：订单定义自己的上限是 1000（25 个月

@@ -46,6 +46,10 @@ export type {
   ViewManagerAbilities,
 } from './manager/abilities.js';
 
+/**
+ * What `useViewManager` answers: the commands that rename, move, share, publish
+ * and delete saved views.
+ */
 export interface ViewManagerController {
   rename(id: string, title: string): Promise<boolean>;
   /**

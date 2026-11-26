@@ -82,6 +82,10 @@ export interface PanelReference extends PanelDefinition {
  */
 export type PanelReferences = ReadonlyMap<string, PanelReference | null>;
 
+/**
+ * Options of `validateDashboard`: the limits, and the definitions its panels
+ * name.
+ */
 export interface ValidateDashboardOptions {
   limits?: Partial<RuntimeLimits>;
   /**

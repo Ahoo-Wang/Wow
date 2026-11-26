@@ -33,6 +33,7 @@ import {
  */
 export type FieldKindId = BuiltinFieldKindId | (string & {});
 
+/** The id of a field kind the engine ships. */
 export type BuiltinFieldKindId =
   | 'string'
   | 'number'

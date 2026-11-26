@@ -1,6 +1,6 @@
 ---
 title: 接入宿主
-description: 把视图引擎放进 React 应用：基于 V10 查询路由的一个引擎、ViewHost 及其端口、bind、路由、导航、嵌入、措辞与语言，并在没有浏览器的情况下测试接线。
+description: 把视图引擎放进 React 应用：基于 V10 查询路由的一个引擎、ViewHost 及其端口、bind、路由、导航、嵌入、地图、措辞与语言，并在没有浏览器的情况下测试接线。
 ---
 
 # 接入宿主
@@ -298,6 +298,34 @@ export function CustomerPage({ id, name }: { id: string; name: string }) {
 - **嵌入的每一种离开方式**都经过它的 `onNavigate`，否则经过 `ViewHost` 的 `router` 或 `navigate`；三者都没有，这些方式就不存在。
 
 **锁定不是安全边界。** 锁定的条件是在浏览器里拼出来并随查询发送的；任何人都可以改脚本或直接调用 API。租户、归属和权限由 Wow 服务强制执行，见[读模型](../../concepts/read-models#who-sees-what)。
+
+## 地图图表的地图 {#maps}
+
+本包不带任何地图数据。地图画哪些边界、能不能发布，由发布地的法规决定：比如在中国发布中国地图须有审图号。所以地理数据由宿主选择、由宿主负责。宿主注册地图之前，图型网格里地图置灰，并写明这里没有可用的地图。
+
+每张地图在应用启动时用 `/ui` 的 `registerChartMap` 注册一次：
+
+```ts
+import {
+  registerChartMap,
+  type ChartMapGeoJson,
+} from '@ahoo-wang/wow-view-engine/ui';
+
+export const takeBackRegions = registerChartMap({
+  name: 'regions',
+  label: '销售大区',
+  load: async () => {
+    const response = await fetch('/maps/regions.geo.json');
+    return (await response.json()) as ChartMapGeoJson;
+  },
+});
+```
+
+- **`name`** 是图表配置引用这张地图的名字（`MapSpec.map`）；没写名字的图表用第一张注册的地图。**`label`** 是注册了多张时选项页显示的名字。
+- **`load()`** 返回 GeoJSON 的 `FeatureCollection`（`ChartMapGeoJson`）。它在第一次画这张地图时才调用，不随页面加载，结果留着；失败了下次再要。
+- **地区按名字对上**：每个要素的 `properties.name` 对地区维度的值按其列显示的文字（枚举就是标签）。地图上没有的地区，图表数出来并说明，不猜。
+- **注册表属于页面，不属于哪个引擎。** 同一页上共用同一份包的两个宿主共用它：同名的两张地图后注册的生效，`registerChartMap` 返回的函数只撤它自己那一次注册。要不同地理数据的宿主用不同的名字。
+- 服务端渲染读不到地图；地图在水合后的第一次渲染到来。
 
 ## 措辞与语言 {#messages}
 

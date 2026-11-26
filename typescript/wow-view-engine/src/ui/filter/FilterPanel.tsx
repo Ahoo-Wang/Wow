@@ -27,6 +27,7 @@ import {
 } from './conditionFocus.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
 
+/** Props of `FilterPanel`. */
 export interface FilterPanelProps {
   filter: FilterEditorController;
   /** Candidates for a `remote` value editor, by the key its kind declared. */

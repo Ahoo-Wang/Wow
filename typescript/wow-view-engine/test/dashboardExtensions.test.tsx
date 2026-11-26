@@ -42,11 +42,7 @@ import {
 import { isOwnedPanel } from '../src/dashboard/panels.js';
 import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
 import { useDashboard } from '../src/react/index.js';
-import {
-  DashboardTabs,
-  DashboardWorkbench,
-  EmbeddedDashboard,
-} from '../src/ui/index.js';
+import { DashboardWorkbench, EmbeddedDashboard } from '../src/ui/index.js';
 import {
   analysisConfig,
   dashboardConfig,
@@ -56,6 +52,7 @@ import {
   resourcesOf,
 } from './fixtures.js';
 import { pending } from './fixtures/dashboard.js';
+import { DashboardTabs } from '../src/ui/dashboard/DashboardTabs.js';
 
 afterEach(cleanup);
 

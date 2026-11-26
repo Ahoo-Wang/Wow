@@ -21,6 +21,7 @@ export interface MapRegion {
   value: number;
 }
 
+/** What a map chart draws: a value per region. */
 export interface MapData {
   type: 'map';
   /** The measured regions, largest first — the order the reading lists them. */

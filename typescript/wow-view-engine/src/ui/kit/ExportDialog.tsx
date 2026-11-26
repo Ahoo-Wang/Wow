@@ -79,6 +79,9 @@ export interface ExportOffer {
   holds?: { rows: string; done: string };
 }
 
+/**
+ * Props of the export window: the offer, and the columns the file will hold.
+ */
 export interface ExportWindowProps extends ExportOffer {
   /**
    * The columns the file will hold, in the order the table draws them —

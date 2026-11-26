@@ -27,6 +27,7 @@ export interface TreemapTile {
   tiles?: TreemapTile[];
 }
 
+/** What a treemap draws: its tiles and their sizes. */
 export interface TreemapData {
   type: 'treemap';
   /** The outer level, largest first; each holds its tiles, largest first. */

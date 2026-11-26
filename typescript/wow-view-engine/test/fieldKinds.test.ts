@@ -23,7 +23,6 @@ import {
 } from '../src/model/index.js';
 import {
   compileFilter,
-  isDateTimeFilterValue,
   validateFilter,
   builtinFieldKindRegistry,
   type FieldDefinition,
@@ -58,6 +57,7 @@ import { operatorsOf, readValue } from '../src/filter/fieldKind.js';
 import { referenceFieldKind } from '../src/filter/kinds/reference.js';
 import { stringFieldKind } from '../src/filter/kinds/string.js';
 import { isPlainObject } from '../src/filter/values.js';
+import { isDateTimeFilterValue } from '../src/filter/values.js';
 
 const now = new Date('2026-09-16T10:30:00.000Z');
 const timeZone = 'UTC';

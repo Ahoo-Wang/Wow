@@ -28,7 +28,6 @@ import type { FilterOperatorName } from '../src/model/index.js';
 import {
   builtinFieldKindRegistry,
   compileFilter,
-  resolveDateTimeRange,
   validateFilter,
   type FieldDefinition,
 } from '../src/index.js';
@@ -45,6 +44,7 @@ import {
   filterContext as context,
   filterFields as fields,
 } from './fixtures/filter.js';
+import { resolveDateTimeRange } from '../src/filter/time.js';
 
 describe('relative and preset dates', () => {
   const now = new Date('2026-09-16T10:30:00.000Z');

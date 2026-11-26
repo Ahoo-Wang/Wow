@@ -23,7 +23,6 @@ import type {
 } from '../runtime/index.js';
 import { blocksBoard } from '../runtime/dashboard/panels.js';
 import {
-  useAutoRefresh,
   useDashboard,
   useFilterEditor,
   type DashboardController,
@@ -64,6 +63,7 @@ import { useRoutedNavigate } from './workbench/ViewEngineProvider.js';
 import { boardKey, useAddressedBoard } from './workbench/address.js';
 import { ErrorStrip, WarningStrip } from './kit/StatusStrip.js';
 import { boardErrorTitle } from './workbench/panelsToFix.js';
+import { useAutoRefresh } from '../react/useAutoRefresh.js';
 
 export type {
   DashboardFilterModes,

@@ -38,6 +38,7 @@ const RUN = 'all';
  */
 export type RecordExportExtent = 'selected' | 'all';
 
+/** The extents an export can cover, with their row counts. */
 export interface RecordExportExtents {
   /**
    * Rows picked, and **absent** while nothing is picked: the dialog offers
@@ -53,6 +54,10 @@ export interface RecordExportExtents {
   all: number | null;
 }
 
+/**
+ * How far an export has come: its extent, the rows read, and the total when
+ * known.
+ */
 export interface RecordExportProgress {
   scope: RecordExportExtent;
   /** Rows in hand so far. */
@@ -72,6 +77,10 @@ export interface RecordExportOutcome {
   total?: number;
 }
 
+/**
+ * What `useRecordExport` answers: the extents a view can export, the run and
+ * its outcome.
+ */
 export interface RecordExportController {
   scopes: RecordExportExtents;
   /** The scope being exported, or `null` while nothing runs. */
@@ -106,6 +115,10 @@ export type RecordExportTable = Pick<
   'paging' | 'selection' | 'selectedRows'
 >;
 
+/**
+ * Options of `useRecordExport`: the table whose rows are exported, and how the
+ * file is delivered.
+ */
 export interface RecordExportOptions {
   /** The table whose rows are exported. */
   table: RecordExportTable;

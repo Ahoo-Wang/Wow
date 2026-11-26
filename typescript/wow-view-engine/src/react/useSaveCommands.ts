@@ -45,6 +45,7 @@ import {
 
 export type { RecoveredWrite } from './writes.js';
 
+/** Which save commands the reader may use on the open view. */
 export interface SaveAbilities {
   save: boolean;
   /** True when a copy may be made in at least one scope. */
@@ -79,6 +80,10 @@ export interface SaveAbilities {
   local?: boolean;
 }
 
+/**
+ * Where the save commands stand: whether a write is in flight, its error, and
+ * whether the draft is dirty.
+ */
 export interface SaveCommandState {
   /** A write is in flight; a UI disables its buttons on this alone. */
   pending: boolean;
@@ -151,6 +156,9 @@ export interface DashboardChoice {
   definitionTitle: string;
 }
 
+/**
+ * The commands `useSaveCommands` offers: save, save as, rename and the rest.
+ */
 export interface SaveCommands {
   save(): Promise<ViewInstance | null>;
   saveAs(input: SaveAsInput): Promise<ViewInstance | null>;

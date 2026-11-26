@@ -170,6 +170,7 @@ export type ViewErrorEvent<K extends ViewErrorKind = ViewErrorKind> = {
   };
 }[K];
 
+/** Whether the page is visible, and a way to hear when that changes. */
 export interface VisibilitySource {
   isVisible(): boolean;
   subscribe(listener: () => void): () => void;

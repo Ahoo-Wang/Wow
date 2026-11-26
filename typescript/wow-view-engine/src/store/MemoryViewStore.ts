@@ -85,6 +85,10 @@ export interface MemorySnapshot {
   subscribe?(listener: () => void): () => void;
 }
 
+/**
+ * What a `MemoryViewStore` holds and a snapshot saves: the instances and each
+ * definition's preferences.
+ */
 export interface MemoryState {
   instances: ViewInstance[];
   preferences: Record<string, ViewPreferences>;

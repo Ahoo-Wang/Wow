@@ -54,6 +54,7 @@ export interface LeaveGuard {
   saving?: boolean;
 }
 
+/** Options of `useLeaveGuard`. */
 export interface LeaveGuardOptions {
   /**
    * Called on confirm, before the switch. Leaving disposes the runtime, and

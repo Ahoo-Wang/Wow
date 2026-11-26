@@ -42,11 +42,13 @@ export interface RecordActionSlots {
   row?(context: RecordRowActionContext): ReactNode;
 }
 
+/** What a global action receives: the runtime, and a way to refresh it. */
 export interface RecordGlobalActionContext {
   runtime: RecordViewRuntime;
   refresh(): void;
 }
 
+/** What a bulk action receives: the selected rows and the runtime. */
 export interface RecordBulkActionContext {
   /** The selected rows in result order, so a confirmation can name them. */
   rows: RecordRow[];
@@ -67,6 +69,7 @@ export interface RecordBulkActionContext {
   busy: boolean;
 }
 
+/** What a row action receives: the row and the runtime. */
 export interface RecordRowActionContext {
   row: RecordRow;
   runtime: RecordViewRuntime;
@@ -113,8 +116,16 @@ export interface RecordDetailSection {
   render(): ReactNode;
 }
 
+/**
+ * Where a host's section goes in the record detail: first, last, or after
+ * another section.
+ */
 export type RecordDetailPlacement = 'start' | 'end' | { after: string };
 
+/**
+ * What a host's record detail section receives: the record open in the detail
+ * and its runtime.
+ */
 export interface RecordDetailSectionContext {
   /**
    * The record open in the detail: the page's row until the whole record

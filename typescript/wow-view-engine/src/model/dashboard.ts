@@ -162,6 +162,9 @@ export interface DashboardFilters {
   from?: Record<string, string>;
 }
 
+/**
+ * What every panel of a board has: its id, title, place on the grid and tab.
+ */
 export interface DashboardPanelBase {
   id: string;
   title?: string;
@@ -437,14 +440,20 @@ export type DashboardContentPanel = DashboardPanelBase &
 
 export type ContentPanelKind = DashboardContentPanel['kind'];
 
+/**
+ * One link of a links panel: its label, its address and an optional
+ * description.
+ */
 export interface DashboardLink {
   label: string;
   href: string;
   description?: string;
 }
 
+/** A panel of a board: one that shows a view, or a content panel. */
 export type DashboardPanel = DashboardViewPanel | DashboardContentPanel;
 
+/** A board's config: its panels, tabs, filters and layout. */
 export interface DashboardViewConfig extends ViewConfigBase {
   kind: 'dashboard';
   /**

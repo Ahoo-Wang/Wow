@@ -47,7 +47,7 @@ import { recordSource } from '../src/runtime/source.js';
 import type { FieldDefinition, FieldKind, FilterValue } from '../src/index.js';
 import { useFilterEditor } from '../src/react/index.js';
 import type { FilterEditorController } from '../src/react/index.js';
-import { FilterPanel, FilterValueEditor } from '../src/ui/index.js';
+import { FilterPanel } from '../src/ui/index.js';
 import {
   dashboardConfig,
   overviewDefinition,
@@ -59,6 +59,7 @@ import {
   resourcesOf,
 } from './fixtures.js';
 import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
+import { FilterValueEditor } from '../src/ui/filter/FilterValueEditor.js';
 
 afterEach(cleanup);
 

@@ -28,7 +28,6 @@ import {
 } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
-  DEFAULT_MISSING_KEY,
   MemoryViewStore,
   ViewEngine,
   type AnalysisViewConfig,
@@ -45,6 +44,7 @@ import {
   resourcesOf,
 } from './fixtures.js';
 import { openTray } from './fixtures/workbench.js';
+import { DEFAULT_MISSING_KEY } from '../src/analysis/defaults.js';
 
 afterEach(cleanup);
 

@@ -23,7 +23,7 @@ import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { EditorDescriptor, FilterValue } from '../src/index.js';
-import { FilterValueEditor, ViewSurface, zhCN } from '../src/ui/index.js';
+import { ViewSurface, zhCN } from '../src/ui/index.js';
 import {
   clampSegment,
   hourIsComplete,
@@ -31,6 +31,7 @@ import {
   writeTime,
 } from '../src/ui/filter/inputs/timeOfDay.js';
 import { pinClock } from './fixtures/clock.js';
+import { FilterValueEditor } from '../src/ui/filter/FilterValueEditor.js';
 
 afterEach(cleanup);
 

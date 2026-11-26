@@ -20,7 +20,6 @@ import type { FieldDefinition } from '../src/index.js';
 import {
   ViewSurface,
   cellValue,
-  tableTime,
   useSurfaceDisplay,
   useViewMessages,
   zhCN,
@@ -28,6 +27,7 @@ import {
   type CellSurface,
 } from '../src/ui/index.js';
 import { ordersDefinition, recordConfig } from './fixtures.js';
+import { tableTime } from '../src/ui/kit/displayTime.js';
 
 afterEach(cleanup);
 

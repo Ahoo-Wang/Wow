@@ -67,6 +67,10 @@ interface Asked {
   result: ViewResult<RecordViewConfig> | null;
 }
 
+/**
+ * The kanban's lanes over a record view's result, and a way to ask a lane for
+ * more.
+ */
 export function useRecordKanban(
   runtime: RecordViewRuntime | null,
 ): RecordKanbanController {

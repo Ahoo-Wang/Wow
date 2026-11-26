@@ -81,6 +81,7 @@ export interface DashboardPanelView {
   click: PanelClick | null;
 }
 
+/** What `useDashboard` answers: a board's panels, layout, filters and edits. */
 export interface DashboardController {
   panels: DashboardPanelView[];
   /** Columns a layout is placed in; the kernel admits against the same number. */

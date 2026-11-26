@@ -50,6 +50,7 @@ export type RecordPaginationTable = Pick<
   | 'goTo'
 >;
 
+/** Props of `RecordPagination`. */
 export interface RecordPaginationProps {
   table: RecordPaginationTable;
   /**

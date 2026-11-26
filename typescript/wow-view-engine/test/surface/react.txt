@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine/react — 127 names, from src/react/index.ts.
+# @ahoo-wang/wow-view-engine/react — 103 names, from src/react/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 type  ActionFailureContext
@@ -29,9 +29,7 @@ type  FollowUp
 type  FollowUpAction
 type  FollowUpGroup
 type  FollowUpHost
-type  HandedRemovalOptions
 type  HeldView
-type  InstanceSyncOptions
 type  LeaveGuard
 type  LeaveGuardOptions
 type  LeaveGuardState
@@ -41,7 +39,6 @@ type  MetricRemoval
 type  NewViewOptions
 type  OpenViewOptions
 type  OpenViewState
-type  PanelFollowUpsOptions
 type  PendingAction
 type  QuestionEditing
 type  RecordActionSlots
@@ -50,7 +47,6 @@ type  RecordActionsController
 type  RecordActionsOptions
 type  RecordBulkActionContext
 type  RecordDetailControl
-type  RecordDetailController
 type  RecordDetailPlacement
 type  RecordDetailSection
 type  RecordDetailSectionContext
@@ -67,24 +63,17 @@ type  RecordRowActionContext
 type  RecordTableController
 type  RecoveredWrite
 type  RefreshController
-type  ReleaseDeletedOptions
-type  Reshape
-type  ReshapeProposal
 type  RowActionView
 type  SaveAbilities
 type  SaveCommandState
 type  SaveCommands
-type  SearchBoxController
 type  SettledWrite
 type  SnapshotOf
 type  SplitOption
 type  ToggleSelectionOptions
 type  ToggleSortOptions
-type  UnavailableController
 type  UseDatasetsOptions
 type  UseViewListOptions
-type  ValueCandidatesController
-type  ValueCandidatesOptions
 type  ViewListPreferences
 type  ViewListReloadOptions
 type  ViewListState
@@ -99,31 +88,18 @@ value browserRuntimeEnvironment
 value documentVisibility
 value useAnalysisEditor
 value useAnalysisResult
-value useAutoRefresh
 value useCreateViewEngine
 value useDashboard
 value useDatasets
 value useEngine
 value useFilterEditor
-value useHandOver
-value useHandedConditions
-value useHandedRemoval
-value useInstanceSync
 value useLeaveGuard
 value useOpenView
-value usePanelFollowUps
 value useRecordActions
-value useRecordDetail
 value useRecordExport
 value useRecordKanban
 value useRecordTable
-value useReferenceLabels
-value useRefreshCountdown
-value useReleaseDeleted
 value useSaveCommands
-value useSearchBox
-value useUnavailable
-value useValueCandidates
 value useViewList
 value useViewManager
 value useViewRuntime

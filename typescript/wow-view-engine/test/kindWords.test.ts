@@ -25,13 +25,12 @@ import { VIEW_STORE_ERROR_CODES, type Issue } from '../src/index.js';
 import {
   formatIssue,
   formatMessage,
-  kindIssue,
-  kindWord,
   zhCN,
   type MessageKey,
   type ViewMessages,
 } from '../src/ui/index.js';
 import { en } from '../src/ui/messages/en.js';
+import { kindIssue, kindWord } from '../src/ui/kit/kinds.js';
 
 const CATALOGUES: readonly [string, ViewMessages, RegExp, RegExp][] = [
   ['en', en, /\bviews?\b/i, /dashboard/i],

@@ -30,8 +30,6 @@
 
 import {
   builtinFieldKindRegistry,
-  CHART_TYPES,
-  DEFAULT_MISSING_KEY,
   compileAnalysis,
   compileFilter,
   type AnalysisViewConfig,
@@ -58,6 +56,8 @@ import {
 } from './source.js';
 import { ANALYSIS_VIEWS, ORDER_SYSTEM_VIEWS, RETAIL_ORDERS } from './views.js';
 import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
+import { CHART_TYPES } from '../../../../wow-view-engine/src/model/chart.js';
+import { DEFAULT_MISSING_KEY } from '../../../../wow-view-engine/src/analysis/defaults.js';
 
 const DAY_MS = 86_400_000;
 

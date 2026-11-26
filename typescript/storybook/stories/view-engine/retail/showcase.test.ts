@@ -13,7 +13,6 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  CHART_TYPES,
   builtinFieldKindRegistry,
   compileAnalysis,
   type AnalysisViewConfig,
@@ -35,6 +34,7 @@ import {
   showcasePanels,
 } from './showcase.js';
 import { RETAIL_ZONE, retailSource, type RetailSourceKey } from './source.js';
+import { CHART_TYPES } from '../../../../wow-view-engine/src/model/chart.js';
 
 /** What a panel's analysis answers, run as the board runs it. */
 async function answer(id: string): Promise<RecordData[]> {

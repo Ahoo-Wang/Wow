@@ -95,6 +95,7 @@ import { MixedCheckbox } from '../kit/MixedCheckbox.js';
 const SELECT_BOX = 'fve:flex fve:w-7 fve:items-center';
 const SELECT_CELL = 'fve:[&:has([role=checkbox])]:pr-2';
 
+/** Props of `RecordTable`. */
 export interface RecordTableProps {
   table: RecordTableController;
   /**
@@ -198,6 +199,7 @@ export interface RecordTableProps {
   name?: string;
 }
 
+/** One cell a host's `renderCell` draws: its column, row, key and value. */
 export interface RecordCell {
   column: RecordColumnView;
   row: RecordData;

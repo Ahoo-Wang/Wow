@@ -82,6 +82,7 @@ export type { PlacedLine, SeriesExtremes } from './references.js';
 export type { FunnelData, FunnelStage } from './funnel.js';
 export { groupKeyText } from './chartRows.js';
 
+/** One slice of a pie: its category and value. */
 export interface PieSlice {
   category: unknown;
   value: number;
@@ -89,11 +90,13 @@ export interface PieSlice {
   other?: boolean;
 }
 
+/** What a pie chart draws: its slices. */
 export interface PieData {
   type: 'pie';
   slices: PieSlice[];
 }
 
+/** What a heatmap draws: a value per cell of two groups. */
 export interface HeatmapData {
   type: 'heatmap';
   xs: unknown[];
@@ -108,6 +111,7 @@ export interface HeatmapData {
   xAlong?: true;
 }
 
+/** What a scatter chart draws: one point per value of a group. */
 export interface ScatterData {
   type: 'scatter';
   points: { category: unknown; x: number; y: number; size?: number }[];

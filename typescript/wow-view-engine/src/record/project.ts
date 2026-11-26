@@ -165,6 +165,7 @@ function elementTitleView(
   };
 }
 
+/** One record on screen: its key and its values. */
 export interface RecordRow {
   /** Value of the definition's row key. */
   key: RecordKey;
@@ -259,6 +260,10 @@ export interface RecordLaneView {
   summaries: SummaryRow | null;
 }
 
+/**
+ * A page of records shaped for the screen: its columns, rows and paging, and
+ * the card and lanes when it is drawn so.
+ */
 export interface RecordProjection {
   columns: RecordColumnView[];
   /** The same result's card layout; both halves are saved side by side. */

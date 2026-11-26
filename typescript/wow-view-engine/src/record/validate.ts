@@ -39,6 +39,7 @@ import {
 } from '../filter/index.js';
 import { kanbanShapeIssues, validateKanban } from './kanban.js';
 
+/** Options of `validateRecord`: the limits to hold the config to. */
 export interface ValidateRecordOptions {
   limits?: Partial<RuntimeLimits>;
 }

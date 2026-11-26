@@ -53,6 +53,10 @@ import type {
 import type { PanelResolver } from './references.js';
 import type { ValueCandidateSources } from '../valueCandidates.js';
 
+/**
+ * A board's runtime state: the saved and draft config, and each panel's own
+ * state.
+ */
 export interface DashboardRuntimeState extends ViewRuntimeState<DashboardViewConfig> {
   /**
    * The applied panels. Loading, errors and data are each panel's own: a

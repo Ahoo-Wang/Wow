@@ -12,14 +12,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import {
-  CHART_TYPES,
-  fitChartSlots,
-  type AnalysisGroup,
-  type AnalysisMetric,
-  type AnalysisViewConfig,
-  type ChartSpec,
-  type ChartType,
+import type {
+  AnalysisGroup,
+  AnalysisMetric,
+  AnalysisViewConfig,
+  ChartSpec,
+  ChartType,
 } from '../src/index.js';
 import { comboMark } from '../src/analysis/familySlots.js';
 import { leadMetric, switchChartType } from '../src/analysis/chartSwitch.js';
@@ -32,6 +30,8 @@ import {
   AggregationGroupType,
   AggregationMetricType,
 } from '@ahoo-wang/wow-client/dsl';
+import { CHART_TYPES } from '../src/model/chart.js';
+import { fitChartSlots } from '../src/analysis/chartSlots.js';
 
 const WAREHOUSE: AnalysisGroup = {
   type: AggregationGroupType.TERMS,

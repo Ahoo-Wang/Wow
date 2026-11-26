@@ -79,6 +79,10 @@ import { useViewRuntime } from './useViewRuntime.js';
 
 const NO_WINDOWS: readonly WindowFunctionName[] = [];
 
+/**
+ * What `useAnalysisEditor` answers: the analysis draft's groups, metrics and
+ * chart, and the edits on them.
+ */
 export interface AnalysisEditorController extends QuestionEditing {
   /**
    * What the latest edit took out beyond what it was asked to, while the

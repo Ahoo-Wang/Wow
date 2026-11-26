@@ -47,6 +47,7 @@ import type { FieldOption, FieldTone } from '../../model/index.js';
 import { CARD_LIFT } from '../kit/frames.js';
 import { Card, CardContent, CardHeader } from '../components/card.js';
 
+/** Props of `RecordKanban`. */
 export interface RecordKanbanProps {
   /** The cards, rows and status: the same controller the cards draw from. */
   table: RecordTableController;

@@ -40,6 +40,7 @@ import {
   walkFilterShape,
 } from './tree.js';
 
+/** Options of `validateFilter`: the limits to hold the filter to. */
 export interface ValidateFilterOptions {
   limits?: Partial<RuntimeLimits>;
   /**

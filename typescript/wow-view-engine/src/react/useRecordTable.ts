@@ -80,6 +80,10 @@ export interface ToggleSortOptions {
   exclusive?: boolean;
 }
 
+/**
+ * What `useRecordTable` answers: the columns, rows, paging, selection and sort
+ * of the record view on screen.
+ */
 export interface RecordTableController {
   /** Columns of the result on screen, which follow the executed config. */
   columns: RecordColumnView[];

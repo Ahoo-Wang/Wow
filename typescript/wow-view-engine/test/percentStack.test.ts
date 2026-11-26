@@ -12,14 +12,13 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import {
-  fitChartSlots,
-  type AnalysisGroup,
-  type AnalysisMetric,
-  type AnalysisViewConfig,
-  type CartesianData,
-  type CartesianSpec,
-  type ChartSpec,
+import type {
+  AnalysisGroup,
+  AnalysisMetric,
+  AnalysisViewConfig,
+  CartesianData,
+  CartesianSpec,
+  ChartSpec,
 } from '../src/index.js';
 import {
   isPercentStacked,
@@ -43,6 +42,7 @@ import {
   AggregationMetricType,
   AggregationGroupType,
 } from '@ahoo-wang/wow-client/dsl';
+import { fitChartSlots } from '../src/analysis/chartSlots.js';
 
 /**
  * 「百分比堆叠」 (audit P1-10): a composition over several groups that a pie

@@ -26,7 +26,8 @@ import type {
   ValueCandidateSource,
   ValueCandidates,
 } from '../src/index.js';
-import { FilterValueEditor, ViewSurface, zhCN } from '../src/ui/index.js';
+import { ViewSurface, zhCN } from '../src/ui/index.js';
+import { FilterValueEditor } from '../src/ui/filter/FilterValueEditor.js';
 
 afterEach(cleanup);
 

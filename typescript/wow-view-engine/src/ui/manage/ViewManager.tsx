@@ -46,6 +46,7 @@ import { TEXT_UI } from '../kit/layout.js';
 import { cn } from 'cn';
 import { useKindWord } from '../kit/kinds.js';
 
+/** Props of `ViewManager`. */
 export interface ViewManagerProps {
   manager: ViewManagerController;
   list: ViewListState;

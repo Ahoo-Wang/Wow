@@ -42,6 +42,7 @@ import {
   type SelectionContext,
 } from '../record/SelectionBar.js';
 
+/** Props of `ResultToolbar`. */
 export interface ResultToolbarProps {
   table: RecordTableController;
   /**

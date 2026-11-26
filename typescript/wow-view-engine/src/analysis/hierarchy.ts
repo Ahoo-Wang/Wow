@@ -35,6 +35,7 @@ export interface HierarchyNode {
   children?: HierarchyNode[];
 }
 
+/** What a sunburst or tree chart draws: the nested groups and their values. */
 export interface HierarchyData {
   type: 'sunburst' | 'tree';
   /** The outermost level's parts, each holding the next. */
@@ -139,6 +140,7 @@ export interface SankeyLink {
   value: number;
 }
 
+/** What a sankey chart draws: its nodes and the links between them. */
 export interface SankeyData {
   type: 'sankey';
   /** Level by level, each level largest first (a date level earliest first). */

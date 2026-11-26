@@ -61,11 +61,13 @@ export function isFilterGroupOperator(
   return FILTER_GROUP_OPERATORS.includes(value as FilterGroupOperator);
 }
 
+/** A group of filter nodes joined by one operator. */
 export interface FilterGroup {
   op: FilterGroupOperator;
   children: FilterNode[];
 }
 
+/** One filter condition: a field, an operator and a value. */
 export interface FilterLeaf {
   /** Field name as declared by the definition, or a dashboard global field. */
   field: string;
@@ -73,6 +75,7 @@ export interface FilterLeaf {
   value: FilterValue;
 }
 
+/** A node of a filter tree: a group or a leaf. */
 export type FilterNode = FilterGroup | FilterLeaf;
 
 /**

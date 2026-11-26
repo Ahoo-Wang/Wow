@@ -13,7 +13,6 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  fitChartSlots,
   projectAnalysis,
   type AnalysisGroup,
   type AnalysisMetric,
@@ -43,6 +42,7 @@ import {
   AggregationMetricType,
   FilterOperator,
 } from '@ahoo-wang/wow-client/dsl';
+import { fitChartSlots } from '../src/analysis/chartSlots.js';
 
 /**
  * What a cartesian chart draws over its marks (D33 batch B), all computed

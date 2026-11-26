@@ -22,7 +22,10 @@ import {
   FilterOperator,
   AggregationMetricType,
 } from '@ahoo-wang/wow-client/dsl';
-import { CHART_TYPES } from '../src/index.js';
+import { CHART_TYPES } from '../src/model/chart.js';
+import { FilterValueEditor } from '../src/ui/filter/FilterValueEditor.js';
+import { formatIssues } from '../src/ui/kit/messages.js';
+import { ViewList } from '../src/ui/workbench/ViewList.js';
 import {
   DATE_TIME_PRESETS,
   RELATIVE_DATE_UNITS,
@@ -35,14 +38,11 @@ import type {
   ViewListState,
 } from '../src/react/index.js';
 import {
-  FilterValueEditor,
   formatIssue,
-  formatIssues,
   formatMessage,
   MessagesProvider,
   ResultToolbar,
   useViewMessages,
-  ViewList,
   ViewSurface,
   zhCN,
 } from '../src/ui/index.js';

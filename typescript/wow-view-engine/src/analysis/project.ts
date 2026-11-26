@@ -57,6 +57,10 @@ import {
   type ColumnCurrency,
 } from './columns.js';
 
+/**
+ * An analysis result shaped for the screen: its columns, rows and totals, and
+ * the chart data when the view is a chart.
+ */
 export interface AnalysisProjection {
   /**
    * The table's columns: every alias the result holds, those `table.columns`
