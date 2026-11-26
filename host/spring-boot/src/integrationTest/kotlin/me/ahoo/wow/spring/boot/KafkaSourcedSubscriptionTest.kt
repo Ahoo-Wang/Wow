@@ -206,6 +206,35 @@ class KafkaSourcedSubscriptionTest {
         }
 
     @Test
+    fun `a version the topic did not deliver should park its aggregate, a late record handled in order at its retry`():
+        Unit = runBlocking {
+        val topic = newTopic(PARTITIONS)
+        val node = start("node-1", topic)
+        val gap = ORDER.ref("t", "o-gap")
+        publish(topic, record(gap, 1), record(gap, 3))
+        eventually { ledger.parked(BOARD_ID, gap) != null }
+        ledger.parked(BOARD_ID, gap)!!.fromVersion.assert().isEqualTo(2)
+        versionsOf(gap).assert().containsExactly(1)
+        // The late record lands after the one that showed the gap: the retry re-scans the partition in version order.
+        publish(topic, record(gap, 2), record(gap, 4))
+        node.retry(BOARD, gap).assert().isTrue()
+        versionsOf(gap).assert().containsExactly(1, 2, 3, 4)
+        ledger.parked(BOARD_ID, gap).assert().isNull()
+    }
+
+    @Test
+    fun `an operator's retry should go on past a version the topic never delivered`(): Unit = runBlocking {
+        val topic = newTopic(PARTITIONS)
+        val node = start("node-1", topic)
+        val gap = ORDER.ref("t", "o-gone")
+        publish(topic, record(gap, 1), record(gap, 3), record(gap, 4))
+        eventually { ledger.parked(BOARD_ID, gap) != null }
+        node.retry(BOARD, gap).assert().isTrue()
+        versionsOf(gap).assert().containsExactly(1, 3, 4)
+        ledger.parked(BOARD_ID, gap).assert().isNull()
+    }
+
+    @Test
     fun `partitions added to the topic while it is read should be read too (decision D168)`(): Unit = runBlocking {
         val topic = newTopic(2)
         val node = start("node-1", topic, partitionRefreshInterval = 200.milliseconds)

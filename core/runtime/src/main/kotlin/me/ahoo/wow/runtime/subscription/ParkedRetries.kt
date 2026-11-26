@@ -173,7 +173,8 @@ internal class ParkedRetries(
     private suspend fun retryOnRequest(worker: SubscriptionWorker, entry: ParkedAggregate) {
         if (take(entry)) {
             logger.info { "Subscription ${entry.subscription} retries ${entry.ref} as an operator asked." }
-            worker.retry(entry.ref)
+            // An operator's retry, asked of this owner through the ledger: it accepts a gap.
+            worker.retry(entry.ref, acceptGaps = true)
         }
     }
 
@@ -189,7 +190,7 @@ internal class ParkedRetries(
         logger.info {
             "Subscription ${entry.subscription} retries ${entry.ref}: retry ${claimed.retries} of ${spec.maxRetries}."
         }
-        if (worker.retry(entry.ref) || !claimed.exhausted(spec)) {
+        if (worker.retry(entry.ref, acceptGaps = false) || !claimed.exhausted(spec)) {
             return
         }
         val exhausted = ledger.parked(entry.subscription, entry.ref) ?: return

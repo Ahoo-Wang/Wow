@@ -116,8 +116,23 @@ Parked timers are listed there too, under the subscription `wow.timers.sends`, o
 
 So are the aggregates the background work on a type's histories could not read: those the access walk skipped, under `wow.access.walk`, and the snapshots a rebuild could not rewrite, under `wow.snapshot.rewrite` ([Rebuild and Replay](../operate/replay#access-attributes)). Nothing retries them automatically. Retrying an entry runs the work on that aggregate again; skipping it resolves the entry and leaves undone what the work could not do.
 
-Before retrying, fix the cause: deploy the corrected handler, or bring the outside system back. A retried aggregate reads its stream again from the version it stopped at, so its handler sees every event it missed, in order; an operator's retry spends none of its automatic retries. Skipping marks the entry resolved: the events it held back are never handled, and the aggregate's next events are. What a skip discards ends when the skip has settled in the subscription, not when its entry left the ledger: an event of the aggregate the subscription takes between the two is skipped with the ones held back, and every event it takes after the skip answers is handled.
+Before retrying, fix the cause: deploy the corrected handler, or bring the outside system back. A retried aggregate reads its stream again from the version it stopped at, so its handler sees every event it missed, in order (on a state topic, an operator's retry goes on past a version the topic did not deliver: [A version a state topic did not deliver](#version-gap)); an operator's retry spends none of its automatic retries. Skipping marks the entry resolved: the events it held back are never handled, and the aggregate's next events are. What a skip discards ends when the skip has settled in the subscription, not when its entry left the ledger: an event of the aggregate the subscription takes between the two is skipped with the ones held back, and every event it takes after the skip answers is handled.
 
+### A version a state topic did not deliver {#version-gap}
+
+A subscription that reads another context's state topic expects each aggregate's records at every version: the transport sink publishes every commit ([State event](../reference/protocols#state-event)). A record above the version after the last one the subscription saw of its aggregate parks the aggregate at the version missing, before the record is handled, so its handler sees nothing past the gap. The records after it wait behind the park. It parks at once, without spending the handler's attempts: retrying the record in place cannot bring the missing one about. Its reason names the code and what each action does:
+
+```text
+me.ahoo.wow.runtime.subscription.VersionGapException: 'wow.subscription.version-gap' an earlier version of the aggregate
+  was not delivered wait and a late record resolves it in order or retry by hand to accept the gap and go on from the next
+  version or skip to drop what it holds
+```
+
+- **Wait.** The automatic retries read the topic again from the record that showed the gap, in version order: a late record resolves the park, handled before the records after it. A record that never comes leaves the aggregate parked for an operator once the retries are spent.
+- **Retry by hand.** An operator's retry accepts the gap: it goes on from the next version present, and the node's log names the versions it passed. Use it when the version is known to be gone, such as a commit the publishing service's operator skipped, or a record its broker refused for good.
+- **Skip.** The entry is resolved and the records held behind it are never handled, as for any parked aggregate.
+
+A subscription remembers the last version of the 4,096 aggregates it saw most recently in each partition, in memory. An aggregate it does not remember, first seen since its node started or forgotten since, is not checked: its record's version is where the next one is checked from. The context's own log is never checked; it has no gap to show.
 
 ### What a parked aggregate records {#what-a-parked-aggregate-records}
 

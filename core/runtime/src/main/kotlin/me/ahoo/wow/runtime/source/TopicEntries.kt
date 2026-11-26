@@ -87,6 +87,8 @@ internal class TopicEntries(
 
     override val repeats: Boolean get() = true
 
+    override val contiguous: Boolean get() = true
+
     override fun requirePartition(partition: Int) =
         require(partition in 0 until partitions) { "Topic $topic has $partitions partitions." }
 

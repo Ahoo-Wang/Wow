@@ -53,11 +53,16 @@ internal enum class RuntimePhrase {
     TO_CONTEXT,
     BUT_ITS_CONTEXT_READS_NO_RECEIPTS,
     DECLARE_A_REJECTION_HANDLER_OF,
+    AN_EARLIER_VERSION_OF_THE_AGGREGATE_WAS_NOT_DELIVERED,
+    WAIT_AND_A_LATE_RECORD_RESOLVES_IT_IN_ORDER,
+    OR_RETRY_BY_HAND_TO_ACCEPT_THE_GAP_AND_GO_ON_FROM_THE_NEXT_VERSION,
+    OR_SKIP_TO_DROP_WHAT_IT_HOLDS,
 }
 
 /**
  * What only the runtime throws, described: a message of a topic this version cannot decode
- * ([UndecodableEntryException]), what it could not decode being its cause's; and a saga's command to another context
+ * ([UndecodableEntryException]), what it could not decode being its cause's; a version a state topic did not deliver
+ * ([VersionGapException]), by its code and what each of an operator's actions does; and a saga's command to another context
  * from a context that reads no receipts ([UnreadReceiptsException]), by the handler, the command's class and its
  * target's context.
  */
@@ -65,6 +70,14 @@ internal object RuntimeDescriptions : FailureDescriber {
     override fun describe(failure: Throwable): FailureDescription? = when (failure) {
         is UndecodableEntryException ->
             FailureDescription.of(FailureDescription.phrase(RuntimePhrase.NOT_DECODABLE_BY_THIS_VERSION))
+
+        is VersionGapException -> FailureDescription.of(
+            FailureDescription.name(VersionGapException.CODE),
+            FailureDescription.phrase(RuntimePhrase.AN_EARLIER_VERSION_OF_THE_AGGREGATE_WAS_NOT_DELIVERED),
+            FailureDescription.phrase(RuntimePhrase.WAIT_AND_A_LATE_RECORD_RESOLVES_IT_IN_ORDER),
+            FailureDescription.phrase(RuntimePhrase.OR_RETRY_BY_HAND_TO_ACCEPT_THE_GAP_AND_GO_ON_FROM_THE_NEXT_VERSION),
+            FailureDescription.phrase(RuntimePhrase.OR_SKIP_TO_DROP_WHAT_IT_HOLDS),
+        )
 
         is UnreadReceiptsException -> {
             val command = FailureDescription.type(failure.command.body.javaClass)
