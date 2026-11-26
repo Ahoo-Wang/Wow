@@ -17,6 +17,7 @@ import { test } from 'node:test';
 import {
   devFetchers,
   fetcherFloor,
+  floorCommand,
   lockedFetchers,
   peerFetchers,
   unpinned,
@@ -131,6 +132,21 @@ test("the workspace's lockfile pins fetcher's packages, and not CoSec's client",
     assert.ok(block.includes(`'${name}': '${fetcherFloor(workspace)}'`), name);
 });
 
+test('pinning to a given fetcher, a release candidate the range admits, overrides every fetcher to it', () => {
+  assert.equal(
+    withFloorOverrides(YAML, '', '8.0.0-rc.1'),
+    `${YAML}\noverrides:\n  '@ahoo-wang/fetcher': '8.0.0-rc.1'\n  '@ahoo-wang/fetcher-openapi': '8.0.0-rc.1'\n`,
+  );
+  assert.deepEqual(floorPeers(YAML, '8.0.0-rc.1'), [
+    '@ahoo-wang/fetcher@8.0.0-rc.1',
+    '@ahoo-wang/fetcher-decorator@8.0.0-rc.1',
+  ]);
+  assert.deepEqual(floorPeers(YAML), [
+    '@ahoo-wang/fetcher@5.1.5',
+    '@ahoo-wang/fetcher-decorator@5.1.5',
+  ]);
+});
+
 test('the floor merges into the workspace overrides', () => {
   const pinned = withFloorOverrides(workspace);
   assert.equal(pinned.match(/^overrides:$/gm).length, 1);
@@ -217,4 +233,48 @@ test('the fetcher-floor job pins, verifies, tests and smoke-tests the floor, and
     assert.match(job, new RegExp(pkg), pkg);
   const gate = workflow.slice(workflow.indexOf('\n  ci-gate:'));
   assert.match(gate, /^\s+fetcher-floor,$/m);
+});
+
+test("the fetcher-floor job's pin and verify, given no version, act on the floor as before", () => {
+  const ci = readFileSync(join(ROOT, '.github/workflows/ci.yml'), 'utf8');
+  const runs = [
+    ...ci.matchAll(/node \.github\/scripts\/fetcher-floor\.mjs([^\n]*)/g),
+  ].map(([, rest]) => rest.trim().split(/\s+/));
+  assert.deepEqual(runs, [['pin'], ['verify']]);
+  for (const args of runs)
+    assert.deepEqual(floorCommand(args, workspace), {
+      command: args[0],
+      version: fetcherFloor(workspace),
+    });
+  assert.equal(
+    withFloorOverrides(YAML, '', floorCommand(['pin'], YAML).version),
+    withFloorOverrides(YAML),
+  );
+});
+
+test('pin and verify take an exact fetcher version', () => {
+  assert.deepEqual(floorCommand(['pin', '6.1.1'], YAML), {
+    command: 'pin',
+    version: '6.1.1',
+  });
+  assert.deepEqual(floorCommand(['verify', '8.0.0-rc.1'], YAML), {
+    command: 'verify',
+    version: '8.0.0-rc.1',
+  });
+});
+
+test('another command, a version that is a range or a tag, or a third argument is refused with the usage', () => {
+  for (const args of [
+    [],
+    ['pinn'],
+    ['pin', 'latest-6'],
+    ['pin', '^6.1.1'],
+    ['verify', '6.1'],
+    ['pin', '6.1.1', '8.0.0'],
+  ])
+    assert.throws(
+      () => floorCommand(args, YAML),
+      /Usage: fetcher-floor\.mjs pin\|verify \[version\]/,
+      args.join(' '),
+    );
 });

@@ -141,10 +141,22 @@ pnpm add -D --save-exact @ahoo-wang/wow-generator
 | React 和 React DOM（`wow-react`、视图引擎的界面） | `^19.0.0` | 不支持 React 18：构建会导入 `react/compiler-runtime` |
 | React Router（只有 `wow-view-engine/react-router`） | `^7.0.0 \|\| ^8.0.0` | 可选的 peer 依赖：只有那个入口导入它 |
 | TypeScript | `>=6.0` | CI 以使用者的身份，在 TypeScript 6.0 和最新的 7.x 上对打包后的包做类型检查；`moduleResolution` 为 `Bundler`、`NodeNext` 或 `Node16` |
-| `@ahoo-wang/fetcher`、`fetcher-eventstream`、`fetcher-decorator` | `^5.1.5 \|\| ^6.0.0 \|\| ^8.0.0-rc.1` | 由应用安装的 peer 依赖。fetcher 没有 7；8 从第一个候选版本起即被接受。CI 在最新的 6.x 上构建和测试，下限作业在 5.1.5 上重新运行测试；包检查的消费者安装范围内、且是 fetcher `latest` 的最新版本。只有从 OpenAPI 文档生成的客户端才需要 `fetcher-decorator` |
+| `@ahoo-wang/fetcher`、`fetcher-eventstream`、`fetcher-decorator` | `^5.1.5 \|\| ^6.0.0 \|\| ^8.0.0-rc.1` | 由应用安装的 peer 依赖。fetcher 没有 7；8 从第一个候选版本起即被接受。CI 在 fetcher 8 上构建和测试，下限作业在 5.1.5 上重新运行测试和包检查（[见下](#fetcher-versions-ci-covers)）；包检查的消费者安装范围内、且是 fetcher `latest` 的最新版本。只有从 OpenAPI 文档生成的客户端才需要 `fetcher-decorator` |
 | `@ahoo-wang/wow-client`（用于其他 Wow 包） | `~x.y.z` | 同一个次版本 |
 
 pnpm 8 及以上和 npm 7 及以上会自己安装缺失的 peer 依赖；Yarn 不会，所以 Yarn 项目要自己添加每个 peer 依赖。
+
+### CI 覆盖的 fetcher 版本 {#fetcher-versions-ci-covers}
+
+- **fetcher 8**，范围内最新的版本：工作区在它上面开发和测试（默认 catalog，`^8.0.0`），所以每个 CI 作业都跑在它上面。
+- **5.1.5**，范围的下限：`fetcher-floor` 作业把每个 fetcher 包钉到它，重新运行带 fetcher peer 的包的测试，并以消费者的身份在它上面检查打好的包。
+- **6.x**，在两者之间：fetcher 8.0.0 于 2026-11-26 发布之前，工作区一直在 6.1.1 上开发，所以在那之前的每次 CI 运行都在它上面构建和测试，接受 8 的 [#7146](https://github.com/Ahoo-Wang/Wow/pull/7146) 的那次运行也在其中。此后没有作业钉到它。
+
+要在 6.1.1（fetcher 的 `latest-6` 标签）上重复下限作业的那一趟，在仓库的克隆里运行下面的命令；`git checkout pnpm-workspace.yaml pnpm-lock.yaml && pnpm install` 把工作区恢复原样：
+
+```bash
+node .github/scripts/fetcher-floor.mjs pin 6.1.1 && pnpm install --no-frozen-lockfile && node .github/scripts/fetcher-floor.mjs verify 6.1.1 && pnpm build:typescript && pnpm --filter @ahoo-wang/wow-client --filter @ahoo-wang/wow-react --filter @ahoo-wang/wow-generator --filter @ahoo-wang/wow-view-store test && node .github/scripts/package-check.mjs --fetcher 6.1.1
+```
 
 ## 精确数字与投影的结果 {#exact-numbers-and-projected-results}
 
