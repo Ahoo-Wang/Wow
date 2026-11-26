@@ -38,8 +38,13 @@ import me.ahoo.wow.query.dataset.DatasetQueryGateways
 import me.ahoo.wow.query.dataset.DatasetVisibility
 import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.dataset.QueryDatasets
+import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.memory.InMemoryDatasetStorage
+import me.ahoo.wow.query.policy.ReadAction
+import me.ahoo.wow.query.policy.ReadAuthorization
+import me.ahoo.wow.query.policy.ReadAuthorizer
 import me.ahoo.wow.query.policy.ScopeQueryPolicy
+import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.schema.QueryValueType
@@ -51,6 +56,7 @@ import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.test.web.reactive.server.WebTestClient
 import java.net.URI
+import java.util.concurrent.CopyOnWriteArrayList
 
 /** The dataset query routes (decision D145): `/wow/dataset` and `/wow/dataset/{context}/{dataset}/query`. */
 class DatasetRoutesTest {
@@ -139,6 +145,7 @@ class DatasetRoutesTest {
     private fun datasetNode(
         datasets: QueryDatasets,
         visibility: DatasetVisibility = DatasetVisibility.DEFAULT,
+        authorizer: ReadAuthorizer = ReadAuthorizer.ALLOW_ALL,
     ): HttpNode {
         val catalog = QuerySchemaCatalog(
             storages = QueryBackendStorages(datasetBindings = storage, datasets = datasets),
@@ -150,6 +157,7 @@ class DatasetRoutesTest {
             catalog,
             storage,
             policies = listOf(ScopeQueryPolicy()),
+            authorizer = authorizer,
         )
         return HttpNode(manifest = queryManifest()) {
             HttpQueries(datasets = gateways, datasetVisibility = visibility, displayShared = true)
@@ -238,6 +246,30 @@ class DatasetRoutesTest {
         unchanged.headers.cacheControl.assert().isEqualTo("private, no-cache")
         node.get(SALES, "alice", mapOf(HttpHeaders.ACCEPT to MediaType.TEXT_EVENT_STREAM_VALUE)).status.assert()
             .isEqualTo(406)
+    }
+
+    @Test
+    fun `the descriptor should ask the read authorizers first, a refused caller seeing neither fields nor limits`() {
+        val asked = CopyOnWriteArrayList<Pair<String?, ReadAction>>()
+        val authorizer = ReadAuthorizer { caller, read ->
+            asked += caller.subject to read
+            if (caller.subject == "alice") {
+                ReadAuthorization.Allowed
+            } else {
+                ReadAuthorization.Denied.of("${caller.subject} reads no sales.")
+            }
+        }
+        val guarded = datasetNode(datasets, authorizer = authorizer)
+        guarded.get(SALES, "alice").body!!.has("fields").assert().isTrue()
+        val refused = guarded.get(SALES, "bob")
+        refused.status.assert().isEqualTo(403)
+        refused.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
+        refused.body.has("fields").assert().isFalse()
+        refused.body.has("limits").assert().isFalse()
+        asked.assert().containsExactly(
+            "alice" to ReadAction.of(sales, QueryModel.DATASET, QueryType.DESCRIBE, QueryEntry.HTTP),
+            "bob" to ReadAction.of(sales, QueryModel.DATASET, QueryType.DESCRIBE, QueryEntry.HTTP),
+        )
     }
 
     @Test

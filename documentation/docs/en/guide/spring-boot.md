@@ -126,7 +126,7 @@ The host takes these from the application when it defines them, and falls back t
 | Domain services | The parameters of command functions and processors, by type, or by name with `@Name` |
 | `CallerResolver` | Turns the authenticated principal into the caller. Without one, the host reads the development headers in a development profile, and does not start anywhere else, whatever address it binds |
 | `CommandAuthorizer` | Says whether it objects to the caller sending a command to an aggregate |
-| `ReadAuthorizer` | Says whether it objects to the caller reading a model at all: a query, a state read or a trace, before anything is read ([Authorize reads](../operate/security#authorize-reads)) |
+| `ReadAuthorizer` | Says whether it objects to the caller reading a model at all: a query, a state read, a trace or the model's descriptor, before anything is read ([Authorize reads](../operate/security#authorize-reads)) |
 | `CommandTransformer`, `CommandValidator` | Change or check a command before it is decided |
 | `GlobalIdGenerator`, `AggregateIdGenerator` | Generate request ids and aggregate ids; per type by `wow.aggregates.[<context>.<aggregate>].id-generator` |
 | `FailureClassifier` | Classifies the failures of subscription handlers ([Failures and Retries](./failures)) |

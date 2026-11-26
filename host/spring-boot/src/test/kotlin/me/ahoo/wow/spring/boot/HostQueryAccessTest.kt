@@ -242,7 +242,9 @@ class HostQueryAccessTest {
             val all = """{"kind":"list","filter":{"op":"match-all"}}"""
             eventually { host.post("/bank/account/snapshot/query", all, reader).body!!.size() == 1 }
             host.get("/bank/account/$id/state", reader).status.assert().isEqualTo(200)
-            // Refused alike whatever is asked: a query, a state that exists or not, a trace, the events.
+            host.get("/bank/account/snapshot/query", reader).body!!.has("fields").assert().isTrue()
+            // Refused alike whatever is asked: a query, a state that exists or not, a trace, the events, and a model's
+            // descriptor, whose fields and budget it does not see (D485 ⑧).
             val stranger = mapOf(DevelopmentHeaders.USER to "sam")
             listOf(
                 host.post("/bank/account/snapshot/query", all, stranger),
@@ -250,9 +252,13 @@ class HostQueryAccessTest {
                 host.get("/bank/account/$id/state", stranger),
                 host.get("/bank/account/no-such-account/state", stranger),
                 host.get("/bank/account/$id/state/trace", stranger),
+                host.get("/bank/account/snapshot/query", stranger),
+                host.get("/bank/account/events/query", stranger),
             ).forEach { answer ->
                 answer.status.assert().isEqualTo(403)
                 answer.body!!["code"].asString().assert().isEqualTo("wow.auth.forbidden")
+                answer.body!!.has("fields").assert().isFalse()
+                answer.body!!.has("limits").assert().isFalse()
                 // A refusal of the caller names no rule of the request: no violations, no binding-error code (#7029).
                 answer.body!!.has("violations").assert().isFalse()
             }

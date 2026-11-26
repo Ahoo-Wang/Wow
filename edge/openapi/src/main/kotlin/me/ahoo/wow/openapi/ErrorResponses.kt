@@ -238,9 +238,13 @@ internal class ErrorResponses(
          */
         val DATASET_QUERY: List<String> = QUERY + DATASET_ONLY
 
-        /** The codes a query model's capability descriptor answers. */
+        /**
+         * The codes a query model's capability descriptor answers: `wow.auth.forbidden` among them, a caller the read
+         * authorizers refuse.
+         */
         val DESCRIPTOR: List<String> = listOf(
             FrameworkCodes.AUTH_UNAUTHENTICATED,
+            FrameworkCodes.AUTH_FORBIDDEN,
             FrameworkCodes.QUERY_FAILED,
             FrameworkCodes.STORAGE_UNAVAILABLE,
         )

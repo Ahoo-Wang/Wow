@@ -76,7 +76,8 @@ class SnapshotPolicyGateway(
 
     override fun aggregate(query: AggregationQuery, caller: QueryCaller): Flow<ObjectNode> = throw unqueried()
 
-    override suspend fun describe(entry: QueryEntry, defaultListSize: Int?): QueryModelDescriptor = throw unqueried()
+    override suspend fun describe(entry: QueryEntry, caller: QueryCaller, defaultListSize: Int?): QueryModelDescriptor =
+        throw unqueried()
 
     /** The failure of every query: its snapshots are not queried. */
     private fun unqueried(): QueryExecutionException =

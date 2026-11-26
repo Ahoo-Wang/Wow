@@ -114,6 +114,27 @@ class ReadAuthorizerTest {
     }
 
     @Test
+    fun `a model's descriptor asks first, and a refused caller sees neither its fields nor its budget`(): Unit =
+        runBlocking {
+            // D485 ⑧: the GET of a query route answered the descriptor to any caller signed in.
+            val engine = engine(readers)
+            val http = QueryCaller(reader.caller, entry = QueryEntry.HTTP)
+            engine.snapshots(NOTE)!!.describe(QueryEntry.HTTP, http).fields.assert().isNotEmpty()
+            asked.single().second.assert()
+                .isEqualTo(ReadAction.of(NOTE, QueryModel.SNAPSHOT, QueryType.DESCRIBE, QueryEntry.HTTP))
+            val denied = refused {
+                engine.events(NOTE)!!.describe(QueryEntry.HTTP, QueryCaller(stranger.caller, entry = QueryEntry.HTTP))
+            }
+            denied.errorCode.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
+            denied.violations.assert().isEmpty()
+            asked.last().second.operation.assert().isEqualTo(QueryType.DESCRIBE)
+            asked.last().second.model.assert().isEqualTo(QueryModel.EVENTS)
+            // Trusted code describes with no caller, and is not asked.
+            engine.snapshots(NOTE)!!.describe(QueryEntry.HTTP, QueryCaller.IN_PROCESS).fields.assert().isNotEmpty()
+            asked.assert().hasSize(2)
+        }
+
+    @Test
     fun `trusted code, which reads with no caller, is not asked`(): Unit = runBlocking {
         engine(readers).snapshots(NOTE)!!.list(ListQuery(MatchAllFilter, limit = 10), QueryCaller.IN_PROCESS).toList()
             .assert().hasSize(1)

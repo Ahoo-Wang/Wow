@@ -74,7 +74,7 @@ internal class DatasetQueryGatewayTest : DatasetQueryGatewayFixtures() {
         schema.model.assert().isEqualTo(QueryModel.DATASET)
         schema.profile.assert().isInstanceOf(DatasetQueryModelProfile::class.java)
         schema.field(QueryField("city")).assert().isNotNull()
-        val descriptor = gateway().describe(QueryEntry.HTTP)
+        val descriptor = gateway().describe(QueryEntry.HTTP, QueryCaller.IN_PROCESS)
         descriptor.record.identity.assert().isEqualTo("order_id")
         gateway().aggregateType.assert().isEqualTo(orders.name)
     }

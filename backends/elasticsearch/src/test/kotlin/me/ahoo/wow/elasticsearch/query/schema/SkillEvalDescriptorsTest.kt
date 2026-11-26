@@ -30,6 +30,7 @@ import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.query.DefaultQueryGateway
+import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.backend.QueryBackendStorages
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
@@ -360,7 +361,8 @@ class SkillEvalDescriptorsTest {
                 profile = schemas.profile(TYPE),
             )
             val backend = checkNotNull(InMemoryQueryStorage().binding(TYPE)).backend
-            return EventQueryGateways.create(TYPE, backend, provider).describe(QueryEntry.HTTP, DEFAULT_LIST_SIZE)
+            val gateway = EventQueryGateways.create(TYPE, backend, provider)
+            return gateway.describe(QueryEntry.HTTP, QueryCaller.IN_PROCESS, DEFAULT_LIST_SIZE)
         }
     }
 
@@ -453,7 +455,8 @@ class SkillEvalDescriptorsTest {
             )
             // The descriptor reads the schema alone; the backend only satisfies the gateway.
             val backend = checkNotNull(InMemoryQueryStorage().binding(type)).backend
-            return DefaultQueryGateway(type, backend, provider).describe(QueryEntry.HTTP, DEFAULT_LIST_SIZE)
+            val gateway = DefaultQueryGateway(type, backend, provider)
+            return gateway.describe(QueryEntry.HTTP, QueryCaller.IN_PROCESS, DEFAULT_LIST_SIZE)
         }
 
         /** `analytics.order_wide`: a tenant's orders by customer level and amount, keyed by the order. */
@@ -481,7 +484,7 @@ class SkillEvalDescriptorsTest {
                 datasets = datasets,
             )
             return checkNotNull(DatasetQueryGateways.of(datasets, catalog, storage)[dataset.name])
-                .describe(QueryEntry.HTTP, DEFAULT_LIST_SIZE)
+                .describe(QueryEntry.HTTP, QueryCaller.IN_PROCESS, DEFAULT_LIST_SIZE)
         }
     }
 }

@@ -109,7 +109,7 @@ class SnapshotPolicyGatewayTest {
             { gateway.cursor(CursorQuery(MatchAllFilter), caller) },
             { gateway.count(CountQuery(MatchAllFilter), caller) },
             { gateway.aggregate(mockk<AggregationQuery>(), caller).toList() },
-            { gateway.describe(QueryEntry.HTTP) },
+            { gateway.describe(QueryEntry.HTTP, QueryCaller.IN_PROCESS) },
         )
         unqueried.forEach { query ->
             val refused = assertThrows<QueryExecutionException> { runBlocking { query() } }

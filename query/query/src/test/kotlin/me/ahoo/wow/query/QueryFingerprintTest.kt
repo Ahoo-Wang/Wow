@@ -66,8 +66,15 @@ import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.observe.fingerprintOf
 import me.ahoo.wow.query.observe.queryShapeOf
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class QueryFingerprintTest {
+    @Test
+    fun `a descriptor's read has no query shape, since it runs no query`() {
+        assertThrows<IllegalStateException> { queryShapeOf(QueryType.DESCRIBE, CountQuery(MatchAllFilter)) }
+            .message.assert().isEqualTo("A descriptor's read has no query shape.")
+    }
+
     private val amount = QueryField("state.amount")
     private val createTime = QueryField("createTime")
 

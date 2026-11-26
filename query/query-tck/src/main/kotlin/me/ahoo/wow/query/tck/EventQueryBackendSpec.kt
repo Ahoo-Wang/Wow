@@ -355,7 +355,7 @@ abstract class EventQueryBackendSpec : EventAnalyticsCases() {
             CountQuery(events(name("ItemAdded"))),
             QueryCaller.IN_PROCESS
         ).assert().isEqualTo(CountResult(2, true))
-        val descriptor = gateway.describe(QueryEntry.HTTP)
+        val descriptor = gateway.describe(QueryEntry.HTTP, QueryCaller.IN_PROCESS)
         descriptor.model.assert().isEqualTo(QueryModel.EVENTS)
         Unit
     }

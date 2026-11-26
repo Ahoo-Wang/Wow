@@ -126,7 +126,7 @@ dependencies {
 | 领域服务 | 命令函数和处理器的参数，按类型获取，或用 `@Name` 按名字获取 |
 | `CallerResolver` | 把已认证的主体变成调用方。没有它时，开发 profile 下宿主读取开发请求头，其他情况下不启动，不论它绑定什么地址 |
 | `CommandAuthorizer` | 说明它是否反对调用方向某个聚合发送命令 |
-| `ReadAuthorizer` | 说明它是否反对调用方读取某个模型：查询、状态读取或 trace，在读取任何东西之前询问（[授权读取](../operate/security#authorize-reads)） |
+| `ReadAuthorizer` | 说明它是否反对调用方读取某个模型：查询、状态读取、trace 或模型的描述，在读取任何东西之前询问（[授权读取](../operate/security#authorize-reads)） |
 | `CommandTransformer`、`CommandValidator` | 在命令被决定之前改写或检查它 |
 | `GlobalIdGenerator`、`AggregateIdGenerator` | 生成请求 ID 和聚合 ID；按类型由 `wow.aggregates.[<context>.<aggregate>].id-generator` 指定 |
 | `FailureClassifier` | 为订阅处理函数的失败分类（[失败与重试](./failures)） |

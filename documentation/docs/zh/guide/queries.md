@@ -63,7 +63,7 @@ curl -X POST localhost:8081/eshop-catalog/product/snapshot/query \
        "sort":[{"field":"state.price","direction":"asc"}],"pagination":{"index":1,"size":20}}'
 ```
 
-对同一路径发 `GET`，返回模型的能力描述：它的字段及其类型、每个字段接受的操作符，以及上限；它的版本就是它的 `ETag`。客户端和视图引擎读取它，只提供模型能回答的东西。
+对同一路径发 `GET`，返回模型的能力描述：它的字段及其类型、每个字段接受的操作符，以及上限；它的版本就是它的 `ETag`。和查询一样，先询问服务的读取授权器：被拒绝的调用方得到授权器的拒绝，看不到模型的任何东西。客户端和视图引擎读取它，只提供模型能回答的东西。
 
 带 `Accept: text/event-stream` 的 `list` 以服务端推送事件流式返回它的行，每条记录一个 `row`，然后是一个 `end`：
 
