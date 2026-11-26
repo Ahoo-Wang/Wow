@@ -167,7 +167,8 @@ abstract class StoreTck {
             resources = config().resources
         )
         val provider = provider(config.type)
-        provider.open(config)
+        // Kept with the stores the test opened, so it is closed once the test ran, as each of them is.
+        opened += provider.open(config)
         val declared = provider.options.map { it.key }
         declared.assert().describedAs("option keys").doesNotHaveDuplicates()
         config.settings.read.assert().describedAs("the options the store read").isSubsetOf(declared)

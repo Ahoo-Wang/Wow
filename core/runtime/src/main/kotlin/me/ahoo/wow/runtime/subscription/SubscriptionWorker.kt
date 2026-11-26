@@ -73,7 +73,7 @@ import kotlin.random.Random
  * recently handled).
  *
  * An aggregate's entries are compared by their ordinal ([EntrySource.ordinalOf]): their version, or, in a topic of
- * commands or receipts (–), whose entries commit nothing, their offset. Parking, copies and
+ * commands or receipts, whose entries commit nothing, their offset. Parking, copies and
  * retries go by it.
  *
  * Each handling of an entry, its retries included, is observed by [observer], in the trace the entry

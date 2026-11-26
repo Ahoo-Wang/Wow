@@ -78,7 +78,7 @@ import kotlin.time.Duration
  *    [FrameworkCodes.COMMAND_UNHANDLED]. An aggregate it does not serve is a peer context's when [peers] knows its contract:
  *    admitted as [PeerAdmission.admitPeer] says and sent to that context's command topic; any other is
  *    [FrameworkCodes.COMMAND_UNHANDLED].
- * 2. Decide the identity, each fact by one rule (–); a fact given twice, or missing, is
+ * 2. Decide the identity, each fact by one rule; a fact given twice, or missing, is
  *    [FrameworkCodes.COMMAND_MALFORMED]:
  *    - the tenant and the scope are the caller's; a [ServerCommandRequest.target] replaces them only for a caller with
  *      [Caller.crossScope][me.ahoo.wow.api.caller.Caller.crossScope], and is [FrameworkCodes.AUTH_FORBIDDEN] for any

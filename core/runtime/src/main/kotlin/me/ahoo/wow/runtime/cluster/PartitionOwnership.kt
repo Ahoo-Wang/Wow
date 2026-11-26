@@ -43,7 +43,7 @@ import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
 /**
- * This node's share of the partitions of one lease [group] (–), without a leader: a
+ * This node's share of the partitions of one lease [group], without a leader: a
  * context's log, or another context's published topic that the service's subscriptions read, whose
  * [subscriptions] runtime then reads the topic instead of the log:
  *

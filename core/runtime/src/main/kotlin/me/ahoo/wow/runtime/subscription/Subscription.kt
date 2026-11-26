@@ -315,7 +315,7 @@ class Subscription private constructor(
         )
 
         /**
-         * A subscription of the messages of a topic of commands or receipts (–): it takes every
+         * A subscription of the messages of a topic of commands or receipts: it takes every
          * entry its source reads, whatever aggregate it names, and [handler] gets the message as
          * [SubscribedEntry.message]. It starts from the beginning of the topic, so every message is taken, unless
          * [start] says otherwise.
@@ -434,7 +434,7 @@ data class SubscriptionFilter(
  * events as published. [stream] holds the same facts; [position] is then the record's partition and its offset plus
  * one.
  *
- * An entry of a topic of commands or receipts (–) carries the [message] it was read as: the command
+ * An entry of a topic of commands or receipts carries the [message] it was read as: the command
  * the context's intake executes, or the receipt of a command another context rejected. Its [stream] only names the
  * aggregate whose lane it runs in; nothing was committed.
  *

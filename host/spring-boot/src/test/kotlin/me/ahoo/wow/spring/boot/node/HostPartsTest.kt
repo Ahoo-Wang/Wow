@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot.node
 import com.mongodb.client.MongoClient
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.HandlerRetry
@@ -559,6 +560,18 @@ class WowPropertiesTest {
         identity.addressAt(41234).assert().isEqualTo("127.0.0.1:41234")
         properties.node.address = "10.0.0.1:9191"
         NodeIdentity.of(properties, environment).addressAt(41234).assert().isEqualTo("10.0.0.1:9191")
+    }
+
+    @Test
+    fun `a forward should wait the node's default wait, unless the forward timeout is set`() {
+        fun forward(vararg set: Pair<String, String>) =
+            bind(*set).serviceNodeOptions(Routing.PARTITIONED, emptySet(), false).cluster.forwardTimeout
+        forward().assert().isEqualTo(WaitPlan.DEFAULT_TIMEOUT)
+        forward("wow.wait.default-timeout" to "25s").assert().isEqualTo(25.seconds)
+        forward(
+            "wow.wait.default-timeout" to "25s",
+            "wow.cluster.forward-timeout" to "3s",
+        ).assert().isEqualTo(3.seconds)
     }
 }
 

@@ -296,7 +296,7 @@ class MongoSnapshotStore(
      * mark of a version up to its own. Whether it was written.
      *
      * The write returns the stale mark the document had before it, so the clearing write runs only when there was a
-     * mark to clear: a save is one round trip unless the snapshot was marked stale (B.D diagnostics). A mark set after
+     * mark to clear: a save is one round trip unless the snapshot was marked stale. A mark set after
      * the write, of the version it wrote, stays.
      */
     private fun upsert(snapshots: MongoCollection<Document>, guarded: Bson, snapshot: SnapshotRecord): Boolean {

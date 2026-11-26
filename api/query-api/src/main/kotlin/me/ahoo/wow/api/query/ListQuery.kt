@@ -16,7 +16,7 @@ package me.ahoo.wow.api.query
 import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
- * Data class representing a query for retrieving a list of items with optional filtering, projection, sorting, and limiting.
+ * A list query: the records its filter matches, in its order, with its projection, at most its limit.
  *
  * It supports all standard query operations ([Queryable]) and limits how many items it returns.
  *
@@ -28,10 +28,10 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * (`stream`) reads every match in chunks.
  *
  * ```
- * val query = ListQuery(
- *     filter = EqualFilter(QueryField("status"), value),
- *     projection = Projection(listOf(QueryField("name"), QueryField("email"))),
- *     sort = listOf(Sort(QueryField("name"), Direction.ASC)),
+ * val query = ListQuery.of(
+ *     filter = EqualFilter.of(QueryField("status"), value),
+ *     projection = Projection.of(listOf(QueryField("name"), QueryField("email"))),
+ *     sort = listOf(Sort.of(QueryField("name"), Sort.Direction.ASC)),
  *     limit = 50
  * )
  * ```

@@ -139,7 +139,7 @@ class Hop @InternalWowApi constructor(
 }
 
 /**
- * What the caller of a command waits for (–): the [hops] of a chain, reached in
+ * What the caller of a command waits for: the [hops] of a chain, reached in
  * order, within [timeout]. It stays on the node that took the command; what travels with the command's messages is a
  * wait context instead.
  *

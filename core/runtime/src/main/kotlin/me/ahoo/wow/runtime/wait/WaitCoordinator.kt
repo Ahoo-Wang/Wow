@@ -58,7 +58,7 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Runs commands and waits for their chains (–).
+ * Runs commands and waits for their chains.
  *
  * On the node a command arrives at, [execute] and [stream] check its wait plan, register the wait in [registry],
  * execute the command with a wait context naming this node, and answer once the chain is complete, has failed, or the

@@ -24,7 +24,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * [CountResult.exact] `false`. `null`, the default, uses the budget's default limit.
  *
  * ```
- * val query = CountQuery(EqualFilter(QueryField("state.status"), value), limit = 1000)
+ * val query = CountQuery.of(EqualFilter.of(QueryField("state.status"), value), limit = 1000)
  * ```
  */
 class CountQuery @InternalWowApi constructor(

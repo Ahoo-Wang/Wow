@@ -558,8 +558,8 @@ class SubscriptionRuntime internal constructor(
     }
 
     /**
-     * Saves the checkpoints of [workers] that moved since their last save, in one call of the store (B.D diagnostics:
-     * one round trip a tick, not one per subscription and partition); a failed save is retried on the next tick.
+     * Saves the checkpoints of [workers] that moved since their last save, in one call of the store (one
+     * round trip a tick, not one per subscription and partition); a failed save is retried on the next tick.
      */
     @Suppress("TooGenericExceptionCaught") // A failed save is retried on the next tick.
     private suspend fun flushQuietly(workers: Collection<SubscriptionWorker>) {

@@ -16,17 +16,14 @@ package me.ahoo.wow.api.query
 import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
- * Data class representing a sorting criterion for query results.
- *
- * This class defines how query results should be ordered based on a specific field
- * and sort direction.
+ * A sorting criterion of query results: the field they are ordered by, and the direction.
  *
  * @property field The name of the field to sort by.
  * @property direction The direction of sorting (ascending or descending).
  *
  * ```
- * val sortByName = Sort(QueryField("name"), Sort.Direction.ASC)
- * val sortByDate = Sort(QueryField("createdDate"), Sort.Direction.DESC)
+ * val sortByName = Sort.of(QueryField("name"), Sort.Direction.ASC)
+ * val sortByDate = Sort.of(QueryField("createdDate"), Sort.Direction.DESC)
  * ```
  */
 class Sort @InternalWowApi constructor(
@@ -81,17 +78,15 @@ class Sort @InternalWowApi constructor(
 }
 
 /**
- * Data class representing pagination settings for queries.
- *
- * This class defines which page of results to retrieve and how many items per page.
- * Page indexing starts from 1, and the offset is calculated automatically.
+ * The page of results a paged query reads, and how many items a page holds. Pages are numbered from 1; the offset
+ * follows from the two.
  *
  * @property index The page number to retrieve, at least 1.
  * @property size The number of items per page, at least 1.
  *
  * ```
- * val firstPage = Pagination(index = 1, size = 20)  // First 20 items
- * val secondPage = Pagination(index = 2, size = 20) // Items 21-40
+ * val firstPage = Pagination.of(index = 1, size = 20)  // First 20 items
+ * val secondPage = Pagination.of(index = 2, size = 20) // Items 21-40
  * ```
  */
 class Pagination @InternalWowApi constructor(
@@ -145,7 +140,7 @@ class Pagination @InternalWowApi constructor(
 }
 
 /**
- * Data class representing field projection settings for queries.
+ * The fields a query's results include or leave out.
  *
  * Projection controls which fields are included in or excluded from query results.
  * Use include to select nodes and their descendants, or exclude to omit them.
@@ -157,8 +152,8 @@ class Pagination @InternalWowApi constructor(
  * an unrequested ID. Cursor queries remove fields fetched only for sorting, including an unrequested ID.
  *
  * ```
- * val includeOnly = Projection(include = listOf(QueryField("name"), QueryField("email")))  // MongoDB also retains ID
- * val excludeSome = Projection(exclude = listOf(QueryField("password"), QueryField("secret")))  // Return all except password and secret
+ * val includeOnly = Projection.of(include = listOf(QueryField("name"), QueryField("email")))  // MongoDB also retains ID
+ * val excludeSome = Projection.of(exclude = listOf(QueryField("password"), QueryField("secret")))  // All but these
  * val allFields = Projection.ALL  // Return all fields
  * ```
  */

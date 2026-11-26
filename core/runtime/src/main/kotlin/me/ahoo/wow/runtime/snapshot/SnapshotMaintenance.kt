@@ -233,7 +233,7 @@ class SnapshotMaintenance(
         heartbeat()
         skips?.refresh()
         // The heads serve the backfill checks alone: read while a target has not caught up, or before its table is known
-        // (B.D diagnostics: once every target caught up, a run reads no partition counter).
+        // (Once every target caught up, a run reads no partition counter.)
         val catchingUp = placed.any { (store, types) -> types.any { tables[store to it]?.backfilled != true } }
         val heads = if (catchingUp) heads() else null
         placed.forEach { (store, types) ->

@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.cluster
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.result.WaitPlan
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import kotlin.time.Duration
@@ -68,5 +69,11 @@ class ClusterOptionsTest {
     fun `the defaults and the fast test options should hold`() {
         ClusterOptions().heartbeatInterval.assert().isEqualTo(3.seconds)
         fastOptions().memberTtl.assert().isEqualTo(1_500.milliseconds)
+    }
+
+    @Test
+    fun `a forward should wait the default wait unless it is told otherwise`() {
+        // Waiting less than the command would only fail it sooner (the forwardTimeout KDoc).
+        ClusterOptions().forwardTimeout.assert().isEqualTo(WaitPlan.DEFAULT_TIMEOUT)
     }
 }

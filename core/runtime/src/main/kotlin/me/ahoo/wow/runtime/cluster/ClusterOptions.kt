@@ -59,7 +59,7 @@ class LeaseGroup @InternalWowApi constructor(val service: String, val context: S
 }
 
 /**
- * The tuning of partition ownership and the cluster channel on one node (–).
+ * The tuning of partition ownership and the cluster channel on one node.
  *
  * - [leaseTtl], renewed every [renewInterval]: how long a partition stays with a node that stopped renewing. A
  *   renewal round renews the held leases with one call, and a lease group's acquisitions and the releases its
@@ -79,7 +79,8 @@ class LeaseGroup @InternalWowApi constructor(val service: String, val context: S
  *   owner surely did not receive runs locally. Since a timeout no longer runs the command elsewhere, waiting
  *   less than the command would only fail it sooner: the default is the default wait ([WaitPlan.DEFAULT_TIMEOUT],
  *   10 seconds), not the 1 second of earlier releases, which covered the owner's tail before falling back.
- * - [maxInFlightPerPeer]: the forwards one peer may have outstanding; one more is refused busy, not run locally.
+ * - [maxInFlightPerPeer]: the forwards this node may have outstanding to one peer; one more is refused busy, not run
+ *   locally.
  * - [drainTimeout]: how long a hand-off waits for the partition's commands in flight before it moves on.
  * - [reconcileTimeout]: how long one reconcile may go without finishing a step for one partition (an acquisition, a
  *   hand-off) before the node takes itself as stuck: it fences the group, leaving the members until the reconcile
