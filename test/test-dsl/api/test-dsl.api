@@ -94,6 +94,7 @@ public final class me/ahoo/wow/test/CommandCall {
 	public final fun getCaller ()Lme/ahoo/wow/api/caller/Caller;
 	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
 	public final fun getRequest ()Lme/ahoo/wow/api/client/CommandRequest;
+	public final fun getRequestId ()Ljava/lang/String;
 	public final fun rejected (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/util/List;Ljava/util/Map;)Lme/ahoo/wow/api/result/CommandResult;
 	public static synthetic fun rejected$default (Lme/ahoo/wow/test/CommandCall;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/util/List;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/api/result/CommandResult;
 	public fun toString ()Ljava/lang/String;
