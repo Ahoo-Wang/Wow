@@ -65,14 +65,14 @@ class ClickHouseSinkIntegrationTest {
         current.getString("state").assert().isEqualTo(SinkFixtures.stateOf(2, total = "99.90"))
 
         val event = row(
-            "SELECT id, sequence, event_name, event_revision, payload, causation_id FROM $database.shop_order_events " +
+            "SELECT id, sequence, event_name, event_revision, body, causation_id FROM $database.shop_order_events " +
                 "WHERE aggregate_id = 'order-1' AND version = 1 ORDER BY sequence LIMIT 1",
         )
         event.getString("id").assert().isEqualTo("shop.order/tenant-1/order-1@1")
         event.getLong("sequence").assert().isEqualTo(1)
         event.getString("event_name").assert().isEqualTo("order_placed")
         event.getLong("event_revision").assert().isEqualTo(1)
-        event.getString("payload").assert().isEqualTo("""{"total":12.30,"lines":[{"price":0.10}]}""")
+        event.getString("body").assert().isEqualTo("""{"total":12.30,"lines":[{"price":0.10}]}""")
         event.getString("causation_id").assert().isEqualTo("upstream@1")
     }
 
@@ -241,6 +241,66 @@ class ClickHouseSinkIntegrationTest {
             .write(listOf(recordOf()))
         count("shop_order_state_events").assert().isEqualTo(1)
     }
+
+    @Test
+    fun `a table with an operator's own columns should be the Sink's, and written`(): Unit = runTest {
+        sinks().sinkOf("shop", "order").prepare()
+        execute("ALTER TABLE $database.shop_order_events ADD COLUMN region String DEFAULT 'eu'")
+        execute("ALTER TABLE $database.shop_order_state_events ADD COLUMN day Date MATERIALIZED toDate(commit_time)")
+        execute("ALTER TABLE $database.shop_order_state ADD COLUMN cents Int64 ALIAS toInt64(version) * 100")
+        listOf(Ddl.VALIDATE, Ddl.AUTO).forEach { ddl ->
+            sinks(ClickHouseSinkOptions(database = database, ddl = ddl)).sinkOf("shop", "order")
+                .write(listOf(recordOf(version = if (ddl == Ddl.VALIDATE) 1 else 2)))
+        }
+        count("shop_order_state_events").assert().isEqualTo(2)
+        row("SELECT region FROM $database.shop_order_events LIMIT 1").getString("region").assert().isEqualTo("eu")
+    }
+
+    /**
+     * A warehouse a pre-release wrote: its tables say format 1, but an event's data is `payload` where this version's
+     * is `body`. Refused under `validate` and `auto`, naming the columns and the generation that fills new tables from
+     * the log, and left as it is. `none` checks nothing: ClickHouse takes the insert, drops the event's `body`, which
+     * the old tuple has no element of, and leaves its `payload` empty.
+     */
+    @Test
+    fun `a table of a pre-release, an event's data its payload, is refused and left as it is`(): Unit = runTest {
+        val schema = sinks().sinkOf("shop", "order").schema
+        val preRelease = schema.ddl.map {
+            it.replace("revision UInt32, body String)", "revision UInt32, payload String)")
+                .replace("`body` String", "`payload` String")
+                .replace("event.body AS body", "event.payload AS payload")
+        }
+        preRelease.forEach { execute(it) }
+        val statements = ClientStatements(client)
+        val columns = statements.columns(database, "shop_order_events")
+        listOf(Ddl.VALIDATE, Ddl.AUTO).forEach { ddl ->
+            val sink = sinks(ClickHouseSinkOptions(database = database, ddl = ddl)).sinkOf("shop", "order")
+            val error = runCatching { sink.write(listOf(recordOf())) }.exceptionOrNull()
+            error?.message.assert()
+                .contains("shop_order_events has no body String: not the columns of the Sink's format 1")
+                .contains("shop_order_state_events has events Array(Tuple(name LowCardinality(String), revision")
+                .contains("raise the Sink's generation (wow.clickhouse.sink.generation")
+        }
+        statements.columns(database, "shop_order_events").assert().isEqualTo(columns)
+        count("shop_order_state_events").assert().isEqualTo(0)
+        sinks(ClickHouseSinkOptions(database = database, ddl = Ddl.NONE)).sinkOf("shop", "order")
+            .write(listOf(recordOf()))
+        count("shop_order_state_events").assert().isEqualTo(1)
+        row("SELECT payload FROM $database.shop_order_events LIMIT 1").getString("payload").assert().isEmpty()
+    }
+
+    @Test
+    fun `a column Wow adds within the format should be added with its default, read by the rows before`(): Unit =
+        runTest {
+            val sink = sinks().sinkOf("shop", "order")
+            sink.write(listOf(recordOf(version = 1)))
+            val tier = ClickHouseColumn("tier", "LowCardinality(String)", added = "'standard'")
+            sink.schema.addStoredColumns("shop_order_events", listOf(tier)).forEach { execute(it) }
+            val statements = ClientStatements(client)
+            statements.columns(database, "shop_order_events").last().assert()
+                .isEqualTo(ClickHouseColumn("tier", "LowCardinality(String)"))
+            row("SELECT tier FROM $database.shop_order_events LIMIT 1").getString("tier").assert().isEqualTo("standard")
+        }
 
     @Test
     fun `a property declared later should be added, and computed for the rows written before`(): Unit = runTest {

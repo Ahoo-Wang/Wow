@@ -91,7 +91,7 @@ class ClickHouseCatalogIntegrationTest {
                 "fingerprint, columns_hash) VALUES (1, '$DATABASE', '$STATE', '${table.uuid}', 'state', 'shop-service', " +
                 "'shop', 'order', 'OWNER', 'tenant_id', 'owner_id', '', " +
                 "[('state.phone', 'DISPLAY', '{\"keepPrefix\":3,\"keepSuffix\":4}', '', 0), " +
-                "('payload.card', 'SECRET', '', 'order_paid', 2)], [('state.memberId', 'crm', 'member')], " +
+                "('body.card', 'SECRET', '', 'order_paid', 2)], [('state.memberId', 'crm', 'member')], " +
                 "{'order_paid': 2}, '$fingerprint', '$hash')",
         )
     }
@@ -119,7 +119,7 @@ class ClickHouseCatalogIntegrationTest {
         row.sensitive.assert().containsExactly(
             FieldSensitivity("state.phone", SensitivityLevel.DISPLAY, keepPrefix = 3, keepSuffix = 4),
             // A level this catalog does not know is read as the highest.
-            FieldSensitivity("payload.card", SensitivityLevel.CONFIDENTIAL, event = "order_paid", revision = 2),
+            FieldSensitivity("body.card", SensitivityLevel.CONFIDENTIAL, event = "order_paid", revision = 2),
         )
         row.references.assert().containsExactly(SourceReference("state.memberId", "crm", "member"))
         row.eventRevisions.assert().isEqualTo(mapOf("order_paid" to 2))

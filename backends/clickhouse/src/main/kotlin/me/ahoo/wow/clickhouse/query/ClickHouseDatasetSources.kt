@@ -39,7 +39,7 @@ import me.ahoo.wow.spi.json.WowJson
  * | `_state` | a flat column (computed on it) | the same |
  * | `_state`, `_state_events` | `state`, `state_numbers` | the state's document, whole: protected paths in it |
  * | `_state_events` | `events` | each event's document, whole |
- * | `_events` | `payload` | the event's document, whole |
+ * | `_events` | `body` | the event's document, whole |
  *
  * A column of a whole document is [QueryDatasetSource.Opaque] when its source protects a path in it, as is
  * `state_numbers` when the state protects a top-level value. Another table, or a table of another database, is
@@ -89,7 +89,7 @@ class ClickHouseDatasetSources(manifest: Manifest, private val database: String)
 
     /**
      * Each column of a whole document with protected paths in it, by the path's first segment: `state`, `events`,
-     * `payload`; and `state_numbers`, which holds the text of the state's top-level numbers, when the state protects a
+     * `body`; and `state_numbers`, which holds the text of the state's top-level numbers, when the state protects a
      * top-level value.
      */
     private fun documentsOf(entry: CatalogEntry?): Map<String, QueryDatasetSource.Column> {

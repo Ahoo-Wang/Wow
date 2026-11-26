@@ -49,7 +49,7 @@ class ClickHouseSinkSchemaTest {
                 `operator_id` String CODEC(ZSTD(1)),
                 `operator_tenant_id` String CODEC(ZSTD(1)),
                 `operator_acted_elsewhere` Bool,
-                `events` Array(Tuple(name LowCardinality(String), revision UInt32, payload String)) CODEC(ZSTD(1)),
+                `events` Array(Tuple(name LowCardinality(String), revision UInt32, body String)) CODEC(ZSTD(1)),
                 `state` String CODEC(ZSTD(1)),
                 `state_fingerprint` String CODEC(ZSTD(1)),
                 `state_numbers` Map(String, String) CODEC(ZSTD(1))
@@ -96,7 +96,7 @@ class ClickHouseSinkSchemaTest {
         ddl[4].assert().isEqualTo(
             "CREATE MATERIALIZED VIEW IF NOT EXISTS `analytics`.`shop_order_events_mv` TO `analytics`.`shop_order_events` AS\n" +
                 "(SELECT id, tenant_id, aggregate_id, version, toUInt32(sequence) AS sequence, event.name AS event_name, " +
-                "event.revision AS event_revision, event.payload AS payload, command_id, request_id, command_type, " +
+                "event.revision AS event_revision, event.body AS body, command_id, request_id, command_type, " +
                 "commit_time, owner_id, space_id, correlation_id, causation_id\n" +
                 "FROM `analytics`.`shop_order_state_events`\n" +
                 "ARRAY JOIN events AS event, arrayEnumerate(events) AS sequence)\nCOMMENT 'wow-sink-format:1'",
@@ -228,10 +228,62 @@ class ClickHouseSinkSchemaTest {
         problem.assert().contains("shop_order_state has total Float64 (wow:0123456789abcdef)")
         problem.assert().contains("which this version computes as Decimal(38, 2)")
         problem.assert().contains("cannot change a column's definition without rewriting every row")
-        // A stored column of a computed one's name is another stored column.
+        // A stored column of a computed one's name is not the computed one.
         state.mismatch(stored + ClickHouseColumn("total", "Decimal(38, 2)")).assert()
-            .contains("state_numbers Map(String, String), total Decimal(38, 2)], not")
-        state.mismatch(stored.drop(1)).assert().startsWith("shop_order_state has the columns [tenant_id String,")
+            .contains("total Decimal(38, 2), a stored column, which this version computes as Decimal(38, 2)")
+        state.mismatch(stored.drop(1)).assert()
+            .isEqualTo("shop_order_state has no id String: not the columns of the Sink's format 1")
+    }
+
+    @Test
+    fun `a table should hold at least the Sink's columns, each of its type, in any order, others no reason`() {
+        val schema = ClickHouseSinkSchema(ORDER, "default", AggregateSinkOptions(), emptyList())
+        val events = schema.expected.single { it.name == "shop_order_events" }
+        val columns = ClickHouseSinkSchema.EVENT_COLUMNS
+        // An operator's own columns, stored, computed or an alias, in any order.
+        val own = listOf(ClickHouseColumn("region", "String"), ClickHouseColumn("day", "Date", "theirs"))
+        events.mismatch(own + columns.reversed()).assert().isNull()
+        // A column of another type, or one the format has missing: not the Sink's, under every mode.
+        val body = columns.indexOfFirst { it.name == "body" }
+        val retyped = columns.toMutableList().apply { this[body] = ClickHouseColumn("body", "LowCardinality(String)") }
+        events.mismatch(retyped).assert().isEqualTo(
+            "shop_order_events has body LowCardinality(String), not String: not the columns of the Sink's format 1",
+        )
+        // A pre-release's: its event's data was `payload`.
+        val preRelease = columns.map { if (it.name == "body") ClickHouseColumn("payload", "String") else it }
+        events.mismatch(preRelease).assert()
+            .isEqualTo("shop_order_events has no body String: not the columns of the Sink's format 1")
+        val history = schema.expected.single { it.name == "shop_order_state_events" }
+        val oldTuple = "Array(Tuple(name LowCardinality(String), revision UInt32, payload String))"
+        val oldHistory = ClickHouseSinkSchema.BASE_COLUMNS.map { column ->
+            if (column.name == "events") column.copy(type = oldTuple) else column
+        }
+        history.mismatch(oldHistory).assert()
+            .contains("events $oldTuple, not Array(Tuple(name LowCardinality(String), revision UInt32, body String))")
+        // A stored column it expects, computed.
+        val computed = columns.map { if (it.name == "body") it.copy(computed = "theirs") else it }
+        events.mismatch(computed).assert().contains("body computed (theirs), where it is a stored column")
+    }
+
+    @Test
+    fun `a column Wow added within the format should be lacking, not a mismatch, and added with its default`() {
+        val schema = ClickHouseSinkSchema(ORDER, "default", AggregateSinkOptions(), emptyList())
+        val added = ClickHouseColumn("tier", "String", added = "''")
+        val events = ClickHouseObject("shop_order_events", ClickHouseSinkSchema.EVENT_COLUMNS + added)
+        events.mismatch(ClickHouseSinkSchema.EVENT_COLUMNS).assert().isNull()
+        events.lacking(ClickHouseSinkSchema.EVENT_COLUMNS).assert().containsExactly(added)
+        events.lacking(ClickHouseSinkSchema.EVENT_COLUMNS + added).assert().isEmpty()
+        schema.addStoredColumns("shop_order_events", listOf(added)).assert().containsExactly(
+            "ALTER TABLE `default`.`shop_order_events` ADD COLUMN IF NOT EXISTS `tier` String DEFAULT ''",
+        )
+        // A column of a codec takes it after its default, as ClickHouse reads a column's definition.
+        val coded = ClickHouseColumn("headers", "Map(String, String)", added = "map()")
+        schema.addStoredColumns("shop_order_state_events", listOf(coded)).assert().containsExactly(
+            "ALTER TABLE `default`.`shop_order_state_events` ADD COLUMN IF NOT EXISTS `headers` Map(String, String) " +
+                "DEFAULT map() CODEC(ZSTD(1))",
+        )
+        // The Sink's own columns are every table's of the format: none is added within it yet.
+        schema.expected.flatMap { it.columns.orEmpty() }.filter { it.added != null }.assert().isEmpty()
     }
 
     @Test

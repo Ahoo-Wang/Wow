@@ -41,7 +41,7 @@ data class CatalogReference(val path: String, val context: String, val aggregate
  *   `TENANT`).
  * - [tenantColumn], [ownerColumn], [spaceColumn]: the scope's columns; the owner's is empty for a tenant's resource.
  * - [sensitive]: each sensitive value by its path from the column that holds it (`state.customer.phone`,
- *   `payload.card`, a flat column's name), an event's by its name and revision too.
+ *   `body.card`, a flat column's name), an event's by its name and revision too.
  * - [references]: each value that refers to an aggregate, by path.
  * - [eventRevisions]: the revision of each event of the aggregate.
  * - [columnsHash]: [ClickHouseCatalog.columnsHash] of the columns the Sink expects the table to have.

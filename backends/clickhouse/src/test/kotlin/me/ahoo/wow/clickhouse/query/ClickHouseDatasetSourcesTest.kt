@@ -71,8 +71,8 @@ class ClickHouseDatasetSourcesTest {
         (state["state_numbers"] as Opaque).paths.assert().containsExactlyInAnyOrder("state.phone", "state.notes")
         val history = columnsOf("crm_member_state_events")
         history.keys.assert().containsExactlyInAnyOrder("state", "state_numbers", "events")
-        history["events"].assert().isEqualTo(Opaque.of(listOf("events.payload.phone")))
-        columnsOf("crm_member_events").assert().isEqualTo(mapOf("payload" to Opaque.of(listOf("payload.phone"))))
+        history["events"].assert().isEqualTo(Opaque.of(listOf("events.body.phone")))
+        columnsOf("crm_member_events").assert().isEqualTo(mapOf("body" to Opaque.of(listOf("body.phone"))))
         // Nothing protected in the state: no document column is opaque.
         columnsOf("crm_store_state").assert().isEmpty()
     }

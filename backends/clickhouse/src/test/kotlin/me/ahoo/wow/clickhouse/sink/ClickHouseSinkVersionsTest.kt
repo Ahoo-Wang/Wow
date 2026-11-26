@@ -131,7 +131,7 @@ class ClickHouseSinkVersionsTest {
         statements.comments["default.shop_order_state_flat"] =
             "${ClickHouseSinkSchema.FORMAT_COMMENT} ${FlatLineage(listOf(old.schema.flatFingerprint)).comment}"
         val error = runCatching { new.write(listOf(recordOf())) }.exceptionOrNull()
-        error!!.message.assert().contains("shop_order_state_flat has the columns")
+        error!!.message.assert().contains("shop_order_state_flat has no weight Float64")
         statements.executed.assert().isEmpty()
     }
 

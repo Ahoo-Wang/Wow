@@ -149,7 +149,7 @@ class ClickHouseSinkTest {
         error!!.message.assert()
             .contains("shop_order_events does not exist")
             .contains("shop_order_events_mv does not exist")
-            .contains("shop_order_state has the columns [id String], not [id String, tenant_id String,")
+            .contains("shop_order_state has no tenant_id String; no aggregate_id String;")
         statements.inserts.assert().isEmpty()
         // Once the tables are there, the next write prepares again and succeeds.
         statements.create(sink.schema)
@@ -172,7 +172,7 @@ class ClickHouseSinkTest {
             .contains("shop_order_events is not of format 1")
             .contains("shop_order_state_mv is not of format 1")
             .doesNotContain("shop_order_state_events is not")
-            .contains("resetting the Sink's subscription fills them again from the log")
+            .contains("raise the Sink's generation (wow.clickhouse.sink.generation")
         statements.executed.assert().isEmpty()
         statements.inserts.assert().isEmpty()
     }
@@ -230,7 +230,7 @@ class ClickHouseSinkTest {
             .filterNot { it.name == "paid" }
         val error = runCatching { sink.write(listOf(recordOf())) }.exceptionOrNull()
         error!!.message.assert().contains("shop_order_state has total Float64 (wow:0123456789abcdef)")
-            .contains("resetting the Sink's subscription fills them again from the log")
+            .contains("raise the Sink's generation (wow.clickhouse.sink.generation")
         statements.executed.none { it.startsWith("ALTER") }.assert().isTrue()
         statements.inserts.assert().isEmpty()
     }

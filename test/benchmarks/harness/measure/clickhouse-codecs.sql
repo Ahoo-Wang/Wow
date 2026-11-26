@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS `default`.`transfer_account_state_events`
     `operator_id` String CODEC(ZSTD(1)),
     `operator_tenant_id` String CODEC(ZSTD(1)),
     `operator_acted_elsewhere` Bool,
-    `events` Array(Tuple(name LowCardinality(String), revision UInt32, payload String)) CODEC(ZSTD(1)),
+    `events` Array(Tuple(name LowCardinality(String), revision UInt32, body String)) CODEC(ZSTD(1)),
     `state` String CODEC(ZSTD(1)),
     `state_fingerprint` String CODEC(ZSTD(1)),
     `state_numbers` Map(String, String) CODEC(ZSTD(1))

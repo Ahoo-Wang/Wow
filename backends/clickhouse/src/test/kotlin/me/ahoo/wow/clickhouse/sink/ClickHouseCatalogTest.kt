@@ -101,11 +101,11 @@ class ClickHouseCatalogTest {
 
         val events = entries.getValue("events")
         events.sensitive.assert().containsExactly(
-            CatalogSensitive("payload.phone", "DISPLAY", "", "member_registered", 2)
+            CatalogSensitive("body.phone", "DISPLAY", "", "member_registered", 2)
         )
         events.columnsHash.assert().isEqualTo(ClickHouseCatalog.columnsHash(ClickHouseSinkSchema.EVENT_COLUMNS))
         entries.getValue("state_events").sensitive.map { it.path }.assert()
-            .contains("state.phone", "events.payload.phone")
+            .contains("state.phone", "events.body.phone")
 
         // Only the top-level scalars are flat columns, by the column's name.
         val flat = entries.getValue("state_flat")
