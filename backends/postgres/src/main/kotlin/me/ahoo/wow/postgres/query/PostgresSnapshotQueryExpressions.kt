@@ -229,14 +229,25 @@ internal open class PostgresQueryExpressions(
         return segments.first() to segments.drop(1)
     }
 
-    /** The `text[]` literal of [segments]; each is checked against [SEGMENT], so it needs no quoting. */
+    /**
+     * The `text[]` literal of [segments], each checked against [SEGMENT]: no brace, comma, quote, backslash or white
+     * space, which an array literal reads apart. An element the literal reads as SQL `NULL` unquoted, `null` in any
+     * case, is double-quoted, so a property or a map key of that name is read as the key it is, not as a `NULL` that
+     * makes the whole path `NULL`. Every other segment is written as it is, so the expression of a path without one
+     * is the text the indexes were created with.
+     */
     private fun pathLiteral(segments: List<String>): String {
         segments.forEach { segment ->
             requireExecution(SEGMENT.matches(segment)) { "Path segment [$segment] is not a valid query path segment." }
         }
-        return segments.joinToString(",", "{", "}")
+        return segments.joinToString(",", "{", "}") { segment ->
+            if (segment.equals(NULL_ELEMENT, ignoreCase = true)) "\"$segment\"" else segment
+        }
     }
 }
+
+/** The element an array literal reads as SQL `NULL` when it is not quoted, in any case. */
+private const val NULL_ELEMENT = "NULL"
 
 internal inline fun requireExecution(condition: Boolean, message: () -> String) {
     if (!condition) throw QueryExecutionException(message())
