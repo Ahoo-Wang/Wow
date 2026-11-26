@@ -25,6 +25,7 @@ import com.google.devtools.ksp.symbol.KSTypeAlias
 import com.google.devtools.ksp.symbol.Modifier
 import me.ahoo.wow.api.annotation.Access
 import me.ahoo.wow.api.annotation.Blocking
+import me.ahoo.wow.api.query.annotation.Sensitive
 import me.ahoo.wow.compiler.model.KotlinNames
 import me.ahoo.wow.compiler.model.symbol.annotatedIn
 import me.ahoo.wow.compiler.model.symbol.argumentsOf
@@ -79,10 +80,20 @@ internal data class AccessBinding(
  * without parameters, neither private, extension, suspending nor `@Blocking`, of a value type an access attribute
  * takes ([valueOf]), each named as `@Access` says, by the rule of [AccessAttributeName], the names unique ignoring
  * case. That the member is pure and cheap (no clock, no randomness) the compiler cannot see: `@Access` says so.
+ *
+ * An attribute never holds a sensitive value: an access attribute is answered raw as
+ * `access.<name>` by every read of the state and on its published stream, and a query compares and groups it. So a
+ * member that is `@Sensitive`, or overrides one that is, or whose values are of a `@Sensitive` type (a value class
+ * or an enum, or one wrapping a `@Sensitive` property), is refused. What a getter or a function computes from a
+ * sensitive field the compiler cannot see: deriving an attribute from one is the author's to avoid.
  */
 internal object AccessResolver {
     private val BLOCKING = Blocking::class.java.name
     private val ACCESS = Access::class.java.name
+    private val SENSITIVE = Sensitive::class.java.name
+    private const val SENSITIVE_FIX = "an access attribute is answered raw on every read and published stream, " +
+        "and queries compare and group it, so it holds no sensitive value: remove @Access, or derive the " +
+        "attribute from a value that is not sensitive"
     private const val WHERE = "@Access"
 
     /** The value types by qualified name, Kotlin's and Java's, to the Kotlin class and the Manifest type. */
@@ -141,6 +152,7 @@ internal object AccessResolver {
             "$where is private: the generated model reads it".takeIf { property.isPrivate() },
             "$where is protected: the generated model reads it from outside the state, so it is public or internal"
                 .takeIf { property.isKotlinProtected() },
+            sensitivityOf(property)?.let { "$where $it: $SENSITIVE_FIX" },
         )
         problems += found
         return binding(annotated, member, true, where, property.type.resolve(), problems).takeIf { found.isEmpty() }
@@ -190,8 +202,11 @@ internal object AccessResolver {
         val nameProblem = AccessAttributeName.problem(name)?.let { "$where: $it; give another with @Access(\"name\")" }
         val value = valueOf(returned)
         val typeProblem = "$where returns ${returned.render()}, not $RETURNS".takeIf { value == null }
-        problems += listOfNotNull(nameProblem, typeProblem)
-        if (nameProblem != null || value == null) {
+        val sensitiveType = value?.scalar?.sensitive?.let {
+            "$where returns ${returned.render()}, whose values are @Sensitive ($it): $SENSITIVE_FIX"
+        }
+        problems += listOfNotNull(nameProblem, typeProblem, sensitiveType)
+        if (nameProblem != null || value == null || sensitiveType != null) {
             return null
         }
         return AccessBinding(
@@ -212,13 +227,15 @@ internal object AccessResolver {
 
     /**
      * A scalar an attribute takes: the [kotlinType] of its published values, their Manifest [type], whether the class
-     * is [internal], and, for a value class wrapping one, the property that [unwrap]s it.
+     * is [internal], and, for a value class wrapping one, the property that [unwrap]s it; [sensitive] names what makes
+     * its values `@Sensitive`, null when nothing does.
      */
     private data class Scalar(
         val kotlinType: String,
         val type: String,
         val internal: Boolean = false,
         val unwrap: String? = null,
+        val sensitive: String? = null,
     )
 
     /**
@@ -251,7 +268,8 @@ internal object AccessResolver {
             return null
         }
         if (declaration.classKind == ClassKind.ENUM_CLASS) {
-            return Scalar(declaration.sourceName()!!, "STRING", declaration.isModuleInternal())
+            val sensitive = declaration.simpleName.asString().takeIf { declaration.isSensitive() }
+            return Scalar(declaration.sourceName()!!, "STRING", declaration.isModuleInternal(), sensitive = sensitive)
         }
         return if (wrapped) null else wrappedBy(declaration)
     }
@@ -269,8 +287,44 @@ internal object AccessResolver {
             .firstOrNull { it.simpleName.asString() == parameter.name?.asString() }
             ?.takeUnless { it.isPrivate() } ?: return null
         val wrapped = property.type.resolve().expanded().takeUnless { it.isMarkedNullable } ?: return null
+        val name = declaration.simpleName.asString()
+        val sensitive = when {
+            declaration.isSensitive() -> name
+            sensitivityOf(property) != null -> "$name.${property.simpleName.asString()}"
+            else -> null
+        }
         return scalarOf(wrapped, wrapped = true)?.let {
-            it.copy(internal = it.internal || declaration.isModuleInternal(), unwrap = property.simpleName.asString())
+            it.copy(
+                internal = it.internal || declaration.isModuleInternal(),
+                unwrap = property.simpleName.asString(),
+                sensitive = sensitive ?: it.sensitive,
+            )
+        }
+    }
+
+    /**
+     * What makes [property] `@Sensitive`, said after its name (`is @Sensitive`, `overrides Base.phone, which is
+     * @Sensitive`): its own annotation, on its field or its getter, or one of the members it overrides; null when
+     * none is.
+     */
+    private fun sensitivityOf(property: KSPropertyDeclaration): String? {
+        val marked = property.declarations().firstOrNull { it.isSensitive() } ?: return null
+        if (marked === property) {
+            return "is @Sensitive"
+        }
+        val owner = marked.parentDeclaration?.simpleName?.asString()
+        return "overrides ${listOfNotNull(owner, marked.simpleName.asString()).joinToString(".")}, which is @Sensitive"
+    }
+
+    /**
+     * Whether this declaration carries `@Sensitive`, or an annotation that does (`@Sensitive` on an annotation class),
+     * a property's on its field or its getter too.
+     */
+    private fun KSDeclaration.isSensitive(): Boolean {
+        val getter = (this as? KSPropertyDeclaration)?.getter?.annotations.orEmpty()
+        return (annotations + getter).any { annotation ->
+            annotation.isOf(SENSITIVE) ||
+                annotation.annotationType.resolve().declaration.annotations.any { it.isOf(SENSITIVE) }
         }
     }
 

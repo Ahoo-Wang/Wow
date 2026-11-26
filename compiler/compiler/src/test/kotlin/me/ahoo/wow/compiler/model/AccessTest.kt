@@ -30,48 +30,49 @@ import tools.jackson.module.kotlin.jacksonObjectMapper
 /** `@Access`: the access attributes the model processor finds on a state, checks, generates and writes. */
 @OptIn(ExperimentalCompilerApi::class)
 class AccessTest {
-    /** A document whose state declares [members] (Kotlin source inside the state class), and [extra] beside it. */
-    private fun document(members: String, root: String = "", extra: String = ""): SourceFile = SourceFile.kotlin(
-        "Document.kt",
-        """
-        package sample
+    /** A document whose state, of [supertypes], declares [members] (Kotlin source inside it), and [extra] beside it. */
+    private fun document(members: String, root: String = "", extra: String = "", supertypes: String = ""): SourceFile =
+        SourceFile.kotlin(
+            "Document.kt",
+            """
+            package sample
 
-        import me.ahoo.wow.api.annotation.Access
-        import me.ahoo.wow.api.annotation.AggregateRoot
-        import me.ahoo.wow.api.annotation.Blocking
-        import me.ahoo.wow.api.annotation.BoundedContext
-        import me.ahoo.wow.api.annotation.CreateAggregate
+            import me.ahoo.wow.api.annotation.Access
+            import me.ahoo.wow.api.annotation.AggregateRoot
+            import me.ahoo.wow.api.annotation.Blocking
+            import me.ahoo.wow.api.annotation.BoundedContext
+            import me.ahoo.wow.api.annotation.CreateAggregate
 
-        @BoundedContext(name = "office")
-        object OfficeContext
+            @BoundedContext(name = "office")
+            object OfficeContext
 
-        enum class Level { LOW, HIGH }
+            enum class Level { LOW, HIGH }
 
-        @CreateAggregate
-        data class Draft(val department: String, val sharedWith: Set<String>)
-        data class Drafted(val department: String, val sharedWith: Set<String>)
+            @CreateAggregate
+            data class Draft(val department: String, val sharedWith: Set<String>)
+            data class Drafted(val department: String, val sharedWith: Set<String>)
 
-        @AggregateRoot
-        class Document(private val state: DocumentState) {
-            fun onCommand(command: Draft): Drafted = Drafted(command.department, command.sharedWith)
-            $root
-        }
-
-        class DocumentState {
-            var department: String = ""
-            var sharedWith: Set<String> = emptySet()
-            var orgPath: String? = null
-            var level: Level = Level.HIGH
-            fun onSourcing(event: Drafted) {
-                department = event.department
-                sharedWith = event.sharedWith
+            @AggregateRoot
+            class Document(private val state: DocumentState) {
+                fun onCommand(command: Draft): Drafted = Drafted(command.department, command.sharedWith)
+                $root
             }
-            $members
-        }
 
-        $extra
-        """.trimIndent(),
-    )
+            class DocumentState$supertypes {
+                var department: String = ""
+                var sharedWith: Set<String> = emptySet()
+                var orgPath: String? = null
+                var level: Level = Level.HIGH
+                fun onSourcing(event: Drafted) {
+                    department = event.department
+                    sharedWith = event.sharedWith
+                }
+                $members
+            }
+
+            $extra
+            """.trimIndent(),
+        )
 
     /** Runs the generated model: the access attributes of a document drafted for sales, shared with bob. */
     private fun scenario(): SourceFile = SourceFile.kotlin(
@@ -113,8 +114,8 @@ class AccessTest {
         return Compiled(compilation, result)
     }
 
-    private fun failing(members: String, root: String = "", extra: String = ""): String {
-        val (_, result) = compileModel("generate", document(members, root, extra))
+    private fun failing(members: String, root: String = "", extra: String = "", supertypes: String = ""): String {
+        val (_, result) = compileModel("generate", document(members, root, extra, supertypes))
         result.exitCode.assert().withFailMessage { members }.isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
         return result.messages
     }
@@ -324,6 +325,52 @@ class AccessTest {
             failing("@Access val wrong: $type get() = TODO()", extra = declaration).assert()
                 .contains("@Access property wrong returns $type, not")
         }
+    }
+
+    @Test
+    fun `an access attribute that is or derives from a @Sensitive value is a compile error (D485)`() {
+        val sensitive = "me.ahoo.wow.api.query.annotation.Sensitive"
+        val level = "me.ahoo.wow.api.query.annotation.SensitivityLevel"
+        val fix = "an access attribute is answered raw on every read and published stream, and queries compare and " +
+            "group it, so it holds no sensitive value: remove @Access, or derive the attribute from a value that " +
+            "is not sensitive"
+        val types = """
+            @JvmInline @$sensitive($level.DISPLAY) value class Phone(val value: String)
+            @JvmInline value class Card(@get:$sensitive($level.CONFIDENTIAL) val value: String)
+            @$sensitive($level.DISPLAY) @Target(AnnotationTarget.FIELD, AnnotationTarget.PROPERTY_GETTER)
+            annotation class Personal
+            interface Contact { @get:$sensitive($level.DISPLAY) val mobile: String }
+        """.trimIndent()
+        mapOf(
+            "@Access @field:$sensitive($level.CONFIDENTIAL) var region: String = \"\"" to
+                "@Access property region is @Sensitive: $fix",
+            "@Access @get:$sensitive($level.DISPLAY) val phone: String get() = department" to
+                "@Access property phone is @Sensitive: $fix",
+            "@Access @get:Personal val owner: String get() = department" to
+                "@Access property owner is @Sensitive: $fix",
+            "@Access override val mobile: String get() = department" to
+                "@Access property mobile overrides Contact.mobile, which is @Sensitive: $fix",
+            "@Access val contact: Phone get() = Phone(department)" to
+                "@Access property contact returns Phone, whose values are @Sensitive (Phone): $fix",
+            "@Access val contacts: List<Phone> get() = listOf()" to
+                "@Access property contacts returns List<Phone>, whose values are @Sensitive (Phone): $fix",
+            "@Access val card: Card get() = Card(department)" to
+                "@Access property card returns Card, whose values are @Sensitive (Card.value): $fix",
+            "@Access fun phoneOf(): Phone = Phone(department)" to
+                "@Access function phoneOf returns Phone, whose values are @Sensitive (Phone): $fix",
+        ).forEach { (member, problem) ->
+            val members = if ("mobile" in member) "$member\n" else "$member\noverride val mobile: String = \"\""
+            failing(members, extra = types, supertypes = " : Contact").assert().contains(problem)
+        }
+        // An attribute beside a sensitive field, of a value that is not, is one.
+        val compiled = compiled(
+            document(
+                "@field:$sensitive($level.CONFIDENTIAL) var phone: String = \"\"\n" +
+                    "@Access val team: String get() = department",
+            ),
+        )
+        compiled.fragment().contexts.single().aggregates.single().access.map { it.name }.assert()
+            .containsExactly("team")
     }
 
     @Test
