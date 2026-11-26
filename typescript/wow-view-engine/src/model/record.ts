@@ -41,6 +41,7 @@ export type RecordPagingMode = 'paged' | 'cursor';
 export type RecordPageTarget<P extends RecordPagingMode = RecordPagingMode> =
   P extends 'paged' ? { index: number } : { cursor: string | null };
 
+/** One ordering of a record view: a field and its direction. */
 export interface RecordSort {
   field: string;
   direction: SortDirectionName;
@@ -99,16 +100,22 @@ export interface RecordColumn {
   hidden?: true;
 }
 
+/** A summary under a record view's column: a field and the function over it. */
 export interface RecordSummary {
   field: string;
   /** The aggregation, by the wire's word, as an analysis metric's `function`. */
   function: SummaryFunction;
 }
 
+/** How a record view draws its rows as a table: its columns. */
 export interface RecordTableSpec {
   columns: RecordColumn[];
 }
 
+/**
+ * How a record view draws its rows as cards: the title, the fields and the
+ * image.
+ */
 export interface RecordCardSpec {
   /** Field shown as the card title. */
   title: string;

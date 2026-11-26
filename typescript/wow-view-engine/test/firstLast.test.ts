@@ -35,7 +35,6 @@ import { describe, expect, it } from 'vitest';
 import {
   builtinFieldKindRegistry,
   compileAnalysis,
-  fitChartSlots,
   validateAnalysis,
   validateDefinition,
   type AnalysisCapability,
@@ -66,6 +65,7 @@ import {
   errorCodes as codes,
 } from './fixtures/analysis.js';
 import { describedField, ordersDescriptor } from './fixtures/descriptor.js';
+import { fitChartSlots } from '../src/analysis/chartSlots.js';
 
 const capability: AnalysisCapability = {
   count: true,

@@ -37,6 +37,7 @@ import { validateTop } from './validateTop.js';
 import { validateSortAndColumns } from './validateSort.js';
 import { validateLimits } from './validateLimits.js';
 
+/** Options of `validateAnalysis`: the limits to hold the config to. */
 export interface ValidateAnalysisOptions {
   limits?: Partial<RuntimeLimits>;
 }

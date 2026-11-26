@@ -50,6 +50,7 @@ import {
  */
 export type ColorMode = 'system' | 'light' | 'dark';
 
+/** Props of `ViewSurface`. */
 export interface ViewSurfaceProps extends React.ComponentProps<'div'> {
   /**
    * Follows the host when left out — a `.dark` class on an ancestor, the
@@ -307,6 +308,9 @@ export function useSurfaceDisplay(): DisplayContext {
   return React.useContext(SurfaceDisplayContext);
 }
 
+/**
+ * The boundary a view draws inside: its theme, wording, language and time zone.
+ */
 export function ViewSurface({ engine, ...props }: ViewSurfaceProps) {
   return (
     <StartingWords engine={engine}>

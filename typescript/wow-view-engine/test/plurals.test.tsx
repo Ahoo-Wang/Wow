@@ -14,13 +14,14 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { FilterSummaryItem, FilterValue } from '../src/index.js';
-import { FilterValueEditor, ViewSurface } from '../src/ui/index.js';
+import { ViewSurface } from '../src/ui/index.js';
 import type { MessageFormatters } from '../src/ui/index.js';
 import { summaryText } from '../src/ui/kit/summary.js';
 import { en } from '../src/ui/messages/en.js';
 import { zhCN } from '../src/ui/messages/zh-CN.js';
 import { formatMessage, type MessageKey } from '../src/ui/kit/messages.js';
 import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
+import { FilterValueEditor } from '../src/ui/filter/FilterValueEditor.js';
 
 afterEach(cleanup);
 

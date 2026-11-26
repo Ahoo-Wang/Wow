@@ -16,10 +16,8 @@ import type { RecordRow } from '../../record/index.js';
 import { hasAsked, type RecordViewRuntime } from '../../runtime/index.js';
 import {
   useFilterEditor,
-  useRecordDetail,
   useRecordKanban,
   useRecordTable,
-  useSearchBox,
   useViewRuntime,
   type RecordDetailSection,
 } from '../../react/index.js';
@@ -39,6 +37,8 @@ import type { RenderFailureHandler } from '../kit/RenderBoundary.js';
 import { QueryStrip } from '../kit/StatusStrip.js';
 import { SearchBox } from '../workbench/SearchBox.js';
 import type { RecordDetailOptions } from '../workbench/RecordParts.js';
+import { useRecordDetail } from '../../react/useRecordDetail.js';
+import { useSearchBox } from '../../react/useSearchBox.js';
 
 /**
  * A record view on a business page: its rows and what they were

@@ -12,14 +12,13 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import {
-  fitChartSlots,
-  type AnalysisColumnView,
-  type AnalysisGroup,
-  type AnalysisMetric,
-  type CartesianData,
-  type ChartSpec,
-  type FieldDefinition,
+import type {
+  AnalysisColumnView,
+  AnalysisGroup,
+  AnalysisMetric,
+  CartesianData,
+  ChartSpec,
+  FieldDefinition,
 } from '../src/index.js';
 import { comboAxis } from '../src/analysis/familySlots.js';
 import { measureColumns } from '../src/analysis/columns.js';
@@ -36,6 +35,7 @@ import {
   AggregationMetricType,
   AggregationGroupType,
 } from '@ahoo-wang/wow-client/dsl';
+import { fitChartSlots } from '../src/analysis/chartSlots.js';
 
 /**
  * A combo's right axis (todo 「组合图的右轴」, audit P2-4): the slot layer

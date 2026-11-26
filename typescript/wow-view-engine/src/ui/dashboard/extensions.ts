@@ -78,6 +78,10 @@ export interface DashboardEditExtensions {
 
 const NONE: DashboardEditExtensions = {};
 
+/**
+ * Hands `DashboardEditExtensions` to the boards inside it; `DashboardWorkbench`
+ * merges what it holds with its own.
+ */
 export const DashboardEditExtensionsContext =
   createContext<DashboardEditExtensions>(NONE);
 

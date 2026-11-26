@@ -275,6 +275,7 @@ export interface BoxplotBox {
   high: number;
 }
 
+/** What a box plot draws: one box per category, from the shaped result. */
 export interface BoxplotData {
   type: 'boxplot';
   boxes: BoxplotBox[];

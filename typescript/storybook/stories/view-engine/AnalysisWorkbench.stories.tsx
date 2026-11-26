@@ -22,10 +22,9 @@ import {
   AggregationDateUnit,
   FilterOperator,
 } from '@ahoo-wang/wow-client/dsl';
-import {
-  fitChartSlots,
-  type AnalysisViewConfig,
-  type DataViewDefinition,
+import type {
+  AnalysisViewConfig,
+  DataViewDefinition,
 } from '@ahoo-wang/wow-view-engine';
 import { DataWorkbench } from '@ahoo-wang/wow-view-engine/ui';
 import { AppShell } from '../shared/AppShell.js';
@@ -47,6 +46,7 @@ import {
 } from './fixtures.js';
 import { StoryEngine } from './StoryEngine.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
+import { fitChartSlots } from '../../../wow-view-engine/src/analysis/chartSlots.js';
 
 /**
  * Colours a spec pins by name: a category value for a pie's slice, a series

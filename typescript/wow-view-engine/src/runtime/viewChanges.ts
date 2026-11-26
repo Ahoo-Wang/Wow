@@ -34,6 +34,7 @@ export interface ViewChange {
   id: string;
 }
 
+/** Told of each change to the engine's saved views (`ViewEngine.subscribe`). */
 export type ViewChangeListener = (change: ViewChange) => void;
 
 /**

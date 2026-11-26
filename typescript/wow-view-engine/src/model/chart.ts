@@ -65,6 +65,7 @@ export interface ChartSpec {
   colors?: Record<string, string>;
 }
 
+/** Every chart type an analysis can be drawn as. */
 export type ChartType =
   | 'bar'
   | 'line'
@@ -196,8 +197,15 @@ export const CHART_FAMILY: Readonly<Record<ChartType, ChartFamily>> =
     map: 'map',
   });
 
+/**
+ * How a chart writes its values: automatically, as a percentage, or compact.
+ */
 export type ValueFormat = 'auto' | 'percent' | 'compact';
 
+/**
+ * A pie chart's config: the group that makes the slices and the metric that
+ * sizes them.
+ */
 export interface PieSpec {
   /** Group alias. */
   category: string;
@@ -212,6 +220,10 @@ export interface PieSpec {
   maxSlices?: number;
 }
 
+/**
+ * A heatmap's config: the two groups on its axes and the metric that colours
+ * each cell.
+ */
 export interface HeatmapSpec {
   /** Group alias. */
   x: string;
@@ -222,6 +234,10 @@ export interface HeatmapSpec {
   scale?: 'linear' | 'log';
 }
 
+/**
+ * A scatter chart's config: the group that makes the points and the metrics on
+ * its axes.
+ */
 export interface ScatterSpec {
   /** Group alias; one point per value. */
   category: string;
@@ -448,6 +464,10 @@ export interface FunnelSpec {
   orientation?: 'vertical' | 'horizontal';
 }
 
+/**
+ * Where a funnel's stages come from: a list of metrics, or the values of a
+ * group.
+ */
 export type FunnelStages =
   | { from: 'metrics'; items: { metric: string; label?: string }[] }
   | {
@@ -465,6 +485,9 @@ export type FunnelStages =
       cumulative?: boolean;
     };
 
+/**
+ * A metric card's config: its metric, what it compares against and its trend.
+ */
 export interface MetricCardSpec {
   /** Metric alias. */
   metric: string;
@@ -513,8 +536,13 @@ export interface MetricTrend {
   against?: MetricAgainst;
 }
 
+/** Which value a metric card shows: the last period's, or the whole span's. */
 export type MetricHeadline = 'last' | 'whole';
 
+/**
+ * What a metric card compares its value with: the previous period, or the same
+ * period a year before.
+ */
 export type MetricAgainst = 'previous' | 'previous-year';
 
 /** The two periods a trend card's last period is measured against, the default first. */

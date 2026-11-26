@@ -39,11 +39,7 @@ import { recordProjection } from '../src/record/compile.js';
 import { shapeChart } from '../src/analysis/chart.js';
 import { valueCandidatesConfig } from '../src/analysis/candidates.js';
 import { narrowDefinition } from '../src/capabilities/index.js';
-import {
-  useAnalysisEditor,
-  useOpenView,
-  useSearchBox,
-} from '../src/react/index.js';
+import { useAnalysisEditor, useOpenView } from '../src/react/index.js';
 import {
   analysisCapability,
   analysisDefinition,
@@ -74,6 +70,7 @@ import {
   SearchMode,
   SortDirection,
 } from '@ahoo-wang/wow-client/dsl';
+import { useSearchBox } from '../src/react/useSearchBox.js';
 
 afterEach(cleanup);
 

@@ -1,7 +1,6 @@
-# @ahoo-wang/wow-view-engine — 460 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 432 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
-type  AbsoluteDateTimeValue
 type  ActionConfirm
 type  ActionContext
 type  ActionForm
@@ -40,17 +39,13 @@ type  AnalysisTop
 type  AnalysisViewConfig
 type  AnalysisViewRuntime
 type  AnyViewRuntime
-type  ArrangeStep
-type  ArrayFilterValue
 type  Availability
 type  AxisSpec
 value BUILTIN_FIELD_KINDS
-type  BooleanFilterValue
 type  BoxplotBox
 type  BoxplotData
 type  BoxplotSpec
 type  BuiltinFieldKindId
-value CHART_TYPES
 type  CalendarData
 type  CalendarDay
 type  CalendarSpec
@@ -63,7 +58,6 @@ type  CartesianMissing
 type  CartesianSeries
 type  CartesianSpec
 type  ChartData
-type  ChartFamily
 type  ChartFit
 type  ChartProfile
 type  ChartSpec
@@ -75,16 +69,13 @@ type  ColumnEdge
 type  ComparisonOperatorName
 type  CompileAnalysisOptions
 type  CompileRecordOptions
-type  ConfigOfKind
 type  ConflictChoice
 type  ConflictingState
-type  ContentPanelKind
 type  CreateInput
 type  CrossFilterOutcome
 type  CsvOptions
 type  CurrencyReading
 type  CursorPaging
-value DEFAULT_MISSING_KEY
 value DEFAULT_RUNTIME_LIMITS
 type  DashboardContentPanel
 type  DashboardDefinition
@@ -124,7 +115,6 @@ type  DatasetWordingEditor
 type  DatasetWordingStore
 type  DateDiffUnitName
 type  DateTemporal
-type  DateTimeFilterValue
 type  DateTimePreset
 type  DecimalNumeric
 type  DefineDatasetSpec
@@ -140,9 +130,7 @@ type  DerivedKind
 type  DerivedLine
 type  DerivedSeries
 type  DestinationDashboard
-type  DetailSection
 type  Dropped
-type  DurationFilterValue
 value EDITOR_INPUTS
 type  EditCommand
 type  EditHistoryState
@@ -150,7 +138,6 @@ type  EditStep
 type  EditorDescriptor
 type  EditorInput
 type  ElementTitleView
-type  EnumFilterValue
 type  EpochTemporal
 type  EpochTimeUnit
 value ExportCancelledError
@@ -171,7 +158,6 @@ type  FieldKindDescription
 type  FieldKindId
 type  FieldKindRegistry
 type  FieldKindValidateContext
-type  FieldMetricType
 type  FieldNumeric
 type  FieldOption
 type  FieldSpec
@@ -209,7 +195,6 @@ type  HierarchyData
 type  HierarchyNode
 type  HierarchySpec
 type  InstancePermissions
-type  InstantRange
 type  Issue
 type  IssuePath
 type  IssueSeverity
@@ -242,9 +227,7 @@ type  NewFilter
 type  NewPanel
 type  NewPanelPlacement
 type  NewViewPanel
-type  NumberFilterValue
 type  NumberFormat
-type  NumberRange
 type  OpenCapabilities
 type  OpenOptions
 type  OptionSource
@@ -267,7 +250,6 @@ type  PieData
 type  PieSlice
 type  PieSpec
 type  PlacedLine
-type  PresetDateTimeValue
 type  PressDestination
 type  ProjectAnalysisOptions
 type  ProjectRecordOptions
@@ -304,9 +286,7 @@ type  RecordTableSpec
 type  RecordViewConfig
 type  RecordViewRuntime
 type  ReferenceBand
-type  ReferenceFilterValue
 type  ReferenceId
-type  ReferenceItem
 type  ReferenceLabel
 type  ReferenceLabelReader
 value ReferenceLabelTimeoutError
@@ -315,7 +295,6 @@ type  ReferenceStatistic
 type  RefreshConfig
 type  RefusalGroup
 type  RelativeDateDirection
-type  RelativeDateTimeValue
 type  RelativeDateUnit
 type  RiverStream
 type  RoutedTarget
@@ -340,14 +319,12 @@ type  SourceOptions
 type  StoreOperation
 type  StoredDatasetWording
 type  StringComparisonName
-type  StringFilterValue
 type  SummaryCell
 type  SummaryFunction
 type  SummaryRow
 type  SystemView
 type  Text
 type  TextResolver
-type  TextWords
 type  ThemeRiverData
 type  ThemeRiverSpec
 type  TimePrecision
@@ -365,7 +342,6 @@ type  ValueCandidate
 type  ValueCandidateSource
 type  ValueCandidates
 type  ValueFormat
-type  ValueMetric
 type  ViewAudience
 type  ViewChange
 type  ViewChangeKind
@@ -377,7 +353,6 @@ type  ViewDefinition
 type  ViewDestination
 value ViewEngine
 type  ViewEngineOptions
-type  ViewErrorContext
 type  ViewErrorContexts
 type  ViewErrorEvent
 type  ViewErrorKind
@@ -432,15 +407,13 @@ value defineDataset
 value defineView
 value emptyDashboardConfig
 value emptyPreferences
-value fitChartSlots
 value hasAsked
 value hasResult
 value inRows
 value isActionInputError
-value isAnalysisRuntime
-value isDateTimeFilterValue
 value isExportCancelledError
 value isRecordRuntime
+value isReferenceLabelTimeoutError
 value isSystemInstanceId
 value isViewCommandError
 value isViewStoreError
@@ -449,7 +422,6 @@ value issue
 value localStorageSnapshot
 value projectAnalysis
 value projectRecord
-value resolveDateTimeRange
 value serializeCsv
 value systemInstanceId
 value text

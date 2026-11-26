@@ -508,7 +508,8 @@ describe('a panel whose query failed', () => {
       [pending],
       source,
     );
-    const { DashboardPanelCard } = await import('../src/ui/index.js');
+    const { DashboardPanelCard } =
+      await import('../src/ui/dashboard/DashboardPanelCard.js');
     render(<DashboardPanelCard panel={controller().panels[0]} />);
 
     await waitFor(() =>

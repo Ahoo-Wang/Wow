@@ -168,6 +168,7 @@ export interface RuntimeLimits {
   exportNeutralizeFormulas: boolean;
 }
 
+/** The runtime limits in force where a host sets none. */
 export const DEFAULT_RUNTIME_LIMITS: Readonly<RuntimeLimits> = Object.freeze({
   maxConcurrentQueries: 4,
   maxQueuedQueries: 32,

@@ -28,6 +28,10 @@ import { familyOf, type ChartUnfit, type ShapeFacts } from './chartFamilies.js';
 import { stageValues } from './chartOptions.js';
 import { isAdditiveMetric } from './additive.js';
 
+/**
+ * Whether a chart type can draw the analysis as it stands, and why not when it
+ * cannot.
+ */
 export interface ChartFit {
   available: boolean;
   /** Why not, when not. */

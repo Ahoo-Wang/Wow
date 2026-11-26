@@ -31,7 +31,7 @@ import {
   type ViewSource,
 } from '../src/index.js';
 import { rootSearch } from '../src/filter/search.js';
-import { useFilterEditor, useSearchBox } from '../src/react/index.js';
+import { useFilterEditor } from '../src/react/index.js';
 import {
   nextTask,
   ordersDefinition,
@@ -40,6 +40,7 @@ import {
   testEnvironment,
   testSource,
 } from './fixtures.js';
+import { useSearchBox } from '../src/react/useSearchBox.js';
 
 afterEach(cleanup);
 

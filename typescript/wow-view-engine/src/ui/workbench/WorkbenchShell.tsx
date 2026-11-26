@@ -44,6 +44,7 @@ import type { ViewDensity, ViewPreset } from '../kit/presets.js';
  */
 export type WorkbenchLandmark = 'main' | 'region';
 
+/** Props of `WorkbenchShell`. */
 export interface WorkbenchShellProps {
   workbench: WorkbenchController;
   /** The definition's title, which names the sidebar and the header. */

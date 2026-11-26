@@ -1,6 +1,6 @@
 ---
 title: Host the Engine
-description: Put the view engine into a React application — one engine over V10 query routes, ViewHost and its ports, bind, the router, navigation, embeds, words and locale — and test the wiring without a browser.
+description: Put the view engine into a React application — one engine over V10 query routes, ViewHost and its ports, bind, the router, navigation, embeds, maps, words and locale — and test the wiring without a browser.
 ---
 
 # Host the Engine
@@ -298,6 +298,34 @@ export function CustomerPage({ id, name }: { id: string; name: string }) {
 - **Every way off an embed** goes through its `onNavigate`, or else the `ViewHost`'s `router` or `navigate`; with none of them, those ways do not exist.
 
 **Locking is not a security boundary.** A locked condition is put together in the browser and sent with the query; anyone can edit the script or call the API directly. Tenancy, ownership and permissions are enforced by the Wow service, as [Read models](../../concepts/read-models#who-sees-what) describes.
+
+## Maps for the map chart {#maps}
+
+The package ships no map data. Which borders a map shows, and whether it may be published at all, is the law of where it is shown: in China, for one, a map of China is published only with an approval number (审图号). So the geography is the host's to choose and to answer for. Until a host registers a map, the chart picker greys the map chart out and says no map is available.
+
+Register each map once, at start-up, with `registerChartMap` from `/ui`:
+
+```ts
+import {
+  registerChartMap,
+  type ChartMapGeoJson,
+} from '@ahoo-wang/wow-view-engine/ui';
+
+export const takeBackRegions = registerChartMap({
+  name: 'regions',
+  label: 'Sales regions',
+  load: async () => {
+    const response = await fetch('/maps/regions.geo.json');
+    return (await response.json()) as ChartMapGeoJson;
+  },
+});
+```
+
+- **`name`** is what a chart config names the map by (`MapSpec.map`); a chart that names none draws the first map registered. **`label`** is what the options page shows when there are several.
+- **`load()`** answers a GeoJSON `FeatureCollection` (`ChartMapGeoJson`). It runs the first time a chart draws that map, never with the page, and its result is kept; a failed load is tried again the next time.
+- **Regions are matched by name**: each feature's `properties.name` against the region dimension's values as their column shows them (an enum by its label). The chart counts the regions the map has no area for, and says so, rather than guessing.
+- **The registry is the page's, not an engine's.** Two hosts on one page that share the package share it: of two maps with one name, the later wins, and the function `registerChartMap` answers takes back only its own registration. Hosts that want different geography use different names.
+- A server render reads no maps; they arrive on the first render after hydration.
 
 ## Words and locale {#messages}
 

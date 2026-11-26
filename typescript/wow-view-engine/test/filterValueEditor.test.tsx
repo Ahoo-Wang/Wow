@@ -28,15 +28,11 @@ import type {
   OptionSource,
 } from '../src/index.js';
 import { SurfaceCalendar } from '../src/ui/filter/inputs/calendar.js';
-import {
-  FilterValueEditor,
-  formatMessage,
-  ViewSurface,
-  zhCN,
-} from '../src/ui/index.js';
+import { formatMessage, ViewSurface, zhCN } from '../src/ui/index.js';
 import { en } from '../src/ui/messages/en.js';
 import { pinClock } from './fixtures/clock.js';
 import { DeletionState } from '@ahoo-wang/wow-client/dsl';
+import { FilterValueEditor } from '../src/ui/filter/FilterValueEditor.js';
 
 afterEach(cleanup);
 

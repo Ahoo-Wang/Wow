@@ -68,6 +68,7 @@ export type ViewConfig =
  */
 export type DataViewConfig = RecordViewConfig | AnalysisViewConfig;
 
+/** The kind of a view: record, analysis or dashboard. */
 export type ViewKind = ViewConfig['kind'];
 
 export const VIEW_KINDS: readonly ViewKind[] = [

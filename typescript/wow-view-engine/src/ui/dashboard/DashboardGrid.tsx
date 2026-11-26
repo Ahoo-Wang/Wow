@@ -76,6 +76,7 @@ import {
   EmptyDescription,
 } from '../components/empty.js';
 
+/** Props of `DashboardGrid`. */
 export interface DashboardGridProps {
   dashboard: DashboardController;
   /**

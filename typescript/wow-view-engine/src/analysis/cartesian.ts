@@ -46,6 +46,10 @@ import { peaksOnlyLabels } from './chartFamilies.js';
 import { bySize, foldOther, splitFoldable } from './splitOther.js';
 import { isAdditiveMetric } from './additive.js';
 
+/**
+ * What a bar, line, area or combo chart draws: the categories, each series'
+ * values and the derived lines.
+ */
 export interface CartesianData {
   type: 'cartesian';
   chart: ChartType;

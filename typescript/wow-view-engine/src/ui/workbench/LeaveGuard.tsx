@@ -27,6 +27,7 @@ import { AlertDialogContent } from '../kit/popups.js';
 import { DestructiveAction } from '../kit/variants.js';
 import { useKindWord } from '../kit/kinds.js';
 
+/** Props of `LeaveDialog`. */
 export interface LeaveDialogProps {
   /** The headless guard from `useWorkbench`; this only draws its question. */
   leave: LeaveGuard;

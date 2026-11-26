@@ -13,6 +13,7 @@
 
 import type * as React from 'react';
 
+/** Props of `RowActions`. */
 export interface RowActionsProps {
   children?: React.ReactNode;
 }

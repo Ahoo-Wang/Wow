@@ -17,13 +17,10 @@ import type { RecordRow } from '../../record/index.js';
 import type { RecordViewRuntime } from '../../runtime/index.js';
 import type { RecordActions } from '../../runtime/actions.js';
 import {
-  useRecordDetail,
   useRecordKanban,
   useRecordTable,
-  useSearchBox,
   type RecordActionSlots,
   type RecordDetailControl,
-  type RecordDetailController,
   type RecordDetailSection,
   type RecordDetailSectionContext,
   type WorkbenchController,
@@ -60,6 +57,11 @@ import {
 } from '../kit/RenderBoundary.js';
 import { NO_PARTS, type RenderParts } from './parts.js';
 import { SearchBox } from './SearchBox.js';
+import {
+  useRecordDetail,
+  type RecordDetailController,
+} from '../../react/useRecordDetail.js';
+import { useSearchBox } from '../../react/useSearchBox.js';
 
 /**
  * What a host may say about the record views a workbench draws: what may be

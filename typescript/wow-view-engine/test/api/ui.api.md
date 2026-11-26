@@ -12,7 +12,6 @@ import { AggregationFunction } from '@ahoo-wang/wow-client/dsl';
 import { AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
 import { AggregationMetricType } from '@ahoo-wang/wow-client/dsl';
 import { AggregationQuery } from '@ahoo-wang/wow-client/dsl';
-import { ComponentType } from 'react';
 import { Context } from 'react';
 import { CursorPage } from '@ahoo-wang/wow-client/dsl';
 import { CursorQuery } from '@ahoo-wang/wow-client/dsl';
@@ -23,19 +22,16 @@ import { FilterExpression } from '@ahoo-wang/wow-client/dsl';
 import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import { HavingExpression } from '@ahoo-wang/wow-client/dsl';
 import { JSX } from 'react';
-import { MouseEventHandler } from 'react';
 import { PagedList } from '@ahoo-wang/wow-client/dsl';
 import { PagedQuery } from '@ahoo-wang/wow-client/dsl';
 import { QueryViolation } from '@ahoo-wang/wow-client/dsl';
 import * as React_2 from 'react';
-import { ReactElement } from 'react';
 import { ReactNode } from 'react';
 import { Ref } from 'react';
 import { RefObject } from 'react';
 import { SearchMode } from '@ahoo-wang/wow-client/dsl';
 import { SortDirection } from '@ahoo-wang/wow-client/dsl';
 import { StringComparison } from '@ahoo-wang/wow-client/dsl';
-import { SVGProps } from 'react';
 import { TimeUnit } from '@ahoo-wang/wow-client/dsl';
 import { WindowFunction } from '@ahoo-wang/wow-client/dsl';
 
@@ -80,13 +76,13 @@ type ActionPlace = 'row' | 'bulk' | 'detail';
 // @public
 type ActionTone = 'default' | 'danger';
 
-// @public (undocumented)
+// @public
 type AggregationDatePartName = `${AggregationDatePart}`;
 
-// @public (undocumented)
+// @public
 type AggregationDateUnitName = `${AggregationDateUnit}`;
 
-// @public (undocumented)
+// @public
 type AggregationExpressionOperatorName = `${AggregationExpressionOperator}`;
 
 // @public
@@ -112,7 +108,7 @@ interface AggregationFieldCapability {
     steps?: boolean;
 }
 
-// @public (undocumented)
+// @public
 type AggregationFunctionName = `${AggregationFunction}`;
 
 // @public
@@ -121,7 +117,7 @@ type AggregationGroupTypeName = `${AggregationGroupType}`;
 // @public
 export type AlertTone = 'error' | 'warning' | 'info';
 
-// @public (undocumented)
+// @public
 interface AnalysisCapability {
     approximate?: AnalysisMetric['type'][];
     // (undocumented)
@@ -146,7 +142,7 @@ interface AnalysisCapability {
 // @public
 export function AnalysisChart(input: AnalysisChartProps): JSX.Element;
 
-// @public (undocumented)
+// @public
 export interface AnalysisChartProps {
     // (undocumented)
     className?: string;
@@ -290,12 +286,9 @@ type AnalysisGroup = AnalysisNamed & ({
 type AnalysisHavingExpression = LiteralEnums<HavingExpression>;
 
 // @public
-export type AnalysisHost = Pick<WorkbenchController, 'filter' | 'state' | 'autoRun' | 'setAutoRun' | 'canDrill' | 'drill' | 'follow'>;
-
-// @public (undocumented)
 type AnalysisLayout = 'table' | 'chart';
 
-// @public (undocumented)
+// @public
 interface AnalysisLimits {
     // (undocumented)
     defaultLimit?: number;
@@ -356,25 +349,6 @@ interface AnalysisNamed {
 }
 
 // @public
-export function AnalysisParts(input: AnalysisPartsProps): ReactNode;
-
-// @public (undocumented)
-export interface AnalysisPartsProps {
-    // (undocumented)
-    children: RenderParts;
-    features?: WorkbenchFeatures;
-    followUps?: boolean;
-    locale?: string;
-    messages?: ViewMessages;
-    // (undocumented)
-    optionsFor?(remote: string): FieldOption[] | undefined;
-    runtime: ViewRuntime<AnalysisViewConfig> | null;
-    visualizationBack?: string;
-    // (undocumented)
-    workbench: AnalysisHost;
-}
-
-// @public (undocumented)
 interface AnalysisProjection {
     approximate?: readonly string[];
     atLimit?: number;
@@ -389,7 +363,7 @@ interface AnalysisProjection {
     truncated: boolean;
 }
 
-// @public (undocumented)
+// @public
 interface AnalysisSort {
     // (undocumented)
     alias: string;
@@ -415,7 +389,7 @@ interface AnalysisSpec {
 // @public
 export function AnalysisTable(input: AnalysisTableProps): JSX.Element;
 
-// @public (undocumented)
+// @public
 export interface AnalysisTableProps {
     highlight?: (row: RecordData) => boolean;
     onPick?: OnPick;
@@ -426,7 +400,7 @@ export interface AnalysisTableProps {
     view: AnalysisProjection;
 }
 
-// @public (undocumented)
+// @public
 interface AnalysisTableSpec {
     columns: AnalysisColumn[];
     totals?: boolean;
@@ -479,7 +453,7 @@ type AnyViewRuntime = RecordViewRuntime | AnalysisViewRuntime | DashboardRuntime
 // @public
 export function AppliedBar(input: AppliedBarProps): JSX.Element | null;
 
-// @public (undocumented)
+// @public
 export interface AppliedBarProps {
     asked: boolean;
     // (undocumented)
@@ -493,15 +467,9 @@ export interface AppliedBarProps {
 }
 
 // @public
-type ArrangeStep = 'left' | 'right' | 'up' | 'down' | 'wider' | 'narrower' | 'taller' | 'shorter';
-
-// @public
-export const AUDIENCE_ICON: Record<ViewAudience, ViewIcon>;
-
-// @public
 type Availability = true | string;
 
-// @public (undocumented)
+// @public
 interface AxisSpec {
     // (undocumented)
     format?: ValueFormat;
@@ -532,7 +500,7 @@ interface BoxplotBox {
     q3: number;
 }
 
-// @public (undocumented)
+// @public
 interface BoxplotData {
     approximate: boolean;
     // (undocumented)
@@ -555,7 +523,7 @@ interface BoxplotSpec {
 // @public
 export const BUILT_IN_PRESETS: readonly ["neutral", "contrast"];
 
-// @public (undocumented)
+// @public
 type BuiltinFieldKindId = 'string' | 'number' | 'boolean' | 'date' | 'datetime' | 'enum' | 'reference' | 'array' | 'elementMatch' | 'search' | MetadataFieldKindId;
 
 // @public
@@ -574,7 +542,7 @@ interface BulkRun {
     values?: Readonly<Record<string, string>>;
 }
 
-// @public (undocumented)
+// @public
 interface CalendarData {
     days: CalendarDay[];
     // (undocumented)
@@ -616,7 +584,7 @@ interface Candle {
     x: unknown;
 }
 
-// @public (undocumented)
+// @public
 interface CandlestickData {
     // (undocumented)
     candles: Candle[];
@@ -637,7 +605,7 @@ interface CandlestickSpec {
 // @public
 type CaptureChart = (minWidth: number) => ChartCapture | undefined;
 
-// @public (undocumented)
+// @public
 interface CartesianData {
     // (undocumented)
     chart: ChartType;
@@ -682,7 +650,7 @@ type CartesianGap = {
 // @public
 type CartesianMissing = 'zero' | 'gap';
 
-// @public (undocumented)
+// @public
 interface CartesianSeries {
     // (undocumented)
     axis?: 'left' | 'right';
@@ -692,7 +660,7 @@ interface CartesianSeries {
     type?: 'bar' | 'line' | 'area';
 }
 
-// @public (undocumented)
+// @public
 interface CartesianSpec {
     derived?: DerivedSeries[];
     extremes?: boolean;
@@ -891,7 +859,7 @@ interface ChartTheme {
     };
 }
 
-// @public (undocumented)
+// @public
 type ChartType = 'bar' | 'line' | 'area' | 'combo' | 'waterfall' | 'pie' | 'treemap' | 'heatmap' | 'scatter' | 'funnel' | 'metric' | 'gauge' | 'boxplot' | 'candlestick' | 'radar' | 'parallel' | 'sunburst' | 'tree' | 'sankey' | 'calendar' | 'themeRiver' | 'map';
 
 // @public
@@ -917,50 +885,10 @@ interface ColumnCurrency {
 type ColumnEdge = 'left' | 'right';
 
 // @public
-export function ColumnSettings(input: ColumnSettingsProps): JSX.Element;
-
-// @public (undocumented)
-export interface ColumnSettingsProps {
-    detached?: DetachedPopover;
-    fieldGroups?: readonly FieldGroupDefinition[];
-    fields: readonly FieldDefinition[];
-    released?: ReleasedPins;
-    rowKey?: string;
-    // (undocumented)
-    table: ColumnSettingsTable;
-    trigger?: ReactElement<Record<string, unknown>>;
-}
-
-// @public
-export type ColumnSettingsTable = Pick<RecordTableController, 'columnFields' | 'summaryFields' | 'pinnedOf' | 'hiddenOf' | 'summaryOf' | 'columns' | 'setColumnOrder' | 'setPinned' | 'setColumnWidth' | 'setSummary' | 'setColumns'>;
-
-// @public
 type ComparisonOperatorName = 'gt' | 'gte' | 'lt' | 'lte' | 'eq' | 'ne';
 
-// @public (undocumented)
+// @public
 type ConflictChoice = 'reload' | 'overwrite';
-
-// @public
-export function ContentPanel(input: ContentPanelProps): JSX.Element;
-
-// @public (undocumented)
-export interface ContentPanelProps {
-    headingLevel?: number;
-    // (undocumented)
-    panel: DashboardContentPanel;
-}
-
-// @public
-export interface ControlAria {
-    describedBy?: string;
-    id?: string;
-    required?: boolean;
-}
-
-// @public
-export interface ControlChromeProps {
-    chrome?: 'box' | 'none' | null;
-}
 
 // @public
 interface CreateInput<C extends ViewConfig> {
@@ -1045,7 +973,7 @@ type DashboardContentPanel = DashboardPanelBase & ({
     items: DashboardLink[];
 });
 
-// @public (undocumented)
+// @public
 interface DashboardController {
     awaiting: readonly string[];
     building: boolean;
@@ -1118,7 +1046,7 @@ export interface DashboardEditExtensions {
     tabBar?: ReactNode;
 }
 
-// @public (undocumented)
+// @public
 export const DashboardEditExtensionsContext: Context<DashboardEditExtensions>;
 
 // @public
@@ -1145,7 +1073,7 @@ interface DashboardEditing {
     undo(): EditStep | null;
 }
 
-// @public (undocumented)
+// @public
 export interface DashboardExtensionsOptions {
     // (undocumented)
     dashboard: DashboardController;
@@ -1217,7 +1145,7 @@ type DashboardFilterType = 'date' | 'text' | 'id' | 'number' | 'boolean' | 'sear
 // @public
 export function DashboardGrid(input: DashboardGridProps): JSX.Element;
 
-// @public (undocumented)
+// @public
 export interface DashboardGridProps {
     // (undocumented)
     className?: string;
@@ -1239,7 +1167,7 @@ export interface DashboardGridProps {
     rowHeight?: number;
 }
 
-// @public (undocumented)
+// @public
 interface DashboardLink {
     // (undocumented)
     description?: string;
@@ -1257,10 +1185,10 @@ interface DashboardOrigin {
     title: string;
 }
 
-// @public (undocumented)
+// @public
 type DashboardPanel = DashboardViewPanel | DashboardContentPanel;
 
-// @public (undocumented)
+// @public
 interface DashboardPanelBase {
     // (undocumented)
     id: string;
@@ -1269,39 +1197,6 @@ interface DashboardPanelBase {
     tab?: string;
     // (undocumented)
     title?: string;
-}
-
-// @public
-export function DashboardPanelCard(input: DashboardPanelCardProps): JSX.Element;
-
-// @public (undocumented)
-export interface DashboardPanelCardProps {
-    awaiting?: string;
-    commands?: PanelCommands;
-    // (undocumented)
-    editable?: boolean;
-    footer?: ReactNode;
-    headingLevel?: PanelHeadingLevel;
-    name?: string;
-    onArrange?: (step: ArrangeStep) => boolean;
-    onArrangeCancel?: (steps: number) => void;
-    // (undocumented)
-    onRenderFailure?: RenderFailureHandler;
-    onRetry?: () => void;
-    onWhole?: (height: number) => void;
-    order?: {
-        index: number;
-        total: number;
-        onMove(move: HandleMove): void;
-    };
-    // (undocumented)
-    panel: DashboardPanelView;
-    press?: PanelPress;
-    pressesFilter?: string;
-    readOnly?: boolean;
-    record?: RecordPanelHost;
-    titled?: boolean;
-    unreached?: readonly string[];
 }
 
 // @public
@@ -1369,7 +1264,7 @@ interface DashboardRuntime extends ViewRuntime<DashboardViewConfig>, DashboardEd
     wiredOptions(name: string): FieldOption[] | null;
 }
 
-// @public (undocumented)
+// @public
 interface DashboardRuntimeState extends ViewRuntimeState<DashboardViewConfig> {
     building: boolean;
     filters: DashboardFilters;
@@ -1387,18 +1282,6 @@ interface DashboardTab {
     id: string;
     // (undocumented)
     title: string;
-}
-
-// @public
-export function DashboardTabs(input: DashboardTabsProps): JSX.Element | null;
-
-// @public (undocumented)
-export interface DashboardTabsProps {
-    // (undocumented)
-    dashboard: DashboardController;
-    editing?: DashboardEditing | null;
-    end?: ReactNode;
-    onShow?(tabId: string): void;
 }
 
 // @public
@@ -1428,7 +1311,7 @@ type DashboardValueSource = {
     filter: string;
 };
 
-// @public (undocumented)
+// @public
 interface DashboardViewConfig extends ViewConfigBase {
     columns: 24;
     fields: DashboardField[];
@@ -1584,7 +1467,7 @@ interface DataViewConfigBase extends ViewConfigBase {
     filterMode: FilterMode;
 }
 
-// @public (undocumented)
+// @public
 interface DataViewDefinition {
     // (undocumented)
     analysis?: AnalysisCapability;
@@ -1643,10 +1526,10 @@ export interface DataWorkbenchProps {
     viewKinds?: readonly DataViewKind[];
 }
 
-// @public (undocumented)
+// @public
 type DateDiffUnitName = `${DateDiffUnit}`;
 
-// @public (undocumented)
+// @public
 interface DateTemporal {
     // (undocumented)
     type: 'date';
@@ -1655,15 +1538,12 @@ interface DateTemporal {
 // @public
 type DateTimePreset = 'today' | 'yesterday' | 'dayBeforeYesterday' | 'tomorrow' | 'thisWeek' | 'lastWeek' | 'nextWeek' | 'thisMonth' | 'lastMonth' | 'nextMonth' | 'thisQuarter' | 'lastQuarter' | 'nextQuarter' | 'thisYear' | 'lastYear' | 'nextYear' | 'weekToDate' | 'lastWeekToDate' | 'monthToDate' | 'lastMonthToDate' | 'quarterToDate' | 'lastQuarterToDate' | 'yearToDate' | 'lastYearToDate';
 
-// @public (undocumented)
+// @public
 interface DecimalNumeric {
     scale: number;
     // (undocumented)
     type: 'decimal';
 }
-
-// @public
-export function dedupeIssues(issues: readonly Issue[]): Issue[];
 
 // @public
 interface DefineDatasetSpec {
@@ -1725,7 +1605,7 @@ interface DerivedLine {
     window?: number;
 }
 
-// @public (undocumented)
+// @public
 interface DerivedSeries {
     // (undocumented)
     kind: DerivedKind;
@@ -1737,27 +1617,6 @@ interface DerivedSeries {
 type DestinationDashboard = ViewInstance & {
     config: DashboardViewConfig;
 };
-
-// @public
-export interface DetachedDialog {
-    // (undocumented)
-    handle: DialogHandle;
-    opener: React_2.RefObject<HTMLButtonElement | null>;
-    part: 'trigger' | 'popup';
-}
-
-// @public
-export interface DetachedPopover {
-    // (undocumented)
-    handle: PopoverHandle;
-    part: 'trigger' | 'popup';
-}
-
-// @public
-export interface DialogHandle {
-    // (undocumented)
-    readonly __dialogHandle: unique symbol;
-}
 
 // @public
 export interface DisplayContext {
@@ -1805,60 +1664,18 @@ interface EditHistoryState {
 }
 
 // @public
-export interface EditingCommands {
-    click?(): void;
-    copyAsShared?(): void;
-    copyAsSystem?(): void;
-    // (undocumented)
-    duplicate?(): void;
-    // (undocumented)
-    editContent?(): void;
-    // (undocumented)
-    editPresentation?(): void;
-    moveTo?: {
-        tabs: readonly {
-            id: string;
-            name: string;
-        }[];
-        move(tabId: string): void;
-    };
-    remove?(): void;
-    rename?(): void;
-    renaming?: {
-        commit(title: string): void;
-        cancel(): void;
-    };
-    // (undocumented)
-    replace?(): void;
-    resetPresentation?(): void;
-    // (undocumented)
-    saveAsView?(): void;
-}
-
-// @public
 const EDITOR_INPUTS: readonly ["none", "text", "number", "boolean", "deletion", "select", "remote", "date", "dateRange", "relativeDate", "predicate", "duration"];
 
 // @public
 export function EditorBand(input: EditorBandProps): JSX.Element;
 
-// @public (undocumented)
+// @public
 export interface EditorBandProps {
     // (undocumented)
     children: ReactNode;
     // (undocumented)
     className?: string;
     id: string;
-}
-
-// @public
-export function EditorBandToggle(input: EditorBandToggleProps): JSX.Element;
-
-// @public (undocumented)
-export interface EditorBandToggleProps {
-    // (undocumented)
-    label: string;
-    modes?: ReactNode;
-    pending: number;
 }
 
 // @public
@@ -1873,18 +1690,6 @@ interface EditorDescriptor {
 }
 
 // @public
-export function EditorFold(input: EditorFoldProps): JSX.Element;
-
-// @public (undocumented)
-export interface EditorFoldProps {
-    // (undocumented)
-    children: ReactNode;
-    onOpenChange(open: boolean): void;
-    // (undocumented)
-    open: boolean;
-}
-
-// @public (undocumented)
 type EditorInput = (typeof EDITOR_INPUTS)[number];
 
 // @public
@@ -4213,7 +4018,7 @@ const enCatalogue: {
     'label.revert.keep': string;
 };
 
-// @public (undocumented)
+// @public
 interface EpochTemporal {
     timeUnit?: EpochTimeUnit;
     // (undocumented)
@@ -4222,32 +4027,6 @@ interface EpochTemporal {
 
 // @public
 type EpochTimeUnit = `${TimeUnit.MILLISECONDS | TimeUnit.SECONDS}`;
-
-// @public
-export function ErrorStrip(input: ErrorStripProps): JSX.Element | null;
-
-// @public (undocumented)
-export interface ErrorStripProps extends IssueStripProps {
-    action?: ReactNode;
-    title?: string;
-}
-
-// @public
-export function ExportButton(input: ExportWindowProps & {
-    detached?: DetachedDialog;
-}): JSX.Element;
-
-// @public
-export function ExportDialog(input: ExportDialogProps): JSX.Element;
-
-// @public (undocumented)
-export interface ExportDialogProps extends ExportWindowProps {
-    finalFocus?: FinalFocus;
-    handle?: DetachedDialog['handle'];
-    onOpenChange(open: boolean): void;
-    open: boolean;
-    trigger?: ReactNode;
-}
 
 // @public
 export interface ExportedFile {
@@ -4261,7 +4040,7 @@ export interface ExportedFile {
     text: string;
 }
 
-// @public (undocumented)
+// @public
 interface ExportedRows {
     capped: boolean;
     // (undocumented)
@@ -4283,14 +4062,14 @@ export interface ExportOffer {
 // @public
 type ExportOperation = 'fetch' | 'deliver' | 'image';
 
-// @public (undocumented)
+// @public
 interface ExportRowsOptions {
     max?: number;
     onProgress?(fetched: number, total?: number): void;
     signal?: AbortSignal;
 }
 
-// @public (undocumented)
+// @public
 export interface ExportWindowProps extends ExportOffer {
     columns: readonly {
         label: string;
@@ -4391,7 +4170,7 @@ interface FieldKind {
     validate(context: FieldKindValidateContext): Issue[];
 }
 
-// @public (undocumented)
+// @public
 interface FieldKindBlankContext {
     // (undocumented)
     field: FieldDefinition;
@@ -4402,7 +4181,7 @@ interface FieldKindBlankContext {
     value: unknown;
 }
 
-// @public (undocumented)
+// @public
 interface FieldKindCompileContext {
     // (undocumented)
     field: FieldDefinition;
@@ -4414,7 +4193,7 @@ interface FieldKindCompileContext {
     timeZone: string;
 }
 
-// @public (undocumented)
+// @public
 interface FieldKindDescribeContext {
     // (undocumented)
     field: FieldDefinition;
@@ -4441,7 +4220,7 @@ type FieldKindId = BuiltinFieldKindId | (string & {});
 // @public
 type FieldKindRegistry = ReadonlyMap<FieldKindId, FieldKind>;
 
-// @public (undocumented)
+// @public
 interface FieldKindValidateContext {
     // (undocumented)
     field: FieldDefinition;
@@ -4503,9 +4282,6 @@ type FieldTemporal = EpochTemporal | DateTemporal;
 type FieldTone = 'neutral' | 'success' | 'warning' | 'danger';
 
 // @public
-export function fileName(title: string, day: string, extension: string): string;
-
-// @public
 interface FilterEditorController extends FilterTreeController {
     applied: FilterSummaryItem[];
     blocked: number;
@@ -4534,7 +4310,7 @@ interface FilterEditorController extends FilterTreeController {
     unset(paths: readonly FilterPath[]): void;
 }
 
-// @public (undocumented)
+// @public
 interface FilterGroup {
     // (undocumented)
     children: FilterNode[];
@@ -4545,7 +4321,7 @@ interface FilterGroup {
 // @public
 type FilterGroupOperator = `${FilterOperator.AND | FilterOperator.OR | FilterOperator.NOR}`;
 
-// @public (undocumented)
+// @public
 interface FilterLeaf {
     field: string;
     // (undocumented)
@@ -4557,7 +4333,7 @@ interface FilterLeaf {
 // @public
 type FilterMode = 'simple' | 'advanced';
 
-// @public (undocumented)
+// @public
 type FilterNode = FilterGroup | FilterLeaf;
 
 // @public
@@ -4566,7 +4342,7 @@ type FilterOperatorName = `${FilterOperator}`;
 // @public
 export function FilterPanel(input: FilterPanelProps): JSX.Element;
 
-// @public (undocumented)
+// @public
 export interface FilterPanelProps {
     // (undocumented)
     disabled?: boolean;
@@ -4771,40 +4547,9 @@ interface FilterTreeController {
 type FilterValue = JsonValue;
 
 // @public
-export function FilterValueEditor(props: FilterValueEditorProps): JSX.Element;
-
-// @public (undocumented)
-export interface FilterValueEditorProps {
-    blank?: string;
-    candidates?: ValueCandidateSource | null;
-    control?: ControlAria;
-    // (undocumented)
-    disabled?: boolean;
-    editor: EditorDescriptor;
-    invalid?: boolean;
-    kind: FieldKindId;
-    // (undocumented)
-    label: string;
-    onAwaiting?: (awaiting: boolean) => void;
-    // (undocumented)
-    onChange(value: FilterValue): void;
-    oneDay?: boolean;
-    options?: FieldOption[];
-    placeholder?: string;
-    required?: boolean;
-    source?: OptionSource | null;
-    times?: readonly {
-        value: string;
-        label: string;
-    }[];
-    // (undocumented)
-    value: FilterValue;
-}
-
-// @public
 export type FinalFocus = () => HTMLElement | boolean;
 
-// @public (undocumented)
+// @public
 interface FixedMoneyNumeric {
     currency: string;
     // (undocumented)
@@ -4818,12 +4563,9 @@ interface FixedMoneyNumeric {
 export function formatIssue(messages: ViewMessages, issue: Issue, locale?: string): string;
 
 // @public
-export function formatIssues(messages: ViewMessages, issues: readonly Issue[], locale?: string): string;
-
-// @public
 export function formatMessage(messages: ViewMessages, key: string, params?: Issue['params'], locale?: string): string;
 
-// @public (undocumented)
+// @public
 interface FunnelData {
     cumulative?: true;
     largestDrop?: number;
@@ -4841,7 +4583,7 @@ interface FunnelSpec {
     stages: FunnelStages;
 }
 
-// @public (undocumented)
+// @public
 interface FunnelStage {
     conversion?: number;
     drop?: number;
@@ -4853,7 +4595,7 @@ interface FunnelStage {
     value: number;
 }
 
-// @public (undocumented)
+// @public
 type FunnelStages = {
     from: 'metrics';
     items: {
@@ -4873,7 +4615,7 @@ export type FveToken = `--fve-${TokenName}` | `--fve-dark-${Extract<(typeof TOKE
     modes: 2;
 }>['name']}`;
 
-// @public (undocumented)
+// @public
 interface GaugeData {
     beyond?: 'above' | 'below';
     // (undocumented)
@@ -4903,9 +4645,6 @@ interface GroupNaming {
 }
 
 // @public
-export type HandleMove = -1 | 1 | 'first' | 'last';
-
-// @public
 interface HandOver {
     filter: FilterTree | null;
     from?: DashboardOrigin;
@@ -4922,20 +4661,20 @@ export interface HeaderSorting {
     sort: readonly AnalysisSort[];
 }
 
-// @public (undocumented)
+// @public
 export type HeadingLevel = 1 | 2 | 3 | 4 | 5 | 6;
 
 // @public
 export function HeadingPanel(input: HeadingPanelProps): JSX.Element;
 
-// @public (undocumented)
+// @public
 export interface HeadingPanelProps {
     // (undocumented)
     content: string;
     headingLevel?: PanelHeadingLevel;
 }
 
-// @public (undocumented)
+// @public
 interface HeatmapData {
     cells: (number | null)[][];
     // (undocumented)
@@ -4947,7 +4686,7 @@ interface HeatmapData {
     ys: unknown[];
 }
 
-// @public (undocumented)
+// @public
 interface HeatmapSpec {
     // (undocumented)
     scale?: 'linear' | 'log';
@@ -4977,7 +4716,7 @@ interface HeldView {
     runtime: AnyViewRuntime;
 }
 
-// @public (undocumented)
+// @public
 interface HierarchyData {
     depth: number;
     nodes: HierarchyNode[];
@@ -5004,10 +4743,10 @@ interface HierarchySpec {
 // @public
 export type HostColorMode = ColorMode | 'host';
 
-// @public (undocumented)
+// @public
 export function ImagePanel(input: ImagePanelProps): JSX.Element;
 
-// @public (undocumented)
+// @public
 export interface ImagePanelProps {
     // (undocumented)
     alt?: string;
@@ -5047,13 +4786,6 @@ type IssuePath = (string | number)[];
 // @public
 type IssueSeverity = 'error' | 'warning' | 'note';
 
-// @public (undocumented)
-export interface IssueStripProps {
-    // (undocumented)
-    className?: string;
-    issues: readonly Issue[];
-}
-
 // @public
 type JsonValue = string | number | boolean | null | JsonValue[] | {
     [key: string]: JsonValue;
@@ -5067,21 +4799,9 @@ export interface KanbanMove {
 }
 
 // @public
-export function keptKey(typed: string, original: string, say: Say, shown?: string): string;
-
-// @public
-export const KIND_ICON: Record<ViewKind, ViewIcon>;
-
-// @public
-export function kindIssue(found: Issue, kind: ViewKind | undefined): Issue;
-
-// @public
-export function kindWord(key: MessageKey, kind: ViewKind | undefined): MessageKey;
-
-// @public
 export function LeaveDialog(input: LeaveDialogProps): JSX.Element;
 
-// @public (undocumented)
+// @public
 export interface LeaveDialogProps {
     leave: LeaveGuard;
     messages?: ViewMessages;
@@ -5110,22 +4830,9 @@ interface LegendEntry {
 }
 
 // @public
-export function LineAlert(input: LineAlertProps): React_2.JSX.Element;
-
-// @public
-export type LineAlertFrame = 'box' | 'bare';
-
-// @public
-export interface LineAlertProps extends React_2.ComponentProps<'div'> {
-    frame?: LineAlertFrame | null;
-    // (undocumented)
-    tone: AlertTone;
-}
-
-// @public
 export function LinksPanel(input: LinksPanelProps): JSX.Element;
 
-// @public (undocumented)
+// @public
 export interface LinksPanelProps {
     // (undocumented)
     items: readonly {
@@ -5159,7 +4866,7 @@ interface ManagedWording {
     saving: boolean;
 }
 
-// @public (undocumented)
+// @public
 interface MapData {
     // (undocumented)
     high: number;
@@ -5187,7 +4894,7 @@ interface MapSpec {
 // @public
 export function MarkdownPanel(input: MarkdownPanelProps): JSX.Element;
 
-// @public (undocumented)
+// @public
 export interface MarkdownPanelProps {
     // (undocumented)
     content: string;
@@ -5226,10 +4933,10 @@ type MetadataFieldKindId = 'documentId' | 'aggregateId' | 'tenantId' | 'ownerId'
 /** Whether soft-deleted records are shown: Wow's `DELETION` filter (D17-2). */
 | 'deletion';
 
-// @public (undocumented)
+// @public
 type MetricAgainst = 'previous' | 'previous-year';
 
-// @public (undocumented)
+// @public
 interface MetricCardData {
     compare?: {
         value: number | null;
@@ -5253,7 +4960,7 @@ interface MetricCardData {
     whole?: true;
 }
 
-// @public (undocumented)
+// @public
 interface MetricCardSpec {
     compare?: {
         metric: string;
@@ -5276,7 +4983,7 @@ interface MetricCondition {
 // @public
 type MetricFunction = AggregationFunctionName | `${AggregationMetricType.COUNT}` | `${AggregationMetricType.DISTINCT_COUNT}` | `${AggregationMetricType.PERCENTILE}` | `${AggregationMetricType.FIRST}` | `${AggregationMetricType.LAST}` | `${AggregationMetricType.ANY}` | `${AggregationMetricType.DERIVED}`;
 
-// @public (undocumented)
+// @public
 type MetricHeadline = 'last' | 'whole';
 
 // @public
@@ -5330,7 +5037,7 @@ export interface NewAnalysis {
 // @public
 export function NewAnalysisDialog(input: NewAnalysisDialogProps): JSX.Element;
 
-// @public (undocumented)
+// @public
 export interface NewAnalysisDialogProps {
     // (undocumented)
     engine: ViewEngine;
@@ -5355,7 +5062,7 @@ interface NewFilter {
     type: DashboardFilterType;
 }
 
-// @public (undocumented)
+// @public
 type NewPanel = NewViewPanel | NewContentPanel;
 
 // @public
@@ -5377,27 +5084,6 @@ export interface NewPanelSpot {
 }
 
 // @public
-export interface NewViewCommand {
-    // (undocumented)
-    creatable: readonly ViewKind[];
-    // (undocumented)
-    create(kind: ViewKind): void;
-}
-
-// @public
-export function NewViewControl(input: {
-    command: NewViewCommand;
-    trigger(props: {
-        onClick?: MouseEventHandler;
-    }): ReactElement;
-}): JSX.Element;
-
-// @public
-export function NewViewItem(input: {
-    command: NewViewCommand;
-}): JSX.Element;
-
-// @public
 type NewViewPanel = {
     kind: 'view';
     title?: string;
@@ -5409,26 +5095,9 @@ type NewViewPanel = {
 });
 
 // @public
-export function NoteStrip(input: IssueStripProps): JSX.Element | null;
-
-// @public
 type NumberFormat = Intl.NumberFormatOptions & {
     locale?: string;
 };
-
-// @public
-export function NumberInput(input: ControlChromeProps & {
-    value: unknown;
-    onNumber(value: number | null): void;
-    label: string;
-    disabled?: boolean;
-    invalid?: boolean;
-    className?: string;
-    placeholder?: string;
-    describedBy?: string;
-    id?: string;
-    required?: boolean;
-}): JSX.Element;
 
 // @public
 export type OnPick = (row: RecordData, anchor: PickAnchor,
@@ -5560,32 +5229,7 @@ type PanelClick =
 };
 
 // @public
-export type PanelCommands = ViewingCommands & EditingCommands;
-
-// @public
-export function PanelGridItem(input: PanelGridItemProps): React_2.JSX.Element;
-
-// @public (undocumented)
-export interface PanelGridItemProps extends React_2.ComponentProps<'div'> {
-    name: string;
-    // (undocumented)
-    panelId: string;
-    say?(message: string): void;
-    touch: boolean;
-}
-
-// @public
 type PanelGrouping = 'taken' | 'kept' | null;
-
-// @public
-export function PanelHandle(input: PanelHandleProps): React_2.JSX.Element;
-
-// @public (undocumented)
-export interface PanelHandleProps {
-    onCancel(steps: number): void;
-    onStep(step: ArrangeStep): boolean;
-    title: string;
-}
 
 // @public
 export type PanelHeadingLevel = 2 | 3 | 4 | 5 | 6;
@@ -5604,19 +5248,6 @@ interface PanelLayout {
 }
 
 // @public
-export function PanelOrder(input: PanelOrderProps): React_2.JSX.Element;
-
-// @public (undocumented)
-export interface PanelOrderProps {
-    index: number;
-    onMove(move: HandleMove): void;
-    panelId: string;
-    title: string;
-    // (undocumented)
-    total: number;
-}
-
-// @public
 interface PanelPresentation {
     // (undocumented)
     chart?: ChartSpec;
@@ -5627,34 +5258,6 @@ interface PanelPresentation {
 }
 
 // @public
-export interface PanelPress {
-    // (undocumented)
-    click: PanelClick | null;
-    // (undocumented)
-    crossFilter(row: RecordData): CrossFilterOutcome;
-    // (undocumented)
-    destination(row: RecordData): Promise<PressDestination | null>;
-    handOver(): HandOver | null;
-    navigate?(to: ViewNavigation): void;
-    // (undocumented)
-    pressed(row: RecordData): boolean;
-    pressSpan(name: string, row: RecordData, through: RecordData): CrossFilterOutcome;
-    say(text: string): void;
-    spanFilters(): readonly DashboardField[];
-}
-
-// @public
-export function PanelResizeHandle(input: PanelResizeHandleProps): React_2.JSX.Element;
-
-// @public (undocumented)
-export interface PanelResizeHandleProps extends Pick<React_2.DOMAttributes<HTMLElement>, 'onMouseDown' | 'onMouseUp' | 'onTouchEnd'> {
-    axis: string;
-    onStep(panelId: string, step: ArrangeStep): void;
-    // (undocumented)
-    ref: React_2.Ref<HTMLElement>;
-}
-
-// @public (undocumented)
 interface ParallelData {
     metrics: string[];
     omitted: number;
@@ -5674,7 +5277,7 @@ export type PickAnchor = Element | {
     getBoundingClientRect(): DOMRect;
 };
 
-// @public (undocumented)
+// @public
 interface PieData {
     // (undocumented)
     slices: PieSlice[];
@@ -5682,7 +5285,7 @@ interface PieData {
     type: 'pie';
 }
 
-// @public (undocumented)
+// @public
 interface PieSlice {
     // (undocumented)
     category: unknown;
@@ -5691,7 +5294,7 @@ interface PieSlice {
     value: number;
 }
 
-// @public (undocumented)
+// @public
 interface PieSpec {
     category: string;
     // (undocumented)
@@ -5704,25 +5307,6 @@ interface PieSpec {
 interface PlacedLine extends ReferenceLine {
     // (undocumented)
     value: number;
-}
-
-// @public
-export interface PopoverHandle {
-    // (undocumented)
-    readonly __popoverHandle: unique symbol;
-}
-
-// @public
-export function PresentationDialog(input: PresentationDialogProps): JSX.Element;
-
-// @public (undocumented)
-export interface PresentationDialogProps {
-    editing: Pick<DashboardEditing, 'setPresentation'>;
-    finalFocus?: FinalFocus;
-    name: string;
-    // (undocumented)
-    onOpenChange(open: boolean): void;
-    panel: DashboardPanelView | null;
 }
 
 // @public
@@ -5742,7 +5326,7 @@ type PressDestination = {
     fallback: Issue;
 };
 
-// @public (undocumented)
+// @public
 interface ProjectedAnalysis extends ProjectedBase {
     // (undocumented)
     kind: 'analysis';
@@ -5755,7 +5339,7 @@ interface ProjectedBase {
     issues: readonly Issue[];
 }
 
-// @public (undocumented)
+// @public
 interface ProjectedRecord extends ProjectedBase {
     // (undocumented)
     kind: 'record';
@@ -5770,23 +5354,10 @@ type ProjectedView = ProjectedRecord | ProjectedAnalysis;
 // @public
 type QueryOperation = 'query' | 'summaries' | 'totals' | 'split' | 'record' | 'kanban' | 'candidates' | 'labels';
 
-// @public (undocumented)
+// @public
 type QueryStatus = 'idle' | 'loading' | 'success' | 'error';
 
 // @public
-export function QueryStrip(input: QueryStripProps): JSX.Element | null;
-
-// @public (undocumented)
-export interface QueryStripProps {
-    // (undocumented)
-    className?: string;
-    conditionsChanged?: boolean;
-    error: Issue | null | undefined;
-    onRetry?(): void;
-    stale: boolean;
-}
-
-// @public (undocumented)
 interface RadarData {
     metrics: string[];
     omitted: number;
@@ -5839,7 +5410,7 @@ interface RecordActionSlots {
     row?(context: RecordRowActionContext): ReactNode;
 }
 
-// @public (undocumented)
+// @public
 interface RecordBulkActionContext {
     busy: boolean;
     clearSelection(): void;
@@ -5894,7 +5465,7 @@ interface RecordCardField {
 // @public
 export function RecordCards(input: RecordCardsProps): React_2.JSX.Element | null;
 
-// @public (undocumented)
+// @public
 interface RecordCardSpec {
     fields: string[];
     // (undocumented)
@@ -5903,7 +5474,7 @@ interface RecordCardSpec {
     title: string;
 }
 
-// @public (undocumented)
+// @public
 export interface RecordCardsProps {
     // (undocumented)
     emptyDescription?: string;
@@ -5928,7 +5499,7 @@ interface RecordCardView {
     titleField?: RecordCardField;
 }
 
-// @public (undocumented)
+// @public
 export interface RecordCell {
     // (undocumented)
     column: RecordColumnView;
@@ -5993,7 +5564,7 @@ export interface RecordDetailOptions extends RecordDetailControl {
     title?(row: RecordRow): string | undefined;
 }
 
-// @public (undocumented)
+// @public
 type RecordDetailPlacement = 'start' | 'end' | {
     after: string;
 };
@@ -6008,7 +5579,7 @@ interface RecordDetailSection {
     title: string;
 }
 
-// @public (undocumented)
+// @public
 interface RecordDetailSectionContext {
     complete: boolean;
     refresh(): void;
@@ -6017,7 +5588,7 @@ interface RecordDetailSectionContext {
     runtime: RecordViewRuntime;
 }
 
-// @public (undocumented)
+// @public
 interface RecordExportController {
     cancel(): void;
     error: Issue | null;
@@ -6034,7 +5605,7 @@ interface RecordExportController {
 // @public
 type RecordExportExtent = 'selected' | 'all';
 
-// @public (undocumented)
+// @public
 interface RecordExportExtents {
     all: number | null;
     selected?: number;
@@ -6049,7 +5620,7 @@ interface RecordExportOutcome {
     total?: number;
 }
 
-// @public (undocumented)
+// @public
 interface RecordExportProgress {
     fetched: number;
     // (undocumented)
@@ -6057,7 +5628,7 @@ interface RecordExportProgress {
     total?: number;
 }
 
-// @public (undocumented)
+// @public
 interface RecordGlobalActionContext {
     // (undocumented)
     refresh(): void;
@@ -6080,7 +5651,7 @@ interface RecordKanbanController {
     spec: RecordKanbanSpec | null;
 }
 
-// @public (undocumented)
+// @public
 export interface RecordKanbanProps {
     // (undocumented)
     emptyDescription?: string;
@@ -6130,7 +5701,7 @@ type RecordPageTarget<P extends RecordPagingMode = RecordPagingMode> = P extends
 // @public
 export function RecordPagination(input: RecordPaginationProps): JSX.Element | null;
 
-// @public (undocumented)
+// @public
 export interface RecordPaginationProps {
     controls?: 'all' | 'pages' | 'none';
     label?: string;
@@ -6141,37 +5712,13 @@ export interface RecordPaginationProps {
 // @public
 export type RecordPaginationTable = Pick<RecordTableController, 'paging' | 'pageSizes' | 'pageSize' | 'setPageSize' | 'status' | 'hasResult' | 'rows' | 'hasNext' | 'next' | 'previous' | 'goTo'>;
 
-// @public (undocumented)
+// @public
 type RecordPaging = PagedPaging | CursorPaging;
 
 // @public
 type RecordPagingMode = 'paged' | 'cursor';
 
 // @public
-export interface RecordPanelHost extends Pick<RecordViewProps, 'actions' | 'slots'> {
-    refresh?(): void;
-}
-
-// @public
-export function RecordParts(input: RecordPartsProps): ReactNode;
-
-// @public (undocumented)
-export interface RecordPartsProps extends RecordViewProps {
-    // (undocumented)
-    children: RenderParts;
-    features?: WorkbenchFeatures;
-    // (undocumented)
-    locale?: string;
-    messages?: ViewMessages;
-    onRenderFailure?: RenderFailureHandler;
-    // (undocumented)
-    optionsFor?(remote: string): FieldOption[] | undefined;
-    runtime: RecordViewRuntime | null;
-    // (undocumented)
-    workbench: WorkbenchController;
-}
-
-// @public (undocumented)
 interface RecordProjection {
     card: RecordCardView;
     // (undocumented)
@@ -6181,14 +5728,14 @@ interface RecordProjection {
     rows: RecordRow[];
 }
 
-// @public (undocumented)
+// @public
 interface RecordRow {
     // (undocumented)
     data: RecordData;
     key: RecordKey;
 }
 
-// @public (undocumented)
+// @public
 interface RecordRowActionContext {
     busy: boolean;
     // (undocumented)
@@ -6200,7 +5747,7 @@ interface RecordRowActionContext {
     runtime: RecordViewRuntime;
 }
 
-// @public (undocumented)
+// @public
 interface RecordSort {
     // (undocumented)
     direction: SortDirectionName;
@@ -6208,7 +5755,7 @@ interface RecordSort {
     field: string;
 }
 
-// @public (undocumented)
+// @public
 interface RecordSummary {
     // (undocumented)
     field: string;
@@ -6218,7 +5765,7 @@ interface RecordSummary {
 // @public
 export function RecordTable(input: RecordTableProps): React_2.JSX.Element | null;
 
-// @public (undocumented)
+// @public
 interface RecordTableController {
     card: RecordCardView;
     cardSpec: RecordCardSpec;
@@ -6285,7 +5832,7 @@ interface RecordTableController {
     toggleSort(field: string, options?: ToggleSortOptions): void;
 }
 
-// @public (undocumented)
+// @public
 export interface RecordTableProps {
     // (undocumented)
     emptyDescription?: string;
@@ -6306,7 +5853,7 @@ export interface RecordTableProps {
     table: RecordTableController;
 }
 
-// @public (undocumented)
+// @public
 interface RecordTableSpec {
     // (undocumented)
     columns: RecordColumn[];
@@ -6419,9 +5966,6 @@ interface RefreshConfig {
 }
 
 // @public
-export function RefreshControl(input: RefreshControlProps): JSX.Element;
-
-// @public
 interface RefreshController {
     chosen: number | null;
     dueAt: number | null;
@@ -6435,23 +5979,13 @@ interface RefreshController {
     unsound: boolean;
 }
 
-// @public (undocumented)
-export interface RefreshControlProps {
-    busy?: boolean;
-    choose?: boolean;
-    note?: string;
-    // (undocumented)
-    refresh: RefreshController;
-    variant?: 'ghost' | 'outline';
-}
-
 // @public
 export function registerChartMap(source: ChartMapSource): () => void;
 
-// @public (undocumented)
+// @public
 type RelativeDateDirection = 'past' | 'future';
 
-// @public (undocumented)
+// @public
 type RelativeDateUnit = 'hour' | 'day' | 'week' | 'month' | 'quarter' | 'year';
 
 // @public
@@ -6464,24 +5998,7 @@ export interface ReleasedPins {
 }
 
 // @public
-export function RenderBoundary(input: RenderBoundaryProps): JSX.Element;
-
-// @public
 export type RenderBoundaryName = 'actions' | 'editor' | 'result' | 'panel' | 'detail';
-
-// @public (undocumented)
-export interface RenderBoundaryProps {
-    // (undocumented)
-    children: ReactNode;
-    compact?: boolean;
-    // (undocumented)
-    name: RenderBoundaryName;
-    // (undocumented)
-    onFailure?: RenderFailureHandler;
-    // (undocumented)
-    panelId?: string;
-    resetKeys?: readonly unknown[];
-}
 
 // @public
 export interface RenderFailure {
@@ -6493,21 +6010,13 @@ export interface RenderFailure {
     panelId?: string;
 }
 
-// @public (undocumented)
+// @public
 export type RenderFailureHandler = (failure: RenderFailure) => void;
-
-// @public
-export type RenderParts = (parts: WorkbenchParts) => ReactNode;
-
-// @public
-export function RenderSlot(input: {
-    render: () => ReactNode;
-}): JSX.Element;
 
 // @public
 export function ResultToolbar(input: ResultToolbarProps): React_2.JSX.Element;
 
-// @public (undocumented)
+// @public
 export interface ResultToolbarProps {
     bulkActions?(context: SelectionContext): React_2.ReactNode;
     exporter?: ExportWindowProps;
@@ -6520,19 +6029,6 @@ export interface ResultToolbarProps {
     runtime: RecordViewRuntime;
     // (undocumented)
     table: RecordTableController;
-}
-
-// @public
-export function RevertDialog(input: RevertDialogProps): JSX.Element;
-
-// @public (undocumented)
-export interface RevertDialogProps {
-    landing: RefObject<HTMLElement | null>;
-    onConfirm(): void;
-    // (undocumented)
-    onOpenChange(open: boolean): void;
-    // (undocumented)
-    open: boolean;
 }
 
 // @public
@@ -6553,13 +6049,13 @@ export type RoutedTarget = SavedViewTarget | UnsavedViewTarget | DashboardTarget
 // @public
 export function RowActions(input: RowActionsProps): React_2.JSX.Element;
 
-// @public (undocumented)
+// @public
 export interface RowActionsProps {
     // (undocumented)
     children?: React_2.ReactNode;
 }
 
-// @public (undocumented)
+// @public
 interface RowMoneyNumeric {
     // (undocumented)
     currency?: undefined;
@@ -6614,7 +6110,7 @@ interface RuntimeLimits {
     refreshIntervals: readonly number[];
 }
 
-// @public (undocumented)
+// @public
 interface SankeyData {
     links: SankeyLink[];
     nodes: SankeyNode[];
@@ -6645,7 +6141,7 @@ interface SankeySpec {
     value: string;
 }
 
-// @public (undocumented)
+// @public
 interface SaveAbilities {
     changeAudience?: boolean;
     createPersonal: boolean;
@@ -6676,35 +6172,6 @@ export interface SaveActionsProps extends Pick<ViewWriteCallbacks, 'onSaved' | '
 }
 
 // @public
-export interface SaveAsCommands {
-    can: Pick<SaveAbilities, 'createPersonal' | 'createShared'> & Partial<Pick<SaveAbilities, 'createSystem'>>;
-    // (undocumented)
-    saveAs: SaveCommands['saveAs'];
-    // (undocumented)
-    state: Pick<SaveCommandState, 'pending' | 'error'>;
-}
-
-// @public
-export function SaveAsDialog(input: SaveAsDialogProps): JSX.Element;
-
-// @public (undocumented)
-export interface SaveAsDialogProps {
-    // (undocumented)
-    commands: SaveAsCommands;
-    defaultScope?: ViewScope;
-    description?: string;
-    finalFocus?: FinalFocus;
-    intent?: 'copy' | 'first' | 'promote' | 'share' | 'share-system';
-    local?: boolean;
-    // (undocumented)
-    onOpenChange(open: boolean): void;
-    onSaved?(instance: ViewInstance): void;
-    // (undocumented)
-    open: boolean;
-    title: string;
-}
-
-// @public
 interface SaveAsInput {
     // (undocumented)
     scope: ViewScope;
@@ -6712,7 +6179,7 @@ interface SaveAsInput {
     title: string;
 }
 
-// @public (undocumented)
+// @public
 interface SaveCommands {
     abandon(write?: WriteState): void;
     addToDashboard?(boardId: string): Promise<ViewInstance | null>;
@@ -6735,7 +6202,7 @@ interface SaveCommands {
     state: SaveCommandState;
 }
 
-// @public (undocumented)
+// @public
 interface SaveCommandState {
     applies: boolean;
     audience: ViewAudience | null;
@@ -6763,7 +6230,7 @@ interface SavedViewTarget extends HandOver {
 // @public
 export type Say = (value: string) => string;
 
-// @public (undocumented)
+// @public
 interface ScatterData {
     // (undocumented)
     points: {
@@ -6776,7 +6243,7 @@ interface ScatterData {
     type: 'scatter';
 }
 
-// @public (undocumented)
+// @public
 interface ScatterSpec {
     category: string;
     // (undocumented)
@@ -6801,40 +6268,7 @@ type SeriesExtremes = Record<string, {
 }>;
 
 // @public
-export function SharedSaveConfirm(input: {
-    open: boolean;
-    title: string;
-    onOpenChange(open: boolean): void;
-    onConfirm(): void;
-    finalFocus?: FinalFocus;
-}): JSX.Element;
-
-// @public
 type SortDirectionName = `${SortDirection}`;
-
-// @public
-export interface SortOwner {
-    // (undocumented)
-    maxSortFields: number;
-    // (undocumented)
-    setSort(sort: RecordSort[]): void;
-    // (undocumented)
-    sort: RecordSort[];
-}
-
-// @public
-export function SortSettings(input: SortSettingsProps): JSX.Element | null;
-
-// @public (undocumented)
-export interface SortSettingsProps {
-    detached?: DetachedPopover;
-    fieldGroups?: readonly FieldGroupDefinition[];
-    fields: readonly FieldDefinition[];
-    of?: 'records' | 'groups';
-    // (undocumented)
-    table: SortOwner;
-    trigger?: ReactElement<Record<string, unknown>>;
-}
 
 // @public
 interface SourceOptions {
@@ -6844,7 +6278,7 @@ interface SourceOptions {
 // @public
 export function StatusStrip(input: StatusStripProps): JSX.Element;
 
-// @public (undocumented)
+// @public
 export interface StatusStripProps {
     action?: ReactNode;
     // (undocumented)
@@ -6860,7 +6294,7 @@ type StoreOperation = 'list' | 'get' | 'create' | 'save' | 'rename' | 'delete' |
 // @public
 type StringComparisonName = `${StringComparison}`;
 
-// @public (undocumented)
+// @public
 interface SummaryCell {
     cell?: string;
     currency?: CurrencyReading;
@@ -6880,18 +6314,12 @@ interface SummaryCell {
 // @public
 type SummaryFunction = `${AggregationFunction.SUM | AggregationFunction.AVG | AggregationFunction.MIN | AggregationFunction.MAX | AggregationMetricType.COUNT}`;
 
-// @public (undocumented)
+// @public
 interface SummaryRow {
     // (undocumented)
     cells: SummaryCell[];
     over: 'page' | 'total';
 }
-
-// @public
-export const SurfaceKind: Context<"record" | "dashboard" | "analysis" | undefined>;
-
-// @public
-export const SYSTEM_ICON: ViewIcon;
 
 // @public
 interface SystemView {
@@ -6904,12 +6332,9 @@ interface SystemView {
 }
 
 // @public
-export function tableTime(value: unknown, field: DisplayField, context: DisplayContext): string | undefined;
-
-// @public
 type TextResolver = (key: string) => string | undefined;
 
-// @public (undocumented)
+// @public
 interface ThemeRiverData {
     streams: RiverStream[];
     times: unknown[];
@@ -8333,9 +7758,6 @@ const TOKENS: readonly [{
 }];
 
 // @public
-export const TONE_ICON: Record<AlertTone, ViewIcon>;
-
-// @public (undocumented)
 interface TreemapData {
     nested: boolean;
     omitted: number;
@@ -8360,12 +7782,6 @@ interface TreemapTile {
 }
 
 // @public
-export function UnsavedMark(input: {
-    commands: SaveCommands;
-    lookOnly?: boolean;
-}): JSX.Element;
-
-// @public
 interface UnsavedViewTarget {
     // (undocumented)
     config: RecordViewConfig | AnalysisViewConfig;
@@ -8386,24 +7802,9 @@ interface UnsavedViewTarget {
 export function useColorMode(): ColorModeControl;
 
 // @public
-export function useDashboardEditExtensions(): DashboardEditExtensions;
-
-// @public
 export function useDashboardExtensions(input: DashboardExtensionsOptions): {
     extensions: DashboardEditExtensions;
     dialogs: ReactNode;
-};
-
-// @public
-export function useKindIssue(): (found: Issue) => Issue;
-
-// @public
-export function useKindWord(): (key: MessageKey) => MessageKey;
-
-// @public
-export function useSaidText(value: string | undefined): {
-    shown: string;
-    back(typed: string): string;
 };
 
 // @public
@@ -8441,7 +7842,7 @@ interface ValueCandidateSource {
     search(query: string, options?: ReadOptions): Promise<ValueCandidates>;
 }
 
-// @public (undocumented)
+// @public
 type ValueFormat = 'auto' | 'percent' | 'compact';
 
 // @public
@@ -8474,7 +7875,7 @@ interface ViewChange {
 // @public
 type ViewChangeKind = 'create' | 'save' | 'rename' | 'changeAudience' | 'delete';
 
-// @public (undocumented)
+// @public
 type ViewChangeListener = (change: ViewChange) => void;
 
 // @public
@@ -8621,20 +8022,6 @@ interface ViewErrorPlace {
 }
 
 // @public
-export function ViewExpandExit(): JSX.Element;
-
-// @public
-export function ViewExpandToggle(input: ViewExpandToggleProps): JSX.Element;
-
-// @public (undocumented)
-export interface ViewExpandToggleProps {
-    // (undocumented)
-    expansion: ViewExpansion;
-    // (undocumented)
-    ref?: RefObject<HTMLButtonElement | null>;
-}
-
-// @public
 export interface ViewExpansion {
     // (undocumented)
     expanded: boolean;
@@ -8692,16 +8079,6 @@ export interface ViewHostProps {
 }
 
 // @public
-export type ViewIcon = ComponentType<SVGProps<SVGSVGElement>>;
-
-// @public
-export interface ViewingCommands {
-    exportRows?: ViewRuntime<DataViewConfig>;
-    open?(): void;
-    refresh?(): void;
-}
-
-// @public
 interface ViewInstance {
     // (undocumented)
     config: ViewConfig;
@@ -8733,11 +8110,8 @@ interface ViewInstanceSummary {
     title: string;
 }
 
-// @public (undocumented)
-type ViewKind = ViewConfig['kind'];
-
 // @public
-export function ViewList(input: ViewListProps): JSX.Element;
+type ViewKind = ViewConfig['kind'];
 
 // @public
 interface ViewListing {
@@ -8766,22 +8140,6 @@ interface ViewListPreferences {
     // (undocumented)
     status: QueryStatus;
     value: ViewPreferences | null;
-}
-
-// @public (undocumented)
-export interface ViewListProps {
-    collapseRef?: RefObject<HTMLButtonElement | null>;
-    create?: NewViewCommand;
-    // (undocumented)
-    currentId: string | null;
-    // (undocumented)
-    list: ViewListState;
-    onCollapse?(): void;
-    onManage?(): void;
-    // (undocumented)
-    onOpen(instanceId: string): void;
-    onRetry?(): void;
-    title?: string;
 }
 
 // @public
@@ -8816,7 +8174,7 @@ export interface ViewLocation {
 // @public
 export function ViewManager(input: ViewManagerProps): JSX.Element;
 
-// @public (undocumented)
+// @public
 interface ViewManagerAbilities {
     anything: boolean;
     // (undocumented)
@@ -8828,7 +8186,7 @@ interface ViewManagerAbilities {
     setDefault: boolean;
 }
 
-// @public (undocumented)
+// @public
 interface ViewManagerController {
     // (undocumented)
     abandon(key: string): void;
@@ -8855,7 +8213,7 @@ interface ViewManagerController {
     wording?: ManagedWording;
 }
 
-// @public (undocumented)
+// @public
 export interface ViewManagerProps {
     // (undocumented)
     list: ViewListState;
@@ -8936,7 +8294,7 @@ interface ViewPreferences {
 // @public
 export type ViewPreset = BuiltInPreset | (string & {});
 
-// @public (undocumented)
+// @public
 interface ViewQueryState {
     conditionsChanged?: true;
     // (undocumented)
@@ -8955,7 +8313,7 @@ interface ViewResource {
     wording?: DatasetWordingEditor;
 }
 
-// @public (undocumented)
+// @public
 interface ViewResult<C> {
     config: C;
     // (undocumented)
@@ -8976,9 +8334,6 @@ export interface ViewRoute {
     state: ViewRouteState;
     target: RoutedTarget;
 }
-
-// @public
-export type ViewRouteOf = (instanceId: string | null, target?: RoutedTarget) => string;
 
 // @public
 export interface ViewRouter {
@@ -9037,7 +8392,7 @@ interface ViewRuntime<C extends ViewConfig = ViewConfig> {
     valueCandidates(field: string): ValueCandidateSource | null;
 }
 
-// @public (undocumented)
+// @public
 interface ViewRuntimeState<C> {
     // (undocumented)
     applied: C;
@@ -9098,10 +8453,10 @@ interface ViewStore {
     setPreferences(definitionId: string, preferences: ViewPreferences, options: WriteOptions): Promise<ViewPreferences>;
 }
 
-// @public (undocumented)
+// @public
 export function ViewSurface(input: ViewSurfaceProps): React_2.JSX.Element;
 
-// @public (undocumented)
+// @public
 export interface ViewSurfaceProps extends React_2.ComponentProps<'div'> {
     clock?: {
         now(): Date;
@@ -9120,21 +8475,6 @@ export interface ViewSurfaceProps extends React_2.ComponentProps<'div'> {
 }
 
 // @public
-export function ViewSwitcher(input: ViewSwitcherProps): JSX.Element;
-
-// @public (undocumented)
-export interface ViewSwitcherProps {
-    create?: NewViewCommand;
-    currentId: string | null;
-    currentTitle: string;
-    kind?: ViewKind;
-    list: ViewListState;
-    onManage?(): void;
-    // (undocumented)
-    onOpen(instanceId: string): void;
-}
-
-// @public
 export interface ViewWriteCallbacks {
     onCreated?(instance: ViewInstance): void;
     onDeleted?(): void;
@@ -9143,7 +8483,7 @@ export interface ViewWriteCallbacks {
     onSaved?(instance: ViewInstance): void;
 }
 
-// @public (undocumented)
+// @public
 interface VisibilitySource {
     // (undocumented)
     isVisible(): boolean;
@@ -9152,9 +8492,6 @@ interface VisibilitySource {
 }
 
 // @public
-export function WarningStrip(input: IssueStripProps): JSX.Element | null;
-
-// @public (undocumented)
 interface WaterfallData {
     // (undocumented)
     steps: WaterfallStep[];
@@ -9236,12 +8573,9 @@ export interface WorkbenchFeatures {
 export type WorkbenchLandmark = 'main' | 'region';
 
 // @public
-export type WorkbenchParts = Pick<WorkbenchShellProps, 'actions' | 'search' | 'editor' | 'editorLabel' | 'editorModes' | 'editorOpen' | 'onEditorOpenChange' | 'editorPending' | 'toolbar' | 'result' | 'errorAction' | 'besideResult' | 'nameIssue' | 'resultSlots' | 'resultWithoutQuery' | 'panel' | 'onPanelClose'>;
-
-// @public
 export function WorkbenchShell(input: WorkbenchShellProps): JSX.Element;
 
-// @public (undocumented)
+// @public
 export interface WorkbenchShellProps {
     actions?: ReactNode;
     applied?: boolean;
@@ -9291,7 +8625,7 @@ export interface WorkbenchShellProps {
     workbench: WorkbenchController;
 }
 
-// @public (undocumented)
+// @public
 type WriteAction = WritePayload['action'];
 
 // @public
@@ -9304,16 +8638,6 @@ interface WriteHandle {
 interface WriteOptions extends ReadOptions {
     // (undocumented)
     readonly requestId: string;
-}
-
-// @public
-export function WriteOutcome(input: WriteOutcomeProps): JSX.Element | null;
-
-// @public (undocumented)
-export interface WriteOutcomeProps extends ViewWriteCallbacks {
-    // (undocumented)
-    commands: SaveCommands;
-    title: string;
 }
 
 // @public

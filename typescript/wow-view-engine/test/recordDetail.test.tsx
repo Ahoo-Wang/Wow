@@ -25,7 +25,7 @@ import type { FilterPagedQuery } from '@ahoo-wang/wow-client/dsl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { detailSections } from '../src/record/index.js';
 import { DataWorkbench, ViewHost } from '../src/ui/index.js';
-import { useOpenView, useRecordDetail } from '../src/react/index.js';
+import { useOpenView } from '../src/react/index.js';
 import { MemoryViewStore, ViewEngine, type RecordData } from '../src/index.js';
 import {
   ROWS,
@@ -34,6 +34,7 @@ import {
   testSource,
   resourcesOf,
 } from './fixtures.js';
+import { useRecordDetail } from '../src/react/useRecordDetail.js';
 
 afterEach(cleanup);
 

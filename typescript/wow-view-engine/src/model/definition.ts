@@ -37,6 +37,10 @@ import { AggregationMetricTypes } from './wire.js';
  */
 export type ViewDefinition = DataViewDefinition | DashboardDefinition;
 
+/**
+ * A data view's definition: its source, fields, capabilities and the views it
+ * ships.
+ */
 export interface DataViewDefinition {
   /** Must not contain ':': system view ids are composed with it. */
   id: string;
@@ -311,6 +315,10 @@ export interface RecordCapability {
   defaults?: Partial<RecordViewConfig>;
 }
 
+/**
+ * What a definition lets an analysis ask for: counting, the fields and how each
+ * groups and aggregates, derived expressions, having, windows and the limits.
+ */
 export interface AnalysisCapability {
   count: boolean;
   fields: AggregationFieldCapability[];
@@ -466,6 +474,10 @@ export interface AggregationFieldCapability {
   steps?: boolean;
 }
 
+/**
+ * A definition's bounds on an analysis: how many groups, metrics and elements
+ * it may hold, and its row limit and default.
+ */
 export interface AnalysisLimits {
   maxGroups?: number;
   maxMetrics?: number;

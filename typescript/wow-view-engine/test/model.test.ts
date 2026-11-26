@@ -23,7 +23,6 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  CHART_TYPES,
   DEFAULT_RUNTIME_LIMITS,
   type AnalysisViewConfig,
   type ChartSpec,
@@ -61,6 +60,7 @@ import {
   presentationMembers,
 } from '../src/model/config.js';
 import { analysisConfig, dashboardConfig, recordConfig } from './fixtures.js';
+import { CHART_TYPES } from '../src/model/chart.js';
 
 const filterBase: Pick<DataViewConfigBase, 'filter' | 'filterMode'> = {
   filter: { op: 'and', children: [] },

@@ -37,8 +37,8 @@ vi.mock('../src/ui/charts/load.js', () => ({
     }),
 }));
 
-const { AnalysisChart, RenderBoundary, ViewSurface } =
-  await import('../src/ui/index.js');
+const { AnalysisChart, ViewSurface } = await import('../src/ui/index.js');
+const { RenderBoundary } = await import('../src/ui/kit/RenderBoundary.js');
 const { FailureSink } = await import('../src/ui/kit/failureSink.js');
 
 afterEach(cleanup);

@@ -58,6 +58,7 @@ export interface CursorPaging {
   hasNext: boolean;
 }
 
+/** How a record result pages: by page number, or by cursor. */
 export type RecordPaging = PagedPaging | CursorPaging;
 
 /**

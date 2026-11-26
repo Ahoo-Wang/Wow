@@ -32,6 +32,7 @@ export interface ChartProfile {
   values: number[];
 }
 
+/** What a radar chart draws: one profile per item across its metrics. */
 export interface RadarData {
   type: 'radar';
   /** The metric aliases, one axis each, in the order they go round. */
@@ -48,6 +49,10 @@ export interface RadarData {
   omitted: number;
 }
 
+/**
+ * What a parallel coordinates chart draws: one line per item across its
+ * metrics.
+ */
 export interface ParallelData {
   type: 'parallel';
   /** The metric aliases, one axis each, left to right. */

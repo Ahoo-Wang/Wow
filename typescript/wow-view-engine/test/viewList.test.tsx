@@ -21,7 +21,8 @@ import {
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ViewInstanceSummary } from '../src/index.js';
 import type { ViewListState } from '../src/react/index.js';
-import { ViewList, ViewSurface } from '../src/ui/index.js';
+import { ViewSurface } from '../src/ui/index.js';
+import { ViewList } from '../src/ui/workbench/ViewList.js';
 
 afterEach(cleanup);
 

@@ -24,7 +24,6 @@ import {
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  CHART_TYPES,
   MemoryViewStore,
   ViewEngine,
   defaultRuntimeEnvironment,
@@ -54,6 +53,7 @@ import {
   AggregationGroupType,
   AggregationMetricType,
 } from '@ahoo-wang/wow-client/dsl';
+import { CHART_TYPES } from '../src/model/chart.js';
 
 afterEach(cleanup);
 

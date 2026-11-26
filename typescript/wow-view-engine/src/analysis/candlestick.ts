@@ -263,6 +263,10 @@ export interface Candle {
   direction: 'rise' | 'fall' | 'flat';
 }
 
+/**
+ * What a candlestick chart draws: one candle per period, from the shaped
+ * result.
+ */
 export interface CandlestickData {
   type: 'candlestick';
   candles: Candle[];

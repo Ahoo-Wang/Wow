@@ -25,6 +25,7 @@ import type { DashboardEditExtensions, NewPanelSpot } from './extensions.js';
 import { NewAnalysisDialog, type NewAnalysis } from './NewAnalysisDialog.js';
 import { PresentationDialog } from './PresentationDialog.js';
 
+/** Options of `useDashboardExtensions`. */
 export interface DashboardExtensionsOptions {
   engine: ViewEngine;
   /** The board's runtime, while one is open. */

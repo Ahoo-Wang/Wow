@@ -68,6 +68,7 @@ export interface RelativeDateTimeValue {
   direction?: RelativeDateDirection;
 }
 
+/** Which way a relative date range runs from now. */
 export type RelativeDateDirection = 'past' | 'future';
 
 /**
@@ -87,6 +88,7 @@ const RELATIVE_DATE_DIRECTIONS: readonly RelativeDateDirection[] = [
   'future',
 ];
 
+/** The unit of a relative date range. */
 export type RelativeDateUnit =
   'hour' | 'day' | 'week' | 'month' | 'quarter' | 'year';
 

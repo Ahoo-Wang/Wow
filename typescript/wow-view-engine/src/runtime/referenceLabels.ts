@@ -11,7 +11,11 @@
  * limitations under the License.
  */
 
-import type { FieldOption, RuntimeLimits } from '../model/index.js';
+import {
+  isNamedError,
+  type FieldOption,
+  type RuntimeLimits,
+} from '../model/index.js';
 import type { RuntimeEnvironment } from './environment.js';
 import { reportError } from './failure/failures.js';
 import type { OptionSource, SourceOptions } from './source.js';
@@ -91,6 +95,18 @@ export class ReferenceLabelTimeoutError extends Error {
     super(`Reading the names of ${remote} took longer than ${timeout} ms`);
     this.name = 'ReferenceLabelTimeoutError';
   }
+}
+
+/**
+ * Whether `error` is a {@link ReferenceLabelTimeoutError}: what `onError`
+ * receives for a lookup that ran past `RuntimeLimits.referenceTimeout`, and
+ * what the lookup's signal is aborted with. By name, as every guard of the
+ * engine's errors (`isViewStoreError`).
+ */
+export function isReferenceLabelTimeoutError(
+  error: unknown,
+): error is ReferenceLabelTimeoutError {
+  return isNamedError(error, 'ReferenceLabelTimeoutError');
 }
 
 /**

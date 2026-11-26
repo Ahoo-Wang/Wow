@@ -31,7 +31,6 @@ import {
   DashboardGrid,
   MessagesProvider,
   DataWorkbench,
-  RenderBoundary,
   ViewSurface,
   zhCN,
 } from '../src/ui/index.js';
@@ -46,6 +45,7 @@ import {
   resourcesOf,
 } from './fixtures.js';
 import { setup } from './fixtures/ui.js';
+import { RenderBoundary } from '../src/ui/kit/RenderBoundary.js';
 
 /**
  * One content panel made to throw on demand, so a dashboard can be shown a

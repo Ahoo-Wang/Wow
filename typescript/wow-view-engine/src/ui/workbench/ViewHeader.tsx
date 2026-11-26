@@ -127,6 +127,7 @@ export interface ViewHeaderProps extends ViewWriteCallbacks {
   titleRef?: RefObject<HTMLHeadingElement | null>;
 }
 
+/** The level of a heading, from `h1` to `h6`. */
 export type HeadingLevel = 1 | 2 | 3 | 4 | 5 | 6;
 
 /**

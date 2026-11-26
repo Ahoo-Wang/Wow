@@ -31,7 +31,6 @@ import {
 import { cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
-  DEFAULT_MISSING_KEY,
   projectAnalysis,
   type AnalysisViewConfig,
   type ChartData,
@@ -54,6 +53,7 @@ import {
   namedOrdersDefinition,
   ordersDefinition,
 } from './fixtures.js';
+import { DEFAULT_MISSING_KEY } from '../src/analysis/defaults.js';
 
 afterEach(cleanup);
 

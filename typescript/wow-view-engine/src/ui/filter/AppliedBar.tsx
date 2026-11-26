@@ -25,6 +25,7 @@ import { FOCUS_CARD } from '../kit/frames.js';
 import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 import { fell } from './conditionFocus.js';
 
+/** Props of `AppliedBar`. */
 export interface AppliedBarProps {
   filter: FilterEditorController;
   /**

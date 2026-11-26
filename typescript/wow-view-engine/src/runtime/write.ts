@@ -65,6 +65,10 @@ export type WritePayload =
   // — on the first attempt and on every replay of it.
   | { action: 'delete'; id: string; definitionId: string; revision: string };
 
+/**
+ * Which write a pending write is: a save, a create, a rename, a change of
+ * audience, a delete or the preferences.
+ */
 export type WriteAction = WritePayload['action'];
 
 /**

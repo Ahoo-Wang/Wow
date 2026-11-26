@@ -33,6 +33,7 @@ import { offerIssues } from '../analysis/validateOffers.js';
 import { validateFields } from './validateFields.js';
 import { validateSystemViews } from './validateSystemViews.js';
 
+/** Options of `validateDefinition`: the limits to hold the definition to. */
 export interface ValidateDefinitionOptions {
   limits?: Partial<RuntimeLimits>;
   /**

@@ -14,7 +14,7 @@
 import type { ReactNode } from 'react';
 import { cn } from 'cn';
 import type { Issue, ViewKind } from '../../model/index.js';
-import { useUnavailable, type WorkbenchController } from '../../react/index.js';
+import type { WorkbenchController } from '../../react/index.js';
 import { Button } from '../components/button.js';
 import { resultIssues } from '../../runtime/source.js';
 import { useKindIssue } from '../kit/kinds.js';
@@ -28,6 +28,7 @@ import {
   WarningStrip,
 } from '../kit/StatusStrip.js';
 import type { WorkbenchShellProps } from './WorkbenchShell.js';
+import { useUnavailable } from '../../react/useUnavailable.js';
 
 interface StatusLineProps extends Pick<
   WorkbenchShellProps,

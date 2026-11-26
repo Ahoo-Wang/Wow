@@ -64,6 +64,7 @@ import {
   TableRow,
 } from '../components/table.js';
 
+/** Props of `AnalysisTable`. */
 export interface AnalysisTableProps {
   view: AnalysisProjection;
   /**

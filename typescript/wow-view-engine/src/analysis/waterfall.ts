@@ -31,6 +31,7 @@ export interface WaterfallStep {
   end: number;
 }
 
+/** What a waterfall chart draws: its steps and their running total. */
 export interface WaterfallData {
   type: 'waterfall';
   steps: WaterfallStep[];

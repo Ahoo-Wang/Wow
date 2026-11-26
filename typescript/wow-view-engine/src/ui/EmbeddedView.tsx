@@ -23,7 +23,6 @@ import { drawnResultIssues } from '../runtime/execute.js';
 import {
   useAnalysisEditor,
   useOpenView,
-  useUnavailable,
   useViewRuntime,
 } from '../react/index.js';
 import { Button } from './components/button.js';
@@ -41,6 +40,7 @@ import {
   useRoutedNavigate,
 } from './workbench/ViewEngineProvider.js';
 import { ErrorStrip, StatusStrip, WarningStrip } from './kit/StatusStrip.js';
+import { useUnavailable } from '../react/useUnavailable.js';
 
 export type {
   EmbedBaseProps,

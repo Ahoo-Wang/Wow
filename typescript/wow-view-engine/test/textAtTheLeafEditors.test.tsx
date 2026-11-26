@@ -45,8 +45,6 @@ import {
   MessagesProvider,
   ViewHost,
   ViewSurface,
-  keptKey,
-  useSaidText,
   useSay,
 } from '../src/ui/index.js';
 import { RenameInput } from '../src/ui/kit/RenameInput.js';
@@ -59,6 +57,7 @@ import {
   markersIn,
 } from './fixtures/keyed.js';
 import { openTray } from './fixtures/workbench.js';
+import { keptKey, useSaidText } from '../src/ui/kit/MessagesProvider.js';
 
 afterEach(cleanup);
 

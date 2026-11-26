@@ -40,6 +40,7 @@ import { AnalysisEmpty } from './EmptyResult.js';
 import { sayAll, useViewMessages } from '../kit/MessagesProvider.js';
 import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 
+/** Props of `AnalysisChart`. */
 export interface AnalysisChartProps {
   data: ChartData;
   /** The saved spec; only `combo` and a few axis options still need it. */

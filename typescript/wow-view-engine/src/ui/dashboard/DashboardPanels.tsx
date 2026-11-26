@@ -75,6 +75,7 @@ export function ContentPanel({ panel, headingLevel }: ContentPanelProps) {
   }
 }
 
+/** Props of `HeadingPanel`. */
 export interface HeadingPanelProps {
   content: string;
   /**
@@ -108,6 +109,7 @@ export function HeadingPanel({ content, headingLevel }: HeadingPanelProps) {
   );
 }
 
+/** Props of `MarkdownPanel`. */
 export interface MarkdownPanelProps {
   content: string;
   /**
@@ -241,6 +243,7 @@ export function MarkdownPanel({
   );
 }
 
+/** Props of `ImagePanel`. */
 export interface ImagePanelProps {
   src: string;
   alt?: string;
@@ -253,6 +256,7 @@ export interface ImagePanelProps {
   title?: string;
 }
 
+/** A board's image panel: a picture, optionally a link. */
 export function ImagePanel({
   src,
   alt: givenAlt,
@@ -326,6 +330,7 @@ export function ImagePanel({
   );
 }
 
+/** Props of `LinksPanel`. */
 export interface LinksPanelProps {
   items: readonly { label: string; href: string; description?: string }[];
 }

@@ -42,12 +42,16 @@ import type { FieldDefinition } from './field.js';
  */
 export type FieldNumeric = DecimalNumeric | FixedMoneyNumeric | RowMoneyNumeric;
 
+/**
+ * A field whose number is a decimal, with the digits it keeps after the point.
+ */
 export interface DecimalNumeric {
   type: 'decimal';
   /** Digits after the decimal point, 0 or more. */
   scale: number;
 }
 
+/** A money field whose currency is fixed by the definition. */
 export interface FixedMoneyNumeric {
   type: 'money';
   /** Digits after the decimal point, 0 or more. */
@@ -57,6 +61,7 @@ export interface FixedMoneyNumeric {
   currencyField?: undefined;
 }
 
+/** A money field whose currency is read from another field of the same row. */
 export interface RowMoneyNumeric {
   type: 'money';
   /** Digits after the decimal point, 0 or more. */

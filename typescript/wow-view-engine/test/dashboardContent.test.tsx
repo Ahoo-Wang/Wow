@@ -14,12 +14,12 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
-  ContentPanel,
   HeadingPanel,
   ImagePanel,
   LinksPanel,
   MarkdownPanel,
 } from '../src/ui/index.js';
+import { ContentPanel } from '../src/ui/dashboard/DashboardPanels.js';
 
 afterEach(cleanup);
 

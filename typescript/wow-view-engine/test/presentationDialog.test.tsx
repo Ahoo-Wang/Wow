@@ -43,7 +43,7 @@ import {
 } from '../src/index.js';
 import type { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
 import { useDashboard } from '../src/react/index.js';
-import { PresentationDialog } from '../src/ui/index.js';
+import { PresentationDialog } from '../src/ui/dashboard/PresentationDialog.js';
 import {
   analysisConfig,
   dashboardConfig,

@@ -13,10 +13,7 @@
 
 import { useId } from 'react';
 import { ChevronDownIcon, RefreshCwIcon } from 'lucide-react';
-import {
-  useRefreshCountdown,
-  type RefreshController,
-} from '../../react/index.js';
+import type { RefreshController } from '../../react/index.js';
 import { Button } from '../components/button.js';
 import { ButtonGroup } from '../components/button-group.js';
 import {
@@ -36,6 +33,7 @@ import { DropdownMenuContent } from '../kit/popups.js';
 import { TEXT_UI } from '../kit/layout.js';
 import { cn } from 'cn';
 import { useKindWord } from '../kit/kinds.js';
+import { useRefreshCountdown } from '../../react/useAutoRefresh.js';
 
 /** The value the radio group carries for "no automatic refresh". */
 const OFF = 'off';

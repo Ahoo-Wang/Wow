@@ -33,17 +33,6 @@ import { TimeUnit } from '@ahoo-wang/wow-client/dsl';
 import { WindowFunction } from '@ahoo-wang/wow-client/dsl';
 
 // @public
-export interface AbsoluteDateTimeValue {
-    // (undocumented)
-    from: string;
-    timeZone?: string;
-    // (undocumented)
-    to?: string;
-    // (undocumented)
-    type: 'absolute';
-}
-
-// @public
 export interface ActionConfirm {
     action?: string;
     ask?: 'always' | 'bulk';
@@ -105,13 +94,13 @@ export function actions(list: readonly RecordAction[]): RecordActions;
 // @public
 export type ActionTone = 'default' | 'danger';
 
-// @public (undocumented)
+// @public
 export type AggregationDatePartName = `${AggregationDatePart}`;
 
-// @public (undocumented)
+// @public
 export type AggregationDateUnitName = `${AggregationDateUnit}`;
 
-// @public (undocumented)
+// @public
 export type AggregationExpressionOperatorName = `${AggregationExpressionOperator}`;
 
 // @public
@@ -137,13 +126,13 @@ export interface AggregationFieldCapability {
     steps?: boolean;
 }
 
-// @public (undocumented)
+// @public
 export type AggregationFunctionName = `${AggregationFunction}`;
 
 // @public
 export type AggregationGroupTypeName = `${AggregationGroupType}`;
 
-// @public (undocumented)
+// @public
 export interface AnalysisCapability {
     approximate?: AnalysisMetric['type'][];
     // (undocumented)
@@ -291,7 +280,7 @@ export type AnalysisGroup = AnalysisNamed & ({
 // @public
 export type AnalysisHavingExpression = LiteralEnums<HavingExpression>;
 
-// @public (undocumented)
+// @public
 export type AnalysisLayout = 'table' | 'chart';
 
 // @public
@@ -302,7 +291,7 @@ export interface AnalysisLimitBounds {
     max: number;
 }
 
-// @public (undocumented)
+// @public
 export interface AnalysisLimits {
     // (undocumented)
     defaultLimit?: number;
@@ -362,7 +351,7 @@ export interface AnalysisNamed {
     label?: string;
 }
 
-// @public (undocumented)
+// @public
 export interface AnalysisProjection {
     approximate?: readonly string[];
     atLimit?: number;
@@ -377,7 +366,7 @@ export interface AnalysisProjection {
     truncated: boolean;
 }
 
-// @public (undocumented)
+// @public
 export interface AnalysisSort {
     // (undocumented)
     alias: string;
@@ -400,7 +389,7 @@ export interface AnalysisSpec {
     rootGroups?: boolean;
 }
 
-// @public (undocumented)
+// @public
 export interface AnalysisTableSpec {
     columns: AnalysisColumn[];
     totals?: boolean;
@@ -451,15 +440,9 @@ export type AnalysisViewRuntime = ViewRuntime<AnalysisViewConfig>;
 export type AnyViewRuntime = RecordViewRuntime | AnalysisViewRuntime | DashboardRuntime;
 
 // @public
-export type ArrangeStep = 'left' | 'right' | 'up' | 'down' | 'wider' | 'narrower' | 'taller' | 'shorter';
-
-// @public
-export type ArrayFilterValue = (string | number)[];
-
-// @public
 export type Availability = true | string;
 
-// @public (undocumented)
+// @public
 export interface AxisSpec {
     // (undocumented)
     format?: ValueFormat;
@@ -471,9 +454,6 @@ export interface AxisSpec {
     min?: number;
     scale?: 'linear' | 'log';
 }
-
-// @public (undocumented)
-export type BooleanFilterValue = boolean;
 
 // @public
 export interface BoxplotBox {
@@ -490,7 +470,7 @@ export interface BoxplotBox {
     q3: number;
 }
 
-// @public (undocumented)
+// @public
 export interface BoxplotData {
     approximate: boolean;
     // (undocumented)
@@ -513,13 +493,13 @@ export interface BoxplotSpec {
 // @public
 export const BUILTIN_FIELD_KINDS: readonly FieldKind[];
 
-// @public (undocumented)
+// @public
 export type BuiltinFieldKindId = 'string' | 'number' | 'boolean' | 'date' | 'datetime' | 'enum' | 'reference' | 'array' | 'elementMatch' | 'search' | MetadataFieldKindId;
 
 // @public
 export const builtinFieldKindRegistry: FieldKindRegistry;
 
-// @public (undocumented)
+// @public
 export interface CalendarData {
     days: CalendarDay[];
     // (undocumented)
@@ -561,7 +541,7 @@ export interface Candle {
     x: unknown;
 }
 
-// @public (undocumented)
+// @public
 export interface CandlestickData {
     // (undocumented)
     candles: Candle[];
@@ -579,7 +559,7 @@ export interface CandlestickSpec {
     x: string;
 }
 
-// @public (undocumented)
+// @public
 export interface CartesianData {
     // (undocumented)
     chart: ChartType;
@@ -624,7 +604,7 @@ export type CartesianGap = {
 // @public
 export type CartesianMissing = 'zero' | 'gap';
 
-// @public (undocumented)
+// @public
 export interface CartesianSeries {
     // (undocumented)
     axis?: 'left' | 'right';
@@ -634,7 +614,7 @@ export interface CartesianSeries {
     type?: 'bar' | 'line' | 'area';
 }
 
-// @public (undocumented)
+// @public
 export interface CartesianSpec {
     derived?: DerivedSeries[];
     extremes?: boolean;
@@ -657,15 +637,9 @@ export interface CartesianSpec {
 }
 
 // @public
-export const CHART_TYPES: readonly ChartType[];
-
-// @public
 export type ChartData = CartesianData | PieData | HeatmapData | ScatterData | FunnelData | MetricCardData | WaterfallData | TreemapData | BoxplotData | CandlestickData | GaugeData | RadarData | ParallelData | HierarchyData | SankeyData | CalendarData | ThemeRiverData | MapData;
 
 // @public
-export type ChartFamily = Extract<keyof ChartSpec, 'cartesian' | 'pie' | 'heatmap' | 'scatter' | 'funnel' | 'metric' | 'waterfall' | 'treemap' | 'boxplot' | 'candlestick' | 'gauge' | 'radar' | 'parallel' | 'sunburst' | 'tree' | 'sankey' | 'calendar' | 'themeRiver' | 'map'>;
-
-// @public (undocumented)
 export interface ChartFit {
     aside?: ChartUnfit;
     // (undocumented)
@@ -730,7 +704,7 @@ export interface ChartSpec {
 // @public
 export type ChartStage = 'load' | 'draw';
 
-// @public (undocumented)
+// @public
 export type ChartType = 'bar' | 'line' | 'area' | 'combo' | 'waterfall' | 'pie' | 'treemap' | 'heatmap' | 'scatter' | 'funnel' | 'metric' | 'gauge' | 'boxplot' | 'candlestick' | 'radar' | 'parallel' | 'sunburst' | 'tree' | 'sankey' | 'calendar' | 'themeRiver' | 'map';
 
 // @public
@@ -776,11 +750,6 @@ export interface CompileRecordOptions {
 }
 
 // @public
-export type ConfigOfKind<K extends ViewKind> = Extract<ViewConfig, {
-    kind: K;
-}>;
-
-// @public (undocumented)
 export type ConflictChoice = 'reload' | 'overwrite';
 
 // @public
@@ -790,9 +759,6 @@ export interface ConflictingState {
     // (undocumented)
     preferences?: ViewPreferences;
 }
-
-// @public (undocumented)
-export type ContentPanelKind = DashboardContentPanel['kind'];
 
 // @public (undocumented)
 export function createFieldKindRegistry(kinds: readonly FieldKind[]): FieldKindRegistry;
@@ -956,7 +922,7 @@ export interface DashboardFilters {
 // @public
 export type DashboardFilterType = 'date' | 'text' | 'id' | 'number' | 'boolean' | 'search';
 
-// @public (undocumented)
+// @public
 export interface DashboardLink {
     // (undocumented)
     description?: string;
@@ -974,10 +940,10 @@ export interface DashboardOrigin {
     title: string;
 }
 
-// @public (undocumented)
+// @public
 export type DashboardPanel = DashboardViewPanel | DashboardContentPanel;
 
-// @public (undocumented)
+// @public
 export interface DashboardPanelBase {
     // (undocumented)
     id: string;
@@ -1032,7 +998,7 @@ export interface DashboardRuntime extends ViewRuntime<DashboardViewConfig>, Dash
     wiredOptions(name: string): FieldOption[] | null;
 }
 
-// @public (undocumented)
+// @public
 export interface DashboardRuntimeState extends ViewRuntimeState<DashboardViewConfig> {
     building: boolean;
     filters: DashboardFilters;
@@ -1079,7 +1045,7 @@ export type DashboardValueSource = {
     filter: string;
 };
 
-// @public (undocumented)
+// @public
 export interface DashboardViewConfig extends ViewConfigBase {
     columns: 24;
     fields: DashboardField[];
@@ -1220,7 +1186,7 @@ export interface DataViewConfigBase extends ViewConfigBase {
     filterMode: FilterMode;
 }
 
-// @public (undocumented)
+// @public
 export interface DataViewDefinition {
     // (undocumented)
     analysis?: AnalysisCapability;
@@ -1242,22 +1208,19 @@ export interface DataViewDefinition {
     views?: SystemView[];
 }
 
-// @public (undocumented)
+// @public
 export type DateDiffUnitName = `${DateDiffUnit}`;
 
-// @public (undocumented)
+// @public
 export interface DateTemporal {
     // (undocumented)
     type: 'date';
 }
 
-// @public (undocumented)
-export type DateTimeFilterValue = AbsoluteDateTimeValue | RelativeDateTimeValue | PresetDateTimeValue;
-
 // @public
 export type DateTimePreset = 'today' | 'yesterday' | 'dayBeforeYesterday' | 'tomorrow' | 'thisWeek' | 'lastWeek' | 'nextWeek' | 'thisMonth' | 'lastMonth' | 'nextMonth' | 'thisQuarter' | 'lastQuarter' | 'nextQuarter' | 'thisYear' | 'lastYear' | 'nextYear' | 'weekToDate' | 'lastWeekToDate' | 'monthToDate' | 'lastMonthToDate' | 'quarterToDate' | 'lastQuarterToDate' | 'yearToDate' | 'lastYearToDate';
 
-// @public (undocumented)
+// @public
 export interface DecimalNumeric {
     scale: number;
     // (undocumented)
@@ -1265,9 +1228,6 @@ export interface DecimalNumeric {
 }
 
 // @public
-export const DEFAULT_MISSING_KEY = "(empty)";
-
-// @public (undocumented)
 export const DEFAULT_RUNTIME_LIMITS: Readonly<RuntimeLimits>;
 
 // @public
@@ -1373,7 +1333,7 @@ export interface DerivedLine {
     window?: number;
 }
 
-// @public (undocumented)
+// @public
 export interface DerivedSeries {
     // (undocumented)
     kind: DerivedKind;
@@ -1387,30 +1347,11 @@ export type DestinationDashboard = ViewInstance & {
 };
 
 // @public
-export interface DetailSection {
-    fields: RecordCardField[];
-    id: string | null;
-    label: string | null;
-}
-
-// @public
 export interface Dropped {
     // (undocumented)
     groups: AnalysisGroup[];
     // (undocumented)
     metrics: AnalysisMetric[];
-}
-
-// @public
-export interface DurationFilterValue {
-    // (undocumented)
-    comparison: ComparisonOperatorName;
-    // (undocumented)
-    from: string;
-    // (undocumented)
-    unit: DateDiffUnitName;
-    // (undocumented)
-    value: number;
 }
 
 // @public
@@ -1438,7 +1379,7 @@ export interface EditorDescriptor {
     withTime?: boolean;
 }
 
-// @public (undocumented)
+// @public
 export type EditorInput = (typeof EDITOR_INPUTS)[number];
 
 // @public
@@ -1468,10 +1409,7 @@ export function emptyDashboardConfig(): DashboardViewConfig;
 // @public
 export function emptyPreferences(): ViewPreferences;
 
-// @public (undocumented)
-export type EnumFilterValue = (string | number)[];
-
-// @public (undocumented)
+// @public
 export interface EpochTemporal {
     timeUnit?: EpochTimeUnit;
     // (undocumented)
@@ -1492,7 +1430,7 @@ export interface ExportColumn {
     label: string;
 }
 
-// @public (undocumented)
+// @public
 export interface ExportedRows {
     capped: boolean;
     // (undocumented)
@@ -1506,7 +1444,7 @@ export type ExportFormat<C extends ExportColumn = ExportColumn> = (value: unknow
 // @public
 export type ExportOperation = 'fetch' | 'deliver' | 'image';
 
-// @public (undocumented)
+// @public
 export interface ExportRowsOptions {
     max?: number;
     onProgress?(fetched: number, total?: number): void;
@@ -1606,7 +1544,7 @@ export interface FieldKind {
     validate(context: FieldKindValidateContext): Issue[];
 }
 
-// @public (undocumented)
+// @public
 export interface FieldKindBlankContext {
     // (undocumented)
     field: FieldDefinition;
@@ -1617,7 +1555,7 @@ export interface FieldKindBlankContext {
     value: unknown;
 }
 
-// @public (undocumented)
+// @public
 export interface FieldKindCompileContext {
     // (undocumented)
     field: FieldDefinition;
@@ -1629,7 +1567,7 @@ export interface FieldKindCompileContext {
     timeZone: string;
 }
 
-// @public (undocumented)
+// @public
 export interface FieldKindDescribeContext {
     // (undocumented)
     field: FieldDefinition;
@@ -1656,7 +1594,7 @@ export type FieldKindId = BuiltinFieldKindId | (string & {});
 // @public
 export type FieldKindRegistry = ReadonlyMap<FieldKindId, FieldKind>;
 
-// @public (undocumented)
+// @public
 export interface FieldKindValidateContext {
     // (undocumented)
     field: FieldDefinition;
@@ -1669,9 +1607,6 @@ export interface FieldKindValidateContext {
     // (undocumented)
     value: unknown;
 }
-
-// @public
-export type FieldMetricType = 'numeric' | 'distinct-count' | 'percentile' | 'first' | 'last' | 'any';
 
 // @public
 export type FieldNumeric = DecimalNumeric | FixedMoneyNumeric | RowMoneyNumeric;
@@ -1728,7 +1663,7 @@ export interface FilterCompileContext {
     timeZone: string;
 }
 
-// @public (undocumented)
+// @public
 export interface FilterGroup {
     // (undocumented)
     children: FilterNode[];
@@ -1739,7 +1674,7 @@ export interface FilterGroup {
 // @public
 export type FilterGroupOperator = `${FilterOperator.AND | FilterOperator.OR | FilterOperator.NOR}`;
 
-// @public (undocumented)
+// @public
 export interface FilterLeaf {
     field: string;
     // (undocumented)
@@ -1751,7 +1686,7 @@ export interface FilterLeaf {
 // @public
 export type FilterMode = 'simple' | 'advanced';
 
-// @public (undocumented)
+// @public
 export type FilterNode = FilterGroup | FilterLeaf;
 
 // @public
@@ -1920,9 +1855,6 @@ export type FilterTree = FilterGroup;
 export type FilterValue = JsonValue;
 
 // @public
-export function fitChartSlots(chart: ChartSpec, groups: readonly AnalysisGroup[], metrics: readonly AnalysisMetric[], moments?: ReadonlySet<string>, measures?: ReadonlyMap<string, string>): ChartSpec;
-
-// @public (undocumented)
 export interface FixedMoneyNumeric {
     currency: string;
     // (undocumented)
@@ -1932,7 +1864,7 @@ export interface FixedMoneyNumeric {
     type: 'money';
 }
 
-// @public (undocumented)
+// @public
 export interface FunnelData {
     cumulative?: true;
     largestDrop?: number;
@@ -1950,7 +1882,7 @@ export interface FunnelSpec {
     stages: FunnelStages;
 }
 
-// @public (undocumented)
+// @public
 export interface FunnelStage {
     conversion?: number;
     drop?: number;
@@ -1962,7 +1894,7 @@ export interface FunnelStage {
     value: number;
 }
 
-// @public (undocumented)
+// @public
 export type FunnelStages = {
     from: 'metrics';
     items: {
@@ -1977,7 +1909,7 @@ export type FunnelStages = {
     cumulative?: boolean;
 };
 
-// @public (undocumented)
+// @public
 export interface GaugeData {
     beyond?: 'above' | 'below';
     // (undocumented)
@@ -2040,7 +1972,7 @@ export interface HavingRow {
     value: number | null;
 }
 
-// @public (undocumented)
+// @public
 export interface HeatmapData {
     cells: (number | null)[][];
     // (undocumented)
@@ -2052,7 +1984,7 @@ export interface HeatmapData {
     ys: unknown[];
 }
 
-// @public (undocumented)
+// @public
 export interface HeatmapSpec {
     // (undocumented)
     scale?: 'linear' | 'log';
@@ -2069,7 +2001,7 @@ export interface HeldFilters {
     values: Readonly<Record<string, FilterValue | null>>;
 }
 
-// @public (undocumented)
+// @public
 export interface HierarchyData {
     depth: number;
     nodes: HierarchyNode[];
@@ -2108,25 +2040,16 @@ export interface InstancePermissions {
 }
 
 // @public
-export interface InstantRange {
-    from: string;
-    to?: string;
-}
-
-// @public
 export function isActionInputError(error: unknown): error is ActionInputError;
-
-// @public
-export function isAnalysisRuntime(runtime: ViewRuntime | null | undefined): runtime is AnalysisViewRuntime;
-
-// @public (undocumented)
-export function isDateTimeFilterValue(value: unknown): value is DateTimeFilterValue;
 
 // @public
 export function isExportCancelledError(error: unknown): error is ExportCancelledError;
 
 // @public
 export function isRecordRuntime(runtime: ViewRuntime | null | undefined): runtime is RecordViewRuntime;
+
+// @public
+export function isReferenceLabelTimeoutError(error: unknown): error is ReferenceLabelTimeoutError;
 
 // @public
 export interface Issue {
@@ -2138,7 +2061,7 @@ export interface Issue {
     severity: IssueSeverity;
 }
 
-// @public (undocumented)
+// @public
 export function issue(code: string, path: IssuePath, params?: Issue['params'], severity?: Issue['severity']): Issue;
 
 // @public (undocumented)
@@ -2190,7 +2113,7 @@ export interface LocalStorageSnapshotOptions {
     };
 }
 
-// @public (undocumented)
+// @public
 export interface MapData {
     // (undocumented)
     high: number;
@@ -2230,7 +2153,7 @@ export interface MemorySnapshot {
     subscribe?(listener: () => void): () => void;
 }
 
-// @public (undocumented)
+// @public
 export interface MemoryState {
     // (undocumented)
     instances: ViewInstance[];
@@ -2280,10 +2203,10 @@ export type MetadataFieldKindId = 'documentId' | 'aggregateId' | 'tenantId' | 'o
 /** Whether soft-deleted records are shown: Wow's `DELETION` filter (D17-2). */
 | 'deletion';
 
-// @public (undocumented)
+// @public
 export type MetricAgainst = 'previous' | 'previous-year';
 
-// @public (undocumented)
+// @public
 export interface MetricCardData {
     compare?: {
         value: number | null;
@@ -2307,7 +2230,7 @@ export interface MetricCardData {
     whole?: true;
 }
 
-// @public (undocumented)
+// @public
 export interface MetricCardSpec {
     compare?: {
         metric: string;
@@ -2330,7 +2253,7 @@ export interface MetricCondition {
 // @public
 export type MetricFunction = AggregationFunctionName | `${AggregationMetricType.COUNT}` | `${AggregationMetricType.DISTINCT_COUNT}` | `${AggregationMetricType.PERCENTILE}` | `${AggregationMetricType.FIRST}` | `${AggregationMetricType.LAST}` | `${AggregationMetricType.ANY}` | `${AggregationMetricType.DERIVED}`;
 
-// @public (undocumented)
+// @public
 export type MetricHeadline = 'last' | 'whole';
 
 // @public
@@ -2397,7 +2320,7 @@ export interface NewFilter {
     type: DashboardFilterType;
 }
 
-// @public (undocumented)
+// @public
 export type NewPanel = NewViewPanel | NewContentPanel;
 
 // @public
@@ -2423,16 +2346,10 @@ export type NewViewPanel = {
     owned: OwnedView;
 });
 
-// @public (undocumented)
-export type NumberFilterValue = number | number[] | NumberRange;
-
 // @public
 export type NumberFormat = Intl.NumberFormatOptions & {
     locale?: string;
 };
-
-// @public
-export type NumberRange = [number, number];
 
 // @public
 export interface OpenCapabilities {
@@ -2592,7 +2509,7 @@ export type PanelReferences = ReadonlyMap<string, PanelReference | null>;
 // @public
 export type PanelSize = Pick<PanelLayout, 'w' | 'h' | 'fixedHeight'>;
 
-// @public (undocumented)
+// @public
 export interface ParallelData {
     metrics: string[];
     omitted: number;
@@ -2610,7 +2527,7 @@ export interface ParallelSpec {
 // @public
 export type Picked = ChartType | 'table';
 
-// @public (undocumented)
+// @public
 export interface PieData {
     // (undocumented)
     slices: PieSlice[];
@@ -2618,7 +2535,7 @@ export interface PieData {
     type: 'pie';
 }
 
-// @public (undocumented)
+// @public
 export interface PieSlice {
     // (undocumented)
     category: unknown;
@@ -2627,7 +2544,7 @@ export interface PieSlice {
     value: number;
 }
 
-// @public (undocumented)
+// @public
 export interface PieSpec {
     category: string;
     // (undocumented)
@@ -2640,14 +2557,6 @@ export interface PieSpec {
 export interface PlacedLine extends ReferenceLine {
     // (undocumented)
     value: number;
-}
-
-// @public
-export interface PresetDateTimeValue {
-    // (undocumented)
-    preset: DateTimePreset;
-    // (undocumented)
-    type: 'preset';
 }
 
 // @public
@@ -2678,7 +2587,7 @@ export interface ProjectAnalysisOptions {
     totals?: readonly RecordData[];
 }
 
-// @public (undocumented)
+// @public
 export interface ProjectedAnalysis extends ProjectedBase {
     // (undocumented)
     kind: 'analysis';
@@ -2691,7 +2600,7 @@ export interface ProjectedBase {
     issues: readonly Issue[];
 }
 
-// @public (undocumented)
+// @public
 export interface ProjectedRecord extends ProjectedBase {
     // (undocumented)
     kind: 'record';
@@ -2715,10 +2624,10 @@ export interface ProjectRecordOptions {
 // @public
 export type QueryOperation = 'query' | 'summaries' | 'totals' | 'split' | 'record' | 'kanban' | 'candidates' | 'labels';
 
-// @public (undocumented)
+// @public
 export type QueryStatus = 'idle' | 'loading' | 'success' | 'error';
 
-// @public (undocumented)
+// @public
 export interface RadarData {
     metrics: string[];
     omitted: number;
@@ -2801,7 +2710,7 @@ export interface RecordCardField {
     timeUnit?: EpochTimeUnit;
 }
 
-// @public (undocumented)
+// @public
 export interface RecordCardSpec {
     fields: string[];
     // (undocumented)
@@ -2890,13 +2799,13 @@ export type RecordPageTarget<P extends RecordPagingMode = RecordPagingMode> = P 
     cursor: string | null;
 };
 
-// @public (undocumented)
+// @public
 export type RecordPaging = PagedPaging | CursorPaging;
 
 // @public
 export type RecordPagingMode = 'paged' | 'cursor';
 
-// @public (undocumented)
+// @public
 export interface RecordProjection {
     card: RecordCardView;
     // (undocumented)
@@ -2906,14 +2815,14 @@ export interface RecordProjection {
     rows: RecordRow[];
 }
 
-// @public (undocumented)
+// @public
 export interface RecordRow {
     // (undocumented)
     data: RecordData;
     key: RecordKey;
 }
 
-// @public (undocumented)
+// @public
 export interface RecordSort {
     // (undocumented)
     direction: SortDirectionName;
@@ -2921,14 +2830,14 @@ export interface RecordSort {
     field: string;
 }
 
-// @public (undocumented)
+// @public
 export interface RecordSummary {
     // (undocumented)
     field: string;
     function: SummaryFunction;
 }
 
-// @public (undocumented)
+// @public
 export interface RecordTableSpec {
     // (undocumented)
     columns: RecordColumn[];
@@ -2976,21 +2885,8 @@ export interface ReferenceBand {
     to: number;
 }
 
-// @public (undocumented)
-export interface ReferenceFilterValue {
-    // (undocumented)
-    items: ReferenceItem[];
-}
-
 // @public
 export type ReferenceId = string | number;
-
-// @public (undocumented)
-export interface ReferenceItem {
-    // (undocumented)
-    id: string | number;
-    label: string;
-}
 
 // @public
 export type ReferenceLabel = {
@@ -3049,25 +2945,11 @@ export interface RefusalGroup {
     reason: string;
 }
 
-// @public (undocumented)
+// @public
 export type RelativeDateDirection = 'past' | 'future';
 
 // @public
-export interface RelativeDateTimeValue {
-    // (undocumented)
-    amount: number;
-    direction?: RelativeDateDirection;
-    // (undocumented)
-    type: 'relative';
-    // (undocumented)
-    unit: RelativeDateUnit;
-}
-
-// @public (undocumented)
 export type RelativeDateUnit = 'hour' | 'day' | 'week' | 'month' | 'quarter' | 'year';
-
-// @public
-export function resolveDateTimeRange(value: DateTimeFilterValue, now: Date, timeZone: string): InstantRange;
 
 // @public
 export interface RiverStream {
@@ -3081,7 +2963,7 @@ export interface RiverStream {
 // @public
 export type RoutedTarget = SavedViewTarget | UnsavedViewTarget | DashboardTarget;
 
-// @public (undocumented)
+// @public
 export interface RowMoneyNumeric {
     // (undocumented)
     currency?: undefined;
@@ -3136,7 +3018,7 @@ export interface RuntimeLimits {
     refreshIntervals: readonly number[];
 }
 
-// @public (undocumented)
+// @public
 export interface SankeyData {
     links: SankeyLink[];
     nodes: SankeyNode[];
@@ -3185,7 +3067,7 @@ export interface SavedViewTarget extends HandOver {
     kind: 'view';
 }
 
-// @public (undocumented)
+// @public
 export interface ScatterData {
     // (undocumented)
     points: {
@@ -3198,7 +3080,7 @@ export interface ScatterData {
     type: 'scatter';
 }
 
-// @public (undocumented)
+// @public
 export interface ScatterSpec {
     category: string;
     // (undocumented)
@@ -3258,10 +3140,7 @@ export type StoreOperation = 'list' | 'get' | 'create' | 'save' | 'rename' | 'de
 // @public
 export type StringComparisonName = `${StringComparison}`;
 
-// @public (undocumented)
-export type StringFilterValue = string | string[];
-
-// @public (undocumented)
+// @public
 export interface SummaryCell {
     cell?: string;
     currency?: CurrencyReading;
@@ -3281,7 +3160,7 @@ export interface SummaryCell {
 // @public
 export type SummaryFunction = `${AggregationFunction.SUM | AggregationFunction.AVG | AggregationFunction.MIN | AggregationFunction.MAX | AggregationMetricType.COUNT}`;
 
-// @public (undocumented)
+// @public
 export interface SummaryRow {
     // (undocumented)
     cells: SummaryCell[];
@@ -3317,9 +3196,6 @@ export function textKeyOf(value: string): string | null;
 export type TextResolver = (key: string) => string | undefined;
 
 // @public
-export type TextWords = TextResolver | Readonly<Record<string, string | undefined>>;
-
-// @public (undocumented)
 export interface ThemeRiverData {
     streams: RiverStream[];
     times: unknown[];
@@ -3342,7 +3218,7 @@ export interface ThemeRiverSpec {
 // @public
 export type TimePrecision = 'minute' | 'second';
 
-// @public (undocumented)
+// @public
 export interface TreemapData {
     nested: boolean;
     omitted: number;
@@ -3386,7 +3262,7 @@ export interface UnsavedViewTarget {
 // @public
 export function validateAnalysis(definition: DataViewDefinition, config: AnalysisViewConfig, kinds: FieldKindRegistry, options?: ValidateAnalysisOptions): Issue[];
 
-// @public (undocumented)
+// @public
 export interface ValidateAnalysisOptions {
     // (undocumented)
     limits?: Partial<RuntimeLimits>;
@@ -3395,7 +3271,7 @@ export interface ValidateAnalysisOptions {
 // @public
 export function validateDashboard(config: DashboardViewConfig, scope: ViewScope, refs: PanelReferences, kinds: FieldKindRegistry, options?: ValidateDashboardOptions): Issue[];
 
-// @public (undocumented)
+// @public
 export interface ValidateDashboardOptions {
     // (undocumented)
     limits?: Partial<RuntimeLimits>;
@@ -3405,7 +3281,7 @@ export interface ValidateDashboardOptions {
 // @public
 export function validateDefinition(definition: ViewDefinition, kinds: FieldKindRegistry, options?: ValidateDefinitionOptions): Issue[];
 
-// @public (undocumented)
+// @public
 export interface ValidateDefinitionOptions {
     definitions?: (definitionId: string) => ViewDefinition | undefined;
     // (undocumented)
@@ -3415,7 +3291,7 @@ export interface ValidateDefinitionOptions {
 // @public
 export function validateFilter(fields: readonly FieldDefinition[], tree: FilterTree, kinds: FieldKindRegistry, options?: ValidateFilterOptions): Issue[];
 
-// @public (undocumented)
+// @public
 export interface ValidateFilterOptions {
     // (undocumented)
     limits?: Partial<RuntimeLimits>;
@@ -3425,7 +3301,7 @@ export interface ValidateFilterOptions {
 // @public
 export function validateRecord(definition: DataViewDefinition, config: RecordViewConfig, kinds: FieldKindRegistry, options?: ValidateRecordOptions): Issue[];
 
-// @public (undocumented)
+// @public
 export interface ValidateRecordOptions {
     // (undocumented)
     limits?: Partial<RuntimeLimits>;
@@ -3451,13 +3327,8 @@ export interface ValueCandidateSource {
     search(query: string, options?: ReadOptions): Promise<ValueCandidates>;
 }
 
-// @public (undocumented)
-export type ValueFormat = 'auto' | 'percent' | 'compact';
-
 // @public
-export type ValueMetric = Extract<AnalysisMetric, {
-    type: `${AggregationMetricType.ANY}` | `${AggregationMetricType.FIRST}` | `${AggregationMetricType.LAST}`;
-}>;
+export type ValueFormat = 'auto' | 'percent' | 'compact';
 
 // @public (undocumented)
 export const VIEW_STORE_ERROR_CODES: readonly ViewStoreErrorCode[];
@@ -3478,7 +3349,7 @@ export interface ViewChange {
 // @public
 export type ViewChangeKind = 'create' | 'save' | 'rename' | 'changeAudience' | 'delete';
 
-// @public (undocumented)
+// @public
 export type ViewChangeListener = (change: ViewChange) => void;
 
 // @public
@@ -3574,9 +3445,6 @@ export interface ViewEngineOptions {
 }
 
 // @public
-export type ViewErrorContext = ViewErrorContexts[ViewErrorKind];
-
-// @public
 export interface ViewErrorContexts {
     action: ViewErrorPlace & {
         operation: string;
@@ -3666,7 +3534,7 @@ export interface ViewInstanceSummary {
     title: string;
 }
 
-// @public (undocumented)
+// @public
 export type ViewKind = ViewConfig['kind'];
 
 // @public
@@ -3733,7 +3601,7 @@ export interface ViewPreferences {
     revision: string;
 }
 
-// @public (undocumented)
+// @public
 export interface ViewQueryState {
     conditionsChanged?: true;
     // (undocumented)
@@ -3752,7 +3620,7 @@ export interface ViewResource {
     wording?: DatasetWordingEditor;
 }
 
-// @public (undocumented)
+// @public
 export interface ViewResult<C> {
     config: C;
     // (undocumented)
@@ -3834,7 +3702,7 @@ export interface ViewRuntime<C extends ViewConfig = ViewConfig> {
     valueCandidates(field: string): ValueCandidateSource | null;
 }
 
-// @public (undocumented)
+// @public
 export interface ViewRuntimeState<C> {
     // (undocumented)
     applied: C;
@@ -3944,7 +3812,7 @@ export class ViewWriteError extends Error {
     readonly state: WriteState;
 }
 
-// @public (undocumented)
+// @public
 export interface VisibilitySource {
     // (undocumented)
     isVisible(): boolean;
@@ -3952,7 +3820,7 @@ export interface VisibilitySource {
     subscribe(listener: () => void): () => void;
 }
 
-// @public (undocumented)
+// @public
 export interface WaterfallData {
     // (undocumented)
     steps: WaterfallStep[];
@@ -3985,7 +3853,7 @@ export function withFieldKinds(registry: FieldKindRegistry, kinds: readonly Fiel
 // @public
 export function withText<T>(value: T, resolve: TextResolver, missing?: (key: string, path: readonly (string | number)[]) => void): T;
 
-// @public (undocumented)
+// @public
 export type WriteAction = WritePayload['action'];
 
 // @public

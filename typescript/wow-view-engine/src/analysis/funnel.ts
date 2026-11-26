@@ -14,6 +14,7 @@
 import type { AnalysisViewConfig, RecordData } from '../model/index.js';
 import { num, seriesKey } from './chartRows.js';
 
+/** One stage of a funnel: its label and value. */
 export interface FunnelStage {
   label: string;
   value: number;
@@ -42,6 +43,7 @@ export interface FunnelStage {
   drop?: number;
 }
 
+/** What a funnel chart draws: its stages and their values. */
 export interface FunnelData {
   type: 'funnel';
   stages: FunnelStage[];

@@ -21,18 +21,17 @@
  * 金额，币种随 GMV（D38，docs/scenarios.md 6.4）。
  * ------------------------------------------------------------------------ */
 
-import {
-  DEFAULT_MISSING_KEY,
-  type AnalysisGroup,
-  type AnalysisMetric,
-  type AnalysisViewConfig,
-  type DerivedFormat,
-  type FilterLeaf,
-  type FilterNode,
-  type FilterTree,
-  type RecordViewConfig,
-  type SystemView,
-  type ViewInstance,
+import type {
+  AnalysisGroup,
+  AnalysisMetric,
+  AnalysisViewConfig,
+  DerivedFormat,
+  FilterLeaf,
+  FilterNode,
+  FilterTree,
+  RecordViewConfig,
+  SystemView,
+  ViewInstance,
 } from '@ahoo-wang/wow-view-engine';
 import { BATH_TOWEL_SKU_ID, SKU_BY_ID } from './catalog.js';
 import {
@@ -58,6 +57,7 @@ import {
   HavingExpressionType,
   SortDirection,
 } from '@ahoo-wang/wow-client/dsl';
+import { DEFAULT_MISSING_KEY } from '../../../../wow-view-engine/src/analysis/defaults.js';
 
 // ---------------------------------------------------------------- 定义的 id
 

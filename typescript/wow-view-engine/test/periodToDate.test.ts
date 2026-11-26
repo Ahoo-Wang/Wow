@@ -21,7 +21,6 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  resolveDateTimeRange,
   validateFilter,
   builtinFieldKindRegistry,
   type DateTimePreset,
@@ -34,6 +33,7 @@ import {
   filterFields as fields,
 } from './fixtures/filter.js';
 import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
+import { resolveDateTimeRange } from '../src/filter/time.js';
 
 /** 2026-09-22 10:00 in Shanghai. */
 const NOW = new Date('2026-09-22T02:00:00.000Z');

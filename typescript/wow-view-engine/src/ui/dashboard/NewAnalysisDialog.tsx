@@ -76,6 +76,7 @@ export interface NewAnalysis {
   title: string;
 }
 
+/** Props of `NewAnalysisDialog`. */
 export interface NewAnalysisDialogProps {
   engine: ViewEngine;
   open: boolean;

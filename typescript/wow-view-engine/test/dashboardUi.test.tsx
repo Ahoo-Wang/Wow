@@ -34,11 +34,7 @@ import {
 } from '../src/index.js';
 import { arrangePanel } from '../src/dashboard/layout.js';
 import { useDashboard, type DashboardController } from '../src/react/index.js';
-import {
-  DashboardGrid,
-  PanelResizeHandle,
-  ViewSurface,
-} from '../src/ui/index.js';
+import { DashboardGrid, ViewSurface } from '../src/ui/index.js';
 import {
   analysisConfig,
   dashboardConfig,
@@ -54,6 +50,7 @@ import { tracked } from './fixtures/writes.js';
 import { panel, pending } from './fixtures/dashboard.js';
 import { settle } from './fixtures/ui.js';
 import { AggregationFunction, FilterOperator } from '@ahoo-wang/wow-client/dsl';
+import { PanelResizeHandle } from '../src/ui/dashboard/DashboardArrange.js';
 
 afterEach(cleanup);
 

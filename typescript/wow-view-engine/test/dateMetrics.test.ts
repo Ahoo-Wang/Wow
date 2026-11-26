@@ -26,7 +26,6 @@ import { describe, expect, it } from 'vitest';
 import {
   builtinFieldKindRegistry,
   defaultAnalysisConfig,
-  fitChartSlots,
   projectAnalysis,
   validateAnalysis,
   validateDefinition,
@@ -47,6 +46,7 @@ import {
   type DataViewDefinition,
 } from '../src/model/index.js';
 import { INSTANT, analysisConfig, ordersDefinition } from './fixtures.js';
+import { fitChartSlots } from '../src/analysis/chartSlots.js';
 
 const { SUM, AVG, MIN, MAX } = AggregationFunction;
 const { TERMS } = AggregationGroupType;

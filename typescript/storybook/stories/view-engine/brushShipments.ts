@@ -23,7 +23,6 @@
 
 import {
   emptyDashboardConfig,
-  fitChartSlots,
   type DashboardDefinition,
   type DashboardViewConfig,
   type ViewInstance,
@@ -42,6 +41,7 @@ import {
   AggregationGroupType,
   AggregationMetricType,
 } from '@ahoo-wang/wow-client/dsl';
+import { fitChartSlots } from '../../../wow-view-engine/src/analysis/chartSlots.js';
 
 /**
  * How many aggregations the month's source has answered: a play reads it

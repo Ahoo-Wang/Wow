@@ -37,6 +37,10 @@ import {
 /** What a write command is addressed to: an open view, or a handle. */
 export type WriteTarget = ViewRuntime | WriteHandle;
 
+/**
+ * What the reader chose when a save met a newer version: reload it, or
+ * overwrite it.
+ */
 export type ConflictChoice = 'reload' | 'overwrite';
 
 /** Everything a write can hand back, by action. */
