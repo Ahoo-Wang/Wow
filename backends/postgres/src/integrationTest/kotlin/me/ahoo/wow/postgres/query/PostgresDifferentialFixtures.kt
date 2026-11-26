@@ -37,6 +37,7 @@ import me.ahoo.wow.query.backend.cursor
 import me.ahoo.wow.query.backend.list
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.error.QueryRequestException
 import org.junit.jupiter.api.DynamicTest
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
@@ -95,6 +96,23 @@ internal abstract class PostgresDifferentialFixtures {
         runBlocking {
             val (postgres, memory) = sides
             postgres.run().assert().describedAs(name).isEqualTo(memory.run())
+        }
+    }
+
+    /**
+     * As [same], or the store refuses the query as one the caller can mend ([QueryRequestException]): what a bound of
+     * the store's own answers, as no reference refuses it.
+     */
+    protected fun <T> sameOrRefused(name: String, run: suspend Side.() -> T): DynamicTest = DynamicTest.dynamicTest(name) {
+        runBlocking {
+            val (postgres, memory) = sides
+            val answer = runCatching { postgres.run() }
+            val failure = answer.exceptionOrNull()
+            if (failure == null) {
+                answer.getOrThrow().assert().describedAs(name).isEqualTo(memory.run())
+            } else if (failure !is QueryRequestException) {
+                throw failure
+            }
         }
     }
 
