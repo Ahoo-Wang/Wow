@@ -39,6 +39,7 @@ import org.springframework.boot.health.contributor.HealthContributor
 import org.springframework.boot.health.contributor.HealthIndicator
 import org.springframework.boot.health.contributor.Status
 import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Lazy
 import org.springframework.core.env.ConfigurableEnvironment
 import org.springframework.core.env.MapPropertySource
 import org.springframework.util.ClassUtils
@@ -67,8 +68,15 @@ import kotlin.time.toKotlinDuration
 @ConditionalOnClass(name = [HEALTH_INDICATOR])
 @ConditionalOnBooleanProperty(name = [HealthGroupsEnvironmentPostProcessor.ENABLED], matchIfMissing = true)
 class HealthAutoConfiguration {
+    /**
+     * The node's health, made at the start whatever `spring.main.lazy-initialization` says: its refusals of a
+     * configuration (`parked-degraded-at` past `wow.node.max-parked`, a stall timeout not longer than the reconcile
+     * timeout, an option that does not read) refuse the start, never the first health probe; and it samples from the
+     * start, as without lazy initialization.
+     */
     @Bean(initMethod = "start", destroyMethod = "close")
     @ConditionalOnMissingBean
+    @Lazy(false)
     @InternalWowApi
     fun wowNodeHealth(node: ServiceNode, properties: WowProperties, sampler: NodeSampler): NodeHealth {
         val parkedDegradedAt = properties.health.subscriptions.parkedDegradedAt
