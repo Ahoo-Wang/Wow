@@ -22,7 +22,9 @@ import me.ahoo.wow.kernel.schedule.ScheduleJobModel
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.InFlightLimit
 import me.ahoo.wow.runtime.StateCacheSizing
+import me.ahoo.wow.runtime.access.AccessCapabilities
 import me.ahoo.wow.runtime.access.AccessStamping
+import me.ahoo.wow.runtime.access.EventsSources
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommittedRequests
 import me.ahoo.wow.runtime.admission.ModelRegistry
@@ -126,6 +128,8 @@ internal class NodeAssembly(
     deadlines: WaitDeadlines,
     /** The application's describers of its handlers' failures ([RuntimeFailures.of]); none by default. */
     failureDescribers: List<FailureDescriber> = emptyList(),
+    /** Where each type's `events` model is served from, which must keep its history's attributes current. */
+    private val eventsSources: EventsSources = EventsSources.NONE,
 ) {
     /** The jobs of each context's `@OnSchedule` handlers, by the name of the subscription that runs each. */
     private val declaredJobs: Map<String, Map<String, ScheduleJob>> =
@@ -385,6 +389,28 @@ internal class NodeAssembly(
     }
 
     val applicationSubscriptions = contexts.values.associateWith { subscriptions.subscriptions(it) }
+
+    init {
+        // After the subscriptions: a Sink that stamps the histories it indexes is a walk's target by now.
+        val placed = contexts.values.flatMap { context ->
+            context.logGroups.flatMap { group ->
+                group.types.map { type ->
+                    AccessCapabilities.Placed(
+                        type,
+                        group.store,
+                        // The store's own log: the group's log is wrapped by the hand-over, which stamps nothing.
+                        context.accessWalking?.logOf(type) ?: group.log,
+                        context.accessWalking?.targeted(type) == true,
+                    )
+                }
+            }
+        }
+        val refusals = AccessCapabilities.refusals(placed, eventsSources)
+        check(refusals.isEmpty()) {
+            "An events query would decide by access attributes these stores cannot keep current: " +
+                refusals.joinToString("; ")
+        }
+    }
 
     /**
      * The subscriptions of other contexts' published streams, by the topic they read: one runtime
