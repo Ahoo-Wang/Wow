@@ -23,6 +23,7 @@ import {
   type ViewPreferences,
 } from '../model/index.js';
 import {
+  abortRefusal,
   AUDIENCE_RANK,
   configRefusal,
   definitionRefusal,
@@ -33,6 +34,7 @@ import {
   titleRefusal,
 } from './memoryViewRules.js';
 import {
+  type ReadOptions,
   type ViewListOptions,
   type ViewListPage,
   type ViewPermissions,
@@ -106,7 +108,9 @@ export interface MemoryState {
  * and a list cursor it did not issue, which it refuses as the server does
  * (`INVALID`), and a write that changes nothing (a rename to the title the
  * view has, preferences as they are stored), which it answers as it is,
- * no revision spent, as the server records no event for it.
+ * no revision spent, as the server records no event for it. A call whose
+ * signal is already aborted does nothing and is refused as `UNAVAILABLE`,
+ * as `WowViewStore` refuses one its fetch never sent.
  *
  * System views come two ways (D81). One seeded with `scope: 'system'` and
  * no `stored` is a configured one, as the backend's configuration serves
@@ -179,6 +183,8 @@ export class MemoryViewStore implements ViewStore {
     definitionId: string,
     options: ViewListOptions = {},
   ): Promise<ViewListPage> {
+    const aborted = abortRefusal(options.signal);
+    if (aborted) return Promise.reject(aborted);
     const after = readCursor(options.cursor);
     if (after instanceof ViewStoreError) return Promise.reject(after);
     const ordered = [...this.instances.values()]
@@ -214,7 +220,9 @@ export class MemoryViewStore implements ViewStore {
     return place;
   }
 
-  get(id: string): Promise<ViewInstance> {
+  get(id: string, options: ReadOptions = {}): Promise<ViewInstance> {
+    const aborted = abortRefusal(options.signal);
+    if (aborted) return Promise.reject(aborted);
     const instance = this.instances.get(id);
     return instance
       ? Promise.resolve(copy(instance))
@@ -225,6 +233,8 @@ export class MemoryViewStore implements ViewStore {
     input: Omit<ViewInstance, 'id' | 'revision'>,
     context: WriteOptions,
   ): Promise<ViewInstance> {
+    const aborted = abortRefusal(context.signal);
+    if (aborted) return Promise.reject(aborted);
     const replayed = this.outcomes.get(context.requestId);
     if (replayed) return Promise.resolve(copy(replayed));
     // In the service's order (`View.onCreate`).
@@ -330,6 +340,8 @@ export class MemoryViewStore implements ViewStore {
   }
 
   delete(id: string, revision: string, context: WriteOptions): Promise<void> {
+    const aborted = abortRefusal(context.signal);
+    if (aborted) return Promise.reject(aborted);
     if (this.outcomes.has(context.requestId)) return Promise.resolve();
     this.reload();
     const current = this.instances.get(id);
@@ -354,7 +366,12 @@ export class MemoryViewStore implements ViewStore {
     return Promise.resolve();
   }
 
-  getPreferences(definitionId: string): Promise<ViewPreferences> {
+  getPreferences(
+    definitionId: string,
+    options: ReadOptions = {},
+  ): Promise<ViewPreferences> {
+    const aborted = abortRefusal(options.signal);
+    if (aborted) return Promise.reject(aborted);
     return Promise.resolve(
       copy(this.preferences.get(definitionId) ?? emptyPreferences()),
     );
@@ -367,7 +384,10 @@ export class MemoryViewStore implements ViewStore {
   ): Promise<ViewPreferences> {
     // A replay answers with the outcome the first attempt produced, as every
     // other write does: a retry after a lost answer is the same logical
-    // write, and reporting a conflict for it would be a lie.
+    // write, and reporting a conflict for it would be a lie. An aborted
+    // call was never sent, a replay included.
+    const aborted = abortRefusal(context.signal);
+    if (aborted) return Promise.reject(aborted);
     const replayed = this.preferenceOutcomes.get(context.requestId);
     if (replayed) return Promise.resolve(copy(replayed));
     const refused = preferencesRefusal(definitionId, preferences);
@@ -425,6 +445,8 @@ export class MemoryViewStore implements ViewStore {
     change: (current: ViewInstance) => ViewInstance | ViewStoreError | null,
     refused?: ViewStoreError,
   ): Promise<ViewInstance> {
+    const aborted = abortRefusal(context.signal);
+    if (aborted) return Promise.reject(aborted);
     const replayed = this.outcomes.get(context.requestId);
     if (replayed) return Promise.resolve(copy(replayed));
     if (refused) return Promise.reject(refused);

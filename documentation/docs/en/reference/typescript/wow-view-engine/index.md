@@ -25,7 +25,7 @@ For what the engine does, read the [View Engine guide](../../../typescript/view-
 | `/themes/<name>.css` | One optional preset alone |
 | `/shadcn-bridge.css` | Optional: a host's shadcn tokens read into the view's variables, except `input`, `ring`, the status and the chart colours |
 
-The root entry has no React or DOM dependency. `react` and `react-dom` are peer dependencies needed only by `/react` and `/ui`; `react-router` only by `/react-router`, and `mingo` only by `/testing`; all four are optional peers. The package's command, `wow-view-engine theme-check`, checks a host's theme against the registry ([checking a theme](../../../typescript/view-engine/theming.md#checking-a-theme)).
+The root entry has no React or DOM dependency. `react` and `react-dom` are peer dependencies needed only by `/react` and `/ui`; `react-router` only by `/react-router`, and `mingo` only by `/testing`; all four are optional peers. The UI's own dependencies (`@base-ui/react`, `lucide-react` and others) require React as a peer, so a package manager that installs peers brings React in even for a host of the root entry alone, and one that does not warns that it is missing; the root entry never loads it. The package's command, `wow-view-engine theme-check`, checks a host's theme against the registry ([checking a theme](../../../typescript/view-engine/theming.md#checking-a-theme)).
 
 ## Concepts
 

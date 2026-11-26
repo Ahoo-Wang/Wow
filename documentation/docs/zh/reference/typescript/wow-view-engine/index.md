@@ -25,7 +25,7 @@ description: '@ahoo-wang/wow-view-engine 包的入口、概念、持久化端口
 | `/themes/<名>.css` | 单独一套可选的预设 |
 | `/shadcn-bridge.css` | 可选：把宿主的 shadcn token 读进视图的变量，`input`、`ring`、状态色与图表色除外 |
 
-根入口不依赖 React 或 DOM。`react` 和 `react-dom` 是 peer 依赖，只有 `/react` 和 `/ui` 需要；`react-router` 只有 `/react-router` 需要，`mingo` 只有 `/testing` 需要；这四个都是可选的 peer。包带一个命令 `wow-view-engine theme-check`，按登记表检查宿主的主题（[检查主题](../../../typescript/view-engine/theming.md#检查一套主题)）。
+根入口不依赖 React 或 DOM。`react` 和 `react-dom` 是 peer 依赖，只有 `/react` 和 `/ui` 需要；`react-router` 只有 `/react-router` 需要，`mingo` 只有 `/testing` 需要；这四个都是可选的 peer。UI 自己的依赖（`@base-ui/react`、`lucide-react` 等）把 React 列为必需的 peer，所以会自动安装 peer 的包管理器即使只给根入口的宿主也会装上 React，不自动安装的则警告缺少它；根入口从不加载它。包带一个命令 `wow-view-engine theme-check`，按登记表检查宿主的主题（[检查主题](../../../typescript/view-engine/theming.md#检查一套主题)）。
 
 ## 概念
 

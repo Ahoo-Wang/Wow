@@ -15,7 +15,8 @@
  * The view store service's rules the port's stores answer alike: what the
  * Wow view store service (`platform/view-store`) refuses or records nothing
  * for, which `MemoryViewStore` answers as it does, so a test on the memory
- * sees what production gives (#7067, D482 ⑧), and the page bound of a list
+ * sees what production gives (#7067, D482 ⑧), a call whose signal is
+ * aborted, which reaches nothing, and the page bound of a list
  * across the system views (#7041). Run beside the port's suite
  * (`viewStoreConformance.ts`) by every subject that stands for the service:
  * `MemoryViewStore` here, **WowViewStore** on the store's fake service and
@@ -137,6 +138,42 @@ export function describeViewStoreServiceRules(
         alice.list(definitionId, { cursor: 'not-a-cursor' }),
         'INVALID',
       );
+    });
+
+    it('refuses a call whose signal is aborted as UNAVAILABLE, and writes nothing', async () => {
+      // WowViewStore hands the signal to fetch: such a call never reaches
+      // the service, and a request that reached nothing is UNAVAILABLE.
+      const { alice, definitionId, create } = await setup();
+      const made = await create('Kept');
+      const preferences = await alice.setPreferences(
+        definitionId,
+        { order: [made.id], defaultInstanceId: null, revision: '0' },
+        write(),
+      );
+      const signal = AbortSignal.abort();
+      await refusal(alice.get(made.id, { signal }), 'UNAVAILABLE');
+      await refusal(alice.list(definitionId, { signal }), 'UNAVAILABLE');
+      await refusal(
+        alice.getPreferences(definitionId, { signal }),
+        'UNAVAILABLE',
+      );
+      await refusal(
+        alice.rename(made.id, 'Gone', made.revision, { ...write(), signal }),
+        'UNAVAILABLE',
+      );
+      await refusal(
+        alice.setPreferences(
+          definitionId,
+          { ...preferences, defaultInstanceId: made.id },
+          { ...write(), signal },
+        ),
+        'UNAVAILABLE',
+      );
+      const read = await alice.get(made.id);
+      expect([read.title, read.revision]).toEqual(['Kept', made.revision]);
+      expect(
+        (await alice.getPreferences(definitionId)).defaultInstanceId,
+      ).toBeNull();
     });
 
     it.skipIf(

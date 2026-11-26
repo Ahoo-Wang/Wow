@@ -33,7 +33,7 @@ Whichever you choose, two rules hold, and the engine's conflict handling rests o
 
 ## In memory, or in one browser
 
-`MemoryViewStore` keeps the rules honest, not convenient: a stale revision conflicts, a replayed request id answers the first outcome, the order of the list and the checks of a definition id, a title, a config and preferences are the server's, a list cursor it did not issue is refused as `INVALID`, and a write that changes nothing (a rename to the title the view has, preferences as they are stored) answers as it is, its revision unmoved, as the server records nothing for it. Code that is right against it behaves the same against a real backend. Seeded with a stored system view, and with only administrators allowed to edit system views:
+`MemoryViewStore` keeps the rules honest, not convenient: a stale revision conflicts, a replayed request id answers the first outcome, the order of the list and the checks of a definition id, a title, a config and preferences are the server's, a list cursor it did not issue is refused as `INVALID`, and a write that changes nothing (a rename to the title the view has, preferences as they are stored) answers as it is, its revision unmoved, as the server records nothing for it. A call whose signal is already aborted does nothing and is refused as `UNAVAILABLE`, as `WowViewStore` refuses one its request never sent. Code that is right against it behaves the same against a real backend. Seeded with a stored system view, and with only administrators allowed to edit system views:
 
 <!-- typecheck: file=memoryStore.ts -->
 <!-- typecheck-context

@@ -48,6 +48,35 @@ function invalid(message: string): ViewStoreError {
   return new ViewStoreError('INVALID', message);
 }
 
+/**
+ * The refusal of a call whose signal is aborted, read or write, before it
+ * does anything. `WowViewStore` hands the signal to fetch, so such a call
+ * never reaches the service, and answers it as it answers any request that
+ * reached nothing: `UNAVAILABLE`, the outcome unknown, the signal's reason
+ * as `cause`. A replayed `requestId` is refused alike: it was never sent.
+ */
+export function abortRefusal(
+  signal: AbortSignal | undefined,
+): ViewStoreError | undefined {
+  if (signal?.aborted !== true) return undefined;
+  const reason: unknown = signal.reason;
+  const { name, message } = (reason ?? {}) as {
+    name?: unknown;
+    message?: unknown;
+  };
+  const said =
+    typeof message === 'string'
+      ? typeof name === 'string'
+        ? `${name}: ${message}`
+        : message
+      : String(reason);
+  return new ViewStoreError(
+    'UNAVAILABLE',
+    `The view store could not be reached: ${said}`,
+    { cause: reason },
+  );
+}
+
 /** A definition id the service refuses (`ViewConfigs.definitionProblem`). */
 export function definitionRefusal(
   definitionId: string,

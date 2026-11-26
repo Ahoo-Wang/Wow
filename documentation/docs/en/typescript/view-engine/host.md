@@ -413,7 +413,7 @@ export const testEngine = new ViewEngine({
 });
 ```
 
-`memorySource`'s answers are held to the server's own semantics by this package's suites, so a test sees what production gives. It evaluates filters with `mingo`, an optional peer that only `/testing` loads: add it to your dev dependencies.
+`memorySource`'s filters, sorts, pages, projections and aggregations are held to the server's own semantics by this package's suites, and it refuses a cursor it did not issue as the server does. It keeps no query budget (the largest list, page and count are the service's configuration) and its totals are exact unless the query asks for none, so a test of what a host does at a budget, or with an inexact total, gives the answer itself. It evaluates filters with `mingo`, an optional peer that only `/testing` loads: add it to your dev dependencies.
 
 ## A complete host
 
