@@ -107,6 +107,8 @@ The tracer is named `me.ahoo.wow`, at Wow's version. A stage that starts from wh
 
 `wow.command.name` is the command's full name, `<context>.<aggregate>.<Name>`, on both the admission and the execution span, so one value finds both.
 
+A subscription's `handle` or `process` span, one per entry, ends with `wow.outcome` `ok` when the entry was handled, `error` when its handling failed (a retry is its own attempt in the same span; the aggregate is parked once the retries are spent), `cancelled` when the subscription stopped meanwhile, and `skipped` when it passed over the entry without handling it: its aggregate is parked, or a topic delivered a copy of an entry it handled. An entry passed over before its lane took it (an aggregate already parked when the entry arrived, an aggregate type the subscription does not take) has no span.
+
 ## Health
 
 With Actuator's health support on the class path, the host contributes three health indicators: `wow`, the node's components; `wowReadiness`; and `wowLiveness`. It adds the last two to Actuator's probe groups, unless the application sets the groups itself:

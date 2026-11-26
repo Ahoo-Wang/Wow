@@ -236,6 +236,7 @@ me.ahoo.wow.spi.observation.ObservedEvent$TailRead$Reason.BACKSTOP=backstop
 me.ahoo.wow.spi.observation.ObservedOutcome.OK=ok
 me.ahoo.wow.spi.observation.ObservedOutcome.ERROR=error
 me.ahoo.wow.spi.observation.ObservedOutcome.CANCELLED=cancelled
+me.ahoo.wow.spi.observation.ObservedOutcome.SKIPPED=skipped
 me.ahoo.wow.spi.observation.ObservedOutcome.ADMITTED=admitted
 me.ahoo.wow.spi.observation.ObservedOutcome.REFUSED=refused
 me.ahoo.wow.spi.observation.ObservedOutcome.COMMITTED=committed

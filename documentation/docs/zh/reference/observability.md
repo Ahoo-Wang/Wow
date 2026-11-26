@@ -107,6 +107,8 @@ tracer 名为 `me.ahoo.wow`，版本为 Wow 的版本。从到达的东西开始
 
 `wow.command.name` 是命令的全名 `<context>.<aggregate>.<Name>`，在准入 Span 和执行 Span 上都有，所以用一个值就能找到两者。
 
+订阅的 `handle` 或 `process` Span 每个条目一个，结束时的 `wow.outcome` 为：处理了条目时是 `ok`，处理失败时是 `error`（重试是同一 Span 里它自己的一次尝试；重试用尽后聚合被停放），其间订阅停止时是 `cancelled`，订阅略过条目而没有处理它时是 `skipped`：它的聚合被停放了，或者主题再次投递了一个已处理条目的副本。在通道取到它之前就被略过的条目（条目到达时聚合已被停放、订阅不接收的聚合类型）没有 Span。
+
 ## 健康 {#health}
 
 类路径上有 Actuator 的健康支持时，宿主贡献三个健康指示器：`wow`，即节点的各组件；`wowReadiness`；以及 `wowLiveness`。除非应用自己设置了探针分组，宿主会把后两者加入 Actuator 的探针分组：

@@ -1075,6 +1075,7 @@ public final class me/ahoo/wow/spi/observation/ObservedOutcome : java/lang/Enum 
 	public static final field REFUSED Lme/ahoo/wow/spi/observation/ObservedOutcome;
 	public static final field REJECTED Lme/ahoo/wow/spi/observation/ObservedOutcome;
 	public static final field SENT Lme/ahoo/wow/spi/observation/ObservedOutcome;
+	public static final field SKIPPED Lme/ahoo/wow/spi/observation/ObservedOutcome;
 	public static final field UNCHANGED Lme/ahoo/wow/spi/observation/ObservedOutcome;
 	public static final field UNKNOWN Lme/ahoo/wow/spi/observation/ObservedOutcome;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
