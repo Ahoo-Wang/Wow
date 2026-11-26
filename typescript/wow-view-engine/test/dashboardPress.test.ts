@@ -28,7 +28,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,
   ViewEngine,
-  type BoardValueSource,
+  type DashboardValueSource,
   type DashboardPanel,
   type DashboardViewConfig,
   type DataViewDefinition,
@@ -456,7 +456,7 @@ describe('a custom destination (D22 I)', () => {
 
 describe('a press that opens another board (D23 Q17)', () => {
   const toRegional = (
-    values: Record<string, BoardValueSource>,
+    values: Record<string, DashboardValueSource>,
   ): Partial<DashboardPanel> => ({
     click: { kind: 'dashboard', instanceId: 'regional', values },
   });
@@ -624,7 +624,7 @@ describe('a press that opens another board (D23 Q17)', () => {
 
 describe('a mapping from one of this board’s filters (D23 Q17, 2026-09-23)', () => {
   const fromOwn = (
-    values: Record<string, BoardValueSource>,
+    values: Record<string, DashboardValueSource>,
   ): Partial<DashboardPanel> => ({
     click: { kind: 'dashboard', instanceId: 'regional', values },
   });

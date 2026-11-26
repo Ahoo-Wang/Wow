@@ -25,7 +25,7 @@ import {
   type ViewDefinition,
 } from '../model/index.js';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   issue,
   type FieldKindRegistry,
 } from '../filter/index.js';
@@ -75,7 +75,7 @@ export function admit(
   descriptors: Readonly<Record<string, QueryModelDescriptor>>,
   options: AdmitOptions = {},
 ): AdmitFinding[] {
-  const kinds = options.kinds ?? builtinFieldKinds;
+  const kinds = options.kinds ?? builtinFieldKindRegistry;
   const limits = { ...DEFAULT_RUNTIME_LIMITS, ...options.limits };
   // Called on the host's object, as the engine's registry calls it.
   const text = (key: string) => options.text?.(key);

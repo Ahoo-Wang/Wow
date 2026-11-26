@@ -21,7 +21,7 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   compileFilter,
   validateAnalysis,
   validateDefinition,
@@ -87,7 +87,7 @@ const searching = (text: string) =>
 describe('a search inside an element (N4)', () => {
   it('is admitted inside the element match when it names the element fields', () => {
     expect(
-      validateFilter([lines], searching('blue tea'), builtinFieldKinds),
+      validateFilter([lines], searching('blue tea'), builtinFieldKindRegistry),
     ).toEqual([]);
   });
 
@@ -96,7 +96,7 @@ describe('a search inside an element (N4)', () => {
       compileFilter(
         [lines],
         searching('  blue tea '),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
         context,
       ),
     ).toEqual(
@@ -118,7 +118,7 @@ describe('a search inside an element (N4)', () => {
           { field: 'lines.sku', operator: FilterOperator.EQ, value: 'TEA-01' },
           { field: 'lines.q', operator: FilterOperator.SEARCH, value: 'green' },
         ),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
         context,
       ),
     ).toEqual(
@@ -166,8 +166,12 @@ describe('a search inside an element (N4)', () => {
       } as never,
     });
 
-    expect(validateFilter([nested], tree, builtinFieldKinds)).toEqual([]);
-    expect(compileFilter([nested], tree, builtinFieldKinds, context)).toEqual(
+    expect(validateFilter([nested], tree, builtinFieldKindRegistry)).toEqual(
+      [],
+    );
+    expect(
+      compileFilter([nested], tree, builtinFieldKindRegistry, context),
+    ).toEqual(
       filter.elementMatch(
         'lines',
         filter.elementMatch(
@@ -185,9 +189,11 @@ describe('a search inside an element (N4)', () => {
     };
 
     expect(
-      validateFilter([anywhere], searching('blue'), builtinFieldKinds).map(
-        found => found.code,
-      ),
+      validateFilter(
+        [anywhere],
+        searching('blue'),
+        builtinFieldKindRegistry,
+      ).map(found => found.code),
     ).toContain('filter.element.root-filter');
   });
 
@@ -195,7 +201,7 @@ describe('a search inside an element (N4)', () => {
     const [item] = describeFilter(
       [lines],
       searching('blue'),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
 
     expect(item.text).toBe('Lines has an entry where Search lines blue');
@@ -207,7 +213,7 @@ describe('declaring an element search', () => {
   const definitionCodes = (fields: FieldDefinition[]) =>
     validateDefinition(
       ordersDefinition({ fields: [...ordersDefinition().fields, ...fields] }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     ).map(found => found.code);
 
   it('admits one that names the element fields', () => {
@@ -221,7 +227,7 @@ describe('declaring an element search', () => {
     };
     const issues = validateDefinition(
       ordersDefinition({ fields: [...ordersDefinition().fields, anywhere] }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
 
     expect(issues).toContainEqual(
@@ -292,7 +298,7 @@ describe('narrowing an element search to the descriptor', () => {
     const { definition, findings } = narrowDefinition(
       declared,
       descriptor,
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     const element = definition.fields
       .find(entry => entry.name === 'lines')
@@ -323,8 +329,11 @@ describe('narrowing an element search to the descriptor', () => {
     ]);
     // A view saved where it was offered is no longer admitted (Q2).
     expect(
-      validateFilter(definition.fields, searching('blue'), builtinFieldKinds)
-        .length,
+      validateFilter(
+        definition.fields,
+        searching('blue'),
+        builtinFieldKindRegistry,
+      ).length,
     ).toBeGreaterThan(0);
   });
 
@@ -346,7 +355,7 @@ describe('narrowing an element search to the descriptor', () => {
     const { findings } = narrowDefinition(
       unnamed,
       described({ modes: both, fields: ['lines.sku', 'lines.title'] }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
 
     expect(findings.map(found => `${found.severity} ${found.code}`)).toEqual([
@@ -387,7 +396,7 @@ describe('narrowing an element search to the descriptor', () => {
         modes: [SearchMode.PHRASE],
         fields: ['lines.sku', 'lines.title'],
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
 
     expect(
@@ -522,7 +531,7 @@ describe("an analysis element's gate", () => {
               },
             ],
           }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['analysis.elementFilter.search']);
@@ -550,7 +559,7 @@ describe("an analysis element's gate", () => {
           },
         ],
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
 
     expect(errorCodes(issues)).toEqual(['analysis.elementFilter.search']);

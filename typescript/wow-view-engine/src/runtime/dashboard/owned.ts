@@ -127,7 +127,10 @@ export function admitBoard(
     definitions: (definitionId: string) => PanelDefinition | null;
   },
 ): Issue[] {
-  const said = validateDashboard(config, scope, refs, kinds, options);
+  const said = validateDashboard(config, scope, refs, kinds, {
+    limits: options.limits,
+    lookup: options.definitions,
+  });
   const definitionOf = (id: string) => {
     const found = options.definitions(id)?.definition;
     return found?.kind === 'data' && found.analysis ? found : null;

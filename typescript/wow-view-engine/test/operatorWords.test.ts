@@ -23,7 +23,7 @@ import {
 } from '../src/model/index.js';
 import {
   BUILTIN_FIELD_KINDS,
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   describeFilter,
   describePresence,
   DURATION_COMPARISONS,
@@ -143,7 +143,7 @@ describe("a summary's English says no wire value", () => {
             leaf,
             field,
             fields: [field, ...others],
-            kinds: builtinFieldKinds,
+            kinds: builtinFieldKindRegistry,
           });
           if (wireIn(text).length > 0)
             leaked.push(`${kind.id} ${operator}: ${text}`);
@@ -153,9 +153,9 @@ describe("a summary's English says no wire value", () => {
   });
 
   it('for a condition its kind could not read', () => {
-    const throwing = withFieldKinds(builtinFieldKinds, [
+    const throwing = withFieldKinds(builtinFieldKindRegistry, [
       {
-        ...builtinFieldKinds.get('string')!,
+        ...builtinFieldKindRegistry.get('string')!,
         id: 'throwing',
         describe() {
           throw new Error('boom');
@@ -187,7 +187,7 @@ describe("a summary's English says no wire value", () => {
     const [item] = impliedDeletion(
       [{ name: '@deleted', label: 'Records', kind: 'deletion' }],
       [null],
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(item.text).toBe('Records Not deleted');
   });

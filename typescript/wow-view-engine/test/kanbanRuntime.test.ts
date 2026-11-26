@@ -25,7 +25,10 @@ import { memorySource } from '../src/testing/index.js';
 import { restyledOnly } from '../src/runtime/restyle.js';
 import { executeLanePage } from '../src/runtime/kanban.js';
 import { recordSource } from '../src/runtime/source.js';
-import { builtinFieldKinds, DEFAULT_RUNTIME_LIMITS } from '../src/index.js';
+import {
+  builtinFieldKindRegistry,
+  DEFAULT_RUNTIME_LIMITS,
+} from '../src/index.js';
 import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
 import {
   dashboardConfig,
@@ -247,7 +250,7 @@ describe('one lane loading more', () => {
     if (data.kind !== 'record') throw new Error('record');
     const context = {
       definition: dealsDefinition(),
-      kinds: builtinFieldKinds,
+      kinds: builtinFieldKindRegistry,
       limits: DEFAULT_RUNTIME_LIMITS,
       environment: runtime.environment,
       source: recordSource(memorySource(DEALS)),

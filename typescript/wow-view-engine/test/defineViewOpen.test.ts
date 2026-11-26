@@ -20,7 +20,7 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   defineView,
   MemoryViewStore,
   ViewEngine,
@@ -115,7 +115,7 @@ const orders = defineView(MONGO, {
 });
 
 const narrowed = (descriptor: QueryModelDescriptor) =>
-  narrowDefinition(orders, descriptor, builtinFieldKinds).definition;
+  narrowDefinition(orders, descriptor, builtinFieldKindRegistry).definition;
 
 const field = (definition: typeof orders, name: string) =>
   definition.fields.find(entry => entry.name === name);
@@ -160,7 +160,7 @@ describe('a definition built from one store’s snapshot', () => {
     const elastic = narrowDefinition(
       narrow,
       ELASTIC,
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     ).definition;
     expect(field(elastic, 'noted')?.sortable).toBeUndefined();
     expect(
@@ -251,7 +251,8 @@ describe('a definition built from one store’s snapshot', () => {
       ]);
       expect(admit([remarks], { orders: descriptor })).toEqual([]);
       const operators = field(
-        narrowDefinition(remarks, descriptor, builtinFieldKinds).definition,
+        narrowDefinition(remarks, descriptor, builtinFieldKindRegistry)
+          .definition,
         'remark',
       )?.operators;
       expect(operators?.length).toBeGreaterThan(0);
@@ -268,7 +269,8 @@ describe('a definition built from one store’s snapshot', () => {
       expect(admit([remarks], { orders: descriptor })).toEqual([]);
       expect(
         field(
-          narrowDefinition(remarks, descriptor, builtinFieldKinds).definition,
+          narrowDefinition(remarks, descriptor, builtinFieldKindRegistry)
+            .definition,
           'remark',
         )?.operators,
       ).toEqual([]);

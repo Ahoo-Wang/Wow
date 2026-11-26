@@ -99,7 +99,7 @@ export {
 } from './model/config.js';
 export type { CurrencyReading } from './model/currency.js';
 export {
-  type BoardValueSource,
+  type DashboardValueSource,
   type ContentPanelKind,
   type DashboardContentPanel,
   type DashboardField,
@@ -243,7 +243,7 @@ export {
 } from './filter/fieldKind.js';
 export {
   BUILTIN_FIELD_KINDS,
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
 } from './filter/kinds/index.js';
 export { type ArrayFilterValue } from './filter/kinds/array.js';
 export { type InstantRange, resolveDateTimeRange } from './filter/time.js';
@@ -272,7 +272,7 @@ export {
   isDateTimeFilterValue,
 } from './filter/values.js';
 // record — the record kernel.
-export { compileRecord } from './record/compile.js';
+export { compileRecord, type CompileRecordOptions } from './record/compile.js';
 export { defaultRecordConfig } from './record/defaults.js';
 export { type DetailSection } from './record/detail.js';
 export {
@@ -296,6 +296,7 @@ export {
   type RecordRow,
   type RecordProjection,
   projectRecord,
+  type ProjectRecordOptions,
 } from './record/project.js';
 export { type SummaryCell, type SummaryRow } from './record/summaries.js';
 export {
@@ -354,7 +355,10 @@ export type { FunnelData, FunnelStage } from './analysis/funnel.js';
 export { type ChartUnfit } from './analysis/chartFamilies.js';
 export { type Picked } from './analysis/chartOptions.js';
 export { fitChartSlots } from './analysis/chartSlots.js';
-export { compileAnalysis } from './analysis/compile.js';
+export {
+  compileAnalysis,
+  type CompileAnalysisOptions,
+} from './analysis/compile.js';
 export {
   DEFAULT_MISSING_KEY,
   defaultAnalysisConfig,
@@ -368,6 +372,7 @@ export { type MetricFunction } from './analysis/metricFormat.js';
 export {
   type AnalysisProjection,
   projectAnalysis,
+  type ProjectAnalysisOptions,
 } from './analysis/project.js';
 export {
   type AnalysisColumnView,
@@ -430,7 +435,7 @@ export {
   type DatasetRegistrar,
   type DatasetResource,
   DatasetResources,
-  type DatasetResourcesInit,
+  type DatasetResourcesOptions,
   type DatasetWordingEditor,
   type DatasetWordingStore,
   type StoredDatasetWording,
@@ -511,11 +516,11 @@ export type {
 export type { PanelGrouping } from './runtime/dashboard/grouping.js';
 export type {
   CrossFilterOutcome,
-  DestinationBoard,
+  DestinationDashboard,
   PressDestination,
 } from './runtime/dashboard/press.js';
 export type {
-  BoardOrigin,
+  DashboardOrigin,
   DashboardTarget,
   GroupNaming,
   HandOver,

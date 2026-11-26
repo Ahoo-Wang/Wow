@@ -96,7 +96,7 @@ export interface ViewListing {
   items: ViewInstanceSummary[];
   failed: Issue | null;
   /**
-   * Where the list was cut (`RuntimeLimits.listedViews`): this many were
+   * Where the list was cut (`RuntimeLimits.maxListedViews`): this many were
    * read, and there may be more. Absent on a whole list (R2-26).
    */
   cut?: number;

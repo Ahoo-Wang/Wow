@@ -16,7 +16,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
   validateFilter,
@@ -56,7 +56,7 @@ function withFields(
 }
 
 const narrow = (descriptor: QueryModelDescriptor) =>
-  narrowDefinition(ordersDefinition(), descriptor, builtinFieldKinds);
+  narrowDefinition(ordersDefinition(), descriptor, builtinFieldKindRegistry);
 
 describe('a protected field (#3519)', () => {
   it('keeps its column, loses every comparison, and is said once as protected', () => {
@@ -117,7 +117,7 @@ describe('a deprecated field (#3519)', () => {
     const { definition } = narrow(deprecated('Use region.'));
     const context = {
       definition,
-      kinds: builtinFieldKinds,
+      kinds: builtinFieldKindRegistry,
       limits: DEFAULT_RUNTIME_LIMITS,
     };
     const using = recordConfig({
@@ -203,7 +203,9 @@ describe('the storage facts of #3515', () => {
         },
       ],
     };
-    expect(validateFilter(definition.fields, tree, builtinFieldKinds)).toEqual([
+    expect(
+      validateFilter(definition.fields, tree, builtinFieldKindRegistry),
+    ).toEqual([
       {
         code: 'filter.presence.empty-is-missing',
         severity: 'note',
@@ -238,13 +240,15 @@ describe('the storage facts of #3515', () => {
           },
         ],
       },
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
 
     const codes = (sort: { field: string; direction: SortDirectionName }[]) =>
-      validateRecord(definition, recordConfig({ sort }), builtinFieldKinds).map(
-        found => found.code,
-      );
+      validateRecord(
+        definition,
+        recordConfig({ sort }),
+        builtinFieldKindRegistry,
+      ).map(found => found.code);
     expect(
       codes([
         { field: 'tags', direction: SortDirection.ASC },
@@ -264,7 +268,7 @@ describe('the storage facts of #3515', () => {
     // An array is matched by its elements; no built-in kind of a list
     // offers EQ or NE, so the engine never writes what the constraint refuses.
     for (const id of ['array', 'elementMatch'])
-      expect(builtinFieldKinds.get(id)?.operators).not.toEqual(
+      expect(builtinFieldKindRegistry.get(id)?.operators).not.toEqual(
         expect.arrayContaining([FilterOperator.EQ]),
       );
   });

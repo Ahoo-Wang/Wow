@@ -53,7 +53,8 @@ function fakeSource(
     calls,
     source: {
       field,
-      search(query, signal) {
+      search(query, options) {
+        const signal = options?.signal;
         calls.push({ query, signal });
         const answer = answers[query] ?? { values: [], complete: true };
         return answer instanceof Error
@@ -108,7 +109,8 @@ describe('useValueCandidates', () => {
     const calls: Call[] = [];
     const source: ValueCandidateSource = {
       field: 'warehouse',
-      search(query, signal) {
+      search(query, options) {
+        const signal = options?.signal;
         calls.push({ query, signal });
         return new Promise(done => {
           resolve = done;

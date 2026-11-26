@@ -31,7 +31,7 @@ import { IconButton } from '../kit/IconButton.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
 import { FilterBar } from './FilterBar.js';
 import { filterNamer } from './findings.js';
-import type { BoardFilterModes } from './filterModes.js';
+import type { DashboardFilterModes } from './filterModes.js';
 import { AddFilterMenu, FilterSettings } from './FilterSettings.js';
 import { addFilterOf, boardOf, chipOf, chipsOf, valueOf } from './landing.js';
 import { useLanding } from '../kit/focus.js';
@@ -80,7 +80,7 @@ export function useBoardFilters({
   /** What the board's live region says. */
   say(words: string): void;
   /** How an embedding page offers each filter (`FilterBar.modes`). */
-  modes?: BoardFilterModes | undefined;
+  modes?: DashboardFilterModes | undefined;
   /** What the board refused of the filters it opened on (`FiltersRefused`). */
   refused?: readonly Issue[] | undefined;
   /** The board's fixed scope in force, read-only beside the filters (D27). */
@@ -177,7 +177,7 @@ export function useBoardFilters({
           onRemoveFixed={
             building
               ? () => {
-                  edit.removeFixedScope();
+                  edit.removeFixed();
                   say(messages.label('label.filters.fixed-removed'));
                 }
               : undefined

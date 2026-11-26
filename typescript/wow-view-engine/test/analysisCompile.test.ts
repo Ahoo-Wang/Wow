@@ -33,7 +33,7 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   compileAnalysis,
   validateAnalysis,
   type AnalysisViewConfig,
@@ -57,20 +57,17 @@ import {
 
 describe('compileAnalysis', () => {
   it('asks for its first groups in key order when the view has no sort of its own', () => {
-    const unsorted = compileAnalysis(
-      definition(),
-      config({ sort: [] }),
-      builtinFieldKinds,
+    const unsorted = compileAnalysis(definition(), config({ sort: [] }), {
+      kinds: builtinFieldKindRegistry,
       context,
-    );
+    });
     expect(unsorted.sort).toEqual([
       { field: 'wh', direction: SortDirection.ASC },
     ]);
     const ungrouped = compileAnalysis(
       definition(),
       config({ groups: [], sort: [] }),
-      builtinFieldKinds,
-      context,
+      { kinds: builtinFieldKindRegistry, context },
     );
     expect(ungrouped.sort).toBeUndefined();
   });
@@ -92,8 +89,7 @@ describe('compileAnalysis', () => {
           value: 10,
         },
       }),
-      builtinFieldKinds,
-      context,
+      { kinds: builtinFieldKindRegistry, context },
     );
 
     expect(query).toMatchObject({
@@ -134,8 +130,7 @@ describe('compileAnalysis', () => {
           },
         ],
       }),
-      builtinFieldKinds,
-      context,
+      { kinds: builtinFieldKindRegistry, context },
     );
     expect(query.metrics[0]).toMatchObject({
       filter: { op: FilterOperator.EQ, field: 'warehouse' },
@@ -211,8 +206,7 @@ describe('compileAnalysis', () => {
           heatmap: { x: 'month', y: 'bucket', value: 'total' },
         },
       }),
-      builtinFieldKinds,
-      context,
+      { kinds: builtinFieldKindRegistry, context },
     );
 
     expect(query.groupBy).toHaveLength(2);
@@ -227,13 +221,18 @@ describe('compileAnalysis', () => {
 
   it('runs totals as their own ungrouped query, or not at all', () => {
     expect(
-      compileAnalysisTotals(definition(), config(), builtinFieldKinds, context),
+      compileAnalysisTotals(
+        definition(),
+        config(),
+        builtinFieldKindRegistry,
+        context,
+      ),
     ).toBeNull();
 
     const totals = compileAnalysisTotals(
       definition(),
       config({ table: { columns: [], totals: true } }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
       context,
     );
     expect(totals?.groupBy).toBeUndefined();
@@ -268,12 +267,17 @@ describe('compileAnalysis', () => {
     });
     expect(asksForWhole(last)).toBe(false);
     expect(
-      compileAnalysisTotals(definition(), last, builtinFieldKinds, context),
+      compileAnalysisTotals(
+        definition(),
+        last,
+        builtinFieldKindRegistry,
+        context,
+      ),
     ).toBeNull();
     const whole = compileAnalysisTotals(
       definition(),
       card,
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
       context,
     );
     expect(whole?.groupBy).toBeUndefined();
@@ -291,12 +295,10 @@ describe('compileAnalysis', () => {
 
   it('refuses a definition without the analysis capability', () => {
     expect(() =>
-      compileAnalysis(
-        definition({ analysis: undefined }),
-        config(),
-        builtinFieldKinds,
+      compileAnalysis(definition({ analysis: undefined }), config(), {
+        kinds: builtinFieldKindRegistry,
         context,
-      ),
+      }),
     ).toThrow(/no analysis capability/);
   });
 });
@@ -320,8 +322,7 @@ describe('the probe row', () => {
             analysis: { ...analysisCapability, limits: { maxLimit: capped } },
           }),
       config(overrides),
-      builtinFieldKinds,
-      context,
+      { kinds: builtinFieldKindRegistry, context },
     ).limit as number;
 
   it('asks for one row more than the configured limit', () => {
@@ -353,13 +354,11 @@ describe('the probe row', () => {
     // A host that raised the server's guard raises the runtime's with it,
     // up to Wow's own ceiling.
     const raised = (limit: number) =>
-      compileAnalysis(
-        definition(),
-        config({ limit }),
-        builtinFieldKinds,
+      compileAnalysis(definition(), config({ limit }), {
+        kinds: builtinFieldKindRegistry,
         context,
-        { maxAnalysisRows: Number.POSITIVE_INFINITY },
-      ).limit;
+        limits: { maxAnalysisRows: Number.POSITIVE_INFINITY },
+      }).limit;
     expect(raised(rows)).toBe(rows + 1);
     expect(raised(AGGREGATION_LIMITS.MAX_LIMIT)).toBe(
       AGGREGATION_LIMITS.MAX_LIMIT,
@@ -392,7 +391,7 @@ describe('the probe row', () => {
     const totals = compileAnalysisTotals(
       definition(),
       config({ limit: 25, table: { columns: [], totals: true } }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
       context,
     );
 
@@ -438,7 +437,7 @@ describe('metric filters', () => {
           { type: AggregationMetricType.COUNT, alias: 'orders', filter },
         ],
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
 
   const leaf = (
@@ -485,7 +484,7 @@ describe('metric filters', () => {
           cartesian: { x: 'wh', series: [{ metric: 'orders' }] },
         },
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
 
     expect(issues.map(found => found.path)).toContainEqual([
@@ -521,8 +520,8 @@ describe('metric filters', () => {
   it('asks the registry rather than the kind id', () => {
     // `withFieldKinds` lets an app replace a built-in kind, so a replacement
     // that does test one value must be usable here.
-    const scalarSearch = withFieldKinds(builtinFieldKinds, [
-      { ...builtinFieldKinds.get('search')!, scalar: true },
+    const scalarSearch = withFieldKinds(builtinFieldKindRegistry, [
+      { ...builtinFieldKindRegistry.get('search')!, scalar: true },
     ]);
 
     expect(
@@ -545,8 +544,8 @@ describe('metric filters', () => {
   });
 
   it('refuses a custom kind that says it tests no single value', () => {
-    const custom = withFieldKinds(builtinFieldKinds, [
-      { ...builtinFieldKinds.get('string')!, scalar: false },
+    const custom = withFieldKinds(builtinFieldKindRegistry, [
+      { ...builtinFieldKindRegistry.get('string')!, scalar: false },
     ]);
 
     expect(
@@ -591,11 +590,13 @@ describe('metric filters', () => {
     };
 
     expect(
-      codes(validateAnalysis(wide(), config(overrides), builtinFieldKinds)),
+      codes(
+        validateAnalysis(wide(), config(overrides), builtinFieldKindRegistry),
+      ),
     ).toEqual(['filter.tree.too-deep']);
     expect(
       codes(
-        validateAnalysis(wide(), config(overrides), builtinFieldKinds, {
+        validateAnalysis(wide(), config(overrides), builtinFieldKindRegistry, {
           limits: { ...DEFAULT_RUNTIME_LIMITS, maxFilterDepth: 16 },
         }),
       ),
@@ -646,7 +647,7 @@ describe('metric filters', () => {
           },
         ],
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
 
     expect(issues.map(found => found.path)).toContainEqual([
@@ -689,7 +690,7 @@ describe('metric filters', () => {
               stale,
             ],
           }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual([]);
@@ -714,8 +715,7 @@ describe('metric filters', () => {
           stale,
         ],
       }),
-      builtinFieldKinds,
-      context,
+      { kinds: builtinFieldKindRegistry, context },
     );
     expect(query.metrics[1]).toEqual({
       type: AggregationMetricType.DERIVED,

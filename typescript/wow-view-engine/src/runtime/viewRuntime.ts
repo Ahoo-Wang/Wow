@@ -165,13 +165,13 @@ export class DataViewRuntime<
     // out unscoped. What the definition refuses, though, is the host's
     // condition and not this view's defect, so it is left out rather than
     // written into the view's issues (D17-5): the view runs un-narrowed and
-    // `refusedScope` says which condition did not take — the same answer a
+    // `refusedScopeFilter` says which condition did not take — the same answer a
     // scope refused later gets, said in the same words.
     const wanted = options.scopeFilter ?? null;
     const own = this.admit(options.config, null);
     const merged = wanted === null ? own : this.admit(options.config, wanted);
-    const refusedScope = scopeRefusal(own, merged);
-    const refused = refusedScope.length > 0;
+    const refusedScopeFilter = scopeRefusal(own, merged);
+    const refused = refusedScopeFilter.length > 0;
     this.injectedScope = refused ? null : wanted;
     const issues = refused ? own : merged;
     this.appliedAdmitted = !hasError(issues);
@@ -193,7 +193,7 @@ export class DataViewRuntime<
         nextRefreshAt: null,
       },
       environment: options.environment,
-      refusedScope,
+      refusedScopeFilter,
       admit: draft => this.admit(draft),
       apply: () => this.apply(),
       refresh: () => this.refresh(),
@@ -257,9 +257,9 @@ export class DataViewRuntime<
     return this.store.disposed;
   }
 
-  /** See `ViewRuntime.refusedScope`; the store keeps it. */
-  get refusedScope(): Issue[] {
-    return this.store.refusedScope;
+  /** See `ViewRuntime.refusedScopeFilter`; the store keeps it. */
+  get refusedScopeFilter(): Issue[] {
+    return this.store.refusedScopeFilter;
   }
 
   /** The snapshot the store holds; every command reads it and patches it back. */
@@ -397,7 +397,7 @@ export class DataViewRuntime<
   }
 
   setScopeFilter(tree: FilterTree | null): Issue[] {
-    if (this.disposed) return this.refusedScope;
+    if (this.disposed) return this.refusedScopeFilter;
     // Re-injecting the same condition changes nothing, and a dashboard does
     // exactly that whenever a layout edit is applied. What is asked for is
     // what is in force, so nothing stands refused either.
@@ -409,7 +409,7 @@ export class DataViewRuntime<
     // what it alone breaks keeps it out. A view already waiting to be fixed
     // is not fixed by refusing the host's condition too.
     if (this.store.refuse(scopeRefusal(own, merged)).length > 0)
-      return this.refusedScope;
+      return this.refusedScopeFilter;
 
     this.injectedScope = tree ?? null;
     this.candidates.reset();
@@ -420,7 +420,7 @@ export class DataViewRuntime<
       ...this.startOver(),
     });
     if (this.appliedAdmitted) this.execute();
-    return this.refusedScope;
+    return this.refusedScopeFilter;
   }
 
   /** A record or an analysis config means the same thing in every scope. */

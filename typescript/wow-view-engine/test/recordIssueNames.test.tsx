@@ -22,7 +22,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   MemoryViewStore,
   validateRecord,
   ViewEngine,
@@ -104,7 +104,7 @@ describe('a record finding says what the screen shows', () => {
     const raised = validateRecord(
       definition,
       recordConfig(config),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     ).filter(found => found.code === code);
     expect(raised).not.toEqual([]);
 

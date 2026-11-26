@@ -18,7 +18,7 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it, vi } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
   ViewEngine,
@@ -412,7 +412,7 @@ describe('DashboardViewRuntime unavailable references', () => {
         },
         overviewDefinition(),
       ],
-      kinds: withFieldKinds(builtinFieldKinds, [rounded]),
+      kinds: withFieldKinds(builtinFieldKindRegistry, [rounded]),
     });
     const runtime = await board.open(
       dashboardConfig({
@@ -499,7 +499,7 @@ describe('DashboardViewRuntime unavailable references', () => {
       config: dashboardConfig({ panels: [panel()] }),
       title: 'Overview',
       scope: 'personal',
-      kinds: builtinFieldKinds,
+      kinds: builtinFieldKindRegistry,
       limits: DEFAULT_RUNTIME_LIMITS,
       environment: clock.environment,
       labels: testLabels(),
@@ -515,7 +515,7 @@ describe('DashboardViewRuntime unavailable references', () => {
           title: found.title,
           scope: found.scope,
           saved: found.instance,
-          kinds: builtinFieldKinds,
+          kinds: builtinFieldKindRegistry,
           limits: DEFAULT_RUNTIME_LIMITS,
           environment: clock.environment,
           source: recordSource(source),

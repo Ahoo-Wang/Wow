@@ -54,7 +54,7 @@ import { hostSource } from './hostSource.js';
  * 两档都不写任何东西（D36）：搭板子、保存在 `DashboardWorkbench` 里。每个筛
  * 选各自三态：可调（`adjustable`，在筛选条上、
  * 归读者）、锁定（在筛选条上读作它的值，改不了）、隐藏（不在筛选条上，照样收
- * 窄接上的面板）。读者的筛选值是宿主的地址：`initialFilters` 进、
+ * 窄接上的面板）。读者的筛选值是宿主的地址：`defaultFilters` 进、
  * `onFiltersChange` 出；锁定与隐藏的值是页面自己的（`pageValues`），从不进地
  * 址。包本身从不碰地址。
  *
@@ -153,7 +153,7 @@ function CustomerPage({ engine }: { engine: ViewEngine }) {
               expandable
               filterModes={{ customer: 'locked' }}
               pageValues={CUSTOMER_PAGE}
-              initialFilters={address}
+              defaultFilters={address}
               onFiltersChange={setAddress}
               onNavigate={setRoute}
               {...HOST_LANGUAGE}

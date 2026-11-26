@@ -32,7 +32,7 @@ import {
   QueryConstraintTypes,
 } from '@ahoo-wang/wow-client/dsl';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   compileFilter,
   defineView,
   type DataViewDefinition,
@@ -49,7 +49,7 @@ function narrow(
   definition: DataViewDefinition,
   descriptor: QueryModelDescriptor,
 ): { definition: DataViewDefinition; findings: Issue[] } {
-  return narrowDefinition(definition, descriptor, builtinFieldKinds);
+  return narrowDefinition(definition, descriptor, builtinFieldKindRegistry);
 }
 
 /** The descriptor with one field replaced. */
@@ -657,7 +657,7 @@ describe('4.2 search (G15)', () => {
               },
             ],
           },
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
           { now: new Date('2026-11-10T00:00:00Z'), timeZone: 'UTC' },
         ),
       ).toEqual({

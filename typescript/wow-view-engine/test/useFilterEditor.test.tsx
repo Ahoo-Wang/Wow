@@ -27,7 +27,7 @@ import {
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   MemoryViewStore,
   ViewEngine,
   type DataViewConfig,
@@ -819,7 +819,7 @@ describe('treeController', () => {
       treeController({
         tree: current,
         fields,
-        kinds: builtinFieldKinds,
+        kinds: builtinFieldKindRegistry,
         issues: [],
         onChange: next => {
           current = next;
@@ -855,7 +855,7 @@ describe('treeController', () => {
     const bound = treeController({
       tree: { op: 'and', children: [] },
       fields,
-      kinds: builtinFieldKinds,
+      kinds: builtinFieldKindRegistry,
       issues: [],
       current: () => held,
       onChange: next => {
@@ -929,7 +929,7 @@ describe('treeController', () => {
     const known = treeController({
       tree: current,
       fields: declared,
-      kinds: builtinFieldKinds,
+      kinds: builtinFieldKindRegistry,
       issues: [],
       onChange: next => {
         current = next;

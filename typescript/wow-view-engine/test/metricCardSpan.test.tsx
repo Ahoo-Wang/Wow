@@ -292,9 +292,7 @@ describe('a metric whose own dates the question’s miss', () => {
       dailyOrdersDefinition(),
       config,
       [{ gmv: 33, last: 0, delta: 33 }],
-      undefined,
-      undefined,
-      { timeZone: 'UTC', now: NOW },
+      { context: { timeZone: 'UTC', now: NOW } },
     );
     expect(view.rows).toEqual([{ gmv: 33, last: null, delta: null }]);
     expect((view.chart as MetricCardData).compare).toEqual({

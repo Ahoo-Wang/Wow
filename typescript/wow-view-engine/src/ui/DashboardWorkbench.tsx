@@ -76,7 +76,7 @@ export interface DashboardWorkbenchProps {
    * out, of the first board this workbench opens. Left out, or a tab the
    * board does not have, the board opens where its reader last read it.
    */
-  initialTab?: string | null;
+  defaultTab?: string | null;
   /**
    * Told which tab is on screen whenever that changes — the board opening
    * included — so a host can write it into its route; `null` for a board
@@ -85,11 +85,11 @@ export interface DashboardWorkbenchProps {
   onTabChange?(tabId: string | null): void;
   /**
    * What the board's filters hold as it opens (D22 F), as a host's address
-   * has them: read with `instanceId` exactly as `initialTab` is. Left out,
+   * has them: read with `instanceId` exactly as `defaultTab` is. Left out,
    * every filter starts at its default; what the board does not take is
    * left out.
    */
-  initialFilters?: DashboardFilters | null;
+  defaultFilters?: DashboardFilters | null;
   /**
    * Told what the filters hold whenever that changes — the board opening
    * included — so a host can write it into its address. Filter values are
@@ -230,9 +230,9 @@ function DashboardWorkbenchBody({
   onRenderFailure,
   template,
   features,
-  initialTab,
+  defaultTab,
   onTabChange,
-  initialFilters,
+  defaultFilters,
   onFiltersChange,
 }: DashboardWorkbenchProps) {
   const engine = useEngine(given);
@@ -240,10 +240,10 @@ function DashboardWorkbenchBody({
   const messages = useViewMessages(wording, locale);
   // The host's tab and filters, asked as a board opens: of the board its
   // `instanceId` names, or — left uncontrolled — of the first board opened.
-  const hostOpening = useRef({ instanceId, initialTab, initialFilters });
+  const hostOpening = useRef({ instanceId, defaultTab, defaultFilters });
   useEffect(() => {
-    hostOpening.current = { instanceId, initialTab, initialFilters };
-  }, [instanceId, initialTab, initialFilters]);
+    hostOpening.current = { instanceId, defaultTab, defaultFilters };
+  }, [instanceId, defaultTab, defaultFilters]);
   // Whether a board has opened here yet: an uncontrolled workbench hands the
   // host's tab to that first one only — the next board the reader picks is
   // one the address never named.
@@ -251,8 +251,8 @@ function DashboardWorkbenchBody({
   const opening = useCallback((id: string) => {
     const {
       instanceId: named,
-      initialTab: tab,
-      initialFilters: filters,
+      defaultTab: tab,
+      defaultFilters: filters,
     } = hostOpening.current;
     const ours = named == null ? !openedOnce.current : named === id;
     if (!ours) return undefined;

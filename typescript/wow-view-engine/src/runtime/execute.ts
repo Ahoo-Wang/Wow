@@ -127,7 +127,7 @@ function weightIssues(
       config.kind === 'record'
         ? recordWeight(definition, config, kinds, at)
         : aggregationWeight(
-            compileAnalysis(definition, config, kinds, at, limits),
+            compileAnalysis(definition, config, { kinds, context: at, limits }),
           );
   } catch {
     // A compiler that throws on an admitted config is a defect the query
@@ -166,7 +166,7 @@ function recordWeight(
     lane => lane.id === OTHER_LANE_ID,
   );
   const asked = other ? laneConfig(definition, config, other) : config;
-  const query = compileRecord(definition, asked, kinds, at, page);
+  const query = compileRecord(definition, asked, { kinds, context: at, page });
   return queryWeight([query.filter]);
 }
 
@@ -215,7 +215,11 @@ async function executeRecord(
   // `validateRecord` rejects a record config whose definition declares no
   // record capability, so the paging mode is known by the time we execute.
   const target = page ?? firstPageOf(definition) ?? FIRST_PAGE.paged;
-  const query = compileRecord(definition, config, kinds, filterContext, target);
+  const query = compileRecord(definition, config, {
+    kinds,
+    context: filterContext,
+    page: target,
+  });
   const totals = compileSummaries(definition, config, kinds, filterContext);
 
   const [result, rows] = await Promise.all([
@@ -235,13 +239,16 @@ async function executeRecord(
   ]);
 
   const index = 'index' in target ? target.index : 1;
-  const view = projectRecord(definition, config, result, index, context.limits);
+  const view = projectRecord(definition, config, result, {
+    pageIndex: index,
+    limits: context.limits,
+  });
   const summaries = summaryRow(context, config, result.list, rows);
   return {
     kind: 'record',
     view,
     summaries,
-    issues: summaries?.scope === 'page' ? [summaryDowngraded()] : [],
+    issues: summaries?.over === 'page' ? [summaryDowngraded()] : [],
   };
 }
 
@@ -285,7 +292,7 @@ export async function executeSummaries(
     kind: 'record',
     view,
     summaries,
-    issues: summaries?.scope === 'page' ? [summaryDowngraded()] : [],
+    issues: summaries?.over === 'page' ? [summaryDowngraded()] : [],
   };
 }
 
@@ -359,13 +366,11 @@ async function executeAnalysis(
   controller: AbortController,
 ): Promise<ProjectedView> {
   const { definition, kinds, limits, source } = context;
-  const query = compileAnalysis(
-    definition,
-    config,
+  const query = compileAnalysis(definition, config, {
     kinds,
-    filterContext,
+    context: filterContext,
     limits,
-  );
+  });
   const totalsQuery = compileAnalysisTotals(
     definition,
     config,
@@ -385,15 +390,12 @@ async function executeAnalysis(
       : null,
   ]);
 
-  const projected = projectAnalysis(
-    definition,
-    config,
-    rows,
-    totals ?? undefined,
+  const projected = projectAnalysis(definition, config, rows, {
+    totals: totals ?? undefined,
     kinds,
-    filterContext,
+    context: filterContext,
     limits,
-  );
+  });
   // A split past the palette that adds up asks once more, grouped by its
   // axis alone, for the rest it folds into 「其他」 (D33 Q56) — only then, so
   // every other chart costs the queries it did. Failing, the chart draws
@@ -406,9 +408,7 @@ async function executeAnalysis(
           compileAnalysis(
             definition,
             splitWholeConfig(definition, config, limits),
-            kinds,
-            filterContext,
-            limits,
+            { kinds, context: filterContext, limits },
           ),
           { signal: controller.signal },
         )
@@ -425,15 +425,12 @@ async function executeAnalysis(
     : null;
   const view =
     whole && 'rows' in whole
-      ? projectAnalysis(
-          definition,
-          config,
-          rows,
-          totals ?? undefined,
+      ? projectAnalysis(definition, config, rows, {
+          totals: totals ?? undefined,
           kinds,
-          { ...filterContext, splitWhole: whole.rows },
+          context: { ...filterContext, splitWhole: whole.rows },
           limits,
-        )
+        })
       : projected;
   return {
     kind: 'analysis',

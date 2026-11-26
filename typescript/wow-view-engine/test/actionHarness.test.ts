@@ -124,7 +124,7 @@ describe('actions()', () => {
 });
 
 describe('actionHarness', () => {
-  const harness = actionHarness(all, ROWS, { now: new Date(T) });
+  const harness = actionHarness(all, ROWS, { now: () => new Date(T) });
 
   it('lists the actions, and where each is offered', () => {
     expect(harness.ids).toEqual([
@@ -229,7 +229,7 @@ describe('actionHarness', () => {
     expect(harness.changesAt()).toEqual(new Date(T + 60_001));
     expect(harness.changesAt('EF-1')).toBeNull();
     expect(
-      actionHarness(all, ROWS, { now: new Date(T + 60_001) }).state(
+      actionHarness(all, ROWS, { now: () => new Date(T + 60_001) }).state(
         'prepare',
         'EF-2',
       ).available,
@@ -329,7 +329,7 @@ describe('a press, as the harness and the screen both start it', () => {
 
   it('starts from the form’s initial values, the given input over them', async () => {
     const harness = actionHarness(actions([remind]), ROWS, {
-      now: new Date(T),
+      now: () => new Date(T),
     });
     // The screen opens the form with 30 in it: only the note is missing.
     expect(harness.missing('remind', {})).toEqual(['note']);
@@ -357,7 +357,7 @@ describe('a press, as the harness and the screen both start it', () => {
       },
     };
     const harness = actionHarness(actions([broken]), ROWS, {
-      now: new Date(T),
+      now: () => new Date(T),
     });
     expect(harness.asks('broken', 'row')).toEqual({
       asks: true,

@@ -29,7 +29,7 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   compileAnalysis,
   validateAnalysis,
   DEFAULT_RUNTIME_LIMITS,
@@ -92,7 +92,10 @@ const onItems = (
 const check = (
   overrides: Partial<AnalysisViewConfig>,
   subject = withElements,
-) => codes(validateAnalysis(subject, onItems(overrides), builtinFieldKinds));
+) =>
+  codes(
+    validateAnalysis(subject, onItems(overrides), builtinFieldKindRegistry),
+  );
 
 describe('the expansion chain', () => {
   /**
@@ -185,15 +188,13 @@ describe('the expansion chain', () => {
 
   it('compiles the chain the way Wow reads it', () => {
     expect(
-      codes(validateAnalysis(orders, twoLevels, builtinFieldKinds)),
+      codes(validateAnalysis(orders, twoLevels, builtinFieldKindRegistry)),
     ).toEqual([]);
 
-    const query = compileAnalysis(
-      orders,
-      twoLevels,
-      builtinFieldKinds,
+    const query = compileAnalysis(orders, twoLevels, {
+      kinds: builtinFieldKindRegistry,
       context,
-    );
+    });
     // Each path relative to the one before it, every field relative to the
     // innermost element. Spelled absolutely, `lines.productId` would resolve
     // under its own parent as `state.orders.lines.lines.productId`.
@@ -235,11 +236,14 @@ describe('the expansion chain', () => {
       },
     });
 
-    expect(codes(validateAnalysis(orders, outer, builtinFieldKinds))).toEqual(
-      [],
-    );
     expect(
-      compileAnalysis(orders, outer, builtinFieldKinds, context).groupBy,
+      codes(validateAnalysis(orders, outer, builtinFieldKindRegistry)),
+    ).toEqual([]);
+    expect(
+      compileAnalysis(orders, outer, {
+        kinds: builtinFieldKindRegistry,
+        context,
+      }).groupBy,
     ).toEqual([
       { type: AggregationGroupType.TERMS, field: 'status', alias: 'status' },
     ]);
@@ -258,7 +262,7 @@ describe('the expansion chain', () => {
             sort: [],
             chart: { type: 'metric', metric: { metric: 'orders' } },
           }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['analysis.element.out-of-chain']);
@@ -275,7 +279,7 @@ describe('the expansion chain', () => {
             sort: [],
             chart: { type: 'metric', metric: { metric: 'orders' } },
           }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['analysis.element.undeclared']);
@@ -338,7 +342,7 @@ describe('element scope', () => {
       validateAnalysis(
         withElements,
         onItems({ elements: [{ path: 'items', filter: emptyFilter() }] }),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       ).map(found => found.path),
     ).toContainEqual(['elements', 0, 'filter']);
   });
@@ -409,8 +413,7 @@ describe('element scope', () => {
           },
         ],
       }),
-      builtinFieldKinds,
-      context,
+      { kinds: builtinFieldKindRegistry, context },
     );
 
     expect(query.elements).toEqual([
@@ -474,8 +477,7 @@ describe('element scope', () => {
           },
         ],
       }),
-      builtinFieldKinds,
-      context,
+      { kinds: builtinFieldKindRegistry, context },
     );
 
     expect(query.elements).toEqual([
@@ -578,9 +580,14 @@ describe('element scope', () => {
     expect(check(overrides)).toEqual(['filter.tree.too-deep']);
     expect(
       codes(
-        validateAnalysis(withElements, onItems(overrides), builtinFieldKinds, {
-          limits: { ...DEFAULT_RUNTIME_LIMITS, maxFilterDepth: 16 },
-        }),
+        validateAnalysis(
+          withElements,
+          onItems(overrides),
+          builtinFieldKindRegistry,
+          {
+            limits: { ...DEFAULT_RUNTIME_LIMITS, maxFilterDepth: 16 },
+          },
+        ),
       ),
     ).toEqual([]);
   });
@@ -618,15 +625,13 @@ describe('element scope', () => {
   it('groups by an element field once the element is expanded', () => {
     const built = onItems();
     expect(
-      codes(validateAnalysis(withElements, built, builtinFieldKinds)),
+      codes(validateAnalysis(withElements, built, builtinFieldKindRegistry)),
     ).toEqual([]);
 
-    const query = compileAnalysis(
-      withElements,
-      built,
-      builtinFieldKinds,
+    const query = compileAnalysis(withElements, built, {
+      kinds: builtinFieldKindRegistry,
       context,
-    );
+    });
     expect(query.elements).toEqual([{ path: 'items' }]);
     expect(query.groupBy?.[0]).toMatchObject({ field: 'sku' });
   });
@@ -715,13 +720,17 @@ describe('element scope', () => {
         ...overrides,
       });
     expect(
-      codes(validateAnalysis(withRoot, byWarehouse(), builtinFieldKinds)),
+      codes(
+        validateAnalysis(withRoot, byWarehouse(), builtinFieldKindRegistry),
+      ),
     ).toEqual([]);
     // Sent with a ROOT scope and ahead of the element dimension, as Wow reads
     // the root keys first.
     expect(
-      compileAnalysis(withRoot, byWarehouse(), builtinFieldKinds, context)
-        .groupBy,
+      compileAnalysis(withRoot, byWarehouse(), {
+        kinds: builtinFieldKindRegistry,
+        context,
+      }).groupBy,
     ).toEqual([
       {
         type: AggregationGroupType.TERMS,
@@ -739,7 +748,7 @@ describe('element scope', () => {
           byWarehouse({
             sort: [{ alias: 'sku', direction: SortDirection.ASC }],
           }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['analysis.sort.root-group-first']);
@@ -753,7 +762,7 @@ describe('element scope', () => {
               { alias: 'sku', direction: SortDirection.ASC },
             ],
           }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual([]);
@@ -775,7 +784,7 @@ describe('element scope', () => {
     // The editor offers the root field as a dimension, never as a metric.
     const options = fieldOptions(
       analysisScope(withRoot, withRoot.analysis!, byWarehouse()),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(options.find(option => option.field === 'warehouse')).toMatchObject({
       groups: [AggregationGroupType.TERMS],
@@ -786,12 +795,14 @@ describe('element scope', () => {
     expect(
       fieldOptions(
         analysisScope(withElements, withElements.analysis!, byWarehouse()),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       ).map(option => option.field),
     ).toEqual(['items.sku']);
     // Without the offer, a server before 9.9, the dimension stands outside.
     expect(
-      codes(validateAnalysis(withElements, byWarehouse(), builtinFieldKinds)),
+      codes(
+        validateAnalysis(withElements, byWarehouse(), builtinFieldKindRegistry),
+      ),
     ).toEqual(['analysis.field.outside-scope']);
   });
 

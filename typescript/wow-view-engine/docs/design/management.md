@@ -137,7 +137,7 @@ export interface ViewPreferences {
 ```ts
 export interface ViewStore {
   // 一页一页地答：第一页不带游标，之后带上一页的 nextCursor，直到它为 null；顺序跨页不变。
-  // engine.list 依次读到底、至多 RuntimeLimits.listedViews 个，包成 ViewListing { items, failed, cut? }
+  // engine.list 依次读到底、至多 RuntimeLimits.maxListedViews 个，包成 ViewListing { items, failed, cut? }
   list(definitionId: string, options?: ViewListOptions): Promise<ViewListPage>;
   get(id: string, options?: ReadOptions): Promise<ViewInstance>;
   create(

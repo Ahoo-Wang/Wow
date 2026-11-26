@@ -22,7 +22,7 @@
 import { AggregationDateUnit, FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   validateDashboard,
   withFieldKinds,
   type DashboardField,
@@ -53,7 +53,7 @@ import {
 import { type PanelReference } from '../src/dashboard/validate.js';
 import { dashboardConfig, panelReference } from './fixtures.js';
 
-const kinds = builtinFieldKinds;
+const kinds = builtinFieldKindRegistry;
 
 function codes(issues: readonly Issue[]): string[] {
   return issues.map(found => found.code);

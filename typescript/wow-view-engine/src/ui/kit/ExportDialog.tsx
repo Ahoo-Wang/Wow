@@ -22,7 +22,7 @@ import { DownloadIcon } from 'lucide-react';
 import type { FilterSummaryItem } from '../../filter/index.js';
 import type {
   RecordExportController,
-  RecordExportScope,
+  RecordExportExtent,
 } from '../../react/index.js';
 import { Button } from '../components/button.js';
 import {
@@ -86,7 +86,7 @@ export interface ExportWindowProps extends ExportOffer {
    * is called is read.
    */
   columns: readonly { label: string }[];
-  /** The ceiling one export carries — `limits.exportMax`. */
+  /** The ceiling one export carries — `limits.maxExportRows`. */
   max: number;
 }
 
@@ -263,7 +263,7 @@ function ExportJourney({
   // Which scope was picked, and `null` for "not picked yet" — the default
   // depends on whether anything is selected, and that can change under an
   // open window as well as between two openings.
-  const [scope, setScope] = useState<RecordExportScope | null>(null);
+  const [scope, setScope] = useState<RecordExportExtent | null>(null);
   const picked =
     control.scopes.selected === undefined ? 'all' : (scope ?? 'selected');
   // The name the file will carry, fixed as this opening begins and used by

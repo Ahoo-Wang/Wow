@@ -100,14 +100,14 @@ Binds a definition's behaviour in the host: `bind(definitionId, options)`. A sur
 | `route` | Where a view or a board of this definition lives in the host's address: the path of the page that opens `instanceId` — `null` for a view nobody saved (a follow-up on a group, a board's own analysis), which opens on the page's default and is handed over whole. The engine hands the router, or `navigate`, the path with what the page opens with (`ViewRoute.state`); a definition with no route is handed over raw. `target` is absent where `useViewNavigation` asks for a link |
 | `actions` | The commands its records take, declared with [`actions()`](#api-actions): the engine places them wherever its records are drawn — the workbench's rows, selection and detail, and every record panel of a board over it — asks first, runs them a few at a time and says how it went |
 | `slots` | The host's own markup, drawn after the declared actions — one over the view, one over a selection, one per row: the escape hatch for what a declaration cannot say, a link out, say |
-| `reading` | How one of its records is read: the detail's own reading, its title, its sections, who holds which record is open — what `DataWorkbench` takes as `record.detail`, and what an `EmbeddedView`'s `detail` opens with |
+| `detail` | How one of its records is read: the detail's own reading, its title, its sections, who holds which record is open — what `DataWorkbench` takes as `record.detail`, and what an `EmbeddedView`'s `detail` opens with |
 
 ```ts
 export declare function bind(definitionId: string, options?: ViewBindingOptions): ViewBinding;
 
 export interface ViewBindingOptions {
   actions?: RecordActions;
-  reading?: RecordDetailOptions;
+  detail?: RecordDetailOptions;
   route?(instanceId: string | null, target?: RoutedTarget): string;
   slots?: RecordActionSlots;
 }

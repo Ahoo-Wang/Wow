@@ -34,7 +34,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   DEFAULT_RUNTIME_LIMITS,
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   MemoryViewStore,
   ViewEngine,
   type DashboardField,
@@ -228,7 +228,7 @@ describe('a one-day value', () => {
   });
 
   it('is what a one-day filter admits, and its config declares', () => {
-    const kinds = builtinFieldKinds;
+    const kinds = builtinFieldKindRegistry;
     const { filters, refused } = admitFilters(
       board(),
       {

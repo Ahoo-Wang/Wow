@@ -30,6 +30,7 @@ import {
 import type { KernelContext } from './execute.js';
 import { isCalledOff } from './failure/failures.js';
 import { hasError } from './runtimeStore.js';
+import type { ReadOptions } from '../store/ViewStore.js';
 import { withScopeFilter } from './scope.js';
 
 /**
@@ -45,7 +46,7 @@ export interface ValueCandidateSource {
    * blank). Rejects with what the source threw, and with the signal's reason
    * once it aborts.
    */
-  search(query: string, signal?: AbortSignal): Promise<ValueCandidates>;
+  search(query: string, options?: ReadOptions): Promise<ValueCandidates>;
 }
 
 /**
@@ -86,7 +87,8 @@ export class ValueCandidateSources {
         field
           ? {
               field: name,
-              search: (query, signal) => this.search(field, query, signal),
+              search: (query, options) =>
+                this.search(field, query, options?.signal),
             }
           : null,
       );
@@ -161,16 +163,14 @@ export class ValueCandidateSources {
           .map(found => found.code)
           .join(', ')}`,
       );
-    const query = compileAnalysis(
-      definition,
-      config,
+    const query = compileAnalysis(definition, config, {
       kinds,
-      {
+      context: {
         now: environment.now(),
         timeZone: environment.timeZone,
       },
       limits,
-    );
+    });
     const generation = this.generation;
     const rows = await source
       .aggregate(query, { signal })

@@ -51,7 +51,7 @@ import { withoutFirstUnavailable } from '../src/runtime/failure/unavailable.js';
 import {
   MemoryViewStore,
   ViewEngine,
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   compileAnalysis,
   type AnalysisTop,
   type AnalysisViewConfig,
@@ -135,10 +135,10 @@ function config(
 }
 
 const compiled = (value: AnalysisViewConfig, source = definition()) =>
-  compileAnalysis(source, value, builtinFieldKinds, context);
+  compileAnalysis(source, value, { kinds: builtinFieldKindRegistry, context });
 
 const codes = (value: AnalysisViewConfig, source = definition()) =>
-  errorCodes(validateAnalysis(source, value, builtinFieldKinds));
+  errorCodes(validateAnalysis(source, value, builtinFieldKindRegistry));
 
 describe('compiling the top N', () => {
   it('asks for a dense rank within the outer dimension and keeps the first N', () => {
@@ -281,7 +281,7 @@ describe('admitting the top N', () => {
     const issues = validateAnalysis(
       definition([WindowFunction.TOTAL]),
       value,
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     const next = withoutFirstUnavailable(value, issues);
     expect(next && 'top' in next).toBe(false);

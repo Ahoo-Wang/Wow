@@ -8,7 +8,6 @@ type  AnalysisFieldOption
 type  AnalysisResultController
 type  AnalysisResultInput
 type  AnalysisResultOptions
-type  BoardChoice
 type  BulkActionView
 type  BulkFailure
 type  BulkOutcome
@@ -16,10 +15,10 @@ type  BulkProgress
 type  BulkRun
 type  BulkRunning
 type  BulkSelection
+type  DashboardChoice
 type  DashboardController
 type  DashboardOpening
 type  DashboardPanelView
-type  DatasetsReading
 type  DatasetsState
 type  DrillTarget
 type  DropCause
@@ -56,11 +55,11 @@ type  RecordDetailPlacement
 type  RecordDetailSection
 type  RecordDetailSectionContext
 type  RecordExportController
+type  RecordExportExtent
+type  RecordExportExtents
 type  RecordExportOptions
 type  RecordExportOutcome
 type  RecordExportProgress
-type  RecordExportScope
-type  RecordExportScopes
 type  RecordExportTable
 type  RecordGlobalActionContext
 type  RecordKanbanController
@@ -82,6 +81,7 @@ type  SplitOption
 type  ToggleSelectionOptions
 type  ToggleSortOptions
 type  UnavailableController
+type  UseDatasetsOptions
 type  UseViewListOptions
 type  ValueCandidatesController
 type  ValueCandidatesOptions

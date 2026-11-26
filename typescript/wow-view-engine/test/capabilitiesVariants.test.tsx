@@ -19,7 +19,7 @@ import type {
   QueryModelDescriptor,
 } from '@ahoo-wang/wow-client/dsl';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   compileFilter,
   MemoryViewStore,
   ViewEngine,
@@ -109,7 +109,7 @@ describe('an element whose fields differ by variant (#3519)', () => {
     const { definition, findings } = narrowDefinition(
       stream,
       streamDescriptor(),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     const events = definition.fields.find(field => field.name === 'body');
 
@@ -126,7 +126,7 @@ describe('an element whose fields differ by variant (#3519)', () => {
     const { definition } = narrowDefinition(
       stream,
       streamDescriptor(),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     const tree = (children: FilterTree['children']): FilterTree => ({
       op: 'and',
@@ -145,7 +145,7 @@ describe('an element whose fields differ by variant (#3519)', () => {
         tree([
           { field: 'body.body.error', operator: FilterOperator.EQ, value: 'x' },
         ]),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
         context,
       ),
     ).toEqual({
@@ -171,7 +171,7 @@ describe('an element whose fields differ by variant (#3519)', () => {
             value: ['Failed'],
           },
         ]),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
         context,
       ),
     ).toMatchObject({
@@ -183,7 +183,7 @@ describe('an element whose fields differ by variant (#3519)', () => {
         tree([
           { field: 'body.body.error', operator: FilterOperator.EQ, value: 'x' },
         ]),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
         context,
       ),
     ).toEqual({
@@ -197,7 +197,7 @@ describe('an element whose fields differ by variant (#3519)', () => {
     const { definition } = narrowDefinition(
       stream,
       streamDescriptor(),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     const events = definition.fields.find(field => field.name === 'body')!;
 

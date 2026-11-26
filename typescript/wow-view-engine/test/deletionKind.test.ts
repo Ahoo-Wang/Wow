@@ -14,7 +14,7 @@
 import { DeletionState, FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   compileFilter,
   describeFilter,
   impliedDeletion,
@@ -60,15 +60,15 @@ describe('deletion field kind', () => {
       fields,
       record: { rowKey: 'warehouse', paging: 'paged', layouts: ['table'] },
     };
-    expect(errors(validateDefinition(definition, builtinFieldKinds))).toEqual(
-      [],
-    );
+    expect(
+      errors(validateDefinition(definition, builtinFieldKindRegistry)),
+    ).toEqual([]);
     // Not a column: it names no document field to show.
-    expect(builtinFieldKinds.get('deletion')?.fieldless).toBe(true);
+    expect(builtinFieldKindRegistry.get('deletion')?.fieldless).toBe(true);
   });
 
   it('offers one operator and starts blank, which asks nothing', () => {
-    const kind = builtinFieldKinds.get('deletion');
+    const kind = builtinFieldKindRegistry.get('deletion');
     expect(kind?.operators).toEqual([FilterOperator.DELETION]);
     expect(kind?.emptyValue(FilterOperator.DELETION, fields[0]!)).toBeNull();
     expect(kind?.editor(FilterOperator.DELETION, fields[0]!)).toEqual({
@@ -83,13 +83,13 @@ describe('deletion field kind', () => {
    */
   it('compiles the default reading as no condition and the choices as DELETION', () => {
     expect(
-      compileFilter(fields, tree(null), builtinFieldKinds, context),
+      compileFilter(fields, tree(null), builtinFieldKindRegistry, context),
     ).toEqual({ op: FilterOperator.MATCH_ALL });
     expect(
       compileFilter(
         fields,
         tree(DeletionState.DELETED),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
         context,
       ),
     ).toEqual({ op: FilterOperator.DELETION, state: DeletionState.DELETED });
@@ -97,7 +97,7 @@ describe('deletion field kind', () => {
       compileFilter(
         fields,
         tree(DeletionState.ALL),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
         context,
       ),
     ).toEqual({ op: FilterOperator.DELETION, state: DeletionState.ALL });
@@ -107,7 +107,7 @@ describe('deletion field kind', () => {
       compileFilter(
         fields,
         tree(DeletionState.ACTIVE),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
         context,
       ),
     ).toEqual({ op: FilterOperator.DELETION, state: DeletionState.ACTIVE });
@@ -115,16 +115,20 @@ describe('deletion field kind', () => {
 
   it('refuses a reading Wow does not have', () => {
     expect(
-      errors(validateFilter(fields, tree('GONE'), builtinFieldKinds)),
+      errors(validateFilter(fields, tree('GONE'), builtinFieldKindRegistry)),
     ).toEqual(['filter.value.expected-deletion-state']);
     expect(
       errors(
-        validateFilter(fields, tree(DeletionState.ALL), builtinFieldKinds),
+        validateFilter(
+          fields,
+          tree(DeletionState.ALL),
+          builtinFieldKindRegistry,
+        ),
       ),
     ).toEqual([]);
     // Blank is unfinished, not wrong.
     expect(
-      errors(validateFilter(fields, tree(null), builtinFieldKinds)),
+      errors(validateFilter(fields, tree(null), builtinFieldKindRegistry)),
     ).toEqual([]);
   });
 
@@ -132,7 +136,7 @@ describe('deletion field kind', () => {
     const [item] = describeFilter(
       fields,
       tree(DeletionState.DELETED),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(item).toMatchObject({
       field: '@deleted',
@@ -146,43 +150,47 @@ describe('deletion field kind', () => {
     const empty: FilterTree = { op: 'and', children: [] };
 
     it('is "not deleted" while no tree answers the declared dimension', () => {
-      expect(impliedDeletion(fields, [empty, null], builtinFieldKinds)).toEqual(
-        [
-          {
-            path: [],
-            text: 'Deleted Not deleted',
-            unresolved: false,
-            field: '@deleted',
-            label: 'Deleted',
-            kind: 'deletion',
-            operator: FilterOperator.DELETION,
-            value: { kind: 'text', value: DeletionState.ACTIVE },
-          },
-        ],
-      );
+      expect(
+        impliedDeletion(fields, [empty, null], builtinFieldKindRegistry),
+      ).toEqual([
+        {
+          path: [],
+          text: 'Deleted Not deleted',
+          unresolved: false,
+          field: '@deleted',
+          label: 'Deleted',
+          kind: 'deletion',
+          operator: FilterOperator.DELETION,
+          value: { kind: 'text', value: DeletionState.ACTIVE },
+        },
+      ]);
       // A blank pill has not answered either.
       expect(
-        impliedDeletion(fields, [tree(null)], builtinFieldKinds),
+        impliedDeletion(fields, [tree(null)], builtinFieldKindRegistry),
       ).toHaveLength(1);
     });
 
     it('is nothing once the view or the host scope has answered', () => {
       expect(
-        impliedDeletion(fields, [tree(DeletionState.ALL)], builtinFieldKinds),
+        impliedDeletion(
+          fields,
+          [tree(DeletionState.ALL)],
+          builtinFieldKindRegistry,
+        ),
       ).toEqual([]);
       expect(
         impliedDeletion(
           fields,
           [empty, tree(DeletionState.DELETED)],
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ).toEqual([]);
     });
 
     it('does not exist for a definition that declared no such dimension', () => {
-      expect(impliedDeletion([fields[1]!], [empty], builtinFieldKinds)).toEqual(
-        [],
-      );
+      expect(
+        impliedDeletion([fields[1]!], [empty], builtinFieldKindRegistry),
+      ).toEqual([]);
     });
   });
 });

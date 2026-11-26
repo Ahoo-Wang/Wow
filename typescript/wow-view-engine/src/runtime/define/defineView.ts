@@ -25,7 +25,7 @@ import { buildFields, type BuiltField } from './fields.js';
 import { narrowDefinition } from '../../capabilities/index.js';
 import { constructible } from '../../capabilities/analysis.js';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   type FieldKindRegistry,
 } from '../../filter/index.js';
 import type { DefineViewSpec } from './spec.js';
@@ -97,8 +97,11 @@ export function defineView(
   const operators = openComparisons(fields);
   definition.fields = withSnapshotComparisons(
     definition.fields,
-    narrowDefinition(definition, descriptor, options.kinds ?? builtinFieldKinds)
-      .definition.fields,
+    narrowDefinition(
+      definition,
+      descriptor,
+      options.kinds ?? builtinFieldKindRegistry,
+    ).definition.fields,
     new Set(operators),
   );
   definition.described = {

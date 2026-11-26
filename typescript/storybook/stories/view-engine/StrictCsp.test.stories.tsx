@@ -134,7 +134,7 @@ function ShipHours() {
 }
 
 function Showcase({ tab }: { tab?: Tab }) {
-  return <RetailBoardScene instanceId={SHOWCASE} initialTab={tab} />;
+  return <RetailBoardScene instanceId={SHOWCASE} defaultTab={tab} />;
 }
 
 const meta = {

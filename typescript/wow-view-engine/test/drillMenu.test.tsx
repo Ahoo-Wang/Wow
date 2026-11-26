@@ -30,7 +30,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,
   ViewEngine,
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   defaultRuntimeEnvironment,
   type RuntimeEnvironment,
   type AnalysisProjection,
@@ -772,7 +772,7 @@ describe('the follow-up menu on one group', () => {
             },
           ],
         },
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       );
 
     expect(groupText({ conditions: band(0, 500) }, messages, display)).toBe(

@@ -17,7 +17,7 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   compileFilter,
   describeFilter,
   validateFilter,
@@ -71,7 +71,7 @@ function compile(
   return compileFilter(
     fields,
     tree(field, operator, value),
-    builtinFieldKinds,
+    builtinFieldKindRegistry,
     context,
   );
 }
@@ -114,7 +114,7 @@ describe('the array kind', () => {
   });
 
   it('offers no other question of presence', () => {
-    const kind = builtinFieldKinds.get('array')!;
+    const kind = builtinFieldKindRegistry.get('array')!;
     expect(kind.operators).toEqual([
       FilterOperator.IN,
       FilterOperator.NOT_IN,
@@ -144,7 +144,7 @@ describe('the array kind', () => {
         validateFilter(
           fields,
           tree('tags', FilterOperator.IN, [{}] as never),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['filter.value.expected-entry-list']);
@@ -156,7 +156,7 @@ describe('the array kind', () => {
         validateFilter(
           fields,
           tree('categories', FilterOperator.IN, ['a']),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual([]);
@@ -165,7 +165,7 @@ describe('the array kind', () => {
         validateFilter(
           fields,
           tree('categories', FilterOperator.IN, ['zz']),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['filter.value.unknown-option']);
@@ -177,7 +177,7 @@ describe('the array kind', () => {
         validateFilter(
           fields,
           tree('tags', FilterOperator.IN, ['anything']),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual([]);
@@ -191,7 +191,7 @@ describe('the array kind', () => {
         validateFilter(
           fields,
           tree('tags', FilterOperator.IN, []),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual([]);
@@ -218,7 +218,7 @@ describe('the array kind', () => {
     const field = fields.find(entry => entry.name === name)!;
 
     expect(
-      builtinFieldKinds.get('array')!.editor(FilterOperator.IN, field),
+      builtinFieldKindRegistry.get('array')!.editor(FilterOperator.IN, field),
     ).toEqual(want);
   });
 
@@ -226,13 +226,15 @@ describe('the array kind', () => {
     const field = fields[0];
 
     expect(
-      builtinFieldKinds.get('array')!.emptyValue(FilterOperator.IN, field),
+      builtinFieldKindRegistry
+        .get('array')!
+        .emptyValue(FilterOperator.IN, field),
     ).toEqual([]);
   });
 
   it('needs no input for the emptiness questions', () => {
     const field = fields[0];
-    const kind = builtinFieldKinds.get('array')!;
+    const kind = builtinFieldKindRegistry.get('array')!;
 
     expect(kind.editor(FilterOperator.IS_EMPTY, field)).toEqual({
       input: 'none',
@@ -251,7 +253,7 @@ describe('the array kind', () => {
       const [item] = describeFilter(
         fields,
         tree('categories', operator, null),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       );
       expect(item.text).toBe(want);
       expect(item.relation).toBe(relation);
@@ -268,7 +270,7 @@ describe('the array kind', () => {
       describeFilter(
         fields,
         tree('categories', operator, ['a']),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       )[0].text,
     ).toBe(want);
   });
@@ -278,7 +280,7 @@ describe('the array kind', () => {
       describeFilter(
         fields,
         tree('tags', FilterOperator.IS_EMPTY, null),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       )[0].text,
     ).toBe('Tags has no entries');
   });

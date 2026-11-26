@@ -246,7 +246,10 @@ export function projectKanban(
 ): RecordProjection {
   const seen = new Set<unknown>();
   const projected = pages.map(({ lane, page, index }) => {
-    const view = projectRecord(definition, config, page, index, limits);
+    const view = projectRecord(definition, config, page, {
+      pageIndex: index,
+      limits,
+    });
     const rows = unseen(view.rows, seen);
     return {
       view,
@@ -282,7 +285,10 @@ export function appendLane(
   const lanes = view.lanes;
   if (!lanes?.some(lane => lane.id === id)) return view;
   const seen = new Set<unknown>(view.rows.map(row => row.key));
-  const next = projectRecord(definition, config, page, index, limits);
+  const next = projectRecord(definition, config, page, {
+    pageIndex: index,
+    limits,
+  });
   const added = unseen(next.rows, seen);
   const merged = lanes.map(lane =>
     lane.id === id
@@ -388,8 +394,7 @@ function emptyView(
     definition,
     config,
     { list: [], total: 0, exact: true },
-    1,
-    limits,
+    { pageIndex: 1, limits },
   );
 }
 

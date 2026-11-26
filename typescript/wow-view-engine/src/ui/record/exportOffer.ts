@@ -24,7 +24,7 @@ import { exportPlan } from '../../runtime/exportRows.js';
 import {
   useRecordExport,
   type FilterEditorController,
-  type RecordExportScope,
+  type RecordExportExtent,
   type RecordTableController,
 } from '../../react/index.js';
 import { csvCellText } from '../kit/display.js';
@@ -93,7 +93,7 @@ function currencyOfValue(value: unknown): CurrencyReading | undefined {
 export interface ExportedFile {
   name: string;
   text: string;
-  scope: RecordExportScope;
+  scope: RecordExportExtent;
   rows: number;
 }
 
@@ -154,7 +154,7 @@ export function useExportOffer({
   // it is explicitly off.
   const neutralizeFormulas = neutralizesFormulas(runtime.limits);
   const deliver = useCallback(
-    (rows: readonly RecordData[], scope: RecordExportScope, name: string) => {
+    (rows: readonly RecordData[], scope: RecordExportExtent, name: string) => {
       const text = serializeCsv(
         rows,
         fileColumns(columns, messages),

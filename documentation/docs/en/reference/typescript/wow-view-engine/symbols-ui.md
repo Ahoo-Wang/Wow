@@ -27,7 +27,6 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 253 — with its kind and
 | `AppliedBar` | function | The conditions the rows below were fetched under. | — |
 | `AppliedBarProps` | interface | — | — |
 | `BUILT_IN_PRESETS` | const | The presets `@ahoo-wang/wow-view-engine/themes.css` ships, by name, in the order it lists them (themes.md 4.1) — for a host that builds its own picker, and for the completion of a `preset` prop. | — |
-| `BoardFilterModes` | interface | The modes a page gives a board's filters, and its time grouping. | — |
 | `BuiltInPreset` | type | The name of a preset the package ships. | — |
 | `CellField` | type | What a renderer knows about the field a value came from — which is what any reading of a value needs, `cellText` in a CSV included, so it is that type under the name this side uses for it. | — |
 | `CellSurface` | type | Where the reading is drawn, which is the one thing the two surfaces disagree about: **how many lines a value may take**. | — |
@@ -47,6 +46,7 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 253 — with its kind and
 | `DashboardEditExtensionsContext` | const | — | — |
 | `DashboardExtensionsOptions` | interface | — | — |
 | `DashboardFilterMode` | type | How an embedding page offers each of a board's filters (the embedding half): Metabase's three states, one per filter. | — |
+| `DashboardFilterModes` | interface | The modes a page gives a board's filters, and its time grouping. | — |
 | `DashboardGrid` | function | The panels, placed. | — |
 | `DashboardGridProps` | interface | — | — |
 | `DashboardPanelCard` | function | One framed panel: a title, its menu, the two arrange controls while the board is built, a body. | — |

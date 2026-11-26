@@ -18,7 +18,7 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it, vi } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   emptyDashboardConfig,
   isViewCommandError,
   MemoryViewStore,
@@ -100,11 +100,11 @@ describe('field groups', () => {
 });
 
 function issues(definition: ViewDefinition): Issue[] {
-  return validateDefinition(definition, builtinFieldKinds);
+  return validateDefinition(definition, builtinFieldKindRegistry);
 }
 
 function codes(definition: ViewDefinition): string[] {
-  return validateDefinition(definition, builtinFieldKinds).map(
+  return validateDefinition(definition, builtinFieldKindRegistry).map(
     found => found.code,
   );
 }
@@ -706,7 +706,7 @@ describe('validateDefinition system views', () => {
     it('refuses one that is nothing but its kind, judged by its shape', () => {
       const found = validateDefinition(
         board({ kind: 'analysis' }),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       );
       expect(found[0]).toMatchObject({
         code: 'definition.view.owned-invalid',
@@ -739,7 +739,7 @@ describe('validateDefinition system views', () => {
             },
           ],
         }),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       );
       expect(found).toContainEqual(
         expect.objectContaining({
@@ -910,7 +910,7 @@ describe('validateDefinition system views', () => {
           },
         ],
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
 
     expect(found.map(entry => entry.code)).toEqual([
@@ -943,7 +943,7 @@ describe('validateDefinition system views', () => {
           },
         ],
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
 
     expect(found).toEqual([]);
@@ -1060,7 +1060,7 @@ describe('ViewEngine and an unusable definition', () => {
         analysis: undefined,
         views: [],
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
 
     expect(found.map(entry => entry.code)).toContain(
@@ -1089,7 +1089,7 @@ describe('ViewEngine and an unusable definition', () => {
             analysis: undefined,
             views: [],
           }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ).toEqual([]);
     }
@@ -1136,7 +1136,7 @@ describe('ViewEngine and an unusable definition', () => {
         analysis: undefined,
         views: [],
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
 
     expect(found.map(entry => [entry.code, entry.path])).toEqual([
@@ -1189,7 +1189,7 @@ describe('ViewEngine and an unusable definition', () => {
           analysis: undefined,
           views: [],
         }),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       ).map(entry => [entry.code, entry.path, entry.params]);
 
     expect(found(body('name', events))).toEqual([]);
@@ -1241,7 +1241,7 @@ describe('ViewEngine and an unusable definition', () => {
             analysis: undefined,
             views: [],
           }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ).toEqual([]);
     }

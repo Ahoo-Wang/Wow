@@ -28,7 +28,7 @@ import {
   useOpenView,
   useRecordExport,
   useRecordTable,
-  type RecordExportScope,
+  type RecordExportExtent,
 } from '../src/react/index.js';
 import {
   deferred,
@@ -121,7 +121,7 @@ function abortRejectingSource(): {
 /** What the delivery was handed, in the order it was handed over. */
 interface Delivered {
   rows: readonly RecordData[];
-  scope: RecordExportScope;
+  scope: RecordExportExtent;
   /** The name the run was started under, carried through untouched. */
   fileName: string;
 }
@@ -142,7 +142,7 @@ async function openExport(
     limits?: Partial<RuntimeLimits>;
     deliver?(
       rows: readonly RecordData[],
-      scope: RecordExportScope,
+      scope: RecordExportExtent,
     ): void | Promise<void>;
   } = {},
 ) {
@@ -352,7 +352,7 @@ describe('useRecordExport limits and failures', () => {
     });
     const { result, delivered } = await openExport({
       source,
-      limits: { exportMax: 10, maxPageSize: 10 },
+      limits: { maxExportRows: 10, maxPageSize: 10 },
     });
 
     // No question to answer first: the window put the count and the ceiling

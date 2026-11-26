@@ -30,7 +30,7 @@ import { GUIDE_COUNTS } from './retail/guide.js';
  * types once, each titled with the question it answers, on four tabs.
  */
 function Showcase({ tab }: { tab?: Tab }) {
-  return <RetailBoardScene instanceId={SHOWCASE} initialTab={tab} />;
+  return <RetailBoardScene instanceId={SHOWCASE} defaultTab={tab} />;
 }
 
 const FIXTURE = BOARD_FIXTURE;

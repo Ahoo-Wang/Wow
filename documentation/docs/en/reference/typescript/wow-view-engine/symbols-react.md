@@ -22,7 +22,6 @@ Every name `@ahoo-wang/wow-view-engine/react` exports — 127 — with its kind 
 | `AnalysisResultController` | interface | — | — |
 | `AnalysisResultInput` | type | What of the analysis editor the result reads and drives: the draft's shape and look, and the commands a chart pick and a repair call. | — |
 | `AnalysisResultOptions` | interface | — | — |
-| `BoardChoice` | interface | A board 「放进仪表盘…」 offers: its id, its title, and its definition's. | — |
 | `BulkActionView` | interface | One action as the selection's bar draws it. | — |
 | `BulkFailure` | interface | One record the command did not take, and the reason why: the source's words, or the action's own refusal as written (a key stays a key). | — |
 | `BulkOutcome` | interface | What one command came to, once every record it started has settled. | — |
@@ -30,10 +29,10 @@ Every name `@ahoo-wang/wow-view-engine/react` exports — 127 — with its kind 
 | `BulkRun` | interface | One command over records, as the surface's runner takes it — a declared action's, or a host's own from a slot (`run` on a slot's context): what it is called, and what it does to one record. | — |
 | `BulkRunning` | interface | The command in flight on a surface. | — |
 | `BulkSelection` | interface | The records a command runs over, and what a command does to them afterwards: the ones still to be dealt with stay selected (`select`), the rest are let go, and the view is read again. | — |
+| `DashboardChoice` | interface | A board 「放进仪表盘…」 offers: its id, its title, and its definition's. | — |
 | `DashboardController` | interface | — | — |
 | `DashboardOpening` | type | What a dashboard opens with, as a host's address has it: the tab on screen and what the filters hold (F), and what an embedding page holds of them (`held`). | — |
 | `DashboardPanelView` | interface | One panel, ready to place: geometry, what runs inside, what is wrong. | — |
-| `DatasetsReading` | interface | When `useDatasets` reads the directories. | — |
 | `DatasetsState` | interface | The datasets a `DatasetResources` serves, as `useDatasets` reads them. | — |
 | `DrillTarget` | interface | What a drill would open, as offered to a host that takes drilling over. | — |
 | `DropCause` | type | The edit a drop is said after: a step of the chain, or any other. | — |
@@ -70,11 +69,11 @@ Every name `@ahoo-wang/wow-view-engine/react` exports — 127 — with its kind 
 | `RecordDetailSection` | interface | A section the host adds to a record's detail, beside the ones the engine lays out from the definition's field groups (`detailSections`) — what the definition cannot say because it is the application's: a form that acts on the record, a stack trace read the host's way, the record's history as an embedded view (G2). | — |
 | `RecordDetailSectionContext` | interface | — | — |
 | `RecordExportController` | interface | — | — |
+| `RecordExportExtent` | type | The two readings of "export": what is picked, and what the conditions match. | — |
+| `RecordExportExtents` | interface | — | — |
 | `RecordExportOptions` | interface | — | — |
 | `RecordExportOutcome` | interface | What one finished export produced, until the next run or `reset()`. | — |
 | `RecordExportProgress` | interface | — | — |
-| `RecordExportScope` | type | The two readings of "export": what is picked, and what the conditions match. | — |
-| `RecordExportScopes` | interface | — | — |
 | `RecordExportTable` | type | What of a record table an export reads: the paging, and what is picked. | — |
 | `RecordGlobalActionContext` | interface | — | — |
 | `RecordKanbanController` | interface | A kanban as its lanes render it, beside the table controller: the cards, rows, status, detail and row actions are that controller's, and this is only what lanes add. | — |
@@ -96,6 +95,7 @@ Every name `@ahoo-wang/wow-view-engine/react` exports — 127 — with its kind 
 | `ToggleSelectionOptions` | interface | How `RecordTableController.toggle` treats the rows around one. | — |
 | `ToggleSortOptions` | interface | How `RecordTableController.toggleSort` treats the other columns. | — |
 | `UnavailableController` | interface | What an open view uses that its source no longer admits, and the one press that takes it out (capabilities.md Q2, `ViewRuntime.unavailable`). | — |
+| `UseDatasetsOptions` | interface | When `useDatasets` reads the directories. | — |
 | `UseViewListOptions` | interface | What `useViewList` reads of the list beside the definition. | — |
 | `ValueCandidatesController` | interface | — | — |
 | `ValueCandidatesOptions` | interface | When `useValueCandidates` asks, and for which text. | — |

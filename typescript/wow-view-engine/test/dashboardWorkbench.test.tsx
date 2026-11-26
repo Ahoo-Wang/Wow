@@ -23,7 +23,7 @@ import {
 import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   MemoryViewStore,
   ViewCommandError,
   ViewEngine,
@@ -177,7 +177,7 @@ describe('DashboardWorkbench', () => {
         engine={engine}
         definitionId="overview"
         instanceId="overview-1"
-        initialFilters={{ values: { region: ['EU'] } }}
+        defaultFilters={{ values: { region: ['EU'] } }}
         onFiltersChange={onFiltersChange}
       />,
     );
@@ -226,7 +226,7 @@ describe('DashboardWorkbench', () => {
         definitionId="overview"
         instanceId="overview-1"
         // A filter taken off the board since, and a date it cannot read.
-        initialFilters={{
+        defaultFilters={{
           values: { region: ['EU'], gone: ['x'], created: 'yesterday' },
         }}
         onFiltersChange={onFiltersChange}
@@ -1070,7 +1070,7 @@ describe('DashboardWorkbench', () => {
           ],
         }),
       ),
-      kinds: withFieldKinds(builtinFieldKinds, [rounded]),
+      kinds: withFieldKinds(builtinFieldKindRegistry, [rounded]),
     });
 
     render(

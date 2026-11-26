@@ -615,7 +615,7 @@ describe('the table chrome', () => {
 
   /** A count under `Amount`: a band is drawn only under a summarised column. */
   const AMOUNT_COUNTED: SummaryRow = {
-    scope: 'page',
+    over: 'page',
     cells: [
       {
         field: 'amount',

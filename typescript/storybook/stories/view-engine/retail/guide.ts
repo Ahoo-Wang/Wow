@@ -29,7 +29,7 @@
  * ------------------------------------------------------------------------ */
 
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   CHART_TYPES,
   DEFAULT_MISSING_KEY,
   compileAnalysis,
@@ -125,7 +125,10 @@ async function answer(
   config: AnalysisViewConfig,
 ): Promise<RecordData[]> {
   const definition = definitionOf(definitionId);
-  const query = compileAnalysis(definition, config, builtinFieldKinds, CONTEXT);
+  const query = compileAnalysis(definition, config, {
+    kinds: builtinFieldKindRegistry,
+    context: CONTEXT,
+  });
   return (await retailSource(definition.source as RetailSourceKey).aggregate(
     query,
   )) as RecordData[];
@@ -357,7 +360,7 @@ export async function sortingLine() {
   const filter = compileFilter(
     definition.fields,
     config.filter,
-    builtinFieldKinds,
+    builtinFieldKindRegistry,
     CONTEXT,
   );
   const { list, total } = await retailSource(

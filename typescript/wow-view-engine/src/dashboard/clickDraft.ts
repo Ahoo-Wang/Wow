@@ -19,7 +19,7 @@
  */
 
 import type {
-  BoardValueSource,
+  DashboardValueSource,
   DashboardField,
   DashboardViewConfig,
   FieldDefinition,
@@ -60,7 +60,7 @@ export interface ClickDraft {
   /** The board a press opens; `''` while none is picked. */
   board: string;
   /** What each of that board's filters takes. */
-  values: Record<string, BoardValueSource>;
+  values: Record<string, DashboardValueSource>;
   /** The tab it opens on (D39); `''` for where its reader last read it. */
   tab: string;
 }
@@ -143,7 +143,7 @@ export interface MappingSources {
 export function boardValueSources(
   filter: DashboardField,
   { groups, fields, own }: MappingSources,
-): BoardValueSource[] {
+): DashboardValueSource[] {
   return [
     ...boardValueChoices(filter, groups, fields).map(group => ({
       dimension: group.field,
@@ -153,7 +153,7 @@ export function boardValueSources(
 }
 
 /** One source as a key: `dimension:<field>` or `filter:<name>`. */
-export function valueSourceKey(source: BoardValueSource): string {
+export function valueSourceKey(source: DashboardValueSource): string {
   return 'dimension' in source
     ? `dimension:${source.dimension}`
     : `filter:${source.filter}`;
@@ -169,11 +169,11 @@ export function valueSourceKey(source: BoardValueSource): string {
  */
 export function mappedValues(
   board: DashboardViewConfig,
-  values: Readonly<Record<string, BoardValueSource>>,
+  values: Readonly<Record<string, DashboardValueSource>>,
   sources: MappingSources,
-): { kept: Record<string, BoardValueSource>; stale: string[] } {
+): { kept: Record<string, DashboardValueSource>; stale: string[] } {
   const byName = new Map(filtersOf(board).map(filter => [filter.name, filter]));
-  const kept: Record<string, BoardValueSource> = {};
+  const kept: Record<string, DashboardValueSource> = {};
   const stale: string[] = [];
   for (const [name, source] of Object.entries(values)) {
     const filter = byName.get(name);

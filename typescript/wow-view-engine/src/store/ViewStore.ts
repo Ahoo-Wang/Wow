@@ -44,7 +44,7 @@ export interface ViewStore {
    * A page at a time: the first without a `cursor`, each next one with the
    * `nextCursor` the page before answered, until that is `null`. The order
    * holds across pages. A store chooses its own page size; the engine reads
-   * pages in turn until the end or `RuntimeLimits.listedViews`.
+   * pages in turn until the end or `RuntimeLimits.maxListedViews`.
    */
   list(definitionId: string, options?: ViewListOptions): Promise<ViewListPage>;
   get(id: string, options?: ReadOptions): Promise<ViewInstance>;

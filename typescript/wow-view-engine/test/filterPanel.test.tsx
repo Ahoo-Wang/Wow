@@ -25,7 +25,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   MemoryViewStore,
   ViewEngine,
   withFieldKinds,
@@ -1288,7 +1288,7 @@ describe('FilterPanel tree editing', () => {
         () => testSource(),
       ),
       store: new MemoryViewStore({ instances: [mine] }),
-      kinds: withFieldKinds(builtinFieldKinds, [rounded]),
+      kinds: withFieldKinds(builtinFieldKindRegistry, [rounded]),
     });
     const runtime = engine.create('orders', {
       title: 'Scratch',

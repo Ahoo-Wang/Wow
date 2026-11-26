@@ -34,7 +34,7 @@ import { validateFields } from './validateFields.js';
 import { validateSystemViews } from './validateSystemViews.js';
 
 export interface ValidateDefinitionOptions {
-  limits?: RuntimeLimits;
+  limits?: Partial<RuntimeLimits>;
   /**
    * The other definitions registered beside this one, by id. A board a
    * definition declares may own an analysis of another definition, and that
@@ -64,7 +64,7 @@ export function validateDefinition(
   kinds: FieldKindRegistry,
   options: ValidateDefinitionOptions = {},
 ): Issue[] {
-  const limits = options.limits ?? DEFAULT_RUNTIME_LIMITS;
+  const limits = { ...DEFAULT_RUNTIME_LIMITS, ...options.limits };
   const issues: Issue[] = [];
 
   // `system:${definitionId}:${viewId}` must be decomposable again, and a

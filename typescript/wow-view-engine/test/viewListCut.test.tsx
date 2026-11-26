@@ -44,21 +44,21 @@ const shared = (count: number): ViewInstance[] =>
   }));
 
 /**
- * An engine over `instances` that lists at most `listedViews` of them, from
+ * An engine over `instances` that lists at most `maxListedViews` of them, from
  * a store answering one view a page, so the cut falls across pages.
  */
-function engineOver(instances: ViewInstance[], listedViews?: number) {
+function engineOver(instances: ViewInstance[], maxListedViews?: number) {
   return new ViewEngine({
     resources: resourcesOf([ordersDefinition()], () => testSource()),
     store: new MemoryViewStore({ instances, pageSize: 1 }),
-    ...(listedViews === undefined ? {} : { limits: { listedViews } }),
+    ...(maxListedViews === undefined ? {} : { limits: { maxListedViews } }),
   });
 }
 
 const CUT =
   'Only the first 2 views are listed; a link to another still opens it.';
 
-describe('a list cut at RuntimeLimits.listedViews (R2-26)', () => {
+describe('a list cut at RuntimeLimits.maxListedViews (R2-26)', () => {
   it('is said by the engine where the stored views reach the limit', async () => {
     const listing = await engineOver(shared(3), 2).list('orders');
     expect(listing.cut).toBe(2);
@@ -175,7 +175,7 @@ describe('ViewEngine.list reads the store a page at a time', () => {
     ]);
   });
 
-  it('stops asking at RuntimeLimits.listedViews, and says where it cut', async () => {
+  it('stops asking at RuntimeLimits.maxListedViews, and says where it cut', async () => {
     const views = shared(4);
     const { engine, list } = engineOn(
       {
@@ -183,7 +183,7 @@ describe('ViewEngine.list reads the store a page at a time', () => {
         p2: page(views.slice(2, 3), 'p3'),
         p3: page(views.slice(3), null),
       },
-      { listedViews: 3 },
+      { maxListedViews: 3 },
     );
 
     const listing = await engine.list('orders');

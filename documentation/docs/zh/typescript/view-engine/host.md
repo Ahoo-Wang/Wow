@@ -144,7 +144,7 @@ export function Host({
 | --- | --- |
 | `route(instanceId, target?)` | 在某个视图上打开这个资源的页面路径；没人保存过的视图传 `null`，落到页面的默认视图 |
 | `actions` | 它记录上的命令（[操作](./actions)） |
-| `reading` | 一条记录在详情里怎样阅读：`title(row)` 为它命名，`sections(context)` 增加区域，`render(context)` 替换正文 |
+| `detail` | 一条记录在详情里怎样阅读：`title(row)` 为它命名，`sections(context)` 增加区域，`render(context)` 替换正文 |
 | `slots` | 逃生口：`row`、`bulk` 和 `global` 在声明的操作之后绘制你自己的标记 |
 
 <!-- typecheck: file=routes.ts -->
@@ -166,7 +166,7 @@ export function withView(path: string, view: string | null): string {
 export const BINDINGS = [
   bind('orders', {
     route: view => withView('/orders', view),
-    reading: { title: row => `Order ${String(row.key)}` },
+    detail: { title: row => `Order ${String(row.key)}` },
     actions: orderActions,
   }),
   bind('overview', { route: board => withView('/boards', board) }),

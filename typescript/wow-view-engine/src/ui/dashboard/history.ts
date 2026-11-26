@@ -57,7 +57,7 @@ const PHRASES: Readonly<
   bindPanel: ['label.history.change-filter', 'filter'],
   unbindPanels: ['label.history.change-filter', 'filter'],
   setTimeGrouping: ['label.history.change-grouping', null],
-  removeFixedScope: ['label.history.remove-fixed', null],
+  removeFixed: ['label.history.remove-fixed', null],
   setWidth: ['label.history.change-width', null],
 };
 

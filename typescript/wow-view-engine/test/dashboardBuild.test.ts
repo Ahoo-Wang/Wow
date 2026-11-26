@@ -20,7 +20,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   emptyDashboardConfig,
   validateDashboard,
   type DashboardPanel,
@@ -107,8 +107,8 @@ function validate(
     config,
     'personal',
     new Map([['pending', panelReference()]]),
-    builtinFieldKinds,
-    definitions ? { definitions } : {},
+    builtinFieldKindRegistry,
+    definitions ? { lookup: definitions } : {},
   );
 }
 

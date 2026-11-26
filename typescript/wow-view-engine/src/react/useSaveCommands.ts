@@ -143,7 +143,7 @@ export interface SaveCommandState {
 }
 
 /** A board 「放进仪表盘…」 offers: its id, its title, and its definition's. */
-export interface BoardChoice {
+export interface DashboardChoice {
   id: string;
   title: string;
   definitionId: string;
@@ -166,7 +166,7 @@ export interface SaveCommands {
    * definition of the engine — where 「放进仪表盘…」 offers to put the open
    * view (R2-98). A definition whose list could not be read offers none.
    */
-  boards?(): Promise<readonly BoardChoice[]>;
+  boards?(): Promise<readonly DashboardChoice[]>;
   /**
    * 放进仪表盘: the open view as one more panel on the board `boardId`
    * (`engine.addToDashboard`) — the board as saved, or `null` where it did
@@ -573,8 +573,8 @@ function useInstanceWrites(
 }
 
 /** Every saved board this reader may save in place, definition by definition. */
-async function boardsOf(engine: ViewEngine): Promise<BoardChoice[]> {
-  const found: BoardChoice[] = [];
+async function boardsOf(engine: ViewEngine): Promise<DashboardChoice[]> {
+  const found: DashboardChoice[] = [];
   for (const definition of engine.definitions.values()) {
     if (definition.kind !== 'dashboard') continue;
     const permissions = engine.permissions(definition.id);

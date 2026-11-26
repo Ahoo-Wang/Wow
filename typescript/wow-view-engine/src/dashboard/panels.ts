@@ -13,7 +13,7 @@
 
 import {
   PANEL_PRESENTATION_MEMBERS,
-  type BoardValueSource,
+  type DashboardValueSource,
   type DashboardContentPanel,
   type DashboardPanel,
   type DashboardTab,
@@ -148,7 +148,7 @@ export function clickOf(panel: unknown): PanelClick | null {
         !isPlainObject(values)
       )
         return null;
-      const read: Record<string, BoardValueSource> = {};
+      const read: Record<string, DashboardValueSource> = {};
       for (const [name, source] of Object.entries(values)) {
         const one = sourceOf(source);
         if (!one) return null;
@@ -169,8 +169,8 @@ export function clickOf(panel: unknown): PanelClick | null {
   }
 }
 
-/** One stored `BoardValueSource`: exactly one of the two, a string. */
-function sourceOf(source: unknown): BoardValueSource | null {
+/** One stored `DashboardValueSource`: exactly one of the two, a string. */
+function sourceOf(source: unknown): DashboardValueSource | null {
   if (!isPlainObject(source) || Object.keys(source).length !== 1) return null;
   if (typeof source.dimension === 'string')
     return { dimension: source.dimension };

@@ -19,7 +19,10 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import { drillConditions } from '../src/analysis/index.js';
-import { builtinFieldKinds, compileFilter } from '../src/filter/index.js';
+import {
+  builtinFieldKindRegistry,
+  compileFilter,
+} from '../src/filter/index.js';
 import {
   DEFAULT_TEMPORAL,
   temporalOf,
@@ -71,7 +74,7 @@ function compileOne(
       op: 'and',
       children: [{ field: field.name, operator, value: value as never }],
     },
-    builtinFieldKinds,
+    builtinFieldKindRegistry,
     context,
   );
 }
@@ -284,7 +287,7 @@ describe('the stored representation of a time', () => {
         ],
       }),
       fields,
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
       { day: start },
       { timeZone: SHANGHAI },
     ) as FilterNode[];
@@ -292,7 +295,7 @@ describe('the stored representation of a time', () => {
       compileFilter(
         fields,
         { op: 'and', children: conditions },
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
         context,
       ),
     ).toEqual({
@@ -314,7 +317,7 @@ describe('admitting a temporal declaration', () => {
         source: 'executions',
         fields: [{ name: 'at', label: 'At', kind: 'datetime', ...field }],
       },
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     ).map(found => found.code);
 
   it.each([

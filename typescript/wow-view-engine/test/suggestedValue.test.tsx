@@ -48,7 +48,8 @@ function fakeSource(answers: Record<string, ValueCandidates | Error>): {
     calls,
     source: {
       field: 'processor',
-      search(query, signal) {
+      search(query, options) {
+        const signal = options?.signal;
         calls.push({ query, signal });
         const answer = answers[query] ?? { values: [], complete: true };
         return answer instanceof Error

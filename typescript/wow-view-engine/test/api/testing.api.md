@@ -86,7 +86,7 @@ export function actionHarness(list: RecordActions, rows: readonly ActionRow[], i
 
 // @public (undocumented)
 export interface ActionHarnessOptions {
-    now?: Date;
+    now?: () => Date;
 }
 
 // @public
@@ -439,21 +439,6 @@ interface AxisSpec {
 }
 
 // @public
-interface BoardOrigin {
-    // (undocumented)
-    back: DashboardTarget;
-    // (undocumented)
-    title: string;
-}
-
-// @public
-type BoardValueSource = {
-    dimension: string;
-} | {
-    filter: string;
-};
-
-// @public
 interface BoxplotSpec {
     category: string;
     high: string;
@@ -630,6 +615,14 @@ interface DashboardLink {
     label: string;
 }
 
+// @public
+interface DashboardOrigin {
+    // (undocumented)
+    back: DashboardTarget;
+    // (undocumented)
+    title: string;
+}
+
 // @public (undocumented)
 type DashboardPanel = DashboardViewPanel | DashboardContentPanel;
 
@@ -671,6 +664,13 @@ interface DashboardTimeGrouping {
     default: AggregationDateUnitName;
     units: AggregationDateUnitName[];
 }
+
+// @public
+type DashboardValueSource = {
+    dimension: string;
+} | {
+    filter: string;
+};
 
 // @public (undocumented)
 interface DashboardViewConfig extends ViewConfigBase {
@@ -1235,7 +1235,7 @@ interface GroupNaming {
 // @public
 interface HandOver {
     filter: FilterTree | null;
-    from?: BoardOrigin;
+    from?: DashboardOrigin;
     scopeFilter: FilterTree | null;
 }
 
@@ -1439,14 +1439,14 @@ type PanelClick =
 * as the author mapped them (D23 Q17, 「另一块仪表盘」): `values` is keyed
 * like the `DashboardFilters.values` it becomes — each of the target's
 * filters the press sets, by name — and says where each one's value comes
-* from (`BoardValueSource`). A filter not named is not carried and starts
+* from (`DashboardValueSource`). A filter not named is not carried and starts
 * at its default. Never matched by name: only what the author mapped goes
 * along.
 */
 | {
     kind: 'dashboard';
     instanceId: string;
-    values: Record<string, BoardValueSource>;
+    values: Record<string, DashboardValueSource>;
     tab?: string;
 }
 /**
@@ -1691,15 +1691,15 @@ interface RuntimeLimits {
     defaultCardFields: number;
     defaultColumns: number;
     defaultPageSize: number;
-    exportMax: number;
     exportNeutralizeFormulas: boolean;
-    listedViews: number;
     maxAnalysisRows: number;
     maxConcurrentQueries: number;
     maxDashboardPanels: number;
+    maxExportRows: number;
     maxFilterDepth: number;
     maxFilterNodes: number;
     maxFilterValues: number;
+    maxListedViews: number;
     maxPageSize: number;
     maxPageWindow: number;
     maxQueryFilterNodes: number;
@@ -1792,7 +1792,7 @@ interface UnsavedViewTarget {
     // (undocumented)
     definitionId: string;
     // (undocumented)
-    from?: BoardOrigin;
+    from?: DashboardOrigin;
     // (undocumented)
     kind: 'unsaved';
     named?: GroupNaming;

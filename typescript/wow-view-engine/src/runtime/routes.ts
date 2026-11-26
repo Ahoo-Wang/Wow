@@ -35,9 +35,9 @@ export type RoutedTarget =
 export interface ViewRouteState {
   /** A view to open as it came (`DataWorkbench`'s `handOver`). */
   handOver?: ViewHandOver;
-  /** A board's filters (`DashboardWorkbench`'s `initialFilters`). */
+  /** A board's filters (`DashboardWorkbench`'s `defaultFilters`). */
   filters?: DashboardFilters;
-  /** The tab a board opens on (`initialTab`); absent, where it was last read. */
+  /** The tab a board opens on (`defaultTab`); absent, where it was last read. */
   tab?: string | null;
   /**
    * What each board on the page left its filters and tab at, by the board

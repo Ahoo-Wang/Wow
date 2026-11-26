@@ -53,7 +53,7 @@ import {
   movePanelToTab,
   moveTab,
   referToSaved,
-  removeFixedScope,
+  removeFixed,
   removePanel,
   removeTab,
   renamePanel,
@@ -231,7 +231,7 @@ export interface DashboardFilterEditing {
    * empty tree, on the draft and on screen, and is saved with the board. The
    * author's alone — a reader never builds, so never takes it.
    */
-  removeFixedScope(): void;
+  removeFixed(): void;
 }
 
 /** What the edits need of the runtime that holds the board. */
@@ -586,7 +586,6 @@ function filterEditing(
       edit('setTimeGrouping', null, config =>
         setTimeGrouping(config, grouping),
       ),
-    removeFixedScope: () =>
-      edit('removeFixedScope', null, config => removeFixedScope(config)),
+    removeFixed: () => edit('removeFixed', null, config => removeFixed(config)),
   };
 }

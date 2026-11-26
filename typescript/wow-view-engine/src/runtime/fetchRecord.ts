@@ -84,13 +84,11 @@ export async function fetchRecord(
   };
   const cursored = capability.paging === 'cursor';
   const query = whole(
-    compileRecord(
-      definition,
-      one,
+    compileRecord(definition, one, {
       kinds,
-      filterContext,
-      cursored ? FIRST_PAGE.cursor : FIRST_PAGE.paged,
-    ),
+      context: filterContext,
+      page: cursored ? FIRST_PAGE.cursor : FIRST_PAGE.paged,
+    }),
   );
   const controller = abortWith(signal);
   const page = cursored

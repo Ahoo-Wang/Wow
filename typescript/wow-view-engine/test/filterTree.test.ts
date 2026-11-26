@@ -20,7 +20,7 @@
 import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   validateFilter,
   type FilterLeaf,
   type FilterTree,
@@ -291,7 +291,7 @@ describe('tree editing', () => {
     const merged = mergeFilters(broken, scope);
     expect(merged.children).toHaveLength(2);
     expect(
-      validateFilter(fields, merged, builtinFieldKinds).map(found => ({
+      validateFilter(fields, merged, builtinFieldKindRegistry).map(found => ({
         code: found.code,
         path: found.path,
       })),

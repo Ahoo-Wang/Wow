@@ -21,7 +21,7 @@ import {
   ComparisonOperator,
 } from '@ahoo-wang/wow-client/dsl';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
   ViewEngine,
@@ -131,7 +131,7 @@ function admitted(
   return validateDataConfig(
     {
       definition: ordersDefinition(),
-      kinds: builtinFieldKinds,
+      kinds: builtinFieldKindRegistry,
       limits: { ...DEFAULT_RUNTIME_LIMITS, ...limits },
     },
     config,

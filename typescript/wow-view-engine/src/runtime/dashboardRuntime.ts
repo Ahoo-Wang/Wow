@@ -81,7 +81,7 @@ export type {
 } from './dashboard/contract.js';
 export type {
   CrossFilterOutcome,
-  DestinationBoard,
+  DestinationDashboard,
   PressDestination,
 } from './dashboard/press.js';
 import type {
@@ -276,9 +276,9 @@ export class DashboardViewRuntime
     return this.store.disposed;
   }
 
-  /** See `ViewRuntime.refusedScope`; the store keeps it. */
-  get refusedScope(): Issue[] {
-    return this.store.refusedScope;
+  /** See `ViewRuntime.refusedScopeFilter`; the store keeps it. */
+  get refusedScopeFilter(): Issue[] {
+    return this.store.refusedScopeFilter;
   }
 
   /** The snapshot the store holds; every command reads it and patches it back. */
@@ -495,7 +495,7 @@ export class DashboardViewRuntime
    * have to map onto every panel. `null` is what it has, and is taken.
    */
   setScopeFilter(tree: FilterTree | null): Issue[] {
-    if (this.disposed) return this.refusedScope;
+    if (this.disposed) return this.refusedScopeFilter;
     return this.store.refuse(
       tree ? [issue('dashboard.scope.unsupported', [])] : [],
     );

@@ -446,14 +446,9 @@ describe('derived series', () => {
       ...config({ derived: [{ kind: 'cumulative', metric: 'orders' }] }),
       limit: 2,
     };
-    const view = projectAnalysis(
-      ordersDefinition(),
-      cfg,
-      rows.slice(0, 3),
-      undefined,
-      undefined,
-      { timeZone: 'UTC' },
-    );
+    const view = projectAnalysis(ordersDefinition(), cfg, rows.slice(0, 3), {
+      context: { timeZone: 'UTC' },
+    });
     expect(view.truncated).toBe(true);
     expect((view.chart as CartesianData).gaps).toEqual([
       { kind: 'cumulative', metric: 'orders', gap: 'cut-short', limit: 2 },

@@ -186,12 +186,9 @@ describe('an analysis with no dimension', () => {
     });
     expect(asksForWhole(whole)).toBe(false);
 
-    const view = projectAnalysis(
-      ordersDefinition(),
-      whole,
-      [{ orders: 10 }],
-      [{ orders: 10 }],
-    );
+    const view = projectAnalysis(ordersDefinition(), whole, [{ orders: 10 }], {
+      totals: [{ orders: 10 }],
+    });
     expect(view.totals).toBeUndefined();
     expect(view.narrowed).toBeUndefined();
   });
@@ -263,7 +260,7 @@ describe('a metric the whole range has no value of', () => {
         { warehouse: 'W-0', orders: 6, anyStatus: 'paid', amountMax: 90 },
         { warehouse: 'W-1', orders: 4, anyStatus: 'shipped', amountMax: 120 },
       ],
-      [{ orders: 10, anyStatus: 'shipped', amountMax: 120 }],
+      { totals: [{ orders: 10, anyStatus: 'shipped', amountMax: 120 }] },
     );
     expect(view.totals).toEqual({ orders: 10, amountMax: 120 });
   });

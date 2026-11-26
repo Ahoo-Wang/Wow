@@ -39,7 +39,7 @@ afterEach(cleanup);
  */
 const runtime = {
   id: 'r-1',
-  limits: { exportMax: 10000, maxPageSize: 200 },
+  limits: { maxExportRows: 10000, maxPageSize: 200 },
   definition: { kind: 'data', record: { paging: 'paged' } },
 } as unknown as RecordViewRuntime;
 
@@ -744,7 +744,7 @@ describe('ResultToolbar export', () => {
     const user = userEvent.setup();
     const windowed = {
       ...runtime,
-      limits: { exportMax: 50000, maxPageSize: 300 },
+      limits: { maxExportRows: 50000, maxPageSize: 300 },
       definition: {
         kind: 'data',
         record: { paging: 'paged', maxWindow: 10000 },

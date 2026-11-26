@@ -29,7 +29,7 @@ import {
 } from '../src/analysis/index.js';
 import { drillRecordConditions, drillSpan } from '../src/analysis/drill.js';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   isSimpleTree,
   validateFilter,
 } from '../src/filter/index.js';
@@ -109,7 +109,7 @@ function rowOf(filter: FilterTree, groups: AnalysisGroup[], row: RecordData) {
   const conditions = drillConditions(
     analysisConfig({ filter, groups }),
     FIELDS,
-    builtinFieldKinds,
+    builtinFieldKindRegistry,
     row,
     context,
   );
@@ -122,18 +122,23 @@ function spanOf(filter: FilterTree, first: RecordData, last: RecordData) {
   const drilled = drillSpan(
     config,
     FIELDS,
-    builtinFieldKinds,
+    builtinFieldKindRegistry,
     first,
     last,
     context,
   );
   expect(drilled).not.toBeNull();
-  return drillRecordConditions(config, FIELDS, builtinFieldKinds, drilled!)!;
+  return drillRecordConditions(
+    config,
+    FIELDS,
+    builtinFieldKindRegistry,
+    drilled!,
+  )!;
 }
 
 /** What a view would say of the tree: nothing, for a tree it admits. */
 function admitted(tree: FilterTree) {
-  return validateFilter(FIELDS, tree, builtinFieldKinds);
+  return validateFilter(FIELDS, tree, builtinFieldKindRegistry);
 }
 
 describe('drilling into a group on the field the analysis is scoped by', () => {
@@ -247,7 +252,7 @@ describe('drilling into a group on the field the analysis is scoped by', () => {
     const row = drillGroups(
       config,
       FIELDS,
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
       {
         status: 'SHIPPED',
       },

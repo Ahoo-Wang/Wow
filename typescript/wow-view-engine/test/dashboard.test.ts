@@ -17,7 +17,7 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   DEFAULT_RUNTIME_LIMITS,
   emptyDashboardConfig,
   validateDashboard,
@@ -49,7 +49,7 @@ import {
   recordConfig,
 } from './fixtures.js';
 
-const kinds = builtinFieldKinds;
+const kinds = builtinFieldKindRegistry;
 
 function codes(issues: readonly Issue[]): string[] {
   return issues.map(found => found.code);
@@ -879,7 +879,7 @@ describe('validateDashboard views declared in code', () => {
       'system',
       new Map(),
       kinds,
-      { definitions },
+      { lookup: definitions },
     );
 
   it('reads one that is declared as a saved view would be, bindings and all', () => {

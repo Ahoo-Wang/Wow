@@ -183,13 +183,13 @@ Publishing a view as a system view makes a copy; the source view stays as it was
 
 ### Long lists
 
-The engine reads a definition's saved views page by page, up to `RuntimeLimits.listedViews` (1000 by default). A definition with more lists the first 1000, and the view list and Manage views say "Only the first 1000 views are listed; a link to another still opens it": a view past the cap still opens from its address or a board. A host whose definitions hold more raises the limit (`new ViewEngine({ limits: { listedViews: 5000 } })`).
+The engine reads a definition's saved views page by page, up to `RuntimeLimits.maxListedViews` (1000 by default). A definition with more lists the first 1000, and the view list and Manage views say "Only the first 1000 views are listed; a link to another still opens it": a view past the cap still opens from its address or a board. A host whose definitions hold more raises the limit (`new ViewEngine({ limits: { maxListedViews: 5000 } })`).
 
 ### Writes and retries
 
 - Every write sends the port's request id as `Wow-Request-Id` and the revision as `If-Match`, and waits for the snapshot. The service deduplicates request ids, creations included, so a retry is answered with the first attempt's outcome.
 - A stale revision is `CONFLICT`, carrying the view as it is now.
-- The service lists at most 1,000 stored system views of a definition; shared and personal views are read page by page, up to `listedViews` in all. A view past the cut is still read by its id.
+- The service lists at most 1,000 stored system views of a definition; shared and personal views are read page by page, up to `maxListedViews` in all. A view past the cut is still read by its id.
 
 ### Errors
 

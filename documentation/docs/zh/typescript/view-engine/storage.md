@@ -183,13 +183,13 @@ export const store = new WowViewStore({ fetcher, permissions });
 
 ### 很长的列表 {#long-lists}
 
-引擎一页一页地读一个定义的已保存视图，至多读 `RuntimeLimits.listedViews` 个（缺省 1000）。超过的定义列出前 1000 个，视图列表与「管理视图」写明「只列出前 1000 个视图；其余的凭链接仍能打开」：上限之外的视图仍能从它的地址或仪表盘打开。定义的视图更多的宿主调高这个上限（`new ViewEngine({ limits: { listedViews: 5000 } })`）。
+引擎一页一页地读一个定义的已保存视图，至多读 `RuntimeLimits.maxListedViews` 个（缺省 1000）。超过的定义列出前 1000 个，视图列表与「管理视图」写明「只列出前 1000 个视图；其余的凭链接仍能打开」：上限之外的视图仍能从它的地址或仪表盘打开。定义的视图更多的宿主调高这个上限（`new ViewEngine({ limits: { maxListedViews: 5000 } })`）。
 
 ### 写入与重试 {#writes-and-retries}
 
 - 每次写入都把端口的请求 ID 作为 `Wow-Request-Id`、把 revision 作为 `If-Match` 发送，并等待快照。服务对请求 ID 去重（包括创建），所以重试得到的是第一次尝试的结果。
 - 过期的 revision 是 `CONFLICT`，并带上视图现在的样子。
-- 服务对一个定义最多列出 1,000 个存储的系统视图；共享与个人视图分页读取，总数最多到 `listedViews`。超出的视图仍可按 id 读取。
+- 服务对一个定义最多列出 1,000 个存储的系统视图；共享与个人视图分页读取，总数最多到 `maxListedViews`。超出的视图仍可按 id 读取。
 
 ### 错误 {#errors}
 

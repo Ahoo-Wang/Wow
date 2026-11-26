@@ -239,7 +239,7 @@ export function useAddressedInstance(
         const listed = new Set(listing.items.map(item => item.id));
         if (listed.has(named)) return answer(listed);
         // A list holds what the engine reads of it — it stops at
-        // `RuntimeLimits.listedViews` — so a view not in it is asked for by
+        // `RuntimeLimits.maxListedViews` — so a view not in it is asked for by
         // id before it is judged another's: a link to the 1001st view is
         // this workbench's all the same.
         try {
@@ -318,9 +318,9 @@ export function useAddressedHandOver(
 
 /** What a board opens on and says as it changes; see `useAddressedBoard`. */
 interface BoardAddress {
-  initialFilters?: DashboardFilters | null;
+  defaultFilters?: DashboardFilters | null;
   onFiltersChange?(filters: DashboardFilters): void;
-  initialTab?: string | null;
+  defaultTab?: string | null;
   onTabChange?(tab: string | null): void;
 }
 
@@ -435,16 +435,16 @@ export function useAddressedBoard<P extends BoardAddress>(
   if (!router) return props;
   const held = heldBoard(router.location, key, inAddress);
   const filtersHeld =
-    props.initialFilters === undefined && props.onFiltersChange === undefined;
+    props.defaultFilters === undefined && props.onFiltersChange === undefined;
   const tabHeld =
-    props.initialTab === undefined && props.onTabChange === undefined;
+    props.defaultTab === undefined && props.onTabChange === undefined;
   if (!filtersHeld && !tabHeld) return props;
   return {
     ...props,
     ...(filtersHeld
-      ? { initialFilters: held.filters ?? null, onFiltersChange }
+      ? { defaultFilters: held.filters ?? null, onFiltersChange }
       : {}),
-    ...(tabHeld ? { initialTab: held.tab, onTabChange } : {}),
+    ...(tabHeld ? { defaultTab: held.tab, onTabChange } : {}),
   };
 }
 

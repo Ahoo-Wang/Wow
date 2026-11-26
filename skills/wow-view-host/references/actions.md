@@ -209,7 +209,7 @@ const commands: OrderCommands = {
 const orders = actionHarness(
   orderActions(commands),
   [row('O-1', 'PAID'), row('O-2', 'SHIPPED')],
-  { now: new Date('2026-09-30T00:00:00Z') },
+  { now: () => new Date('2026-09-30T00:00:00Z') },
 );
 
 // Where each is offered, and why a record does not take one.

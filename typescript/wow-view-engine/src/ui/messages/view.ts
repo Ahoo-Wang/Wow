@@ -23,7 +23,7 @@ export const viewMessages = {
   'label.kind.dashboard': 'Dashboard',
   'label.view.list': 'Views',
   'label.view.list-failed': 'The list could not be loaded.',
-  // The engine reads at most so many (`RuntimeLimits.listedViews`).
+  // The engine reads at most so many (`RuntimeLimits.maxListedViews`).
   'label.view.list-cut':
     'Only the first {limit} views are listed; a link to another still opens it.',
   'label.view.none-hint': 'Make one to start looking at the data.',

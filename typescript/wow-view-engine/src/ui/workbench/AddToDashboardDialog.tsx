@@ -12,7 +12,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import type { BoardChoice, SaveCommands } from '../../react/index.js';
+import type { DashboardChoice, SaveCommands } from '../../react/index.js';
 import { Button } from '../components/button.js';
 import {
   Dialog,
@@ -47,10 +47,10 @@ export function AddToDashboardDialog({
   /** The open view's title, in the heading. */
   title: string;
   /** Told the board it went on, once it landed. */
-  onAdded(board: BoardChoice): void;
+  onAdded(board: DashboardChoice): void;
 }) {
   const messages = useViewMessages();
-  const [boards, setBoards] = useState<readonly BoardChoice[] | null>(null);
+  const [boards, setBoards] = useState<readonly DashboardChoice[] | null>(null);
   const [adding, setAdding] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const { boards: read } = commands;
@@ -75,7 +75,7 @@ export function AddToDashboardDialog({
     };
   }, [open, read]);
 
-  const add = (board: BoardChoice) => {
+  const add = (board: DashboardChoice) => {
     setAdding(board.id);
     setFailed(false);
     void commands.addToDashboard(board.id).then(saved => {

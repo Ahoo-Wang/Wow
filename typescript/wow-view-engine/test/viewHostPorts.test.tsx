@@ -385,7 +385,7 @@ describe('the address: two workbenches on one page', () => {
 
   it('asks for a view its list did not hold before setting it aside', async () => {
     const engine = engineOf();
-    // A store that cut its list short (an engine reads RuntimeLimits.listedViews of a
+    // A store that cut its list short (an engine reads RuntimeLimits.maxListedViews of a
     // audience): the view the address names is past the cut.
     const list = engine.store.list.bind(engine.store);
     vi.spyOn(engine.store, 'list').mockImplementation(
@@ -494,7 +494,7 @@ describe('the address: `?id=`, the record a bound resource’s detail holds', ()
     ...ROUTES,
     bind('orders', {
       route: view => (view ? `/orders?view=${view}` : '/orders'),
-      reading: { title: row => `Order ${String(row.key)}` },
+      detail: { title: row => `Order ${String(row.key)}` },
     }),
   ];
 
@@ -570,7 +570,7 @@ describe('the address: `?id=`, the record a bound resource’s detail holds', ()
     const held = [
       bind('orders', {
         route: () => '/orders',
-        reading: { open: null, title: row => `Order ${String(row.key)}` },
+        detail: { open: null, title: row => `Order ${String(row.key)}` },
       }),
     ];
     hosted(
@@ -652,22 +652,22 @@ describe('the address: a board’s filters and tab in the history entry', () => 
     // The link, opened afresh: no entry state, the search alone.
     const link = router.state.location.search;
     board({ pathname: '/', search: link }, true);
-    expect(last.value.initialFilters).toEqual(next);
-    expect(last.value.initialTab).toBe('week');
+    expect(last.value.defaultFilters).toEqual(next);
+    expect(last.value.defaultTab).toBe('week');
   });
 
   it('reads nothing from a search it cannot read, nor from one it was not asked to keep', () => {
     const filters = { values: { day: 'today' } };
     const search = `?boards=${encodeURIComponent(JSON.stringify({ b: { filters } }))}`;
     board({ pathname: '/', search }, false);
-    expect(last.value.initialFilters).toBeNull();
+    expect(last.value.defaultFilters).toBeNull();
     cleanup();
     for (const broken of ['not-json', '[1]', '{"b":3}', '"text"']) {
       board(
         { pathname: '/', search: `?boards=${encodeURIComponent(broken)}` },
         true,
       );
-      expect(last.value.initialFilters).toBeNull();
+      expect(last.value.defaultFilters).toBeNull();
       cleanup();
     }
   });
@@ -679,8 +679,8 @@ describe('the address: a board’s filters and tab in the history entry', () => 
       search: '?board=b',
       state: { filters, tab: 'week' },
     });
-    expect(last.value.initialFilters).toEqual(filters);
-    expect(last.value.initialTab).toBe('week');
+    expect(last.value.defaultFilters).toEqual(filters);
+    expect(last.value.defaultTab).toBe('week');
     const next = { values: { day: 'today' } };
     act(() => last.value.onFiltersChange?.(next));
     // Written under the board, beside what the page was handed.
@@ -691,7 +691,7 @@ describe('the address: a board’s filters and tab in the history entry', () => 
         boards: { b: { filters: next } },
       }),
     );
-    expect(last.value.initialFilters).toEqual(next);
+    expect(last.value.defaultFilters).toEqual(next);
     expect(router.state.historyAction).toBe('REPLACE');
     expect(router.state.location.search).toBe('?board=b');
     // The same filters again write nothing.
@@ -758,20 +758,20 @@ describe('the address: a board’s filters and tab in the history entry', () => 
     const { location } = first.router.state;
     first.view.unmount();
     page(location);
-    expect(boards.north.value.initialFilters).toEqual(north);
-    expect(boards.north.value.initialTab).toBe('week');
-    expect(boards.south.value.initialFilters).toEqual(south);
-    expect(boards.south.value.initialTab).toBeUndefined();
+    expect(boards.north.value.defaultFilters).toEqual(north);
+    expect(boards.north.value.defaultTab).toBe('week');
+    expect(boards.south.value.defaultFilters).toEqual(south);
+    expect(boards.south.value.defaultTab).toBeUndefined();
   });
 
   it('keeps a host’s own pair, each on its own', () => {
     const { give } = board({ pathname: '/', state: { tab: 'week' } });
     const onTabChange = vi.fn();
-    give({ initialTab: 'day', onTabChange });
-    expect(last.value.initialTab).toBe('day');
+    give({ defaultTab: 'day', onTabChange });
+    expect(last.value.defaultTab).toBe('day');
     expect(last.value.onTabChange).toBe(onTabChange);
     // The filters, which the host left out, are still the entry's.
-    expect(last.value.initialFilters).toBeNull();
+    expect(last.value.defaultFilters).toBeNull();
   });
 });
 

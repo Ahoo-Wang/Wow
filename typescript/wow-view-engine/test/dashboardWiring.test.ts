@@ -31,7 +31,7 @@ import {
   addFilter,
   moveFilter,
   removeFilter,
-  removeFixedScope,
+  removeFixed,
   renameFilter,
   retypeFilter,
   setFilterDefault,
@@ -640,12 +640,12 @@ describe('setting up the filters', () => {
         ],
       },
     });
-    const removed = removeFixedScope(fixed);
+    const removed = removeFixed(fixed);
     // The member stays: its being there says the board is read (D26 Q31).
     expect(removed.fixed).toEqual({ op: 'and', children: [] });
     expect(removed.fields).toBe(fixed.fields);
-    expect(removeFixedScope(removed)).toBe(removed);
-    expect(removeFixedScope(board)).toBe(board);
+    expect(removeFixed(removed)).toBe(removed);
+    expect(removeFixed(board)).toBe(board);
   });
 });
 

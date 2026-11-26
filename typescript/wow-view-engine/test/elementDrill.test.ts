@@ -18,7 +18,10 @@ import {
   drillGroups,
 } from '../src/analysis/index.js';
 import { drillGap, drillSpan } from '../src/analysis/drill.js';
-import { builtinFieldKinds, validateFilter } from '../src/filter/index.js';
+import {
+  builtinFieldKindRegistry,
+  validateFilter,
+} from '../src/filter/index.js';
 import type {
   AnalysisGroup,
   FieldDefinition,
@@ -85,7 +88,7 @@ describe('a group counted over one level of elements', () => {
     const conditions = drillConditions(
       config,
       FIELDS,
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
       { sku: 'A-1', qty: 20 },
       context,
     );
@@ -112,7 +115,7 @@ describe('a group counted over one level of elements', () => {
       validateFilter(
         FIELDS,
         drillFilter({ op: 'and', children: [] }, conditions!),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       ),
     ).toEqual([]);
   });
@@ -131,7 +134,7 @@ describe('a group counted over one level of elements', () => {
         ],
       }),
       FIELDS,
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
       { warehouse: 'WH-1', sku: 'A-1' },
       context,
     );
@@ -152,7 +155,7 @@ describe('a group counted over one level of elements', () => {
       validateFilter(
         FIELDS,
         drillFilter({ op: 'and', children: [] }, conditions!),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       ),
     ).toEqual([]);
   });
@@ -165,7 +168,7 @@ describe('a group counted over one level of elements', () => {
           groups: [SKU],
         }),
         FIELDS,
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
         { sku: 'A-1' },
         context,
       ),
@@ -188,7 +191,7 @@ describe('a group counted over one level of elements', () => {
     const drilled = drillGroups(
       analysisConfig({ elements: [{ path: 'items' }], groups: [SKU] }),
       FIELDS,
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
       { sku: 'A-1' },
       context,
     );
@@ -207,7 +210,7 @@ describe('a group counted over one level of elements', () => {
       drillConditions(
         analysisConfig({ elements: [{ path: 'items' }], groups: [SKU] }),
         FIELDS,
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
         { sku: null },
         context,
       ),
@@ -241,7 +244,7 @@ describe('a group counted over one level of elements', () => {
     const drilled = drillSpan(
       analysisConfig({ elements: [{ path: 'items' }], groups: [DAYS] }),
       FIELDS,
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
       { day: first },
       { day: last },
       context,
@@ -266,7 +269,7 @@ describe('a group counted over one level of elements', () => {
       drillConditions(
         analysisConfig({ elements: [{ path: 'items' }], groups: [SKU] }),
         plain,
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
         { sku: 'A-1' },
         context,
       ),
@@ -276,7 +279,7 @@ describe('a group counted over one level of elements', () => {
       drillConditions(
         analysisConfig({ elements: [{ path: 'items' }], groups: [SKU] }),
         [{ ...ITEMS, operators: [FilterOperator.IS_EMPTY] }],
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
         { sku: 'A-1' },
         context,
       ),
@@ -302,7 +305,7 @@ describe('a group counted over elements of elements', () => {
       drillConditions(
         config,
         FIELDS,
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
         { lot: 'L-7' },
         context,
       ),
@@ -314,7 +317,7 @@ describe('a group counted over elements of elements', () => {
       drillGroups(
         config,
         FIELDS,
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
         { lot: 'L-7' },
         context,
       )?.flatMap(entry => entry.conditions),

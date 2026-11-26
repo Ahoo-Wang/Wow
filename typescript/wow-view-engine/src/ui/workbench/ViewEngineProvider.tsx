@@ -298,9 +298,9 @@ export function useBindings(): (
         ? new Map(
             [...bindings].map(([id, binding]) => [
               id,
-              binding.reading?.open !== undefined
+              binding.detail?.open !== undefined
                 ? binding
-                : { ...binding, reading: { ...binding.reading, ...detail } },
+                : { ...binding, detail: { ...binding.detail, ...detail } },
             ]),
           )
         : bindings,

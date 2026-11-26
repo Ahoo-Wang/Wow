@@ -185,11 +185,11 @@ function useBoundRecord(
   const binding = useBindings()(definitionId);
   return useMemo(() => {
     if (!binding) return given;
-    const { actions, slots, reading } = binding;
+    const { actions, slots, detail } = binding;
     return {
       ...(actions ? { actions } : {}),
       ...(slots ? { slots } : {}),
-      ...(reading ? { detail: reading } : {}),
+      ...(detail ? { detail } : {}),
       ...given,
     };
   }, [binding, given]);

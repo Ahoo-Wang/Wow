@@ -20,7 +20,7 @@
 import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   DEFAULT_RUNTIME_LIMITS,
   type DashboardPanel,
   type DashboardViewConfig,
@@ -89,7 +89,7 @@ describe('DashboardViewRuntime child refusal', () => {
       config,
       title: 'Overview',
       scope: 'personal',
-      kinds: builtinFieldKinds,
+      kinds: builtinFieldKindRegistry,
       limits: DEFAULT_RUNTIME_LIMITS,
       environment: clock.environment,
       labels: testLabels(),
@@ -107,7 +107,7 @@ describe('DashboardViewRuntime child refusal', () => {
           title: found.title,
           scope: found.scope,
           saved: found.instance,
-          kinds: builtinFieldKinds,
+          kinds: builtinFieldKindRegistry,
           limits: DEFAULT_RUNTIME_LIMITS,
           environment: clock.environment,
           source: recordSource(source),

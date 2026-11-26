@@ -28,7 +28,7 @@ import {
 import { describe, expect, it } from 'vitest';
 import { listParam } from '../src/model/issue.js';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   compileAnalysis,
   projectAnalysis,
   validateAnalysis,
@@ -134,7 +134,7 @@ const check = (groups: AnalysisGroup[]) =>
                 },
               },
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     ),
   );
 
@@ -209,7 +209,7 @@ describe('definition admission', () => {
           ],
         },
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(issues).toEqual(
       expect.arrayContaining([
@@ -228,7 +228,7 @@ describe('definition admission', () => {
 
   it('admits a time field that offers its parts', () => {
     expect(
-      validateDefinition(definition(), builtinFieldKinds).filter(
+      validateDefinition(definition(), builtinFieldKindRegistry).filter(
         found => found.severity === 'error',
       ),
     ).toEqual([]);
@@ -257,7 +257,7 @@ describe('narrowing by the descriptor', () => {
     const { definition: narrowed, findings } = narrowDefinition(
       definition(),
       described([AggregationDatePart.DAY_OF_WEEK]),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(narrowed.analysis?.fields[0]).toMatchObject({
       groups: [
@@ -292,7 +292,7 @@ describe('narrowing by the descriptor', () => {
     const { definition: narrowed } = narrowDefinition(
       definition(),
       described(Object.values(AggregationDatePart)),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(narrowed.analysis?.fields[0]).not.toHaveProperty('dateParts');
     expect(narrowed.analysis?.fields[1]).toMatchObject({
@@ -320,7 +320,7 @@ describe('narrowing by the descriptor', () => {
     const { definition: narrowed, findings } = narrowDefinition(
       definition(),
       descriptor,
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(narrowed.analysis?.fields[0]?.groups).toEqual([
       AggregationGroupType.DATE_HISTOGRAM,
@@ -342,7 +342,7 @@ describe('narrowing by the descriptor', () => {
     const { definition: narrowed } = narrowDefinition(
       definition(),
       described([]),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(narrowed.analysis?.fields[0]?.groups).toEqual([
       AggregationGroupType.DATE_HISTOGRAM,
@@ -387,8 +387,10 @@ describe('compileAnalysis', () => {
         groups: [weekday, { ...hour, timeZone: 'Asia/Shanghai', dense: false }],
         sort: [],
       }),
-      builtinFieldKinds,
-      { ...context, timeZone: 'Europe/Berlin' },
+      {
+        kinds: builtinFieldKindRegistry,
+        context: { ...context, timeZone: 'Europe/Berlin' },
+      },
     );
     expect(query.groupBy).toEqual([
       {
@@ -620,7 +622,7 @@ describe('following a part back to records', () => {
       drillGroups(
         config({ groups: [weekday] }),
         definition().fields,
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
         { weekday: 1, orders: 3 },
         context,
       ),

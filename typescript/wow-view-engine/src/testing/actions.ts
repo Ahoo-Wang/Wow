@@ -34,8 +34,12 @@ import {
 } from '../runtime/actions.js';
 
 export interface ActionHarnessOptions {
-  /** The moment the rules are asked at; the current time when left out. */
-  now?: Date;
+  /**
+   * The clock the rules are asked by, read at each question, as
+   * `RuntimeEnvironment.now()` is; the current time when left out. A test
+   * fixes the moment with `() => new Date(at)`.
+   */
+  now?: () => Date;
 }
 
 /** One action on one record, as the row, the menu and the detail draw it. */
@@ -121,7 +125,7 @@ export interface ActionHarness {
 export function actionHarness(
   list: RecordActions,
   rows: readonly RecordRow[],
-  { now = new Date() }: ActionHarnessOptions = {},
+  { now: clock = () => new Date() }: ActionHarnessOptions = {},
 ): ActionHarness {
   const byKey = new Map(rows.map(row => [row.key, row]));
   const find = (id: string): RecordAction => {
@@ -144,6 +148,7 @@ export function actionHarness(
     at: place => offeredAt(list, place).map(action => action.id),
     state: (id, key, input) => {
       const action = find(id);
+      const now = clock();
       return actionState(
         action,
         rowOf(key),
@@ -152,6 +157,7 @@ export function actionHarness(
     },
     bulk(id, keys = rows.map(row => row.key), input) {
       const action = find(id);
+      const now = clock();
       const split = splitFor(
         action,
         keys,
@@ -192,10 +198,10 @@ export function actionHarness(
       return missingInput(action, pressed(action, input));
     },
     changesAt: key =>
-      nextChange(list, key === undefined ? rows : [rowOf(key)], now),
+      nextChange(list, key === undefined ? rows : [rowOf(key)], clock()),
     run: (id, key, input, options = {}) => {
       const action = find(id);
-      return runOne(action, byKey.get(key), pressed(action, input), now, {
+      return runOne(action, byKey.get(key), pressed(action, input), clock(), {
         signal: options.signal ?? new AbortController().signal,
       });
     },

@@ -264,7 +264,7 @@ describe('reading (D60)', () => {
         messages={EN}
         bindings={[
           bind('orders', {
-            reading: {
+            detail: {
               title: row => `Order ${String(row.key)}`,
               render: () => <p>Read the host’s way</p>,
             },
@@ -357,7 +357,7 @@ describe('an embed’s bound reading (review of #3761, 5)', () => {
         messages={EN}
         bindings={[
           bind('orders', {
-            reading: {
+            detail: {
               open: null,
               onOpenChange,
               render: () => <p>Read the host’s way</p>,

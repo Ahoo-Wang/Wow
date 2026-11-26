@@ -36,8 +36,8 @@ function SalesReview({
   return (
     <RetailBoardScene
       instanceId={SALES_REVIEW}
-      initialTab={tab}
-      initialFilters={filters}
+      defaultTab={tab}
+      defaultFilters={filters}
     />
   );
 }

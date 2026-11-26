@@ -27,7 +27,7 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   compileAnalysis,
   type AnalysisViewConfig,
   type CartesianData,
@@ -80,7 +80,10 @@ function timeline(
 }
 
 const hidden = (config: AnalysisViewConfig, definition = previousWindow) =>
-  compileAnalysis(definition, config, builtinFieldKinds, context)
+  compileAnalysis(definition, config, {
+    kinds: builtinFieldKindRegistry,
+    context,
+  })
     .metrics.slice(config.metrics.length)
     .map(metric => metric as DerivedAggregationMetric);
 

@@ -23,7 +23,7 @@ import {
 } from '../model/index.js';
 import type {
   AnyViewRuntime,
-  BoardOrigin,
+  DashboardOrigin,
   SavedViewTarget,
   ViewEngine,
   ViewHandOver,
@@ -140,7 +140,7 @@ export interface WorkbenchOptions {
   handOver?: ViewHandOver | null;
   /**
    * The host's route, which the way back to the board a view was handed
-   * from goes by (`boardOrigin`, D26 Q33). Without it there is no way back drawn.
+   * from goes by (`dashboardOrigin`, D26 Q33). Without it there is no way back drawn.
    */
   onNavigate?(to: ViewNavigation): void;
 }
@@ -251,8 +251,8 @@ export interface WorkbenchController {
    * it. `null` under a view opened out of another here, whose own way back
    * (`back`) is the one on screen.
    */
-  boardOrigin: BoardOrigin | null;
-  /** Goes back to `boardOrigin` through the host's route, past the leave guard. */
+  dashboardOrigin: DashboardOrigin | null;
+  /** Goes back to `dashboardOrigin` through the host's route, past the leave guard. */
   toBoard(): void;
   /**
    * Whether the view on screen is one a board or an embed handed over
@@ -396,7 +396,7 @@ export function useWorkbench(
         runtime: held.runtime,
         status: 'success',
         error: null,
-        scopeIssues: [],
+        scopeFilterIssues: [],
         // Never offered: a view held here was made, and did not fail to open.
         retry: byId.retry,
       }

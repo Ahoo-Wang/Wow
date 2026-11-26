@@ -189,7 +189,7 @@ function EmbeddedData({
   const data = runtime as ViewRuntime<DataViewConfig>;
   const state = useViewRuntime(data);
   const messages = useViewMessages();
-  const reading = useBindings()(data.definition.id)?.reading;
+  const reading = useBindings()(data.definition.id)?.detail;
   const interactive = interaction === 'interactive';
   // A finding names its dimensions, metrics and fields as the screen does —
   // columns as they are headed (`analysisIssueNamer`); over a record view

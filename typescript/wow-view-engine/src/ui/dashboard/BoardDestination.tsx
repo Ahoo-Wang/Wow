@@ -21,12 +21,15 @@ import {
   type MappingSources,
   type PressableGroup,
 } from '../../dashboard/index.js';
-import type { BoardValueSource, DashboardField } from '../../model/index.js';
+import type {
+  DashboardValueSource,
+  DashboardField,
+} from '../../model/index.js';
 import type {
   DashboardController,
   DashboardPanelView,
 } from '../../react/index.js';
-import type { DestinationBoard } from '../../runtime/index.js';
+import type { DestinationDashboard } from '../../runtime/index.js';
 import { AlertTitle } from '../components/alert.js';
 import { Button } from '../components/button.js';
 import {
@@ -57,7 +60,7 @@ export type BoardRead =
   | { status: 'none' }
   | { status: 'loading' }
   | { status: 'unreadable' }
-  | { status: 'ready'; board: DestinationBoard };
+  | { status: 'ready'; board: DestinationDashboard };
 
 /**
  * The board `instanceId` names, read when 「点击时…」 opens on it or the
@@ -71,7 +74,7 @@ export function useDestinationBoard(
 ): BoardRead {
   const [read, setRead] = useState<{
     id: string;
-    board: DestinationBoard | null;
+    board: DestinationDashboard | null;
   } | null>(null);
   const { destinationBoard } = dashboard;
   useEffect(() => {
@@ -92,7 +95,7 @@ export function useDestinationBoard(
 }
 
 /** A select's value back into its source; `''` (「不带」) is none. */
-function sourceOfKey(key: string): BoardValueSource | null {
+function sourceOfKey(key: string): DashboardValueSource | null {
   const at = key.indexOf(':');
   if (at < 0) return null;
   const name = key.slice(at + 1);
@@ -126,8 +129,8 @@ export function BoardDestination({
   /** This board's filters, a source a mapping may take. */
   own: readonly DashboardField[];
   read: BoardRead;
-  values: Readonly<Record<string, BoardValueSource>>;
-  onValues(values: Record<string, BoardValueSource>): void;
+  values: Readonly<Record<string, DashboardValueSource>>;
+  onValues(values: Record<string, DashboardValueSource>): void;
   /** The tab it opens on (D39); `''` for where its reader last read it. */
   tab: string;
   onTab(tab: string): void;
@@ -213,7 +216,7 @@ function BoardTabRow({
   onTab,
   id,
 }: {
-  board: DestinationBoard;
+  board: DestinationDashboard;
   tab: string;
   onTab(tab: string): void;
   id: string;
@@ -263,10 +266,10 @@ function BoardFilters({
   onValues,
   ids,
 }: {
-  board: DestinationBoard;
+  board: DestinationDashboard;
   sources: MappingSources;
-  values: Readonly<Record<string, BoardValueSource>>;
-  onValues(values: Record<string, BoardValueSource>): void;
+  values: Readonly<Record<string, DashboardValueSource>>;
+  onValues(values: Record<string, DashboardValueSource>): void;
   ids: string;
 }) {
   const messages = useViewMessages();
@@ -281,7 +284,7 @@ function BoardFilters({
         {messages.label('label.click.board-no-filters')}
       </p>
     );
-  const said = (source: BoardValueSource) =>
+  const said = (source: DashboardValueSource) =>
     'dimension' in source
       ? messages.label('label.click.board-value', {
           dimension:
@@ -361,9 +364,9 @@ function BoardFilterRow({
 }: {
   id: string;
   filter: DashboardField;
-  choices: readonly BoardValueSource[];
+  choices: readonly DashboardValueSource[];
   value: string;
-  said(source: BoardValueSource): string;
+  said(source: DashboardValueSource): string;
   onChange(key: string): void;
 }) {
   const messages = useViewMessages();
@@ -377,7 +380,7 @@ function BoardFilterRow({
       label: said(choice),
     })),
   ];
-  const part = (heading: string, part: readonly BoardValueSource[]) =>
+  const part = (heading: string, part: readonly DashboardValueSource[]) =>
     part.length > 0 && (
       <SelectGroup>
         <SelectLabel>{heading}</SelectLabel>
