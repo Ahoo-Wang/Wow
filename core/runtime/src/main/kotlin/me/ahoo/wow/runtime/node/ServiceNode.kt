@@ -21,6 +21,8 @@ import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.InFlightLimit
+import me.ahoo.wow.runtime.access.AccessCapabilities
+import me.ahoo.wow.runtime.access.EventsSources
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.ModelRegistry
 import me.ahoo.wow.runtime.cluster.ClusterChannel
@@ -175,6 +177,12 @@ class ServiceNode @InternalWowApi constructor(
      * exceptions are recorded by their class names.
      */
     failureDescribers: List<FailureDescriber> = emptyList(),
+    /**
+     * Where each type's `events` model is served from, as the host's query plane binds it; none by default. A type
+     * whose model is served from a store that cannot keep its history's access attributes current refuses the start
+     * ([AccessCapabilities]).
+     */
+    eventsSources: EventsSources = EventsSources.NONE,
 ) {
     private val assembly = NodeAssembly(
         service,
@@ -200,6 +208,7 @@ class ServiceNode @InternalWowApi constructor(
         replayGate,
         deadlines,
         failureDescribers,
+        eventsSources,
     )
 
     /** This node's internal address: the cluster channel and the signals reach it there. Known once [hasAddress]. */

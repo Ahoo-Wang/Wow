@@ -21,6 +21,8 @@ import me.ahoo.wow.kernel.ContextQueries
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.runtime.access.EventsSource
+import me.ahoo.wow.runtime.access.EventsSources
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommandTransformer
@@ -36,6 +38,7 @@ import me.ahoo.wow.runtime.sink.PublishedSinks
 import me.ahoo.wow.runtime.state.KernelStateReads
 import me.ahoo.wow.runtime.state.ReplayGate
 import me.ahoo.wow.runtime.state.StateReads
+import me.ahoo.wow.runtime.store.StoreLayout
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.spi.call.CommandCaller
@@ -55,12 +58,15 @@ import me.ahoo.wow.spring.boot.node.NodeAdmission.Companion.aggregateIdGenerator
 import me.ahoo.wow.spring.boot.node.NodeAdmission.Companion.idGeneratorLookup
 import me.ahoo.wow.spring.boot.node.NodeAdmission.Companion.tenants
 import me.ahoo.wow.spring.boot.node.NodeAdmission.Companion.writePolicies
+import me.ahoo.wow.spring.boot.query.EventQueryBackend
+import me.ahoo.wow.spring.boot.query.QueryAutoConfiguration
 import me.ahoo.wow.spring.boot.query.QueryProperties
 import me.ahoo.wow.spring.boot.store.HostBackends
 import me.ahoo.wow.spring.boot.transport.PortProviders
 import me.ahoo.wow.spring.boot.transport.PortProviders.Companion.configured
 import me.ahoo.wow.spring.boot.transport.ProvidedSinks
 import me.ahoo.wow.spring.boot.transport.TransportNeeds
+import org.springframework.beans.factory.ListableBeanFactory
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
@@ -186,6 +192,7 @@ internal class NodeService {
             caller = callers.ifAvailable,
             failureClassifiers = classifiers.orderedStream().toList(),
             queries = lazyQueries(queries),
+            eventsSources = eventsSources(backends.layout, hostEventQueries(beanFactory)),
             // The gate over the query bulkheads, built before the node: its state rebuilds replay under it.
             replayGate = replayGates.getIfAvailable { ReplayGate.OPEN },
             failureDescribers = describers.orderedStream().toList(),
@@ -310,3 +317,32 @@ internal class NodeService {
         }
     }
 }
+
+/**
+ * Where each type's `events` model is served from, as the query plane bound it ([events]): its log's store in place,
+ * or another store (a Sink's index); none for a type it does not serve, or for an application's own backends, whose
+ * stores the host does not know.
+ */
+internal fun eventsSources(layout: StoreLayout?, events: EventQueryBackend?): EventsSources {
+    if (layout == null || events == null) {
+        return EventsSources.NONE
+    }
+    return EventsSources { type ->
+        events.storeOf(type)?.let { store ->
+            if (store == layout.logStoreOf(type)) EventsSource.Log else EventsSource.Store(store)
+        }
+    }
+}
+
+/**
+ * The host's own events backend ([QueryAutoConfiguration.wowEventQueryBackend]) when it is the query plane's, without
+ * creating anything else: an application's own backend reads stores the host does not know, and may read through the
+ * node it would then be resolved from.
+ */
+internal fun hostEventQueries(beans: ListableBeanFactory): EventQueryBackend? =
+    beans.getBeanNamesForType(EventQueryBackend::class.java, false, false).singleOrNull()
+        ?.takeIf { it == HOST_EVENT_QUERIES }
+        ?.let { beans.getBean(it, EventQueryBackend::class.java) }
+
+/** The name of the host's own events backend bean. */
+private const val HOST_EVENT_QUERIES = "wowEventQueryBackend"
