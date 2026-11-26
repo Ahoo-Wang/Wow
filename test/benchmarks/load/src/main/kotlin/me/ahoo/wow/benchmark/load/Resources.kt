@@ -164,12 +164,14 @@ class Resources(
                 val samples = synchronized(psSamples) { psSamples.filter { it["process"] == name } }
                 val cpu = (cpuAfter[name] ?: 0.0) - (cpuBefore[name] ?: 0.0)
                 val allocated = allocatedBefore[name]?.let { before -> allocatedAfter[name]?.minus(before) }
+                val reader = allocations[name]
                 mapOf(
                     "pid" to pid,
                     "cpuSeconds" to cpu,
                     "averageCores" to cpu / seconds,
-                    // Null when either read failed (the JVM refused the attach or was gone).
+                    // Null when the attach or either read failed, or a read did not answer in time; why, beside it.
                     "allocatedBytes" to allocated,
+                    "allocationsMissing" to if (allocated == null) reader?.missing ?: "the attach failed" else null,
                     "rssMaxMb" to (samples.maxOfOrNull { it["rssMb"] as Double } ?: 0.0),
                     "samples" to samples.map { mapOf("t" to it["t"], "cpuSeconds" to it["cpuSeconds"], "rssMb" to it["rssMb"]) },
                     "gc" to gc(synchronized(gcLines) { Samples.within(gcLines.getValue(name).toList(), window) }),

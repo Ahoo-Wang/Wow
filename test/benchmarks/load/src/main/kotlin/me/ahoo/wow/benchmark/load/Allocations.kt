@@ -15,33 +15,71 @@ package me.ahoo.wow.benchmark.load
 
 import com.sun.tools.attach.VirtualMachine
 import java.lang.management.ManagementFactory
-import javax.management.remote.JMXConnector
+import java.util.concurrent.Callable
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 import javax.management.remote.JMXConnectorFactory
 import javax.management.remote.JMXServiceURL
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * The heap allocations of another JVM on this machine, read with the JDK alone: the Attach API starts the JVM's local
  * management agent (or finds it started), and its `ThreadMXBean` answers the bytes all its threads, the finished ones
  * included, allocated since it started (JDK 21). [connect] attaches once, before the measured phase (B.O-2: starting
- * the agent costs the target a moment); each [Reader.read] after is one call over the open connection.
+ * the agent costs the target a moment); each [Reader.read] after is one call over the open connection, which waits at
+ * most [READ_TIMEOUT] for the answer: a call whose answer the connection lost hung for minutes, past the run's drain
+ * (#7109).
  */
 object Allocations {
-    /** An open connection to one JVM's `ThreadMXBean`. */
+    /** How long a read waits for the JVM's answer before it gives the figure up. */
+    val READ_TIMEOUT: Duration = 5.seconds
+
+    /**
+     * An open connection to one JVM's `ThreadMXBean`, whose [allocated] call each [read] makes on a thread of its own,
+     * waiting at most [timeout]. A read that fails or does not answer in time gives no figure, and [missing] says why.
+     */
     class Reader internal constructor(
-        private val connector: JMXConnector,
-        private val bean: com.sun.management.ThreadMXBean,
+        private val connector: AutoCloseable,
+        private val allocated: () -> Long,
+        private val timeout: Duration = READ_TIMEOUT,
     ) : AutoCloseable {
-        fun read(): Long? = try {
-            bean.totalThreadAllocatedBytes
-        } catch (@Suppress("TooGenericExceptionCaught") failure: Exception) {
-            System.err.println("[alloc] cannot read the allocations: $failure")
-            null
+        /** Why the last read gave no figure; null while every read answered. */
+        @Volatile
+        var missing: String? = null
+            private set
+
+        private val calls = Executors.newSingleThreadExecutor { task ->
+            Thread(task, "allocation-read").apply { isDaemon = true }
         }
 
-        override fun close() = try {
-            connector.close()
-        } catch (_: java.io.IOException) {
-            // The JVM is gone (a hand-over's stopped node): nothing to close.
+        fun read(): Long? {
+            val call = calls.submit(Callable { allocated() })
+            return try {
+                call.get(timeout.inWholeMilliseconds, TimeUnit.MILLISECONDS)
+            } catch (_: TimeoutException) {
+                call.cancel(true)
+                missed("the allocation read did not answer in $timeout")
+            } catch (failure: ExecutionException) {
+                missed("cannot read the allocations: ${failure.cause}")
+            }
+        }
+
+        private fun missed(reason: String): Long? {
+            System.err.println("[alloc] $reason")
+            missing = reason
+            return null
+        }
+
+        override fun close() {
+            calls.shutdownNow()
+            try {
+                connector.close()
+            } catch (_: java.io.IOException) {
+                // The JVM is gone (a hand-over's stopped node): nothing to close.
+            }
         }
     }
 
@@ -53,14 +91,12 @@ object Allocations {
             vm.detach()
         }
         val connector = JMXConnectorFactory.connect(JMXServiceURL(address))
-        Reader(
-            connector,
-            ManagementFactory.newPlatformMXBeanProxy(
-                connector.mBeanServerConnection,
-                ManagementFactory.THREAD_MXBEAN_NAME,
-                com.sun.management.ThreadMXBean::class.java,
-            ),
+        val bean = ManagementFactory.newPlatformMXBeanProxy(
+            connector.mBeanServerConnection,
+            ManagementFactory.THREAD_MXBEAN_NAME,
+            com.sun.management.ThreadMXBean::class.java,
         )
+        Reader(connector, { bean.totalThreadAllocatedBytes })
     } catch (@Suppress("TooGenericExceptionCaught") failure: Exception) {
         System.err.println("[alloc] cannot attach to pid $pid: $failure")
         null
