@@ -41,6 +41,7 @@ import me.ahoo.wow.runtime.node.ParkedOps
 import me.ahoo.wow.runtime.node.ParkedView
 import me.ahoo.wow.runtime.subscription.ParkedNotice
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
+import me.ahoo.wow.spi.id.DerivedIds
 import me.ahoo.wow.spi.id.GlobalIdGenerator
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import java.security.MessageDigest
@@ -409,7 +410,8 @@ class LedgerPublisher internal constructor(
     private fun digest(key: ParkedKey, content: String, at: Long): String {
         val bytes = MessageDigest.getInstance("SHA-256")
             .digest("${parkedIdOf(key)}\n$content\n$at".toByteArray())
-        return "${Ledger.NAMESPACE}:" + bytes.joinToString("") { "%02x".format(it) }
+        // The framework's own request id, `wow:ledger:<sha-256>`: no caller's request id may start with it (#7064).
+        return "${DerivedIds.PREFIX}ledger:" + bytes.joinToString("") { "%02x".format(it) }
     }
 
     @InternalWowApi

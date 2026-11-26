@@ -54,7 +54,7 @@ outline: deep
 
 | 请求头 | 用于 | 含义 |
 | --- | --- | --- |
-| `Wow-Request-Id` | 命令 | 调用方给请求的 ID：用同一个 ID 重试会被当作已完成来回答（`duplicate`），绝不会决定两次；同一个 ID 用于另一条命令时是 `wow.command.request-id-reused` |
+| `Wow-Request-Id` | 命令 | 调用方给请求的 ID：用同一个 ID 重试会被当作已完成来回答（`duplicate`），绝不会决定两次；同一个 ID 用于另一条命令时是 `wow.command.request-id-reused`。它从不以 `wow:` 开头：框架给自己的命令（定时器的、Saga 的）的请求 ID 以它开头；以它开头的请求 ID 是 `400 wow.command.malformed` |
 | `Wow-Wait` | 命令 | 回答之前要等到哪里（见下文）；默认 `snapshot`，没有快照的聚合为 `committed`，在那里显式的 `snapshot` 是 `wow.wait.invalid` |
 | `Wow-Wait-Timeout` | 命令 | 等待多久：`500ms`、`10s`、`1m`（单位紧跟数字）或 ISO-8601，至少 1 毫秒（`10 s` 和 `PT0.0001S` 是 `wow.wait.invalid`）；默认 `wow.wait.default-timeout`（10 秒）。更长的会被截到 `wow.wait.max-timeout`（1 分钟）：超时是客户端给自己的等待设的上限，节点的最大值再给它设上限 |
 | `If-Match` | 命令 | 聚合必须所处的版本，写成强标签：`"3"`，或状态读取写出的 `"3-…"`，其中的摘要不做比较；聚合处于其他版本时返回 `412 wow.aggregate.version-mismatch`。不指版本的标签（`W/"3"`、`"03"`、`"2147483648"`）或指两个版本时返回 `400 wow.request.malformed`。它的多行是一个列表（[实体标签](./protocols#entity-tags)） |

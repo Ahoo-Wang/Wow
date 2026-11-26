@@ -88,8 +88,8 @@ class TimerCommandValidationTest {
             firer.fire(timer("t-add", """["apple"]""")).assert().isEqualTo(TimerOutcomes.COMMITTED)
 
             firer.fire(removing("t-poison", """["$POISON"]""")).assert().isEqualTo(TimerOutcomes.REJECTED)
-            // Nothing was decided: the log holds the first command's commit alone, its id the timer's `timer#slot`.
-            log.read(CART.ref(TENANT, "alice")).toList().map { it.commandId }.assert().containsExactly("t-add#1")
+            // Nothing was decided: the log holds the first command's commit alone, its id the timer's `wow:timer#slot`.
+            log.read(CART.ref(TENANT, "alice")).toList().map { it.commandId }.assert().containsExactly("wow:t-add#1")
 
             firer.fire(removing("t-remove", """["apple"]""")).assert().isEqualTo(TimerOutcomes.COMMITTED)
         }

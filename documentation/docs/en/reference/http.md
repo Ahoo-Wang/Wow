@@ -54,7 +54,7 @@ Any other request under a context's path is a `404` problem.
 
 | Header | On | Means |
 | --- | --- | --- |
-| `Wow-Request-Id` | Commands | The caller's id of the request: a retry with the same id is answered as done (`duplicate`), never decided twice; the same id with another command is `wow.command.request-id-reused` |
+| `Wow-Request-Id` | Commands | The caller's id of the request: a retry with the same id is answered as done (`duplicate`), never decided twice; the same id with another command is `wow.command.request-id-reused`. It never starts with `wow:`, which the request ids the framework gives its own commands start with (a timer's, a saga's): one that does is `400 wow.command.malformed` |
 | `Wow-Wait` | Commands | How far to wait before answering (below); `snapshot` by default, `committed` for an aggregate without snapshots, where an explicit `snapshot` is `wow.wait.invalid` |
 | `Wow-Wait-Timeout` | Commands | How long to wait: `500ms`, `10s`, `1m`, the unit right after the number, or ISO-8601, one millisecond or more (`10 s` and `PT0.0001S` are `wow.wait.invalid`); `wow.wait.default-timeout` (10 s) by default. A longer one is capped at `wow.wait.max-timeout` (1 min): the timeout is the client's bound on its wait, and the node's maximum bounds it |
 | `If-Match` | Commands | The version the aggregate must be at, as a strong tag: `"3"`, or the `"3-…"` a state read wrote, whose digest is not compared; `412 wow.aggregate.version-mismatch` when the aggregate is at another. Tags that name no version (`W/"3"`, `"03"`, `"2147483648"`) or two are `400 wow.request.malformed`. Its lines are one list ([Entity tags](./protocols#entity-tags)) |

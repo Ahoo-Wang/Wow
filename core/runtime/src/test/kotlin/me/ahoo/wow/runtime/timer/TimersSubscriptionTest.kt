@@ -106,7 +106,7 @@ class TimersSubscriptionTest {
         // An `after` rule counts from the commit that sets it.
         timer.dueAt.assert().isEqualTo(5_000)
         timer.slot.assert().isEqualTo(1)
-        timer.requestId.assert().isEqualTo("${order("o-1")}#pay@1#1")
+        timer.requestId.assert().isEqualTo("wow:${order("o-1")}#pay@1#1")
         timer.partition.assert().isEqualTo(Partitioner.partitionOf(order("o-1"), PARTITIONS))
         timer.causation.assert().isEqualTo(Causation("root", "${order("o-1")}@1"))
         // The headers of the command that set it, without the slot it was itself sent for (decision D198).

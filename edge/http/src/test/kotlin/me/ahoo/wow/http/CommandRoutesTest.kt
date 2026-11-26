@@ -111,6 +111,22 @@ class CommandRoutesTest {
             .assertProblem(400, FrameworkCodes.COMMAND_MALFORMED, withResult = true)
     }
 
+    /**
+     * #7064: `wow:` starts the request ids the framework gives its own commands (a timer's, a saga's), which anyone can
+     * compute: a client's command committed first under one would settle the framework's when it came.
+     */
+    @Test
+    fun `a Wow-Request-Id the framework's prefix starts is malformed, and the command does not run`() {
+        val refused = node.post(
+            "/shop/cart/c-1/add-item",
+            """{"sku":"apple"}""",
+            headers = mapOf(WowHeaders.REQUEST_ID to "wow:shop.order/t/o-1#pay-timeout@1#1"),
+        )
+        refused.assertProblem(400, FrameworkCodes.COMMAND_MALFORMED, withResult = true)
+        refused.body!!["detail"].asString().assert().contains("never starts with wow:")
+        node.commands.assert().isEmpty()
+    }
+
     @Test
     fun `Wow-Wait accepted is answered 202 at once`() {
         val answer = node.post(

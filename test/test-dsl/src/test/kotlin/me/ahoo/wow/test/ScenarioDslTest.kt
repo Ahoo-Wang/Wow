@@ -305,6 +305,17 @@ class ScenarioDslTest {
         }
     }
 
+    /** #7064: as the gateway, a specification refuses a request id the framework gives its own commands. */
+    @Test
+    fun `a command whose request id the framework's prefix starts should be refused, as the gateway refuses it`() {
+        assertThrownBy<IllegalArgumentException> {
+            aggregateSpec(plenty) { whenCommand(Open("alice"), requestId = "wow:shop.cart/t/c-1#remind@1#1") { } }
+        }.hasMessage(
+            "The gateway refuses Open as ${FrameworkCodes.COMMAND_MALFORMED}: a request id never starts with wow:, " +
+                "which the framework gives its own commands. A specification sends only what admission takes.",
+        )
+    }
+
     @Test
     fun `a command without a caller should be refused the scope it names, as the gateway refuses the anonymous`() {
         // As on a node: a request without a caller is Caller.ANONYMOUS (ServerCommandRequest), and admission refuses a

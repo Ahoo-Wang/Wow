@@ -21,14 +21,24 @@ import java.util.UUID
  * compensations, and the commands a decide function sends. Each field is written as its length, `:`, and itself, so
  * two different lists of fields never give one text, whatever characters the fields hold (a `/` or `#` in a tenant,
  * an id or a business key), and two different requests never share an id.
+ *
+ * Every request id the framework gives its own commands starts with [PREFIX]: these, a timer's
+ * ([me.ahoo.wow.spi.timer.Timer.requestId]) and the ledger's. Admission refuses the prefix from any other request, so
+ * no caller can commit first under an id the framework will send, which anyone can compute (#7064).
  */
 @InternalWowApi
 object DerivedIds {
+    /** What every request id the framework derives starts with, and no caller's may. */
+    const val PREFIX: String = "wow:"
+
+    /** Whether [requestId] is one only the framework gives: it starts with [PREFIX]. */
+    fun isFrameworkRequestId(requestId: String): Boolean = requestId.startsWith(PREFIX)
+
     /** The one text of [fields], in order: each as its length, `:`, and itself, so they join one way only. */
     fun encoded(vararg fields: String): String = buildString {
         fields.forEach { append(it.length).append(':').append(it) }
     }
 
-    /** A name-based UUID of [name]. */
-    fun idOf(name: String): String = UUID.nameUUIDFromBytes(name.toByteArray(Charsets.UTF_8)).toString()
+    /** [PREFIX] and a name-based UUID of [name]. */
+    fun idOf(name: String): String = PREFIX + UUID.nameUUIDFromBytes(name.toByteArray(Charsets.UTF_8)).toString()
 }
