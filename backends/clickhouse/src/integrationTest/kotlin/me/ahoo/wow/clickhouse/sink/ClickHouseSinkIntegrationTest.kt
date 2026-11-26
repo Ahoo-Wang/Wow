@@ -248,19 +248,20 @@ class ClickHouseSinkIntegrationTest {
         execute("ALTER TABLE $database.shop_order_events ADD COLUMN region String DEFAULT 'eu'")
         execute("ALTER TABLE $database.shop_order_state_events ADD COLUMN day Date MATERIALIZED toDate(commit_time)")
         execute("ALTER TABLE $database.shop_order_state ADD COLUMN cents Int64 ALIAS toInt64(version) * 100")
-        listOf(Ddl.VALIDATE, Ddl.AUTO).forEach { ddl ->
+        // Under every mode: the row leaves those columns out, and they take their defaults.
+        listOf(Ddl.VALIDATE, Ddl.AUTO, Ddl.NONE).forEachIndexed { at, ddl ->
             sinks(ClickHouseSinkOptions(database = database, ddl = ddl)).sinkOf("shop", "order")
-                .write(listOf(recordOf(version = if (ddl == Ddl.VALIDATE) 1 else 2)))
+                .write(listOf(recordOf(version = at + 1)))
         }
-        count("shop_order_state_events").assert().isEqualTo(2)
+        count("shop_order_state_events").assert().isEqualTo(3)
         row("SELECT region FROM $database.shop_order_events LIMIT 1").getString("region").assert().isEqualTo("eu")
     }
 
     /**
      * A warehouse a pre-release wrote: its tables say format 1, but an event's data is `payload` where this version's
      * is `body`. Refused under `validate` and `auto`, naming the columns and the generation that fills new tables from
-     * the log, and left as it is. `none` checks nothing: ClickHouse takes the insert, drops the event's `body`, which
-     * the old tuple has no element of, and leaves its `payload` empty.
+     * the log, and left as it is. `none` checks nothing, but the insert itself refuses an event's `body`, which the
+     * old tuple has no element for, rather than drop it: nothing is written.
      */
     @Test
     fun `a table of a pre-release, an event's data its payload, is refused and left as it is`(): Unit = runTest {
@@ -283,11 +284,30 @@ class ClickHouseSinkIntegrationTest {
         }
         statements.columns(database, "shop_order_events").assert().isEqualTo(columns)
         count("shop_order_state_events").assert().isEqualTo(0)
-        sinks(ClickHouseSinkOptions(database = database, ddl = Ddl.NONE)).sinkOf("shop", "order")
-            .write(listOf(recordOf()))
-        count("shop_order_state_events").assert().isEqualTo(1)
-        row("SELECT payload FROM $database.shop_order_events LIMIT 1").getString("payload").assert().isEmpty()
+        val none = sinks(ClickHouseSinkOptions(database = database, ddl = Ddl.NONE)).sinkOf("shop", "order")
+        runCatching { none.write(listOf(recordOf())) }.exceptionOrNull()?.message.assert()
+            .contains("Tuple doesn't have element with name 'body'")
+        count("shop_order_state_events").assert().isEqualTo(0)
     }
+
+    /**
+     * Under `none`, which checks nothing, a table that lacks a column the Sink writes refuses the insert, naming the
+     * field, rather than take the row without it: the write fails, as every write to a table not the Sink's does.
+     */
+    @Test
+    fun `a write to a table that lacks one of its columns should be refused, never written without it`(): Unit =
+        runTest {
+            // The Sink's own tables, the history without its headers, which neither of its views reads: the insert alone
+            // names them. Made so rather than altered, since an ALTER of a view's source makes ClickHouse analyze the
+            // view again, which it refuses for the events view's ARRAY JOIN.
+            sinks().sinkOf("shop", "order").schema.ddl
+                .map { it.replace("    `headers` Map(String, String) CODEC(ZSTD(1)),\n", "") }
+                .forEach { execute(it) }
+            val none = sinks(ClickHouseSinkOptions(database = database, ddl = Ddl.NONE)).sinkOf("shop", "order")
+            runCatching { none.write(listOf(recordOf())) }.exceptionOrNull()?.message.assert()
+                .contains("Unknown field found while parsing JSONEachRow format: headers")
+            count("shop_order_state_events").assert().isEqualTo(0)
+        }
 
     @Test
     fun `a column Wow adds within the format should be added with its default, read by the rows before`(): Unit =

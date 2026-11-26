@@ -56,8 +56,9 @@ import kotlin.time.toJavaDuration
  * [send] never waits: it puts the signal in its origin's queue of [HttpSignalSenderOptions.queueCapacity] and returns.
  * Each origin's queue is sent from by at most [HttpSignalSenderOptions.concurrency] requests at a time. A request
  * carries what the queue holds then, up to [HttpSignalSenderOptions.maxBatch] signals: under a burst, one request per
- * batch instead of one per signal; a lone signal goes as before. An origin that refuses a batch as malformed (HTTP 400:
- * a node of an earlier version reads only single signals) is sent one signal a request from then on.
+ * batch instead of one per signal; a lone signal goes as before. A batch the origin refuses as malformed (HTTP 400) has
+ * each of its signals sent again alone, once, so that one the origin cannot read costs only itself; the origin's next
+ * signals still go in batches, as every node of this version reads them.
  *
  * A request is given until the latest deadline of the waits its signals end, as a forward is: a signal
  * is worth delivering while its waiter waits, so an origin slow to take it, its event loops lagging under load, still
@@ -147,10 +148,6 @@ class HttpSignalSender(
         val queue = Channel<Pending>(options.queueCapacity) { drop(address, it.signal, Reason.CLOSED) }
         private val permits = Semaphore(options.concurrency)
 
-        /** Whether the origin refused a batch: it is sent one signal a request. */
-        @Volatile
-        var singles = false
-
         init {
             scope.launch { run() }
         }
@@ -168,11 +165,11 @@ class HttpSignalSender(
             }
         }
 
-        /** [first] and what the queue holds behind it, up to [maxBatch]; [first] alone for an origin of [singles]. */
+        /** [first] and what the queue holds behind it, up to [maxBatch]. */
         private fun batch(first: Pending): List<Pending> {
             val batch = ArrayList<Pending>(1)
             batch += first
-            while (!singles && batch.size < options.maxBatch) {
+            while (batch.size < options.maxBatch) {
                 batch += queue.tryReceive().getOrNull() ?: break
             }
             return batch
@@ -193,7 +190,7 @@ class HttpSignalSender(
     /**
      * Sends [pending] to [outbox]'s origin in one request, given until the latest of their waits' deadlines; a signal
      * whose wait is over is dropped unsent. A batch the origin refuses as malformed is sent again one signal a
-     * request, and the origin marked to take single signals from now on. A request that fails for a while only is
+     * request, once. A request that fails for a while only is
      * sent again, as [attempt] + 1, after its backoff ([retry]).
      */
     private suspend fun deliver(outbox: Outbox, pending: List<Pending>, attempt: Int = 1) {
@@ -228,8 +225,10 @@ class HttpSignalSender(
         when {
             status in SUCCESS -> Unit
             status == BAD_REQUEST && live.size > 1 -> {
-                logger.info { "${outbox.address} takes no batch of signals (HTTP $status): sending them one by one." }
-                outbox.singles = true
+                logger.warn {
+                    "${outbox.address} refused a batch of ${live.size} signals as malformed (HTTP $status): sending " +
+                        "each alone, so that one it cannot read costs only itself."
+                }
                 live.forEach { deliver(outbox, listOf(it)) }
             }
 

@@ -16,12 +16,14 @@ package me.ahoo.wow.clickhouse.query
 import com.clickhouse.client.api.Client
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.query.annotation.SensitivityLevel.DISPLAY
 import me.ahoo.wow.clickhouse.sink.CatalogFixtures
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.dataset.QueryDatasetConfig
 import me.ahoo.wow.query.dataset.QueryDatasetSource
@@ -59,6 +61,30 @@ class ClickHouseDatasetSourcesTest {
         sources.sourceOf(over("$DATABASE.crm_member_state_flat")).assert().isEqualTo(source)
         // A state that protects nothing: its flat table is known, with nothing protected.
         columnsOf("crm_store_state_flat").assert().isEmpty()
+    }
+
+    /**
+     * A level this version does not know is read as confidential, the strongest it enforces, masked and never compared
+     * (`SensitivityLevel`'s promise), and warned of once per value.
+     */
+    @Test
+    fun `a flat column at a level this version does not know should be masked as confidential, warned of once`() {
+        val manifest = CatalogFixtures.MANIFEST.copyWith(defs = phoneAt("later"))
+        val column = checkNotNull(ClickHouseDatasetSources(manifest, DATABASE).sourceOf(over("crm_member_state_flat")))
+            .columns.getValue("phone")
+        val keep = QueryMask.Keep.of(prefix = 3, suffix = 4)
+        column.assert().isEqualTo(Masked.of("state.phone", SensitivityLevel.CONFIDENTIAL, keep))
+        ClickHouseDatasetSources.unknownLevels.assert().contains("later")
+        ClickHouseDatasetSources.levelOf("state.phone", "later").assert().isEqualTo(SensitivityLevel.CONFIDENTIAL)
+    }
+
+    /** The fixture's definitions, the member's phone marked at [level]. */
+    @Suppress("UNCHECKED_CAST")
+    private fun phoneAt(level: String): Map<String, Any?> {
+        val state = CatalogFixtures.MANIFEST.defs.getValue("MemberState") as Map<String, Any?>
+        val properties = state.getValue("properties") as Map<String, Any?>
+        val phone = properties.getValue("phone") as Map<String, Any?> + ("x-wow-sensitive" to mapOf("level" to level))
+        return CatalogFixtures.MANIFEST.defs + ("MemberState" to state + ("properties" to properties + ("phone" to phone)))
     }
 
     @Test

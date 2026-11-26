@@ -13,9 +13,11 @@
 
 package me.ahoo.wow.clickhouse.query
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
+import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.clickhouse.sink.CatalogEntries
 import me.ahoo.wow.clickhouse.sink.CatalogEntry
 import me.ahoo.wow.clickhouse.sink.ClickHouseSinkOptions
@@ -27,6 +29,7 @@ import me.ahoo.wow.query.dataset.QueryDatasetSource
 import me.ahoo.wow.query.dataset.QueryDatasetSources
 import me.ahoo.wow.query.schema.QueryMask
 import me.ahoo.wow.spi.json.WowJson
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * What the tables the ClickHouse Sink writes for the aggregates of [manifest] in [database] hold, as the Sink describes
@@ -78,7 +81,7 @@ class ClickHouseDatasetSources(manifest: Manifest, private val database: String)
             val property = schema.flatColumns.first { it.name == mark.path }.property
             mark.path to QueryDatasetSource.Masked(
                 "$STATE.$property",
-                SensitivityLevel.valueOf(mark.level),
+                levelOf(mark.path, mark.level),
                 maskOf(mark.mask),
             )
         }
@@ -102,8 +105,27 @@ class ClickHouseDatasetSources(manifest: Manifest, private val database: String)
 
     override fun toString(): String = "ClickHouseDatasetSources($database, ${tables.keys})"
 
-    private companion object {
+    internal companion object {
         const val STATE = "state"
         const val STATE_NUMBERS = "state_numbers"
+        private val logger = KotlinLogging.logger {}
+
+        /** The levels this JVM's sources read that this version does not know, each warned of once. */
+        internal val unknownLevels: MutableSet<String> = ConcurrentHashMap.newKeySet()
+
+        /**
+         * The level [path] is marked at, by its wire name. One this version does not know is read as
+         * [SensitivityLevel.CONFIDENTIAL], the strongest it enforces, masked and never compared: a level added within
+         * 10.x protects no more ([SensitivityLevel]). Warned of once per value.
+         */
+        fun levelOf(path: String, level: String): SensitivityLevel =
+            WireNames.entryOf<SensitivityLevel>(level) ?: SensitivityLevel.CONFIDENTIAL.also {
+                if (unknownLevels.add(level)) {
+                    logger.warn {
+                        "The sensitivity level $level of $path is not one this version of Wow knows: read as " +
+                            "confidential, the strongest it enforces, masked and never compared."
+                    }
+                }
+            }
     }
 }

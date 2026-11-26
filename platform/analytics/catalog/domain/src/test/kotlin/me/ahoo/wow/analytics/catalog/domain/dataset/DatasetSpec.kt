@@ -492,7 +492,7 @@ class DatasetSpec {
         drafted()
         givenCommands(PublishDataset)
         // The members' service now says their access policy decides their rows: the catalog cannot read them.
-        catalog[MEMBERS_ID] = DatasetFixtures.members(access = "POLICY")
+        catalog[MEMBERS_ID] = DatasetFixtures.members(access = "policy")
         whenCommand(RecompileDataset) {
             expectEventTypes(DatasetNeedsRevision::class)
             expectState {

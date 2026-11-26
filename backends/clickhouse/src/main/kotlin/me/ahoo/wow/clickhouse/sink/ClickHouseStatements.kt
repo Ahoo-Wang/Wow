@@ -66,6 +66,10 @@ internal class ClientStatements(private val client: Client) : ClickHouseStatemen
             .setDeduplicationToken(token)
             .serverSetting(DEDUPLICATE_VIEWS, "1")
             .serverSetting(MAX_PARTITIONS, "0")
+            // A field the table has no column for, or no element of its named tuple, refuses the insert rather than
+            // being dropped without a word, under every ddl mode; a column the row leaves out takes its default.
+            .serverSetting(SKIP_UNKNOWN_FIELDS, "0")
+            .serverSetting(IGNORE_UNKNOWN_TUPLE_KEYS, "0")
         Dispatchers.IO.clickhouse {
             val rows = ByteArrayInputStream(body)
             client.insert(table, rows, ClickHouseFormat.JSONEachRow, settings).awaitResponse().close()
@@ -100,6 +104,8 @@ internal class ClientStatements(private val client: Client) : ClickHouseStatemen
     companion object {
         const val DEDUPLICATE_VIEWS: String = "deduplicate_blocks_in_dependent_materialized_views"
         const val MAX_PARTITIONS: String = "max_partitions_per_insert_block"
+        const val SKIP_UNKNOWN_FIELDS: String = "input_format_skip_unknown_fields"
+        const val IGNORE_UNKNOWN_TUPLE_KEYS: String = "input_format_json_ignore_unknown_keys_in_named_tuple"
         private const val MATERIALIZED = "MATERIALIZED"
     }
 }

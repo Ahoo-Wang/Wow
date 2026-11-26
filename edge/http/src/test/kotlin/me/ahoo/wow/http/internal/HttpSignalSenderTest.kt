@@ -39,6 +39,7 @@ import java.math.BigDecimal
 import java.math.BigInteger
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.system.measureTimeMillis
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -181,29 +182,43 @@ class HttpSignalSenderTest {
     }
 
     @Test
-    fun `an origin that refuses a batch is sent one signal a request`(): Unit = runBlocking {
-        val release = CompletableDeferred<Unit>()
-        val singles = CopyOnWriteArrayList<WaitSignal>()
-        InternalServer(
-            coRouter {
-                POST(InternalHttp.SIGNALS_PATH) { request ->
-                    release.await()
-                    // A node of an earlier version: a single signal only.
-                    val signal = runCatching { ClusterCodec.decodeSignal(request.awaitBody<ByteArray>()) }.getOrNull()
-                        ?: return@POST ServerResponse.badRequest().buildAndAwait()
-                    singles += signal
-                    ServerResponse.noContent().buildAndAwait()
-                }
-            },
-        ).use { old ->
-            val sender = sender(concurrency = 1)
-            (1..6).forEach { sender.send(origin(old.address), signal(it), deadline()) }
-            release.complete(Unit)
-            eventually { singles.size == 6 }
-            singles.map { it.waitId }.assert().containsExactlyInAnyOrder("w-1", "w-2", "w-3", "w-4", "w-5", "w-6")
-            sender.dropped.assert().isEqualTo(0)
+    fun `a batch refused as malformed should cost only the signal the origin cannot read, and batches go on`(): Unit =
+        runBlocking {
+            // Each burst is held at the origin until it is all queued, so that it goes in batches.
+            val gate = AtomicReference(CompletableDeferred<Unit>())
+            val received = CopyOnWriteArrayList<WaitSignal>()
+            val batches = AtomicInteger()
+            InternalServer(
+                coRouter {
+                    POST(InternalHttp.SIGNALS_PATH) { request ->
+                        gate.get().await()
+                        val signals = ClusterCodec.decodeSignals(request.awaitBody<ByteArray>())
+                        // One signal the origin cannot read fails the whole request it is in.
+                        if (signals.any { it.waitId == "w-3" }) {
+                            return@POST ServerResponse.badRequest().buildAndAwait()
+                        }
+                        if (signals.size > 1) {
+                            batches.incrementAndGet()
+                        }
+                        received += signals
+                        ServerResponse.noContent().buildAndAwait()
+                    }
+                },
+            ).use { origin ->
+                val sender = sender(concurrency = 1)
+                (1..6).forEach { sender.send(origin(origin.address), signal(it), deadline()) }
+                gate.get().complete(Unit)
+                eventually { received.size == 5 && sender.dropped == 1L }
+                received.map { it.waitId }.assert().containsExactlyInAnyOrder("w-1", "w-2", "w-4", "w-5", "w-6")
+                // The origin is not marked: the next burst goes in batches again.
+                val before = batches.get()
+                gate.set(CompletableDeferred())
+                (7..12).forEach { sender.send(origin(origin.address), signal(it), deadline()) }
+                gate.get().complete(Unit)
+                eventually { received.size == 11 }
+                batches.get().assert().isGreaterThan(before)
+            }
         }
-    }
 
     @Test
     fun `every dropped signal is observed by its reason`(): Unit = runBlocking {
