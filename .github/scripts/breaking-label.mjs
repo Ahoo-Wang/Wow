@@ -10,8 +10,8 @@ import { isBreaking } from './release-admission.mjs';
 // Labels a pull request `breaking-change` when its title is a breaking
 // Conventional Commit (`type(scope)!: …`), or its description says it breaks
 // something: a `BREAKING CHANGE:` footer line, the template's breaking box
-// ticked, or a `## Breaking` / `## Breaking changes` section that says more
-// than "None." (.github/PULL_REQUEST_TEMPLATE). A "Behaviour changes" section
+// ticked, or a `## Breaking` / `## Breaking changes` section that does not
+// open by saying there is none (.github/PULL_REQUEST_TEMPLATE). A "Behaviour changes" section
 // does not label: in the release notes it holds the user-visible changes that
 // are not breaking (typescript/RELEASING.md「发布说明」). The squash commit
 // takes the title, so the title rule is the one release admission applies to
@@ -54,17 +54,21 @@ export function isBreakingTitle(title) {
 const BREAKING_HEADING =
   /^#{2,3}[ \t]+Breaking(?:[ \t]+changes?)?(?:[ \t]*\([^)\n]*\))?[ \t]*:?[ \t]*#*[ \t]*$/i;
 const HEADING = /^(#{1,6})[ \t]/;
-// A section body that says there is nothing: "None.", "No", "N/A", "_None_",
-// "No breaking changes."
+// A section body that opens by saying there is nothing, as a sentence of its
+// own: "None.", "None:", "None," or a bare "None" ending the line or the
+// section, and "No", "N/A", "_None_", "No breaking changes." the same way.
+// What follows does not count: "None. A value that was refused is now read"
+// is not breaking. "None of the old tokens are accepted" and "None in the
+// API reports, but X is removed" do not open with the sentence, so they are.
 const NOTHING =
-  /^[*_]*(?:none|no|n\/?a)(?:[ \t]+breaking[ \t]+changes?)?[*_]*\.?[*_]*$/i;
+  /^[*_]*(?:none|no|n\/?a)(?:[ \t]+breaking[ \t]+changes?)?[*_]*(?:[.:,]|[ \t]*(?:\n|$))/i;
 
 /**
  * Whether a pull request description declares a breaking change: a
  * `BREAKING CHANGE:` line, the template's breaking box ticked, or a
  * `## Breaking` / `## Breaking changes` section (level 2 or 3) whose body is
- * not empty and not None/No/N/A. Text inside code fences and HTML comments
- * does not count.
+ * not empty and does not open with None/No/N/A as a sentence of its own
+ * (`NOTHING`). Text inside code fences and HTML comments does not count.
  */
 export function isBreakingBody(body) {
   const prose = (body ?? '')
@@ -86,9 +90,10 @@ export function isBreakingBody(body) {
       const heading = next.trim().match(HEADING);
       return at > index && heading !== null && heading[1].length <= level;
     });
+    // Joined with its line breaks: a bare "None" ends a line.
     const section = lines
       .slice(index + 1, end < 0 ? undefined : end)
-      .join(' ')
+      .join('\n')
       .trim();
     return section !== '' && !NOTHING.test(section);
   });
