@@ -297,7 +297,12 @@ internal object WowSchemas {
         mapOf(
             "type" to schemaRef(AGGREGATE_TYPE),
             "tenantId" to STRING,
-            "id" to STRING,
+            "id" to type(
+                "string",
+                nullable = true,
+                description = "The aggregate's id; null in the result of a creation refused before admission " +
+                    "chose its id.",
+            ),
         ),
         listOf("type", "tenantId", "id"),
     )

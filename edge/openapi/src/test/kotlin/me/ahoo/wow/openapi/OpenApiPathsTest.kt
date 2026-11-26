@@ -121,9 +121,18 @@ class OpenApiPathsTest {
         content(ok)["text/event-stream"].assert().isEqualTo(
             mapOf(
                 "schema" to mapOf("type" to "string", "description" to "Server-sent events."),
+                // The stages, each a result, then `end`, which every stream ends with (#7051), a list's end's shape.
                 "x-wow-events" to mapOf(
-                    "event" to listOf("accepted", "committed", "handled"),
+                    "event" to listOf("accepted", "committed", "handled", "end"),
                     "data" to ref("schemas", WowSchemas.COMMAND_RESULT),
+                    "end" to mapOf(
+                        "type" to "object",
+                        "required" to listOf("reason", "resumable"),
+                        "properties" to mapOf(
+                            "reason" to mapOf("type" to "string", "enum" to WowHttpContract.END_REASONS),
+                            "resumable" to mapOf("type" to "boolean"),
+                        ),
+                    ),
                 ),
             ),
         )

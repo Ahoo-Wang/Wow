@@ -369,7 +369,8 @@ internal class OpenApiPaths(
                 "wow.command.200",
                 obj(
                     "description" to COMMAND_STREAM,
-                    "content" to json(result) + events(Http.STAGES, result),
+                    "content" to json(result) +
+                        events(Http.STAGES + Http.END_EVENT, result, obj("end" to streamEnd())),
                 ),
             ),
             "202" to errors.register(
@@ -585,7 +586,7 @@ internal class OpenApiPaths(
         ),
     )
 
-    /** The data of a resumable stream's `end` event. */
+    /** The data of a stream's `end` event: a streamed list's, and a command's (`complete`, never resumable). */
     private fun streamEnd(): Map<String, Any?> = obj(
         "type" to "object",
         "required" to listOf("reason", "resumable"),
@@ -614,7 +615,8 @@ internal class OpenApiPaths(
             "hop's stage, its `id` the result's index and its data the result, until the last, which ends the " +
             "stream (the plan's last hop, a rejection at its hop, or a FAILED result: `wow.wait.timeout` at the " +
             "last hop reached, `wow.storage.unavailable` or `wow.command.unknown` when the execution failed). After " +
-            "it, one more event, `end` with `{\"reason\":\"complete\"}` and no result, says the stream is whole: a " +
+            "it, one more event, `end` with `{\"reason\":\"complete\",\"resumable\":false}` and no result, says " +
+            "the stream is whole: a " +
             "stream that ends without it, however cleanly, leaves the command's outcome unknown (retry with the same " +
             "request id). A comment, `: keep-alive`, is sent at once and every 15 seconds while the stream runs: it " +
             "is no event."
