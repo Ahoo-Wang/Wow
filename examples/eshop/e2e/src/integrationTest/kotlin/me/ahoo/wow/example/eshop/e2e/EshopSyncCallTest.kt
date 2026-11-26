@@ -11,11 +11,14 @@
  * limitations under the License.
  */
 
+@file:OptIn(WowSpi::class)
+
 package me.ahoo.wow.example.eshop.e2e
 
 import com.sun.net.httpserver.HttpServer
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation

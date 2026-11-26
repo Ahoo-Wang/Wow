@@ -11,10 +11,13 @@
  * limitations under the License.
  */
 
+@file:OptIn(WowSpi::class)
+
 package me.ahoo.wow.ops.testing
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.result.ErrorInfo

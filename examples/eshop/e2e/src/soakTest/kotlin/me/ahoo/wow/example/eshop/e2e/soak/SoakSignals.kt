@@ -11,8 +11,11 @@
  * limitations under the License.
  */
 
+@file:OptIn(WowSpi::class)
+
 package me.ahoo.wow.example.eshop.e2e.soak
 
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import org.slf4j.LoggerFactory

@@ -133,6 +133,8 @@ dependencies {
 | Bean Validation 实现（`spring-boot-starter-validation`） | 在准入时检查每个命令体的 Jakarta 约束，回答 `wow.command.invalid`（400）（[编写聚合](./aggregates#check-its-shape)） |
 | `Observer` | 观察节点的工作：各个阶段，以及它注意到的事，比如一次拒绝 |
 
+宿主取用的扩展点中有六个属于 Wow 的 SPI（`@WowSpi`）：上表的 `GlobalIdGenerator`、`AggregateIdGenerator`、`FailureClassifier` 与 `Observer`，以及 `CommandCaller` 与 `QueryObserver`。10.x 的次版本可能改动它们，比如给观察器加一个阶段（[API 级别](../reference/api-levels)），所以实现它们的类在写它的地方选择使用 `@OptIn(WowSpi::class)`，否则编译器会告警；升级时，查看发布说明里关于所实现扩展点的部分。其余 Bean 是公开 API。
+
 这些钩子大多是列表：宿主取该类型的每个 Bean，按 Bean 的顺序（`@Order`、`Ordered` 或 `@Priority`，这是唯一的排序方式）。授权器、变换器、校验器、观察者、失败分类器，以及读取授权器、查询过滤器和查询观察者，都是这样的列表：
 
 - **授权器全部询问。** 只有每个 `CommandAuthorizer` 都允许，命令才被允许；按顺序第一个拒绝的就是答案，其余的不再询问。允许的意思是没有异议，而不是推翻其他授权器，也没有弃权：只管一类事的授权器（比如服务身份可以调用哪些命令，`caller.service`）对它管辖之外的命令一律允许。开启 `wow.cosec.authorizer.enabled` 后，CoSec 的授权器也是其中之一。一个授权器都没有时，命令被允许，但 Wow 的运维命令除外：定时任务的命令、快照重建以及运维人员对停放条目的操作，公开端口和运维路由都拒绝，除非有授权器决定它们（`CommandAuthorizer.operational { … }` 或 CoSec 的）；只管别的事的授权器不算（[授权命令](../operate/security#authorize-commands)）。

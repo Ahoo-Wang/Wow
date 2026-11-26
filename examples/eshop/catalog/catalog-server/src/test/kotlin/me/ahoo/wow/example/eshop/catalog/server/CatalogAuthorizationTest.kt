@@ -17,7 +17,6 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
-import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.RetryParked
@@ -59,15 +58,11 @@ class CatalogAuthorizationTest {
         "delete" to CommandType.of(Lifecycle.DELETE_AGGREGATE, DeleteAggregate::class.java),
         "set-schedule" to CommandType.of(Schedules.SET_SCHEDULE, SetSchedule::class.java),
         "enable-job" to CommandType.of(ScheduleJobs.ENABLE_JOB, EnableJob::class.java),
-        "rebuild" to rebuild(),
+        "rebuild" to CommandType.of(SnapshotRebuilds.REBUILD_SNAPSHOT, RebuildSnapshot::class.java),
         "ledger-retry" to CommandType.of(Ledger.RETRY_PARKED, RetryParked::class.java),
         "ledger-skip" to CommandType.of(Ledger.SKIP_PARKED, SkipParked::class.java),
         "ledger-read" to CommandType.of(Ledger.READ, Any::class.java),
     )
-
-    /** The snapshot rebuild's type: its class is Wow's own, which no application names but a test of its authorizer. */
-    @OptIn(InternalWowApi::class)
-    private fun rebuild() = CommandType.of(SnapshotRebuilds.REBUILD_SNAPSHOT, RebuildSnapshot::class.java)
 
     /** Who is allowed each command: every caller acting in its own scope, on an aggregate of its tenant. */
     private fun allowed(): Map<String, Set<String>> = commands.mapValues { (_, command) ->

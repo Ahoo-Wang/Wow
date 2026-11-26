@@ -78,7 +78,11 @@ export function markedDeclarations(source, marker) {
   let marked = false;
   for (const line of lines) {
     const declaration = DECLARATION.exec(line);
-    if (new RegExp(`^\\s*@${marker}\\b`).test(line) && !/@OptIn/.test(line)) {
+    // A property marks itself through a use-site target too (`@property:WowSpi` on a constructor's `val`).
+    if (
+      new RegExp(`^\\s*@(?:(?:property|get|field):)?${marker}\\b`).test(line) &&
+      !/@OptIn/.test(line)
+    ) {
       marked = true;
       continue;
     }

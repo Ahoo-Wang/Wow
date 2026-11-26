@@ -1311,6 +1311,19 @@ public abstract interface class me/ahoo/wow/spi/sink/StreamSinks : java/lang/Aut
 	public abstract fun sinkOf (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/sink/Sink;
 }
 
+public final class me/ahoo/wow/spi/snapshot/RebuildSnapshot {
+	public static final field Companion Lme/ahoo/wow/spi/snapshot/RebuildSnapshot$Companion;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getIds ()Ljava/util/List;
+	public fun hashCode ()I
+	public static final fun of (Ljava/util/List;)Lme/ahoo/wow/spi/snapshot/RebuildSnapshot;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/snapshot/RebuildSnapshot$Companion {
+	public final fun of (Ljava/util/List;)Lme/ahoo/wow/spi/snapshot/RebuildSnapshot;
+}
+
 public final class me/ahoo/wow/spi/snapshot/SnapshotFill : java/lang/Enum {
 	public static final field BACKFILL Lme/ahoo/wow/spi/snapshot/SnapshotFill;
 	public static final field SUBSCRIPTION Lme/ahoo/wow/spi/snapshot/SnapshotFill;
@@ -1329,6 +1342,11 @@ public abstract interface class me/ahoo/wow/spi/snapshot/SnapshotRebuildStore {
 	public static synthetic fun pending$default (Lme/ahoo/wow/spi/snapshot/SnapshotRebuildStore;Lme/ahoo/wow/api/aggregate/AggregateType;ILme/ahoo/wow/api/aggregate/AggregateRef;ILkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public abstract fun rewrite (Lme/ahoo/wow/spi/snapshot/SnapshotRecord;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun table (Lme/ahoo/wow/api/aggregate/AggregateType;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/spi/snapshot/SnapshotRebuilds {
+	public static final field INSTANCE Lme/ahoo/wow/spi/snapshot/SnapshotRebuilds;
+	public static final field REBUILD_SNAPSHOT Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/spi/snapshot/SnapshotRecord {

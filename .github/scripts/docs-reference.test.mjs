@@ -364,6 +364,15 @@ class Plain {
     val size: Int = 0
 }
 
+class Notice @InternalWowApi constructor(
+    /** A record of a port's, at the SPI's level. */
+    @property:WowSpi
+    val entry: Entry,
+    @get:WowSpi
+    val spec: Spec,
+    val at: Long,
+)
+
 enum class Operator {
     EQ,
 
@@ -384,6 +393,8 @@ internal enum class Hidden {
     { name: 'me.ahoo.wow.q.Listener', kind: 'interface' },
     { name: 'me.ahoo.wow.q.rows', kind: 'fun' },
     { name: 'me.ahoo.wow.q.Plain.size', kind: 'val' },
+    { name: 'me.ahoo.wow.q.Notice.entry', kind: 'val' },
+    { name: 'me.ahoo.wow.q.Notice.spec', kind: 'val' },
     { name: 'me.ahoo.wow.q.Operator.EXPRESSION', kind: 'enum entry' },
   ]);
 });

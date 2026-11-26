@@ -11,12 +11,15 @@
  * limitations under the License.
  */
 
+@file:OptIn(WowSpi::class)
+
 package me.ahoo.wow.viewstore.domain.view
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.ModelProvider
