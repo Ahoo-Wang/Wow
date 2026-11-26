@@ -32,6 +32,7 @@ import me.ahoo.wow.http.caller.Authenticator
 import me.ahoo.wow.http.command.Negotiation
 import me.ahoo.wow.http.command.RequestHeaders
 import me.ahoo.wow.http.problem.ErrorStatuses
+import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.http.problem.ProblemException
 import me.ahoo.wow.kernel.route.MalformedRouteRequestException
 import me.ahoo.wow.kernel.route.RouteRequest
@@ -205,7 +206,7 @@ internal class ServiceRouteHandling(
                     refusal.code,
                     refusal.message,
                     context.name
-                ).copyWith(extensions = refusal.extensions),
+                ).copyWith(extensions = Problem.domainExtensions(refusal.extensions)),
             )
         }
 

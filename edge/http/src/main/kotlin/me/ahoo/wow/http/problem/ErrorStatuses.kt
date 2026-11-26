@@ -81,7 +81,7 @@ class ErrorStatuses(manifest: Manifest, private val overrides: Map<String, Int> 
             code = error.code,
             violations = error.violations,
             result = result,
-            extensions = error.extensions,
+            extensions = Problem.domainExtensions(error.extensions),
             // The version a rejection answered: its events', else the one the decision saw, the next If-Match.
             version = result.version.takeIf { result.status == CommandResult.Status.REJECTED },
         )

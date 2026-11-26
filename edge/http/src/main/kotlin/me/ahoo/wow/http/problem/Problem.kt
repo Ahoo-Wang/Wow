@@ -37,7 +37,9 @@ import kotlin.time.Duration.Companion.seconds
  * extension members are [code], what a retry may do ([retry], with `Retry-After` when a retry may get past it), [violations],
  * the whole [result] of a command that has a ref, the aggregate's [version] the problem answered, and the [extensions]
  * of its rejection, each a member of its own name; one without a value, or with the name of a member above (`retry`
- * and `version` among them, even on a problem without one) or of RFC 9457's `instance`, is left out.
+ * and `version` among them, even on a problem without one) or of RFC 9457's `instance`, is left out. A domain's
+ * extensions, a rejection's or a service route refusal's, also leave out the names Wow keeps for members of its own
+ * (`requestId`, `traceId`, `errors`; [domainExtensions]).
  *
  * An error answered before a command has a ref (401, a malformed header, a missing route, 406, 415) carries no
  * [result]. One that is only HTTP's (a missing route, 406, 415) has no Wow code: its type is `about:blank`, as RFC 9457
@@ -180,8 +182,32 @@ class Problem @InternalWowApi constructor(
         /** The member of what a retry may do ([retry]). */
         const val RETRY: String = "retry"
 
-        /** The names no extension takes, even on a problem without their member. */
-        private val RESERVED: Set<String> = setOf(INSTANCE, VERSION, RETRY)
+        /** The names no extension takes, even on a problem without their member: every member a problem writes. */
+        private val RESERVED: Set<String> = setOf(
+            "type",
+            "title",
+            "status",
+            "detail",
+            "code",
+            RETRY,
+            "violations",
+            "result",
+            VERSION,
+            INSTANCE,
+        )
+
+        /**
+         * The names Wow keeps for members of its own besides [RESERVED]: CoSec's refusals, as Wow writes them, carry
+         * `requestId` and `traceId` among their extensions, and `errors` is kept for Wow.
+         */
+        private val KEPT: Set<String> = setOf("requestId", "traceId", "errors")
+
+        /**
+         * A domain's [extensions], a rejection's or a service route refusal's, without the names a problem writes or
+         * Wow keeps ([RESERVED], [KEPT]): a domain's value is never read as a member of Wow's.
+         */
+        internal fun domainExtensions(extensions: Map<String, Any?>): Map<String, Any?> =
+            extensions.filterKeys { it !in RESERVED && it !in KEPT }
 
         /** RFC 9457's member that names the occurrence, which no extension takes. */
         private const val INSTANCE: String = "instance"

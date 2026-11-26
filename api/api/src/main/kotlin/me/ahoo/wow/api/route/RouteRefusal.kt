@@ -15,7 +15,8 @@ package me.ahoo.wow.api.route
 
 /**
  * A service route's refusal of a call: its [code], one of the route's declared errors, a [message] shown to the
- * caller, and structured [extensions], which the problem writes as its members. Its status is the
+ * caller, and structured [extensions], which the problem writes as its members, except one named like a problem's
+ * member or as Wow keeps (`instance`, `requestId`, `traceId`, `errors`). Its status is the
  * code's in the context's error table, `422` when the table has none.
  */
 class RouteRefusal @JvmOverloads constructor(
