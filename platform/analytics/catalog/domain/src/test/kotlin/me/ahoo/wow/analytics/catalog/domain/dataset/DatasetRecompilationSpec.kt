@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+@file:OptIn(WowSpi::class)
+
 package me.ahoo.wow.analytics.catalog.domain.dataset
 
 import me.ahoo.test.asserts.assert
@@ -27,6 +29,7 @@ import me.ahoo.wow.analytics.catalog.domain.DatasetFixtures
 import me.ahoo.wow.analytics.catalog.domain.DatasetFixtures.DEFINITION
 import me.ahoo.wow.analytics.catalog.domain.DatasetFixtures.REGIONS_ID
 import me.ahoo.wow.analytics.catalog.domain.DatasetFixtures.SOURCES
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.test.query.memoryQueries
 import me.ahoo.wow.test.sagaSpec
 import me.ahoo.wow.test.stateEvent

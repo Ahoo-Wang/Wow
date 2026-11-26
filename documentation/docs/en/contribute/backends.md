@@ -131,9 +131,23 @@ A backend's correctness is the contract, not its own tests. The TCK holds one ab
        override val facets: List<Class<*>> = listOf(StoreQueries::class.java, StorePool::class.java)
 
        /** PostgreSQL's jsonb refuses a NUL character. */
-       override fun refused(stream: EventStreamRecord): EventStreamRecord = stream.copyWith(
-           events = listOf(EventRecord("x.aggregate.Named", 1, """{"name":"a\u0000b"}""")),
-       )
+       override fun refused(stream: EventStreamRecord): EventStreamRecord = with(stream) {
+           EventStreamRecord.of(
+               ref,
+               version,
+               commandId,
+               requestId,
+               commandType,
+               commitTime,
+               listOf(EventRecord.of("x.aggregate.Named", 1, """{"name":"a\u0000b"}""")),
+               scope,
+               causation,
+               headers,
+               operator,
+               access,
+               accessVersion,
+           )
+       }
    }
    ```
 
@@ -168,9 +182,23 @@ A backend's correctness is the contract, not its own tests. The TCK holds one ab
            (log as PostgresEventLog).snapshotTailsWith(snapshots as PostgresSnapshotStore)
 
        /** A `\u0000` in a payload string: PostgreSQL's `jsonb` does not take it. */
-       override fun refused(stream: EventStreamRecord): EventStreamRecord = stream.copyWith(
-           events = listOf(EventRecord("x.aggregate.Named", 1, """{"name":"a\u0000b"}""")),
-       )
+       override fun refused(stream: EventStreamRecord): EventStreamRecord = with(stream) {
+           EventStreamRecord.of(
+               ref,
+               version,
+               commandId,
+               requestId,
+               commandType,
+               commitTime,
+               listOf(EventRecord.of("x.aggregate.Named", 1, """{"name":"a\u0000b"}""")),
+               scope,
+               causation,
+               headers,
+               operator,
+               access,
+               accessVersion,
+           )
+       }
    }
    ```
 
@@ -204,7 +232,7 @@ Run `StoreTck` for every store type the backend provides, and the per-port specs
 A backend declares what it can do on the ports themselves, and the spec skips, through a JUnit assumption that names the reason, the tests of what it does not:
 
 - **What a store holds.** `Store.holdsLogs` and `Store.holdsSnapshots`, both `true` by default, say which ports it opens. `StoreTck` skips the log's specs and the control plane of a store without logs (`Skipped: the <type> store holds no log, so no control plane either.`) and the snapshot spec of one without snapshots, and checks instead that such a store refuses what it does not hold. The `facets` the test lists are asserted, never skipped.
-- **A store's optional capabilities.** The snapshot-tail tests read the snapshots `createSnapshots` returns with the log's tails: through `snapshotTailsOf` in `EventLogSpec`, or the store's `openSnapshotTails` under `StoreTck`, the one-round-trip read the node uses; without one, the spec reads the snapshot and the tail apart, as the node then does, and without `createSnapshots` it skips them. `EventLog.appendsAcrossPartitions` runs the test of one `appendAll` across partitions. A log that is an `AccessStamps` runs the stamp test, and one that is an `AccessWalks` the tests of the paged aggregates and the walk claims. `SnapshotStore.rebuilds` (a `SnapshotRebuildStore`) runs the rebuild tests.
+- **A store's optional capabilities.** The snapshot-tail tests read the snapshots `createSnapshots` returns with the log's tails: through `snapshotTailsOf` in `EventLogSpec`, or the store's `openSnapshotTails` under `StoreTck`, the one-round-trip read the node uses; without one, the spec reads the snapshot and the tail apart, as the node then does, and without `createSnapshots` it skips them. `EventLog.appendsAcrossPartitions` runs the test of one `appendAll` across partitions. A log that is an `AccessStamps` runs the stamp test, and one that is an `AccessWalks` the tests of the paged aggregates and the walk claims. In 10.0 both are `@InternalWowApi`, capabilities of Wow's own logs (the in-memory log, MongoDB's and PostgreSQL's; Elasticsearch's events sink stamps too), and these cases run for Wow's backends: a log written outside Wow has neither. On such a log a service's access attributes are not kept current: an aggregate's earlier streams keep the attributes they were appended with, which an events query decides by, and a stream appended without attributes (an import) never shows under an access policy. `SnapshotStore.rebuilds` (a `SnapshotRebuildStore`) runs the rebuild tests.
 - **A provider.** `provided()` in `SinkSpec` and `TopicTransportSpec` opens the Sink or the transport through its provider, from the options it declares, and runs the test that the provider reads only those; without it that test is skipped (`No provider opens this sink.`).
 - **What a store refuses.** `refused` returns a stream the backend's storage cannot hold, such as a NUL in a PostgreSQL `jsonb` string, and the spec expects its append to be rejected (`AppendOutcome.Rejected`) and, in an `appendAll`, to fail alone; without it the spec skips that test.
 - **A query backend's storage.** The binding's storage facts (`StorageSupport`) say which features the storage serves natively, partly or not at all, and the spec skips the tests of a feature it declares `NONE`, naming the fact and its value: `Skipped: the storage declares storage.paging.keyset = NONE (keyset pages).` The facts the specs read are keyset pages, unbounded streams, `having`, groups at the record's root over expanded elements, and distinct counts.

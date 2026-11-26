@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+@file:OptIn(WowSpi::class)
+
 package me.ahoo.wow.analytics.catalog.server
 
 import io.mockk.every
@@ -35,6 +37,7 @@ import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetState
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.FilterOperator
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.QueryField

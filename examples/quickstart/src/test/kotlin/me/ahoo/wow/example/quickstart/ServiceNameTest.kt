@@ -11,9 +11,12 @@
  * limitations under the License.
  */
 
+@file:OptIn(WowSpi::class)
+
 package me.ahoo.wow.example.quickstart
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.test.server.wowServer
 import org.junit.jupiter.api.Test

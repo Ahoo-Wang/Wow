@@ -11,8 +11,11 @@
  * limitations under the License.
  */
 
+@file:OptIn(WowSpi::class)
+
 package me.ahoo.wow.ops.testing
 
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.node.SourceTopics
 import org.springframework.beans.factory.annotation.Value

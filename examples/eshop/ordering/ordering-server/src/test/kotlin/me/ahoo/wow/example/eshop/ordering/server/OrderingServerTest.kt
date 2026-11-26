@@ -193,8 +193,8 @@ class OrderingServerTest {
     }
 
     /**
-     * Over HTTP: the snapshot rebuild's command class (`RebuildSnapshot`, of `:spi`) is internal to Wow, which an
-     * application does not opt in to, so the test sends it to its route.
+     * Over HTTP, through the rebuild's route, as an operator's tool sends it: the route's own authorization is what
+     * the test holds.
      */
     @Test
     fun `the snapshot rebuild should be an employee's alone (UI-50)`() {

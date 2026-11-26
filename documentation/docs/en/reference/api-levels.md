@@ -243,6 +243,8 @@ The two lists below are generated from the sources of the published modules: the
 | `me.ahoo.wow.runtime.node.LogGroupBackends` | class | `wow-runtime` |
 | `me.ahoo.wow.runtime.node.BackendFactory` | interface | `wow-runtime` |
 | `me.ahoo.wow.runtime.node.SourceTopics` | class | `wow-runtime` |
+| `me.ahoo.wow.runtime.subscription.ParkedNotice.entry` | val | `wow-runtime` |
+| `me.ahoo.wow.runtime.subscription.ParkedNotice.spec` | val | `wow-runtime` |
 | `me.ahoo.wow.runtime.subscription.ParkedNotice.of` | fun | `wow-runtime` |
 | `me.ahoo.wow.runtime.wait.SubscriptionDirectory` | interface | `wow-runtime` |
 | `me.ahoo.wow.query.QueryScope` | class | `wow-query` |

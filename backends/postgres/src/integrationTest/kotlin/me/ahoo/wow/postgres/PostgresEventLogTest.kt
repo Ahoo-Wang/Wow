@@ -94,9 +94,23 @@ class PostgresEventLogTest : EventLogSpec() {
     )
 
     /** A `\u0000` in a payload string: PostgreSQL's `jsonb` does not take it (finding A2-7). */
-    override fun refused(stream: EventStreamRecord): EventStreamRecord = stream.copyWith(
-        events = listOf(EventRecord("x.aggregate.Named", 1, """{"name":"a\u0000b"}""")),
-    )
+    override fun refused(stream: EventStreamRecord): EventStreamRecord = with(stream) {
+        EventStreamRecord.of(
+            ref,
+            version,
+            commandId,
+            requestId,
+            commandType,
+            commitTime,
+            listOf(EventRecord.of("x.aggregate.Named", 1, """{"name":"a\u0000b"}""")),
+            scope,
+            causation,
+            headers,
+            operator,
+            access,
+            accessVersion,
+        )
+    }
 
     @Test
     fun `a commit of this log costs its idle tail one read`(): Unit = runBlocking {

@@ -272,6 +272,10 @@ object SurfaceRules {
         "me.ahoo.wow.query.cache.QueryCountCacheOptions" to "the bounds a QueryCountCache is built with",
         "me.ahoo.wow.query.cache.SnapshotWriteCheckpoint" to "the checkpoint a QueryCountCache is built with",
         "me.ahoo.wow.query.read.QueryNotServedException" to "what an in-process read of a model not served throws",
+        "me.ahoo.wow.spi.snapshot.RebuildSnapshot" to
+            "the one system command an application could not name: the testing guide sends it, an authorizer names it",
+        "me.ahoo.wow.spi.snapshot.SnapshotRebuilds" to
+            "REBUILD_SNAPSHOT, the type an authorizer names; the rest is internal",
     )
 
     private val LEVELED = listOf(SPI, ArchitectureRules.QUERY)
