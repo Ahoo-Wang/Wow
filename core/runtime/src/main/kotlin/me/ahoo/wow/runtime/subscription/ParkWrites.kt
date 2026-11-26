@@ -103,14 +103,16 @@ internal class ParkWrites(
     }
 
     /**
-     * Records in the ledger that a retry failed again at [sourced], from where the aggregate is now parked, while it
-     * is parked in partition [from], the one the retry read it in; returns the entry.
+     * Records in the ledger that a retry failed again at [sourced], from where the aggregate is now parked, at
+     * [fromVersion] and, in a topic, [fromPosition], while it is parked in partition [from], the one the retry read
+     * it in; returns the entry.
      */
     suspend fun repark(
         sourced: SourcedEntry,
         failure: Throwable,
         from: Int,
         fromVersion: Int,
+        fromPosition: Long?,
     ): ParkedAggregate {
         val stream = sourced.stream
         logger.warn(failure) {
@@ -123,7 +125,7 @@ internal class ParkWrites(
             fromVersion,
             classification.reasonOf(failure),
             clock.millis(),
-            source.sourcePosition(sourced),
+            fromPosition,
         ).also { repark(it, from) }
     }
 

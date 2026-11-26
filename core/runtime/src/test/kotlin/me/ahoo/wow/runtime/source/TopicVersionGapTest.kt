@@ -44,6 +44,7 @@ import me.ahoo.wow.spi.transport.SourceMessage
 import org.junit.jupiter.api.Test
 import org.slf4j.LoggerFactory
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -54,7 +55,11 @@ import kotlin.time.Duration.Companion.milliseconds
  */
 class TopicVersionGapTest : TopicSubscriptionsFixtures() {
     /** A node of [board] whose parked entries are retried automatically every 10 ms, at most [retries] times. */
-    private suspend fun startRetrying(retries: Int = 50, source: PartitionedSource = topics) = TopicSubscriptions(
+    private suspend fun startRetrying(
+        retries: Int = 50,
+        source: PartitionedSource = topics,
+        subscription: Subscription = board,
+    ) = TopicSubscriptions(
         service = SERVICE,
         topic = ORDER_TOPIC,
         node = "node-1",
@@ -63,10 +68,14 @@ class TopicVersionGapTest : TopicSubscriptionsFixtures() {
         checkpoints = checkpoints,
         leases = leases,
         ledger = ledger,
-        subscriptions = listOf(board),
+        subscriptions = listOf(subscription),
         options = testOptions().copyWith(
             parked = ParkedRetryOptions(
-                spec = ParkedRetrySpec(maxRetries = retries, initialBackoff = 10.milliseconds),
+                spec = ParkedRetrySpec(
+                    maxRetries = retries,
+                    initialBackoff = 10.milliseconds,
+                    claimTtl = 10.milliseconds,
+                ),
                 scanInterval = 10.milliseconds,
             ),
         ),
@@ -288,6 +297,29 @@ class TopicVersionGapTest : TopicSubscriptionsFixtures() {
                 message
             }
     }
+
+    @Test
+    fun `a retry that fails at a late record should park again from the lowest offset it did not handle`(): Unit =
+        runBlocking {
+            // Offsets: version 6, then 5 (late), then 7. The gap park at 5 records the offset of 6; its retry walks 5, 6,
+            // 7 and fails at 5, so the park again records the offset of 6, the lowest it did not handle, not that of 5,
+            // past which 6 would never be read again; the next retry walks them in version order again.
+            val failing = AtomicBoolean(false)
+            val versions = Subscription(BOARD, SubscriptionFilter(ORDER.context, setOf(ORDER.name))) { entry ->
+                check(!(failing.get() && entry.version == 5)) { "o-1@5 fails" }
+                handled.record(entry)
+            }
+            startRetrying(subscription = versions)
+            topics.publish(*(1..4).map { orderRecord("o-1", it) }.toTypedArray(), orderRecord("o-1", 6))
+            eventually { ledger.parked(BOARD_ID, order("o-1")) != null }
+            failing.set(true)
+            topics.publish(orderRecord("o-1", 5), orderRecord("o-1", 7))
+            eventually { ledger.parked(BOARD_ID, order("o-1"))?.reason?.contains("IllegalStateException") == true }
+            ledger.parked(BOARD_ID, order("o-1"))!!.fromPosition.assert().isEqualTo(offsetOf("o-1", 6))
+            failing.set(false)
+            eventually { ledger.parked(BOARD_ID, order("o-1")) == null }
+            handled.versionsOf("o-1").assert().containsExactly(1, 2, 3, 4, 5, 6, 7)
+        }
 
     @Test
     fun `an aggregate first seen above its first version should not park`(): Unit = runBlocking {

@@ -66,21 +66,23 @@ internal class VersionGaps {
         private val GAP_REASON: String = VersionGapException::class.java.name
 
         /**
-         * [scanned] in version order, as a retry handles them: a late record, delivered after the one that showed its
-         * gap, comes before it; an undecodable entry, of no version, comes last. So an operator's retry that accepts
-         * a gap handles the versions after an undecodable record before it parks the aggregate at that record, whose
-         * offset the park then records: should the record later decode, the versions after it that this retry
-         * handled are in the next re-scan, and are handled again.
+         * [scanned], a re-scan in the source's order, in the order a retry handles it: the entries before its first
+         * undecodable one in version order, so a late record, delivered after a later version, comes before it, and
+         * that undecodable entry, of no version, and the rest where the source holds them, since the retry stops at
+         * the undecodable entry, which fails, an operator's retry too.
          */
-        fun ordered(scanned: List<SourcedEntry>): List<SourcedEntry> =
-            scanned.sortedBy { if (UndecodableMessage.isUndecodable(it)) Int.MAX_VALUE else it.stream.version }
+        fun ordered(scanned: List<SourcedEntry>): List<SourcedEntry> {
+            val barrier = scanned.indexOfFirst { UndecodableMessage.isUndecodable(it) }.takeIf { it >= 0 }
+                ?: scanned.size
+            return scanned.subList(0, barrier).sortedBy { it.stream.version } + scanned.subList(barrier, scanned.size)
+        }
     }
 }
 
 /**
  * How a retry walks [parked]'s entries: in the order [scanned] gives them, but on a source whose entries come at every
- * version ([contiguous]), those of a park at a gap in version order ([VersionGaps.ordered]), from the version missing,
- * each expected at the version after the one before.
+ * version ([contiguous]) in version order ([VersionGaps.ordered]), a late record before the later versions delivered
+ * ahead of it; and, for a park at a gap, from the version missing, each expected at the version after the one before.
  */
 internal class RetryWalk(
     scanned: List<SourcedEntry>,
@@ -92,7 +94,15 @@ internal class RetryWalk(
     private var expected: Int? = if (contiguous) VersionGaps.expectedFirst(parked) else null
 
     /** The entries in the order the retry handles them. */
-    val entries: List<SourcedEntry> = if (expected == null) scanned else VersionGaps.ordered(scanned)
+    val entries: List<SourcedEntry> = if (contiguous) VersionGaps.ordered(scanned) else scanned
+
+    /**
+     * Where a park again at [entry] re-scans from: the lowest [position] among the entries the walk has not handled,
+     * [entry] included. In version order, a later version delivered at a lower offset than [entry]'s (a late [entry])
+     * is one of them, which a re-scan from [entry]'s own offset would never read again.
+     */
+    fun positionFrom(entry: SourcedEntry, position: (SourcedEntry) -> Long?): Long? =
+        entries.subList(entries.indexOf(entry), entries.size).mapNotNull(position).minOrNull()
 
     /**
      * The version missing before [entry], which the retry parks the aggregate at again; null when none is, or when an

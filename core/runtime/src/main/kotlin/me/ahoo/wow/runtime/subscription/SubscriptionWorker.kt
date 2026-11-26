@@ -510,7 +510,8 @@ internal class SubscriptionWorker(
                     // Still failing: the entries before this one are handled, so the aggregate stays parked from
                     // this one, with the new reason; a resolve that raced it leaves nothing to update.
                     val from = (failure as? VersionGapException)?.missing ?: entry.stream.version
-                    parked = writes.repark(entry, failure, parked.partition, from)
+                    val position = walk.positionFrom(entry, source::sourcePosition)
+                    parked = writes.repark(entry, failure, parked.partition, from, position)
                     if (last != null) {
                         // Copies of the entries handled here that the tail delivers later are skipped.
                         synchronized(this) { parking.retried(ref, last) }
