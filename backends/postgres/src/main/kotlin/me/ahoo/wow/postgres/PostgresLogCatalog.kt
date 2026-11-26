@@ -69,6 +69,13 @@ internal class PostgresLogCatalog(
                 query.executeQuery().use { rows ->
                     rows.next()
                     val existing = rows.getInt(1)
+                    // None at all, under validate, is a schema applied without its counters, which auto writes: say
+                    // so, not that the count changed.
+                    check(existing != 0) {
+                        "The log of $context has no partition counters (${tables.partitions} is empty): its schema " +
+                            "was applied without them. Insert them as Wow's schema does " +
+                            "(${tables.initializePartitions(partitions)}), or let ddl auto create the log."
+                    }
                     check(existing == partitions) {
                         "The log of $context has $existing partitions, not $partitions: changing it is a repartition."
                     }

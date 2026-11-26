@@ -72,6 +72,10 @@ class Lease @InternalWowApi constructor(
  * [service] keys the record: a service's node membership, or a narrower set keyed the same way, such as the nodes of
  * one state revision, whose records list no groups.
  *
+ * [wowVersion] is the version of Wow the node runs, as its store records it ([WowVersion.CURRENT]), null when the
+ * store records none or the node runs from classes no release built: what a newer node reads to know which nodes it
+ * shares the cluster with, readers first, writers after.
+ *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 @WowSpi
@@ -81,6 +85,7 @@ class Member @InternalWowApi constructor(
     val address: String,
     val expiresAt: Long,
     val groups: Set<String> = emptySet(),
+    val wowVersion: String? = null,
 ) {
     override fun equals(other: Any?): Boolean =
         this === other || other is Member && valueFields() == other.valueFields()
@@ -88,9 +93,10 @@ class Member @InternalWowApi constructor(
     override fun hashCode(): Int = valueFields().hashCode()
 
     override fun toString(): String =
-        "Member(service=$service, node=$node, address=$address, expiresAt=$expiresAt, groups=$groups)"
+        "Member(service=$service, node=$node, address=$address, expiresAt=$expiresAt, groups=$groups, " +
+            "wowVersion=$wowVersion)"
 
-    private fun valueFields(): List<Any?> = listOf(service, node, address, expiresAt, groups)
+    private fun valueFields(): List<Any?> = listOf(service, node, address, expiresAt, groups, wowVersion)
 
     companion object {
         /** A Member of the given fields; parameters added later come last, with a default. */
@@ -101,9 +107,10 @@ class Member @InternalWowApi constructor(
             node: String,
             address: String,
             expiresAt: Long,
-            groups: Set<String> = emptySet()
+            groups: Set<String> = emptySet(),
+            wowVersion: String? = null,
         ): Member =
-            Member(service, node, address, expiresAt, groups)
+            Member(service, node, address, expiresAt, groups, wowVersion)
     }
 }
 
@@ -193,4 +200,15 @@ interface LeaseStore {
          */
         const val EXPIRED_MEMBER_TTLS: Int = 10
     }
+}
+
+/**
+ * The version of Wow this node runs: its release's, as the jar of this module states it (`Implementation-Version`),
+ * null when it runs from classes no release built (a build's own tests). A store records it in its member records
+ * ([Member.wowVersion]). A store written against the SPI records it as Wow's own do.
+ */
+@WowSpi
+object WowVersion {
+    /** This node's version of Wow, null when no release built the classes it runs. */
+    val CURRENT: String? = WowVersion::class.java.`package`?.implementationVersion
 }

@@ -20,6 +20,7 @@ import me.ahoo.wow.spi.subscription.ExpiredMembers
 import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.subscription.Member
+import me.ahoo.wow.spi.subscription.WowVersion
 import java.time.Clock
 import kotlin.time.Duration
 
@@ -77,7 +78,8 @@ class InMemoryLeaseStore(private val clock: Clock = Clock.systemUTC()) : LeaseSt
         ttl: Duration,
         groups: Set<String>,
     ): Member = lock.withLock {
-        val member = Member(service, node, address, clock.millis() + ttl.inWholeMilliseconds, groups.toSortedSet())
+        val expiresAt = clock.millis() + ttl.inWholeMilliseconds
+        val member = Member(service, node, address, expiresAt, groups.toSortedSet(), WowVersion.CURRENT)
         members[service to node] = member
         expired.due(service, ttl)?.let { before ->
             members.entries.removeIf { (key, record) -> key.first == service && record.expiresAt < before }

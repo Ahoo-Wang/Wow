@@ -213,6 +213,7 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.spi.subscription.Lease` | class | `wow-spi` |
 | `me.ahoo.wow.spi.subscription.Member` | class | `wow-spi` |
 | `me.ahoo.wow.spi.subscription.LeaseStore` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.subscription.WowVersion` | object | `wow-spi` |
 | `me.ahoo.wow.spi.subscription.SubscriptionId` | class | `wow-spi` |
 | `me.ahoo.wow.spi.timer.Timer` | class | `wow-spi` |
 | `me.ahoo.wow.spi.timer.TimerStatus` | class | `wow-spi` |

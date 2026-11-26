@@ -60,8 +60,11 @@ internal object PostgresSchema {
         }
     }
 
-    /** What a schema statement makes: a relation [name] (a table or an index) on [table], the table it locks. */
-    data class Target(val name: String, val table: String)
+    /**
+     * What a schema statement makes: a relation [name] (a table or an index) on [table], the table it locks; or, for an
+     * additive column ([column]), that column of [table].
+     */
+    data class Target(val name: String, val table: String, val column: String? = null)
 
     private val CREATE_TABLE =
         Regex("""^\s*CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+("[^"]+"|[\w.]+)""", RegexOption.IGNORE_CASE)
@@ -70,10 +73,16 @@ internal object PostgresSchema {
         """^\s*CREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:CONCURRENTLY\s+)?IF\s+NOT\s+EXISTS\s+$NAME\s+ON\s+$NAME""",
         RegexOption.IGNORE_CASE,
     )
+    private val ADD_COLUMN = Regex(
+        """^\s*ALTER\s+TABLE\s+$NAME\s+ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\s+("[^"]+"|\w+)""",
+        RegexOption.IGNORE_CASE,
+    )
 
     /**
-     * What [statement] makes. Only the idempotent forms the stores write are known: `CREATE TABLE IF NOT EXISTS` and
-     * `CREATE [UNIQUE] INDEX [CONCURRENTLY] IF NOT EXISTS … ON`.
+     * What [statement] makes. Only the idempotent forms the stores write are known: `CREATE TABLE IF NOT EXISTS`,
+     * `CREATE [UNIQUE] INDEX [CONCURRENTLY] IF NOT EXISTS … ON` and `ALTER TABLE … ADD COLUMN IF NOT EXISTS`, the
+     * form of a column added within a format: a table of the format made before it lacks it, which `auto` adds and
+     * `validate` refuses, naming the statement.
      */
     fun target(statement: String): Target {
         CREATE_TABLE.find(statement)?.let {
@@ -81,11 +90,30 @@ internal object PostgresSchema {
             return Target(table, table)
         }
         CREATE_INDEX.find(statement)?.let { return Target(it.groupValues[1], it.groupValues[2]) }
+        ADD_COLUMN.find(statement)?.let {
+            val table = it.groupValues[1]
+            val column = it.groupValues[2]
+            return Target("$table.$column", table, column)
+        }
         throw IllegalArgumentException("Not a schema statement the catalog can check: $statement")
     }
 
     /** Whether the catalog lacks what [statement] makes. */
-    fun missing(connection: Connection, statement: String): Boolean = !exists(connection, target(statement).name)
+    fun missing(connection: Connection, statement: String): Boolean {
+        val target = target(statement)
+        return target.column?.let { !hasColumn(connection, target.table, it) } ?: !exists(connection, target.name)
+    }
+
+    /** Whether [table], named as a statement names it, has the column [column], named so. */
+    fun hasColumn(connection: Connection, table: String, column: String): Boolean =
+        connection.prepareStatement(
+            "SELECT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = to_regclass(?) AND attname = ? " +
+                "AND attnum > 0 AND NOT attisdropped)",
+        ).use { query ->
+            query.setString(1, table)
+            query.setString(2, if (column.startsWith('"')) column.removeSurrounding("\"") else column.lowercase())
+            query.executeQuery().use { rows -> rows.next() && rows.getBoolean(1) }
+        }
 
     /** Runs those of [statements] that make something the catalog lacks, in order, on [connection]. */
     fun execute(connection: Connection, statements: List<String>) {

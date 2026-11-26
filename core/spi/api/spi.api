@@ -1767,16 +1767,19 @@ public final class me/ahoo/wow/spi/subscription/Member {
 	public final fun getGroups ()Ljava/util/Set;
 	public final fun getNode ()Ljava/lang/String;
 	public final fun getService ()Ljava/lang/String;
+	public final fun getWowVersion ()Ljava/lang/String;
 	public fun hashCode ()I
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;J)Lme/ahoo/wow/spi/subscription/Member;
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/Set;)Lme/ahoo/wow/spi/subscription/Member;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/Set;Ljava/lang/String;)Lme/ahoo/wow/spi/subscription/Member;
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/spi/subscription/Member$Companion {
 	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;J)Lme/ahoo/wow/spi/subscription/Member;
 	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/Set;)Lme/ahoo/wow/spi/subscription/Member;
-	public static synthetic fun of$default (Lme/ahoo/wow/spi/subscription/Member$Companion;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/Set;ILjava/lang/Object;)Lme/ahoo/wow/spi/subscription/Member;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/Set;Ljava/lang/String;)Lme/ahoo/wow/spi/subscription/Member;
+	public static synthetic fun of$default (Lme/ahoo/wow/spi/subscription/Member$Companion;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/Set;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/spi/subscription/Member;
 }
 
 public final class me/ahoo/wow/spi/subscription/SubscriptionId : java/lang/Comparable {
@@ -1794,6 +1797,11 @@ public final class me/ahoo/wow/spi/subscription/SubscriptionId : java/lang/Compa
 
 public final class me/ahoo/wow/spi/subscription/SubscriptionId$Companion {
 	public final fun of (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/subscription/SubscriptionId;
+}
+
+public final class me/ahoo/wow/spi/subscription/WowVersion {
+	public static final field INSTANCE Lme/ahoo/wow/spi/subscription/WowVersion;
+	public final fun getCURRENT ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/spi/timer/Timer {

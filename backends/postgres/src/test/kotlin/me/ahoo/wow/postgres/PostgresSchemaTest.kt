@@ -51,12 +51,18 @@ class PostgresSchemaTest {
     }
 
     @Test
+    fun `a column added within a format should be a statement the catalog checks`() {
+        PostgresSchema.target("ALTER TABLE \"wow_x\" ADD COLUMN IF NOT EXISTS a jsonb").assert()
+            .isEqualTo(PostgresSchema.Target("\"wow_x\".a", "\"wow_x\"", "a"))
+        val added = "ALTER TABLE t ADD COLUMN IF NOT EXISTS b text"
+        PostgresKeys.additive(listOf("CREATE TABLE IF NOT EXISTS t (a text)", added)).assert().containsExactly(added)
+        PostgresKeys.indexes(listOf("ALTER TABLE t ADD COLUMN IF NOT EXISTS b text")).assert().isEmpty()
+    }
+
+    @Test
     fun `a statement the catalog cannot check should be refused`() {
         assertThrows<IllegalArgumentException> { PostgresSchema.target("CREATE TABLE \"wow_x\" (id text)") }
         assertThrows<IllegalArgumentException> { PostgresSchema.target("ALTER TABLE \"wow_x\" DROP COLUMN a") }
-        assertThrows<IllegalArgumentException> {
-            PostgresSchema.target("ALTER TABLE \"wow_x\" ADD COLUMN IF NOT EXISTS a jsonb")
-        }
         assertThrows<IllegalArgumentException> { PostgresSchema.target("INSERT INTO wow_x VALUES (1)") }
     }
 

@@ -13,6 +13,10 @@
 
 package me.ahoo.wow.postgres.ledger
 
+import me.ahoo.wow.api.ledger.LedgerRequest
+import me.ahoo.wow.api.ledger.Recoverable
+import me.ahoo.wow.api.wire.WireNames
+
 /** The failure ledger's table and statements. The column layout is part of the format ([FORMAT]). */
 internal class PostgresFailureLedgerTables(val name: String) {
     init {
@@ -27,7 +31,7 @@ internal class PostgresFailureLedgerTables(val name: String) {
             subscription_context text COLLATE "C" NOT NULL,
             subscription text COLLATE "C" NOT NULL,
             context text COLLATE "C" NOT NULL,
-            aggregate_name text COLLATE "C" NOT NULL,
+            aggregate text COLLATE "C" NOT NULL,
             tenant_id text COLLATE "C" NOT NULL,
             aggregate_id text COLLATE "C" NOT NULL,
             partition integer NOT NULL,
@@ -111,7 +115,7 @@ internal class PostgresFailureLedgerTables(val name: String) {
     val resolveIn = "DELETE FROM $table WHERE $MATCH AND partition = ? RETURNING *"
 
     /** Claims a retry: the value is the start, then the key, then the revision read. */
-    val claimRetry = "UPDATE $table SET retries = retries + 1, retry_at = ?, $UNSCHEDULED, $NEXT_REVISION " +
+    val claimRetry = "UPDATE $table SET retries = retries + 1, last_retry_at = ?, $UNSCHEDULED, $NEXT_REVISION " +
         "WHERE $MATCH AND revision = ? RETURNING *"
 
     /** Marks the entry: the mark, the key, then the parking's failure time, or null for whichever is there. */
@@ -126,20 +130,22 @@ internal class PostgresFailureLedgerTables(val name: String) {
 
     /**
      * Restates why the entry is parked and its retry state: the reason, the failure time, the retries, the last retry's
-     * start, the spec's three columns and the mark, then the key, then the revision read.
+     * start, the spec's three columns and the mark, then the key, then the revision read. The mark is the caller's
+     * statement of the entry's new state, written as given, as [markRecoverable] writes one.
      */
     val restate = """
-        UPDATE $table SET reason = ?, failed_at = ?, retries = ?, retry_at = ?, retry_max_retries = ?,
+        UPDATE $table SET reason = ?, failed_at = ?, retries = ?, last_retry_at = ?, retry_max_retries = ?,
             retry_initial_backoff_millis = ?, retry_claim_ttl_millis = ?, recoverable = ?, $UNSCHEDULED, $NEXT_REVISION
         WHERE $MATCH AND revision = ? RETURNING *
     """.trimIndent()
 
     /**
      * Replaces the whole entry while it is at the revision read, an amendment's generic path: where it is parked and
-     * why, its retry state and its revision, then the key, then the revision read.
+     * why, its retry state and its revision, then the key, then the revision read. A `recoverable` or a `request` a
+     * later version stored, which this one read as `unknown` or as none, is kept ([KEPT_RECOVERABLE], [KEPT_REQUEST]).
      */
     val replace = "UPDATE $table SET ($PLACE, $RETRY_STATE, revision) = " +
-        "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) WHERE $MATCH AND revision = ?"
+        "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, $KEPT_RECOVERABLE, $KEPT_REQUEST, ?, ?) WHERE $MATCH AND revision = ?"
 
     /** Takes a request: the key, then the revision read. */
     val takeRequest = "UPDATE $table SET request = NULL, $NEXT_REVISION WHERE $MATCH AND revision = ? RETURNING *"
@@ -161,11 +167,11 @@ internal class PostgresFailureLedgerTables(val name: String) {
          */
         private val RETRY_COLUMNS = """
             retries integer NOT NULL DEFAULT 0,
-            retry_at bigint,
+            last_retry_at bigint,
             retry_max_retries integer,
             retry_initial_backoff_millis bigint,
             retry_claim_ttl_millis bigint,
-            recoverable text NOT NULL DEFAULT 'UNKNOWN',
+            recoverable text NOT NULL DEFAULT 'unknown',
             request text,
             next_attempt_at bigint,
             revision bigint NOT NULL DEFAULT 0
@@ -176,20 +182,36 @@ internal class PostgresFailureLedgerTables(val name: String) {
 
         /** The parking an operator's amendment names, by its failure time; any parking for null. */
         private const val OF_PARKING = "failed_at = coalesce(?::bigint, failed_at)"
-        private const val RETRY_STATE = "retries, retry_at, retry_max_retries, retry_initial_backoff_millis, " +
+        private const val RETRY_STATE = "retries, last_retry_at, retry_max_retries, retry_initial_backoff_millis, " +
             "retry_claim_ttl_millis, recoverable, request, next_attempt_at"
         private const val DUE = "partition = ANY (?) AND (next_attempt_at IS NULL OR next_attempt_at <= ?)"
         private const val UNSCHEDULED = "next_attempt_at = NULL"
         private const val NEXT_REVISION = "revision = revision + 1"
 
         private val IDENTIFIER = Regex("[a-z_][a-z0-9_]{0,62}")
-        private const val ORDER = "context, aggregate_name, tenant_id, aggregate_id"
+        private const val ORDER = "context, aggregate, tenant_id, aggregate_id"
+
+        /**
+         * A `recoverable` written in place of the stored one only when this version knows the stored one: a later
+         * version's, which this one reads as `unknown`, is kept rather than written back as `unknown`.
+         */
+        private val KEPT_RECOVERABLE =
+            "CASE WHEN recoverable IN (${WireNames.namesOf<Recoverable>().joinToString { "'$it'" }}) THEN ? " +
+                "ELSE recoverable END"
+
+        /**
+         * A `request` written in place of the stored one only when there is none or this version knows it: a later
+         * version's, which this one reads as none, is kept rather than written back as none.
+         */
+        private val KEPT_REQUEST =
+            "CASE WHEN request IS NULL OR request IN (${WireNames.namesOf<LedgerRequest>().joinToString { "'$it'" }}) " +
+                "THEN ? ELSE request END"
         private const val SUBSCRIPTION_COLUMNS = "service, subscription_context, subscription"
         private const val KEY = "$SUBSCRIPTION_COLUMNS, $ORDER"
 
         /** The entries of a service's subscription: the service, the subscription's context, its name. */
         private const val OF_SUBSCRIPTION = "service = ? AND subscription_context = ? AND subscription = ?"
-        private const val MATCH = "$OF_SUBSCRIPTION AND context = ? AND aggregate_name = ? AND tenant_id = ? AND " +
+        private const val MATCH = "$OF_SUBSCRIPTION AND context = ? AND aggregate = ? AND tenant_id = ? AND " +
             "aggregate_id = ?"
     }
 }

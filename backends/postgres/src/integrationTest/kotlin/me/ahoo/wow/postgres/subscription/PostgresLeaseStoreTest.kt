@@ -69,7 +69,7 @@ class PostgresLeaseStoreTest : LeaseStoreSpec() {
                 locker.autoCommit = false
                 try {
                     locker.lock("wow_lease WHERE subscription_group = ? AND partition = 0", group)
-                    locker.lock("wow_lease_member WHERE subscription_group = ? AND node = 'node-a'", group)
+                    locker.lock("wow_lease_member WHERE service = ? AND node = 'node-a'", group)
                     within(SHORT) { store.acquire(group, 0, "node-a", SHORT) }
                     within(SHORT) { store.renew(group, listOf(0), "node-a", SHORT) }
                     within(SHORT) { store.heartbeat(group, "node-a", "10.0.0.1:9090", SHORT) }
@@ -94,7 +94,7 @@ class PostgresLeaseStoreTest : LeaseStoreSpec() {
                 locker.autoCommit = false
                 try {
                     // The lock holds the crashed node's record, so the heartbeat's delete waits for it.
-                    locker.lock("wow_lease_member WHERE subscription_group = ? AND node = 'node-crashed'", group)
+                    locker.lock("wow_lease_member WHERE service = ? AND node = 'node-crashed'", group)
                     val started = TimeSource.Monotonic.markNow()
                     store.heartbeat(group, "node-a", "10.0.0.1:9090", HEARTBEAT_TTL).node.assert().isEqualTo("node-a")
                     // A quarter of the TTL for the delete, not the rest of it: under 2.5 s where the TTL is 4 s.
