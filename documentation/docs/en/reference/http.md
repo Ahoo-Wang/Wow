@@ -166,6 +166,7 @@ A hop without a context is in the command's context. After a saga's `handled` ho
 | Response header | On | Means |
 | --- | --- | --- |
 | `ETag` | State reads, descriptors | The answer's version as a strong tag (a state read's `"3-…"`), for `If-None-Match`, and for `If-Match` on a command ([Entity tags](./protocols#entity-tags)) |
+| `Cache-Control` | State reads, descriptors, their `304` too | `private, no-cache`: who may read the answer, and what it reads (the tenant and scope of a state read, the datasets a caller sees), is the caller's. A shared cache stores none of it; a private one keeps it and asks again with `If-None-Match` each time ([Entity tags](./protocols#entity-tags)) |
 | `Wow-Rebuilding` | Snapshot queries, descriptors | `true` while the aggregate type's snapshots are being rebuilt or backfilled: the answer may lack what the rebuild has not reached yet |
 | `Retry-After` | Problems | When a retry may get past the problem, in whole seconds |
 

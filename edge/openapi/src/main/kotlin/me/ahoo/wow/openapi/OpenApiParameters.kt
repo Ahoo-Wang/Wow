@@ -118,6 +118,12 @@ internal object OpenApiParameters {
             "description" to "The entity tag of the representation, which If-None-Match names to be answered 304.",
             "schema" to type("string"),
         ),
+        Http.CACHE_CONTROL_HEADER to obj(
+            "description" to "`${Http.CACHE_CONTROL}` on every tagged answer, its 304 included: who may read it, and " +
+                "what it reads, is the caller's, so a shared cache stores none of it, and a private one asks again " +
+                "with If-None-Match each time.",
+            "schema" to obj("type" to "string", "enum" to listOf(Http.CACHE_CONTROL)),
+        ),
         Http.RETRY_AFTER_HEADER to obj(
             "description" to "The seconds after which the request may be retried.",
             "schema" to type("integer"),

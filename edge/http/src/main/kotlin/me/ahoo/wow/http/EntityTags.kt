@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.http
 
+import org.springframework.http.HttpHeaders
+import org.springframework.web.reactive.function.server.ServerResponse
 import java.security.MessageDigest
 import java.util.HexFormat
 
@@ -32,6 +34,14 @@ import java.util.HexFormat
  * - `If-None-Match` compares weakly ([matchesWeakly]): `W/` is ignored, and `*` matches any tag.
  */
 internal object EntityTags {
+    /**
+     * The `Cache-Control` of every answer Wow tags, a state read's and a query model's or a dataset's descriptor's,
+     * a 304 among them: who may read it, and what it reads (the tenant and scope a state read resolves in, the dataset
+     * a caller sees), is the caller's, so a shared cache stores none of it, and a private one keeps it and asks again
+     * with `If-None-Match` each time, a 304 when nothing changed.
+     */
+    const val CACHE_CONTROL: String = "private, no-cache"
+
     /** The hex digits of the body digest a state's tag carries: 64 bits. */
     private const val DIGEST_HEX_LENGTH = 16
 
@@ -143,3 +153,7 @@ internal object EntityTags {
         return i
     }
 }
+
+/** This answer tagged [tag], with the `Cache-Control` of every answer Wow tags ([EntityTags.CACHE_CONTROL]). */
+internal fun ServerResponse.BodyBuilder.entityTag(tag: String): ServerResponse.BodyBuilder =
+    eTag(tag).header(HttpHeaders.CACHE_CONTROL, EntityTags.CACHE_CONTROL)

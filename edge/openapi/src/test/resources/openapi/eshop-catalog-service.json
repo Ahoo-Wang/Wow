@@ -310,6 +310,9 @@
             "headers" : {
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
+              },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
               }
             },
             "content" : {
@@ -325,6 +328,9 @@
             "headers" : {
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
+              },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
               }
             }
           },
@@ -1080,6 +1086,9 @@
             "headers" : {
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
+              },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
               }
             },
             "content" : {
@@ -1100,6 +1109,9 @@
             "headers" : {
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
+              },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
               }
             }
           },
@@ -1389,6 +1401,9 @@
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
               },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
+              },
               "Wow-Rebuilding" : {
                 "$ref" : "#/components/headers/Wow-Rebuilding"
               }
@@ -1406,6 +1421,9 @@
             "headers" : {
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
+              },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
               },
               "Wow-Rebuilding" : {
                 "$ref" : "#/components/headers/Wow-Rebuilding"
@@ -1589,6 +1607,9 @@
             "headers" : {
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
+              },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
               }
             },
             "content" : {
@@ -1604,6 +1625,9 @@
             "headers" : {
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
+              },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
               }
             }
           },
@@ -2353,6 +2377,9 @@
             "headers" : {
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
+              },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
               }
             },
             "content" : {
@@ -2373,6 +2400,9 @@
             "headers" : {
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
+              },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
               }
             }
           },
@@ -2662,6 +2692,9 @@
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
               },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
+              },
               "Wow-Rebuilding" : {
                 "$ref" : "#/components/headers/Wow-Rebuilding"
               }
@@ -2679,6 +2712,9 @@
             "headers" : {
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
+              },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
               },
               "Wow-Rebuilding" : {
                 "$ref" : "#/components/headers/Wow-Rebuilding"
@@ -2862,6 +2898,9 @@
             "headers" : {
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
+              },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
               }
             },
             "content" : {
@@ -2877,6 +2916,9 @@
             "headers" : {
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
+              },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
               }
             }
           },
@@ -4042,6 +4084,9 @@
             "headers" : {
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
+              },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
               }
             },
             "content" : {
@@ -4062,6 +4107,9 @@
             "headers" : {
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
+              },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
               }
             }
           },
@@ -4351,6 +4399,9 @@
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
               },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
+              },
               "Wow-Rebuilding" : {
                 "$ref" : "#/components/headers/Wow-Rebuilding"
               }
@@ -4368,6 +4419,9 @@
             "headers" : {
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
+              },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
               },
               "Wow-Rebuilding" : {
                 "$ref" : "#/components/headers/Wow-Rebuilding"
@@ -4551,6 +4605,9 @@
             "headers" : {
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
+              },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
               }
             },
             "content" : {
@@ -4566,6 +4623,9 @@
             "headers" : {
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
+              },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
               }
             }
           },
@@ -8037,6 +8097,13 @@
         "description" : "The entity tag of the representation, which If-None-Match names to be answered 304.",
         "schema" : {
           "type" : "string"
+        }
+      },
+      "Cache-Control" : {
+        "description" : "`private, no-cache` on every tagged answer, its 304 included: who may read it, and what it reads, is the caller's, so a shared cache stores none of it, and a private one asks again with If-None-Match each time.",
+        "schema" : {
+          "type" : "string",
+          "enum" : [ "private, no-cache" ]
         }
       },
       "Retry-After" : {

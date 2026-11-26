@@ -410,7 +410,7 @@ internal class OpenApiPaths(
                 "responses" to obj(
                     "200" to obj(
                         "description" to "The state; its ETag is its version and a digest of the body (`\"3-<digest>\"`).",
-                        "headers" to obj(Http.ETAG_HEADER to Json.ref(Json.HEADERS, Http.ETAG_HEADER)),
+                        "headers" to tagged(rebuilt = false),
                         "content" to json(view),
                     ),
                     "304" to notModified("Not Modified: the state is still the one If-None-Match names."),
@@ -553,13 +553,21 @@ internal class OpenApiPaths(
         ),
     )
 
-    /** A 304 of [description], with the `ETag` it was answered for (and `Wow-Rebuilding` when [rebuilt]). */
+    /**
+     * A 304 of [description], with the `ETag` it was answered for and its `Cache-Control` (and `Wow-Rebuilding` when
+     * [rebuilt]).
+     */
     private fun notModified(description: String, rebuilt: Boolean = false): Map<String, Any?> =
         obj("description" to description, "headers" to tagged(rebuilt))
 
-    /** The headers of a tagged answer: its `ETag`, and `Wow-Rebuilding` of a snapshot model's ([rebuilt]). */
-    private fun tagged(rebuilt: Boolean): Map<String, Any?> =
-        obj(Http.ETAG_HEADER to Json.ref(Json.HEADERS, Http.ETAG_HEADER)) + rebuilding(rebuilt).orEmpty()
+    /**
+     * The headers of a tagged answer: its `ETag`, its `Cache-Control` (the caller's alone), and `Wow-Rebuilding` of a
+     * snapshot model's ([rebuilt]).
+     */
+    private fun tagged(rebuilt: Boolean): Map<String, Any?> = obj(
+        Http.ETAG_HEADER to Json.ref(Json.HEADERS, Http.ETAG_HEADER),
+        Http.CACHE_CONTROL_HEADER to Json.ref(Json.HEADERS, Http.CACHE_CONTROL_HEADER),
+    ) + rebuilding(rebuilt).orEmpty()
 
     /** The `Wow-Rebuilding` header of a snapshot model's answer ([rebuilt]), or none. */
     private fun rebuilding(rebuilt: Boolean): Map<String, Any?>? =

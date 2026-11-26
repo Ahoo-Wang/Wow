@@ -231,7 +231,11 @@ class DatasetRoutesTest {
             .contains("id", "tenant_id", "owner_id", "region", "amount")
         val tag = described.headers.eTag
         tag.assert().isEqualTo("\"${described.body!!["version"].asString()}\"")
-        node.get(SALES, "alice", mapOf(HttpHeaders.IF_NONE_MATCH to "W/$tag")).status.assert().isEqualTo(304)
+        // Whether the caller sees the dataset is the caller's: a shared cache must not answer another caller.
+        described.headers.cacheControl.assert().isEqualTo("private, no-cache")
+        val unchanged = node.get(SALES, "alice", mapOf(HttpHeaders.IF_NONE_MATCH to "W/$tag"))
+        unchanged.status.assert().isEqualTo(304)
+        unchanged.headers.cacheControl.assert().isEqualTo("private, no-cache")
         node.get(SALES, "alice", mapOf(HttpHeaders.ACCEPT to MediaType.TEXT_EVENT_STREAM_VALUE)).status.assert()
             .isEqualTo(406)
     }

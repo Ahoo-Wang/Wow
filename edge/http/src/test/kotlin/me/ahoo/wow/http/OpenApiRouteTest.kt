@@ -31,6 +31,7 @@ import me.ahoo.wow.openapi.ManifestOpenApi
 import me.ahoo.wow.openapi.OpenApiSecurityScheme
 import me.ahoo.wow.openapi.WowHttpContract
 import org.junit.jupiter.api.Test
+import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
 import tools.jackson.databind.JsonNode
 
@@ -179,6 +180,8 @@ class OpenApiRouteTest {
         WowHttpContract.SPACE_HEADER.assert().isEqualTo(WowHeaders.SPACE)
         WowHttpContract.IF_MATCH_HEADER.assert().isEqualTo(WowHeaders.IF_MATCH)
         WowHttpContract.ETAG_HEADER.assert().isEqualTo(WowHeaders.ETAG)
+        WowHttpContract.CACHE_CONTROL_HEADER.assert().isEqualTo(HttpHeaders.CACHE_CONTROL)
+        WowHttpContract.CACHE_CONTROL.assert().isEqualTo(EntityTags.CACHE_CONTROL)
         WowHttpContract.REBUILDING_HEADER.assert().isEqualTo(WowHeaders.REBUILDING)
         WowHttpContract.TRACEPARENT_HEADER.assert().isEqualTo(CommandHandler.TRACEPARENT)
         WowHttpContract.MAX_TRACE_LIMIT.assert().isEqualTo(StateHandler.MAX_TRACE_LIMIT)
