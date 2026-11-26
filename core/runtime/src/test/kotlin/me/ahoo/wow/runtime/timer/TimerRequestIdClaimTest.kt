@@ -64,7 +64,7 @@ class TimerRequestIdClaimTest {
             timers = TimerOptions(
                 pollInterval = 20.milliseconds,
                 lookahead = 1.seconds,
-                claimTimeout = 300.milliseconds,
+                claimTtl = 300.milliseconds,
             ),
         ),
         contracts = ContractDirectory(shopManifest(), listOf(peer(stockManifest()))),
