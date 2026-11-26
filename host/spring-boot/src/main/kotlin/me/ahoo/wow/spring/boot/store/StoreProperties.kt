@@ -170,7 +170,7 @@ class SnapshotProperties {
     var store: String? = null
 
     /** How often the snapshot maintenance runs: state revision claims, in-place rebuilds and backfill checks. */
-    var maintenanceInterval: Duration = SnapshotOptions.DEFAULT_INTERVAL.toJavaDuration()
+    var maintenanceInterval: Duration = SnapshotOptions.DEFAULT_MAINTENANCE_INTERVAL.toJavaDuration()
 
     /** How an in-place rebuild rewrites the snapshots. */
     var rebuild: SnapshotRebuildProperties = SnapshotRebuildProperties()
@@ -221,10 +221,10 @@ class SnapshotProperties {
 @InternalWowApi
 class SnapshotRebuildProperties {
     /** How many snapshots a rebuild rewrites per page. */
-    var pageSize: Int = SnapshotOptions.DEFAULT_BATCH
+    var pageSize: Int = SnapshotOptions.DEFAULT_REBUILD_PAGE_SIZE
 
     /** The most pages a rebuild rewrites in one maintenance run. */
-    var maxPages: Int = SnapshotOptions.DEFAULT_PAGES
+    var maxPages: Int = SnapshotOptions.DEFAULT_REBUILD_MAX_PAGES
 }
 
 /** The in-memory provider's settings, `wow.memory.*`, as each provider has its group (`wow.kafka.*`, `wow.mongo.*`). */
@@ -254,7 +254,7 @@ class MemoryProperties {
 @InternalWowApi
 class AccessProperties {
     /** The most streams one stamp writes: a long history is stamped in statements of at most this many. */
-    var stampBatch: Int = AccessStampOptions.DEFAULT_BATCH
+    var stampBatch: Int = AccessStampOptions.DEFAULT_STAMP_BATCH
 
     /** The aggregates whose last stamped attributes the subscription remembers, sparing it a read of the stream before. */
     var capacity: Int = AccessStampOptions.DEFAULT_CAPACITY

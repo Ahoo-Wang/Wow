@@ -79,7 +79,7 @@ class LeaseGroup @InternalWowApi constructor(val service: String, val context: S
  *   owner surely did not receive runs locally. Since a timeout no longer runs the command elsewhere, waiting
  *   less than the command would only fail it sooner: the default is the default wait ([WaitPlan.DEFAULT_TIMEOUT],
  *   10 seconds), not the 1 second of earlier releases, which covered the owner's tail before falling back.
- * - [maxInFlightPerPeer]: the forwards this node may have outstanding to one peer; one more is refused busy, not run
+ * - [maxInFlightPerNode]: the forwards this node may have outstanding to one peer; one more is refused busy, not run
  *   locally.
  * - [drainTimeout]: how long a hand-off waits for the partition's commands in flight before it moves on.
  * - [reconcileTimeout]: how long one reconcile may go without finishing a step for one partition (an acquisition, a
@@ -99,7 +99,7 @@ class ClusterOptions @InternalWowApi constructor(
     val reconcileInterval: Duration = 1.seconds,
     val routeRefreshInterval: Duration = 1.seconds,
     val forwardTimeout: Duration = WaitPlan.DEFAULT_TIMEOUT,
-    val maxInFlightPerPeer: Int = 1_024,
+    val maxInFlightPerNode: Int = 1_024,
     val drainTimeout: Duration = 10.seconds,
     val leaseParallelism: Int = 16,
     val reconcileTimeout: Duration = 1.minutes,
@@ -123,7 +123,7 @@ class ClusterOptions @InternalWowApi constructor(
         require(reconcileInterval.isPositive()) { "The reconcile interval is positive." }
         require(routeRefreshInterval.isPositive()) { "The route refresh interval is positive." }
         require(forwardTimeout.isPositive()) { "The forward timeout is positive." }
-        require(maxInFlightPerPeer >= 1) { "A peer takes at least one forward." }
+        require(maxInFlightPerNode >= 1) { "A peer takes at least one forward." }
         require(!drainTimeout.isNegative()) { "The drain timeout is never negative." }
         require(leaseParallelism >= 1) { "At least one lease call runs at a time." }
         require(reconcileTimeout.isPositive()) { "The reconcile timeout is positive." }
@@ -151,11 +151,11 @@ class ClusterOptions @InternalWowApi constructor(
         "ClusterOptions(leaseTtl=$leaseTtl, renewInterval=$renewInterval, memberTtl=$memberTtl, " +
             "heartbeatInterval=$heartbeatInterval, reconcileInterval=$reconcileInterval, " +
             "routeRefreshInterval=$routeRefreshInterval, forwardTimeout=$forwardTimeout, " +
-            "maxInFlightPerPeer=$maxInFlightPerPeer, drainTimeout=$drainTimeout, " +
+            "maxInFlightPerNode=$maxInFlightPerNode, drainTimeout=$drainTimeout, " +
             "leaseParallelism=$leaseParallelism, reconcileTimeout=$reconcileTimeout)"
 
     private fun valueFields(): List<Any?> = listOf(
         leaseTtl, renewInterval, memberTtl, heartbeatInterval, reconcileInterval, routeRefreshInterval,
-        forwardTimeout, maxInFlightPerPeer, drainTimeout, leaseParallelism, reconcileTimeout
+        forwardTimeout, maxInFlightPerNode, drainTimeout, leaseParallelism, reconcileTimeout
     )
 }

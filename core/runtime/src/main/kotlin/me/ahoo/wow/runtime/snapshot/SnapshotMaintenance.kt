@@ -61,7 +61,7 @@ class LogProgress(val group: String, val log: EventLog, val checkpoints: Checkpo
 
 /**
  * Keeps the snapshot targets of one bounded context in step with the log and the code, on every node,
- * every [SnapshotOptions.interval]:
+ * every [SnapshotOptions.maintenanceInterval]:
  *
  * - **State revision claims**: each node is a member of its state revision of each snapshotted type (in the lease
  *   group `<group>#snapshot/<aggregate>@<revision>`), and claims each target's table ([SnapshotRebuildStore.claim]) at its
@@ -197,7 +197,7 @@ class SnapshotMaintenance(
     /** Runs [maintain] every interval in [scope], the first one an interval after [prepare], until [stop]. */
     fun start(scope: CoroutineScope) {
         loop = scope.launchLoop("snapshot maintenance of $context") {
-            delay(options.interval)
+            delay(options.maintenanceInterval)
             try {
                 maintain()
             } catch (cancelled: CancellationException) {
@@ -403,8 +403,8 @@ class SnapshotMaintenance(
         var after = cursor?.after
         // Whether the scan under way, from the first, parked every snapshot it found: then only those are left.
         var parkedOnly = cursor?.parkedOnly ?: true
-        repeat(options.pages) {
-            val pending = snapshots.pending(type, revision, after, options.batch)
+        repeat(options.rebuildMaxPages) {
+            val pending = snapshots.pending(type, revision, after, options.rebuildPageSize)
             if (pending.isEmpty()) {
                 if (after == null || parkedOnly) {
                     cursors.remove(key)

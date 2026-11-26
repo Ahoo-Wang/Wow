@@ -103,7 +103,7 @@ class ClusterForwardOutcomesTest : ClusterTestCase() {
                     gate.await()
                     ForwardReply.refused(Refusal.NOT_OWNER)
                 },
-                fastOptions(forwardTimeout = 5.seconds, maxInFlightPerPeer = 2),
+                fastOptions(forwardTimeout = 5.seconds, maxInFlightPerNode = 2),
                 observer,
             )
             val held = async(Dispatchers.Default) { router.routeOn(one, one.command(first), null) }

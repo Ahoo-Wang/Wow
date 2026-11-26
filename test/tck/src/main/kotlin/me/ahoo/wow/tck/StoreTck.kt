@@ -19,6 +19,7 @@ import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.spi.Closing
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.reservation.ReservationStore
@@ -89,6 +90,12 @@ abstract class StoreTck {
 
     /** A stream [EventLogSpec.refused] changes so that the store refuses it, or null when it stores every stream. */
     protected open fun refused(stream: EventStreamRecord): EventStreamRecord? = null
+
+    /**
+     * This stream with [events] in place of its own, every other fact kept: what [refused] returns for a value the
+     * backend cannot store in an event. The record may gain fields in a minor release; this helper keeps them.
+     */
+    protected fun EventStreamRecord.withEvents(events: List<EventRecord>): EventStreamRecord = copyWith(events = events)
 
     /**
      * The facets the store says it has ([Store.facet]): its query side (`me.ahoo.wow.query.store.StoreQueries`) when

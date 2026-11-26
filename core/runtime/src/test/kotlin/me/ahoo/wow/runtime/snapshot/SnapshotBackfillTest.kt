@@ -83,7 +83,7 @@ class SnapshotBackfillTest {
         log,
         leases,
         listOf(LogProgress(GROUP, log, checkpoints, ledger)),
-        SnapshotOptions(interval = 1.hours, leaseTtl = 2.hours, memberTtl = 2.hours),
+        SnapshotOptions(maintenanceInterval = 1.hours, leaseTtl = 2.hours, memberTtl = 2.hours),
     )
 
     private suspend fun commit(id: String): AggregateRef {

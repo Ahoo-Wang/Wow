@@ -96,7 +96,7 @@ class ClusterRouteLookupTest : ClusterTestCase() {
             reconcileInterval = it.reconcileInterval,
             routeRefreshInterval = routeRefreshInterval,
             forwardTimeout = it.forwardTimeout,
-            maxInFlightPerPeer = it.maxInFlightPerPeer,
+            maxInFlightPerNode = it.maxInFlightPerNode,
             drainTimeout = it.drainTimeout,
         )
     }

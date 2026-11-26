@@ -78,6 +78,12 @@ abstract class EventLogFixtures internal constructor() {
     protected open fun refused(stream: EventStreamRecord): EventStreamRecord? = null
 
     /**
+     * This stream with [events] in place of its own, every other fact kept: what [refused] returns for a value the
+     * backend cannot store in an event. The record may gain fields in a minor release; this helper keeps them.
+     */
+    protected fun EventStreamRecord.withEvents(events: List<EventRecord>): EventStreamRecord = copyWith(events = events)
+
+    /**
      * A log of [context] with [partitions] partitions, on the store [createLog] opens, whose store fails once,
      * transiently, at the first read a call of `appendAll` makes after it wrote: the lookup of a stream the write
      * refused. Null, the default, for a backend whose `appendAll` reads nothing after it writes, which skips the case.

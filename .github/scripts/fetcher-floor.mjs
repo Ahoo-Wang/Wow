@@ -20,6 +20,12 @@ import { ROOT } from './project-version.mjs';
 // then the unit tests and `package-check.mjs --fetcher-floor`. The floor is
 // read from the `peers` catalog, so raising it there (only in an x.Y.0
 // release) moves the job with it.
+//
+// `pin <version>` and `verify <version>` do the same for another fetcher the
+// range admits, such as a release candidate the default catalog does not
+// develop on yet (`8.0.0-rc.1`, D490), with `package-check.mjs --fetcher
+// <version>`: the run a maintainer repeats locally before such a fetcher
+// becomes the default.
 
 const FETCHER = /^'?(@ahoo-wang\/fetcher[\w-]*)'?: (.+)$/;
 
@@ -89,15 +95,18 @@ export function lockedFetchers(lockfile) {
 
 /**
  * pnpm-workspace.yaml with every fetcher package, of the default catalog and
- * of the lockfile, overridden to the floor.
+ * of the lockfile, overridden to the floor, or to `version`.
  */
-export function withFloorOverrides(yaml, lockfile = '') {
-  const floor = fetcherFloor(yaml);
+export function withFloorOverrides(
+  yaml,
+  lockfile = '',
+  version = fetcherFloor(yaml),
+) {
   const names = new Set([
     ...Object.keys(devFetchers(yaml)),
     ...lockedFetchers(lockfile),
   ]);
-  const lines = [...names].sort().map(name => `  '${name}': '${floor}'`);
+  const lines = [...names].sort().map(name => `  '${name}': '${version}'`);
   if (!/^overrides:$/m.test(yaml))
     return `${yaml.replace(/\n*$/, '\n')}\noverrides:\n${lines.join('\n')}\n`;
   // Merge into the workspace's own overrides (security pins), which must
@@ -147,26 +156,40 @@ export function unpinned(root, floor) {
   return problems;
 }
 
+/** A fetcher version as `pin`, `verify` and `--fetcher` take it: exact, never a range or a tag. */
+export const FETCHER_VERSION = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
+
+/**
+ * The command and the fetcher version of `fetcher-floor.mjs pin|verify
+ * [version]`: the floor of the `peers` range when no version is given, which
+ * is how the `fetcher-floor` job runs it.
+ */
+export function floorCommand(args, yaml) {
+  const [command, given, ...rest] = args;
+  if (
+    (command !== 'pin' && command !== 'verify') ||
+    rest.length > 0 ||
+    (given !== undefined && !FETCHER_VERSION.test(given))
+  )
+    throw new Error('Usage: fetcher-floor.mjs pin|verify [version]');
+  return { command, version: given ?? fetcherFloor(yaml) };
+}
+
 if (
   process.argv[1] &&
   import.meta.url === pathToFileURL(process.argv[1]).href
 ) {
   const file = join(ROOT, 'pnpm-workspace.yaml');
   const yaml = readFileSync(file, 'utf8');
-  const command = process.argv[2];
+  const { command, version } = floorCommand(process.argv.slice(2), yaml);
   if (command === 'pin') {
     const lockfile = readFileSync(join(ROOT, 'pnpm-lock.yaml'), 'utf8');
-    writeFileSync(file, withFloorOverrides(yaml, lockfile));
-    console.log(`fetcher pinned to ${fetcherFloor(yaml)}`);
-  } else if (command === 'verify') {
-    const floor = fetcherFloor(yaml);
-    const problems = unpinned(ROOT, floor);
-    if (problems.length > 0)
-      throw new Error(
-        `Not on the fetcher floor ${floor}:\n  ${problems.join('\n  ')}`,
-      );
-    console.log(`every TypeScript package resolves fetcher ${floor}`);
+    writeFileSync(file, withFloorOverrides(yaml, lockfile, version));
+    console.log(`fetcher pinned to ${version}`);
   } else {
-    throw new Error('Usage: fetcher-floor.mjs pin|verify');
+    const problems = unpinned(ROOT, version);
+    if (problems.length > 0)
+      throw new Error(`Not on fetcher ${version}:\n  ${problems.join('\n  ')}`);
+    console.log(`every TypeScript package resolves fetcher ${version}`);
   }
 }

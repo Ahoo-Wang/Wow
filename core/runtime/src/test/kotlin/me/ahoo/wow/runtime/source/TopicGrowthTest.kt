@@ -100,7 +100,7 @@ class TopicGrowthTest : TopicSubscriptionsFixtures() {
                 subscriptions = listOf(board),
                 options = testOptions(),
                 cluster = fastOptions(),
-                partitionRefresh = 20.milliseconds,
+                partitionRefreshInterval = 20.milliseconds,
             ).also {
                 started += it
                 it.start()
@@ -208,7 +208,7 @@ class TopicGrowthTest : TopicSubscriptionsFixtures() {
         subscriptions = subscriptions,
         options = testOptions(),
         cluster = fastOptions(),
-        partitionRefresh = 50.milliseconds,
+        partitionRefreshInterval = 50.milliseconds,
     ).also {
         started += it
         it.start()
@@ -234,7 +234,7 @@ class TopicGrowthTest : TopicSubscriptionsFixtures() {
         subscriptions = listOf(subscription),
         options = options.copyWith(parked = ParkedRetryOptions(scanInterval = 10.milliseconds)),
         cluster = fastOptions(),
-        partitionRefresh = 20.milliseconds,
+        partitionRefreshInterval = 20.milliseconds,
     ).also {
         started += it
         it.start()

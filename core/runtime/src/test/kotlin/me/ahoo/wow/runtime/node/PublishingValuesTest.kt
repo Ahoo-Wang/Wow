@@ -37,7 +37,7 @@ class PublishingValuesTest {
         topics.assert().isEqualTo(topics).isEqualTo(SourceTopics.of(broker, "p.", broker)).isNotEqualTo("p.")
         topics.hashCode().assert().isEqualTo(SourceTopics.of(broker, "p.", broker).hashCode())
         topics.copyWith(intake = true).assert().isNotEqualTo(topics)
-        topics.copyWith(partitionRefresh = 1.seconds).partitionRefresh.assert().isEqualTo(1.seconds)
+        topics.copyWith(partitionRefreshInterval = 1.seconds).partitionRefreshInterval.assert().isEqualTo(1.seconds)
         topics.toString().assert().startsWith("SourceTopics(")
     }
 }

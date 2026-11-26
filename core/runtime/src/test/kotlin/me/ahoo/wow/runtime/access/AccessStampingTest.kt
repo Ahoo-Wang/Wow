@@ -70,8 +70,8 @@ class AccessStampingTest {
         access = access,
     )
 
-    private fun stamping(log: Recording, batch: Int = AccessStampOptions.DEFAULT_BATCH) =
-        AccessStamping("office", listOf(model), Kernel(log.log), { log }, AccessStampOptions(batch = batch))
+    private fun stamping(log: Recording, batch: Int = AccessStampOptions.DEFAULT_STAMP_BATCH) =
+        AccessStamping("office", listOf(model), Kernel(log.log), { log }, AccessStampOptions(stampBatch = batch))
 
     /** Appends [streams] and hands each to [stamping] as its subscription would. */
     private fun commit(log: Recording, stamping: AccessStamping, vararg streams: EventStreamRecord) = runBlocking {
@@ -127,7 +127,7 @@ class AccessStampingTest {
     @Test
     fun `the options refuse what cannot run, and compare by their values`() {
         listOf(
-            { AccessStampOptions(batch = 0) },
+            { AccessStampOptions(stampBatch = 0) },
             { AccessStampOptions(capacity = 0) },
             { AccessStampOptions(walkBatch = 0) },
             { AccessStampOptions(walkRate = 0) },

@@ -32,7 +32,8 @@ import kotlin.reflect.KClass
  *
  * The aggregate's state events are a stream its context publishes for other contexts, as the
  * Manifest's `published` lists it: [published] false keeps the aggregate out of it; [publishState] false publishes
- * its events without the state after each commit, for a state too large to send; [topic] names the
+ * its events without the state after each commit, for a state too large to send (the Manifest writes it as the
+ * published entry's `includeState`); [topic] names the
  * Kafka topic, `wow.<context>.<aggregate>.state` when empty. A topic is at most 249 characters of `a-z`, `A-Z`,
  * `0-9`, `.`, `_` and `-`, and neither `.` nor `..`.
  *
@@ -76,7 +77,8 @@ import kotlin.reflect.KClass
  * full stored name. A record of a retired event is skipped, never read: rebuilding the state applies nothing for it,
  * though its stream still counts as a version, and a subscription passes over it. A record under a name that is
  * neither an event's nor retired still fails to read. The compiler rejects a blank name, one listed twice, and one
- * that is the name or a former name of one of the aggregate's events or commands.
+ * that is the name or a former name of one of the aggregate's events or commands. The Manifest writes the list as the
+ * aggregate's `retired`.
  */
 @Target(AnnotationTarget.CLASS)
 @MustBeDocumented

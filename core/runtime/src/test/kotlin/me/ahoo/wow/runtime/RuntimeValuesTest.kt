@@ -63,7 +63,7 @@ class RuntimeValuesTest {
 
     @Test
     fun `an option equals another with the same fields, and prints them`() {
-        valueSemantics(SnapshotOptions(), SnapshotOptions(), SnapshotOptions(batch = 1))
+        valueSemantics(SnapshotOptions(), SnapshotOptions(), SnapshotOptions(rebuildPageSize = 1))
         valueSemantics(SnapshotOptions(), SnapshotOptions(), SnapshotOptions(writesInFlight = 4))
         valueSemantics(ClusterOptions(), ClusterOptions(), ClusterOptions(leaseParallelism = 1))
         valueSemantics(JobOptions(), JobOptions(), JobOptions(enabled = false))

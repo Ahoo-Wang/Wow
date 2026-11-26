@@ -82,7 +82,8 @@ class SnapshotMaintenanceTest {
         revision: Int,
         store: SnapshotStore,
         node: String = "node",
-        options: SnapshotOptions = SnapshotOptions(interval = 1.hours, leaseTtl = 2.hours, memberTtl = 2.hours),
+        options: SnapshotOptions =
+            SnapshotOptions(maintenanceInterval = 1.hours, leaseTtl = 2.hours, memberTtl = 2.hours),
         progressLog: EventLog = log,
         observer: Observer = Observer.NONE,
         targets: SnapshotTargets = SnapshotTargets.single(store),
@@ -281,7 +282,13 @@ class SnapshotMaintenanceTest {
             val refs = listOf("a", "b", "c").map { id ->
                 commit(id).also { store.save(codec.snapshotOf(model(1), it, Counter(), 1, Scope.NONE, 0, 0)) }
             }
-            val one = SnapshotOptions(interval = 1.hours, batch = 1, pages = 1, leaseTtl = 2.hours, memberTtl = 2.hours)
+            val one = SnapshotOptions(
+                maintenanceInterval = 1.hours,
+                rebuildPageSize = 1,
+                rebuildMaxPages = 1,
+                leaseTtl = 2.hours,
+                memberTtl = 2.hours,
+            )
             val maintenance = maintenance(2, store, options = one)
             maintenance.prepare()
             maintenance.maintain()
@@ -307,9 +314,9 @@ class SnapshotMaintenanceTest {
         }
         // One run passes the whole table, a page a snapshot.
         val options = SnapshotOptions(
-            interval = 1.hours,
-            batch = 1,
-            pages = 10,
+            maintenanceInterval = 1.hours,
+            rebuildPageSize = 1,
+            rebuildMaxPages = 10,
             leaseTtl = 2.hours,
             memberTtl = 2.hours
         )
@@ -333,9 +340,9 @@ class SnapshotMaintenanceTest {
                 commit(id).also { store.save(codec.snapshotOf(model(1), it, Counter(), 1, Scope.NONE, 0, 0)) }
             }
             val options = SnapshotOptions(
-                interval = 1.hours,
-                batch = 1,
-                pages = 2,
+                maintenanceInterval = 1.hours,
+                rebuildPageSize = 1,
+                rebuildMaxPages = 2,
                 leaseTtl = 2.hours,
                 memberTtl = 2.hours
             )
@@ -362,9 +369,9 @@ class SnapshotMaintenanceTest {
                 commit(id).also { store.save(codec.snapshotOf(model(1), it, Counter(), 1, Scope.NONE, 0, 0)) }
             }
             val options = SnapshotOptions(
-                interval = 1.hours,
-                batch = 1,
-                pages = 10,
+                maintenanceInterval = 1.hours,
+                rebuildPageSize = 1,
+                rebuildMaxPages = 10,
                 leaseTtl = 2.hours,
                 memberTtl = 2.hours
             )
@@ -417,7 +424,7 @@ class SnapshotMaintenanceTest {
         val maintenance = maintenance(
             1,
             failing,
-            options = SnapshotOptions(interval = 10.milliseconds, leaseTtl = 1.hours, memberTtl = 1.hours),
+            options = SnapshotOptions(maintenanceInterval = 10.milliseconds, leaseTtl = 1.hours, memberTtl = 1.hours),
         )
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         try {

@@ -67,7 +67,7 @@ class KeyRulesTest {
             "wow.timers.claim-ttl" to "7s",
             "wow.subscription.read-retry.error-after-attempts" to "3",
         )
-        renamed.timers.options().claimTimeout.assert().isEqualTo(7.seconds)
+        renamed.timers.options().claimTtl.assert().isEqualTo(7.seconds)
         renamed.subscription.readRetry.policy().maxAttempts.assert().isEqualTo(3)
         val environment = StandardEnvironment().apply {
             propertySources.addFirst(

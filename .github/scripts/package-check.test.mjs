@@ -16,6 +16,8 @@ import {
   bins,
   applyAllowance,
   distTagProblems,
+  fetcherPeers,
+  floorPeers,
   manifestProblems,
   typeDiagnostics,
 } from './package-check.mjs';
@@ -327,4 +329,88 @@ test('an allowance that matches nothing is stale', () => {
     stale: [],
   });
   assert.deepEqual(applyAllowance('bundler', known).rest, known);
+});
+
+const workspaceYaml = readFileSync(join(ROOT, 'pnpm-workspace.yaml'), 'utf8');
+
+/** Every `node .github/scripts/<script>` invocation of a workflow, as its arguments. */
+function invocations(workflow, script) {
+  const text = readFileSync(join(ROOT, '.github/workflows', workflow), 'utf8');
+  return [
+    ...text.matchAll(
+      new RegExp(
+        `node \\.github/scripts/${script.replace('.', '\\.')}([^\\n]*)`,
+        'g',
+      ),
+    ),
+  ].map(([, rest]) =>
+    rest
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map(arg => arg.replace(/^"|"$/g, '')),
+  );
+}
+
+test("CI's and the release's package checks install the fetcher peers they did before --fetcher", () => {
+  const runs = [
+    ...invocations('ci.yml', 'package-check.mjs'),
+    ...invocations('package-deploy.yml', 'package-check.mjs'),
+  ];
+  // The package job, the floor job, the release's tarball and registry checks.
+  assert.deepEqual(runs, [
+    [],
+    ['--fetcher-floor'],
+    ['--tarballs', '$RUNNER_TEMP/npm-tarballs'],
+    ['--registry'],
+  ]);
+  for (const args of runs)
+    assert.deepEqual(
+      fetcherPeers(args, workspaceYaml),
+      args.includes('--fetcher-floor') ? floorPeers(workspaceYaml) : [],
+      args.join(' '),
+    );
+  assert.deepEqual(floorPeers(workspaceYaml), [
+    '@ahoo-wang/fetcher@5.1.5',
+    '@ahoo-wang/fetcher-decorator@5.1.5',
+    '@ahoo-wang/fetcher-eventstream@5.1.5',
+  ]);
+});
+
+test('--fetcher <version> installs every fetcher peer at that version', () => {
+  assert.deepEqual(fetcherPeers(['--fetcher', '6.1.1'], workspaceYaml), [
+    '@ahoo-wang/fetcher@6.1.1',
+    '@ahoo-wang/fetcher-decorator@6.1.1',
+    '@ahoo-wang/fetcher-eventstream@6.1.1',
+  ]);
+  assert.deepEqual(
+    fetcherPeers(
+      ['--tarballs', 'dir', '--fetcher', '8.0.0-rc.1'],
+      workspaceYaml,
+    ),
+    [
+      '@ahoo-wang/fetcher@8.0.0-rc.1',
+      '@ahoo-wang/fetcher-decorator@8.0.0-rc.1',
+      '@ahoo-wang/fetcher-eventstream@8.0.0-rc.1',
+    ],
+  );
+});
+
+test('--fetcher without an exact version, or beside --fetcher-floor, is refused', () => {
+  for (const args of [
+    ['--fetcher'],
+    ['--fetcher', '--registry'],
+    ['--fetcher', 'latest-6'],
+    ['--fetcher', '^6.1.1'],
+  ])
+    assert.throws(
+      () => fetcherPeers(args, workspaceYaml),
+      /--fetcher takes an exact fetcher version/,
+      args.join(' '),
+    );
+  assert.throws(
+    () =>
+      fetcherPeers(['--fetcher', '6.1.1', '--fetcher-floor'], workspaceYaml),
+    /pass one/,
+  );
 });
