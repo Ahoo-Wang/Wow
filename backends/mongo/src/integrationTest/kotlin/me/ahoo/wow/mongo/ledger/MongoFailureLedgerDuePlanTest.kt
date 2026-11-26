@@ -119,6 +119,6 @@ class MongoFailureLedgerDuePlanTest {
 
         /** How the profiler summarizes a read by the key index. */
         const val KEY_INDEX = "IXSCAN { service: 1, subscription_context: 1, subscription: 1, context: 1, " +
-            "aggregate_name: 1, tenant_id: 1, aggregate_id: 1 }"
+            "aggregate: 1, tenant_id: 1, aggregate_id: 1 }"
     }
 }

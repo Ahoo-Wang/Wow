@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.mongo.timer
 
+import com.mongodb.client.model.Filters
+import com.mongodb.client.model.Updates
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
@@ -144,6 +146,91 @@ class MongoTimerStoreTest : TimerStoreSpec() {
             due.map { it.id }.assert().containsExactly("a-9", "b-84", "b-85", "b-86", "a-16", "a-2")
         }
 
+    @Test
+    fun `timers whose rule a later version wrote should be skipped by the due read, never starving the readable`(): Unit =
+        runBlocking {
+            val store = store(context)
+            val type = AggregateType(context, "order")
+            // More unreadable timers than the page holds, all due before more readable ones than it holds, all of one
+            // partition: the read goes on past the unreadable ones, and stops at a page of the readable.
+            val partition = Partitioner.partitionOf(type.ref("t", "o-0"), logPartitions)
+            val same = generateSequence(0) { it + 1 }.map { type.ref("t", "o-$it") }
+                .filter { Partitioner.partitionOf(it, logPartitions) == partition }.take(2 * (PAGE + 1)).toList()
+            val ahead = same.take(PAGE + 1)
+            val behind = same.drop(PAGE + 1)
+            ahead.forEachIndexed { at, ref -> store.put(timer(ref, dueAt = at + 1L)).assert().isTrue() }
+            behind.forEachIndexed { at, ref -> store.put(timer(ref, dueAt = 100L + at)).assert().isTrue() }
+            val later = Updates.set("rule", Document.parse(LATER_RULE))
+            timers(store, "order").updateMany(Filters.lt("due_at", 100L), later).modifiedCount.assert()
+                .isEqualTo(ahead.size.toLong())
+
+            val partitions = (0 until logPartitions).toSet()
+            store.due(partitions, until = 1_000, perPartition = PAGE).map { it.owner }.assert()
+                .containsExactlyElementsOf(behind.take(PAGE))
+            MongoTimerStore.unknown.seen.assert().contains("rule.misfire=later")
+            // One timer read by its key is refused, naming the value.
+            assertThrownBy<IllegalStateException> { runBlocking { store.find(ahead.first(), "k") } }
+                .message().contains("later")
+        }
+
+    @Test
+    fun `a read past skipped timers should stop where the due timers end`(): Unit = runBlocking {
+        val store = store(context)
+        val type = AggregateType(context, "order")
+        // A page filled by unreadable timers, then fewer readable ones behind them than the page holds.
+        val partition = Partitioner.partitionOf(type.ref("t", "o-0"), logPartitions)
+        val same = generateSequence(0) { it + 1 }.map { type.ref("t", "o-$it") }
+            .filter { Partitioner.partitionOf(it, logPartitions) == partition }.take(PAGE + 2).toList()
+        same.forEachIndexed { at, ref -> store.put(timer(ref, dueAt = at + 1L)).assert().isTrue() }
+        val later = Updates.set("rule", Document.parse(LATER_RULE))
+        timers(store, "order").updateMany(Filters.lte("due_at", PAGE + 1L), later).modifiedCount.assert()
+            .isEqualTo(PAGE + 1L)
+
+        store.due((0 until logPartitions).toSet(), until = 1_000, perPartition = PAGE).map { it.owner }.assert()
+            .containsExactly(same.last())
+    }
+
+    /**
+     * The read every poll runs: each collection's first due timers of each partition, nothing more. A timer whose rule
+     * this version cannot read is the store's to skip; the read on past such timers runs only when one filled a page.
+     */
+    @Test
+    fun `the due read should stay the plain read of each partition's first due timers`(): Unit = runBlocking {
+        val store = store(context)
+        store.put(timer(AggregateType(context, "order").ref("t", "o-1"))).assert().isTrue()
+        val branches = store.duePipelines(setOf(0, 1), Long.MAX_VALUE, PAGE).flatMap { pipeline ->
+            documentsWith(pipeline.map { Document.parse(it.toBsonDocument().toJson()) }, "\$unionWith")
+        }
+        branches.assert().hasSize(2)
+        branches.forEach { union ->
+            val stages = union.get("\$unionWith", Document::class.java).getList("pipeline", Document::class.java)
+            stages.map { it.keys.single() }.assert().containsExactly("\$match", "\$sort", "\$limit", "\$set")
+            stages.first().toJson().assert().doesNotContain("rule")
+        }
+    }
+
+    @Test
+    fun `a parked timer whose rule a later version wrote should be skipped by the parked read`(): Unit = runBlocking {
+        val store = store(context)
+        val type = AggregateType(context, "invoice")
+        val target = type.ref("t", "target")
+        val readable = type.ref("t", "readable")
+        val later = type.ref("t", "later")
+        listOf(readable, later).forEach { store.put(timer(it, target = target)).assert().isTrue() }
+        val stored = timers(store, "invoice")
+        stored.updateMany(Filters.empty(), Updates.set("status", "parked"))
+        // Many, not one: a sharded collection takes a single update only by its shard key.
+        stored.updateMany(Filters.eq("aggregate.id", later.id), Updates.set("rule", Document.parse(LATER_TYPE)))
+            .modifiedCount.assert().isEqualTo(1)
+
+        store.parked(target).map { it.owner }.assert().containsExactly(readable)
+        MongoTimerStore.unknown.seen.assert().contains("rule.type=later")
+    }
+
+    /** The timer collection of [aggregate] that [store] writes. */
+    private fun timers(store: MongoTimerStore, aggregate: String) =
+        MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection(store.collectionName(aggregate))
+
     /** An aggregate of [type] in [partition] of [CHUNKED_PARTITIONS]. */
     private fun refIn(type: AggregateType, partition: Int): AggregateRef = generateSequence(0) { it + 1 }
         .map { type.ref("t", "p$partition-$it") }
@@ -161,6 +248,7 @@ class MongoTimerStoreTest : TimerStoreSpec() {
         partitions: Int = logPartitions,
         dueAt: Long = 5,
         id: String = "$ref#k@1",
+        target: AggregateRef = ref,
     ) = Timer(
         id = id,
         owner = ref,
@@ -169,7 +257,7 @@ class MongoTimerStoreTest : TimerStoreSpec() {
         partition = Partitioner.partitionOf(ref, partitions),
         rule = ScheduleRule.At(dueAt),
         dueAt = dueAt,
-        target = ref,
+        target = target,
         commandType = "c.order.Cancel",
         body = "{}",
     )
@@ -185,5 +273,14 @@ class MongoTimerStoreTest : TimerStoreSpec() {
         const val LIMIT = 3
         const val PARTITION_A = 45
         const val PARTITION_B = 5
+
+        /** The due read's page of a partition, which the unreadable timers outnumber. */
+        const val PAGE = 2
+
+        /** A cron rule of a later version: a misfire this one does not know. */
+        const val LATER_RULE = """{"type":"cron","expression":"0 0 * * * *","timeZone":"UTC","misfire":"later"}"""
+
+        /** A rule of a type a later version adds. */
+        const val LATER_TYPE = """{"type":"later","at":5}"""
     }
 }

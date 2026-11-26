@@ -172,21 +172,6 @@ class MongoLogCollectionsTest : MongoLogFixtures() {
         }
 
     @Test
-    fun `a log an alpha wrote, its entries under ObjectIds, is refused rather than read without them`(): Unit =
-        runBlocking {
-            val context = MongoLogFixture.newContext()
-            val order = AggregateType(context, "order")
-            MongoLogFixture.log(4, context).append(stream("a", 1, aggregate = order))
-            // What an alpha left: an entry whose _id the driver gave it.
-            MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection(collection(context, "order"))
-                .insertOne(Document("partition", 0).append("sequence", 1L).append("version", 1))
-            val restarted = MongoLogFixture.log(4, context)
-            assertThrownBy<IllegalStateException> {
-                runBlocking { restarted.append(stream("b", 1, aggregate = order)) }
-            }.hasMessageContaining("earlier 10.0 alpha")
-        }
-
-    @Test
     fun `a different partition count is refused`() {
         val context = MongoLogFixture.newContext()
         MongoLogFixture.log(4, context)

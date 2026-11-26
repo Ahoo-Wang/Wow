@@ -37,6 +37,7 @@ import me.ahoo.wow.spi.subscription.ExpiredMembers
 import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.subscription.Member
+import me.ahoo.wow.spi.subscription.WowVersion
 import org.bson.Document
 import org.bson.conversions.Bson
 import org.slf4j.LoggerFactory
@@ -78,6 +79,8 @@ class MongoLeaseStore(
     private val ddl: Ddl = Ddl.AUTO,
     /** How long each of its calls may take (`wow.mongo.operation-timeout`, [MongoTimeouts]). */
     private val operationTimeout: Duration = MongoTimeouts.OPERATION,
+    /** The version of Wow the member records carry: this node's ([WowVersion.CURRENT]); a test's own. */
+    private val wowVersion: String? = WowVersion.CURRENT,
 ) : LeaseStore {
     private val database = MongoDatabases.of(client, databaseName, operationTimeout)
     private val leases: MongoCollection<Document> = database.getCollection(LEASES)
@@ -89,7 +92,7 @@ class MongoLeaseStore(
         MongoFormat.claim(database, LEASES, FORMAT, ddl)
         MongoFormat.claim(database, MEMBERS, FORMAT, ddl)
         MongoFormat.index(leases, Indexes.ascending(GROUP, PARTITION), IndexOptions().unique(true).name(LEASE_KEY), ddl)
-        MongoFormat.index(members, Indexes.ascending(GROUP, NODE), IndexOptions().unique(true).name(MEMBER_KEY), ddl)
+        MongoFormat.index(members, Indexes.ascending(SERVICE, NODE), IndexOptions().unique(true).name(MEMBER_KEY), ddl)
     }
 
     override suspend fun acquire(group: String, partition: Int, owner: String, ttl: Duration): Lease? =
@@ -182,6 +185,8 @@ class MongoLeaseStore(
                     Updates.set(ADDRESS, address),
                     Updates.set(EXPIRES_AT, expiresAt),
                     Updates.set(GROUPS, sorted.toList()),
+                    // A null is left out, as everywhere in Wow's documents.
+                    wowVersion?.let { Updates.set(WOW_VERSION, it) } ?: Updates.unset(WOW_VERSION),
                 ),
                 UpdateOptions().upsert(upsert)
             )
@@ -189,7 +194,7 @@ class MongoLeaseStore(
         expired.due(service, ttl)?.let { before ->
             deleteExpired(service, before, deadline.of(members, expired.deleteBound(ttl)))
         }
-        Member(service, node, address, expiresAt, sorted)
+        Member(service, node, address, expiresAt, sorted, wowVersion)
     }
 
     /**
@@ -199,7 +204,7 @@ class MongoLeaseStore(
      */
     private fun deleteExpired(service: String, before: Long, timed: MongoCollection<Document>) {
         try {
-            timed.deleteMany(Filters.and(Filters.eq(GROUP, service), Filters.lt(EXPIRES_AT, before)))
+            timed.deleteMany(Filters.and(Filters.eq(SERVICE, service), Filters.lt(EXPIRES_AT, before)))
         } catch (failure: MongoException) {
             log.debug(
                 "Deleting the member records of {} expired before {} failed; a later heartbeat will.",
@@ -212,15 +217,16 @@ class MongoLeaseStore(
 
     override suspend fun members(service: String): List<Member> = dispatcher.mongo {
         // MongoDB compares strings by their UTF-8 bytes when no collation is set: node order is code point order.
-        members.find(Filters.and(Filters.eq(GROUP, service), Filters.gt(EXPIRES_AT, clock.millis())))
+        members.find(Filters.and(Filters.eq(SERVICE, service), Filters.gt(EXPIRES_AT, clock.millis())))
             .sort(Sorts.ascending(NODE))
             .map {
                 Member(
-                    it.getString(GROUP),
+                    it.getString(SERVICE),
                     it.getString(NODE),
                     it.getString(ADDRESS),
                     it.getLong(EXPIRES_AT),
                     it.getList(GROUPS, String::class.java).orEmpty().toSortedSet(),
+                    it.getString(WOW_VERSION),
                 )
             }
             .toList()
@@ -263,8 +269,8 @@ class MongoLeaseStore(
         Filters.gt(EXPIRES_AT, now),
     )
 
-    private fun memberFilter(group: String, node: String): Bson =
-        Filters.and(Filters.eq(GROUP, group), Filters.eq(NODE, node))
+    private fun memberFilter(service: String, node: String): Bson =
+        Filters.and(Filters.eq(SERVICE, service), Filters.eq(NODE, node))
 
     private fun returnAfter(upsert: Boolean) =
         FindOneAndUpdateOptions().upsert(upsert).returnDocument(ReturnDocument.AFTER)
@@ -288,8 +294,14 @@ class MongoLeaseStore(
         const val MEMBER_KEY = "member_key"
         const val GROUP = "subscription_group"
 
-        /** A member's lease groups: the member collection's key field holds its service. */
+        /** A member's service, the member collection's key with its node. */
+        const val SERVICE = "service"
+
+        /** A member's lease groups. */
         const val GROUPS = "groups"
+
+        /** The member's version of Wow ([Member.wowVersion]), left out when none. */
+        const val WOW_VERSION = "wow_version"
         const val PARTITION = "partition"
         const val OWNER = "owner"
         const val EPOCH = "epoch"

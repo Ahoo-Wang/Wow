@@ -611,7 +611,9 @@ class MongoEventLog(
         const val EVENTS = "events"
         const val NAME = "name"
         const val REVISION = "revision"
-        const val PAYLOAD = "payload"
+
+        /** An event's data in a log document's `events`, `body` as the events query model names it. */
+        const val BODY = "body"
         const val VERSION_KEY = "version_key"
         const val REQUEST_KEY = "request_key"
 
