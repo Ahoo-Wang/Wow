@@ -66,10 +66,9 @@ dependencies {
     integrationTestImplementation("me.ahoo.wow:wow-tck-containers")
 }
 
-// `./gradlew :ops-server:run` is a local run, in the `dev` profile: the callers are named in the Wow-* identity
-// headers, which the host reads in development alone (review A3-4); a deployment uses CoSec instead.
+// `./gradlew :ops-server:run` is a local run: the `dev` profile joins whatever profiles `--args` activates (#7057), so
+// the callers are named in the Wow-* identity headers, which the host reads in development alone (review A3-4), and the
+// internal port binds the loopback interface; a deployment uses CoSec instead.
 tasks.named<JavaExec>("run") {
-    systemProperty("spring.profiles.active", "dev")
-    // The internal port on this machine alone, a development node; a deployment puts it behind a NetworkPolicy (D300).
-    systemProperty("wow.internal.host", "127.0.0.1")
+    systemProperty("spring.profiles.include", "dev")
 }

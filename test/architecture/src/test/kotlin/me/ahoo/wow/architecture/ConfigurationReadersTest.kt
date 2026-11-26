@@ -115,11 +115,12 @@ class ConfigurationReadersTest {
     private companion object {
         const val REPOSITORY_ROOT = "wow-test.repository.root"
 
-        /** The configuration keys a build may set for its tests as system properties, each with its reason. */
-        val RUNTIME_KEYS: Map<String, String> = mapOf(
-            "wow.internal.host" to "the internal port's host, which the servers' and the quickstart's tests bind to " +
-                "the loopback: a configuration key, which the host knows",
-        )
+        /**
+         * The configuration keys a build may set for its tests as system properties, each with its reason: none since
+         * the platform services' local runs stopped setting `wow.internal.host`, a development node binding the loopback
+         * by itself (#7057).
+         */
+        val RUNTIME_KEYS: Map<String, String> = emptyMap()
 
         /** The files that may, each with its reason. */
         val ALLOWED: Map<String, String> = mapOf(
