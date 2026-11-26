@@ -16,6 +16,7 @@ package me.ahoo.wow.analytics.catalog.server
 import com.clickhouse.client.api.Client
 import com.clickhouse.client.api.query.QuerySettings
 import com.clickhouse.data.ClickHouseFormat
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.withContext
@@ -27,8 +28,10 @@ import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseCatalog
 import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseTable
 import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseTableInfo
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
+import me.ahoo.wow.api.wire.WireNames
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * The [WarehouseCatalog] of a ClickHouse server, over the host's client-v2 [client]:
@@ -121,6 +124,21 @@ class ClickHouseWarehouseCatalog(
         private const val SOURCE_TABLES =
             "engine != 'MaterializedView' AND name != '$CATALOG' AND NOT startsWith(name, '.inner')"
         private val json: JsonMapper = JsonMapper.builder().build()
+        private val logger = KotlinLogging.logger {}
+
+        /** The levels this JVM's catalogs read that this version does not know, each warned of once. */
+        internal val unknownLevels: MutableSet<String> = ConcurrentHashMap.newKeySet()
+
+        /** The level [path] is marked at, by its wire name; one this version does not know as confidential. */
+        fun levelOf(path: String, level: String): SensitivityLevel =
+            WireNames.entryOf<SensitivityLevel>(level) ?: SensitivityLevel.CONFIDENTIAL.also {
+                if (unknownLevels.add(level)) {
+                    logger.warn {
+                        "The sensitivity level $level of $path is not one this version of Wow knows: read as " +
+                            "confidential, the strongest it enforces, masked and never compared."
+                    }
+                }
+            }
 
         fun identifier(name: String): String = "`" + name.replace("\\", "\\\\").replace("`", "\\`") + "`"
 
@@ -153,15 +171,16 @@ class ClickHouseWarehouseCatalog(
         )
 
         /**
-         * One `sensitive` entry: its level as the Sink wrote it, a level this catalog does not know read as the
-         * highest, and its `x-wow-mask` (`{"keepPrefix", "keepSuffix"}` or `{"strategy"}`) as the mask.
+         * One `sensitive` entry: its level as the Sink wrote it, by its wire name, and its `x-wow-mask`
+         * (`{"keepPrefix", "keepSuffix"}` or `{"strategy"}`) as the mask. A level this version does not know is read
+         * as [SensitivityLevel.CONFIDENTIAL], the strongest it enforces, masked and never compared: a level added
+         * within 10.x protects no more ([SensitivityLevel]). Warned of once per value.
          */
         private fun sensitivityOf(entry: JsonNode): FieldSensitivity {
             val mask = entry.text("mask").takeIf { it.isNotBlank() }?.let(json::readTree)
             return FieldSensitivity(
                 path = entry.text("path"),
-                level = SensitivityLevel.entries.firstOrNull { it.name == entry.text("level") }
-                    ?: SensitivityLevel.CONFIDENTIAL,
+                level = levelOf(entry.text("path"), entry.text("level")),
                 keepPrefix = mask?.get("keepPrefix")?.asInt() ?: 0,
                 keepSuffix = mask?.get("keepSuffix")?.asInt() ?: 0,
                 strategy = mask?.get("strategy")?.asString(),

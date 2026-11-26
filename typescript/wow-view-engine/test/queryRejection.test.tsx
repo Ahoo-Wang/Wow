@@ -141,7 +141,7 @@ describe('sourceFailure', () => {
         path: 'state.missing',
         message: 'Unknown.',
       },
-      errorCode: 'wow.query.invalid',
+      code: 'wow.query.invalid',
       status: 400,
     });
     expect(second).toBe(first);
@@ -171,7 +171,7 @@ describe('sourceFailure', () => {
         path: 'filter',
         message: 'Unknown type [NOPE] at [filter].',
       },
-      errorCode: 'wow.query.malformed',
+      code: 'wow.query.malformed',
       status: 400,
     });
   });
@@ -186,7 +186,7 @@ describe('sourceFailure', () => {
     );
     await expect(sourceFailure(budget)).resolves.toEqual({
       reason: 'HTTP list query limit[1001] must be between 1 and 1000.',
-      errorCode: 'wow.query.malformed',
+      code: 'wow.query.malformed',
       status: 400,
     });
     const uncoded = rejected(undefined, '', 'x');
@@ -200,7 +200,7 @@ describe('sourceFailure', () => {
     });
     await expect(sourceFailure(uncoded)).resolves.toEqual({
       reason: 'x',
-      errorCode: 'wow.command.invalid',
+      code: 'wow.command.invalid',
       status: 400,
     });
     await expect(sourceFailure('down')).resolves.toEqual({ reason: 'down' });
@@ -409,7 +409,7 @@ describe('queryFailureIssue', () => {
     );
     expect(failure).toEqual({
       reason: 'Elasticsearch search timed out.',
-      errorCode: 'wow.query.failed',
+      code: 'wow.query.failed',
       status: 500,
     });
     const found = queryFailureIssue(failure, withItems(), FILTER);
@@ -554,7 +554,7 @@ describe('a rejected query in the view', () => {
           definitionId: 'orders',
           instanceId: 'orders-1',
           runtimeId: runtime.id,
-          errorCode: 'wow.query.invalid',
+          code: 'wow.query.invalid',
           violation: {
             code: QueryErrorCodes.VALUE_MISMATCH,
             path: 'status',
@@ -586,7 +586,9 @@ describe('a rejected query in the view', () => {
           {
             ...mine,
             config: recordConfig({
-              summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+              summaries: [
+                { field: 'amount', function: AggregationFunction.SUM },
+              ],
             }),
           },
         ],

@@ -15,6 +15,9 @@
     "name" : "eshop-catalog.product",
     "description" : "A product of the catalog"
   }, {
+    "name" : "eshop-catalog",
+    "description" : "The context's service routes."
+  }, {
     "name" : "wow",
     "description" : "The framework's own endpoints."
   } ],
@@ -46,6 +49,12 @@
           },
           "406" : {
             "$ref" : "#/components/responses/wow.framework.406"
+          },
+          "414" : {
+            "$ref" : "#/components/responses/wow.framework.414"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.framework.431"
           }
         },
         "parameters" : [ {
@@ -80,6 +89,12 @@
           },
           "406" : {
             "$ref" : "#/components/responses/wow.framework.406"
+          },
+          "414" : {
+            "$ref" : "#/components/responses/wow.framework.414"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.framework.431"
           }
         },
         "parameters" : [ {
@@ -122,6 +137,12 @@
           },
           "406" : {
             "$ref" : "#/components/responses/wow.datasets.406"
+          },
+          "414" : {
+            "$ref" : "#/components/responses/wow.datasets.414"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.datasets.431"
           }
         }
       }
@@ -245,11 +266,17 @@
           "413" : {
             "$ref" : "#/components/responses/wow.dataset-query.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/wow.dataset-query.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.dataset-query.415"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.dataset-query.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.dataset-query.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.dataset-query.500"
@@ -283,6 +310,9 @@
             "headers" : {
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
+              },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
               }
             },
             "content" : {
@@ -298,6 +328,9 @@
             "headers" : {
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
+              },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
               }
             }
           },
@@ -318,6 +351,12 @@
           },
           "409" : {
             "$ref" : "#/components/responses/wow.dataset-descriptor.409"
+          },
+          "414" : {
+            "$ref" : "#/components/responses/wow.dataset-descriptor.414"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.dataset-descriptor.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.dataset-descriptor.500"
@@ -400,6 +439,9 @@
           "413" : {
             "$ref" : "#/components/responses/eshop-catalog.command.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/eshop-catalog.command.415"
           },
@@ -408,6 +450,9 @@
           },
           "429" : {
             "$ref" : "#/components/responses/eshop-catalog.command.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.431"
           },
           "500" : {
             "$ref" : "#/components/responses/eshop-catalog.command.500"
@@ -496,6 +541,9 @@
           "413" : {
             "$ref" : "#/components/responses/eshop-catalog.command.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/eshop-catalog.command.415"
           },
@@ -504,6 +552,9 @@
           },
           "429" : {
             "$ref" : "#/components/responses/eshop-catalog.command.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.431"
           },
           "500" : {
             "$ref" : "#/components/responses/eshop-catalog.command.500"
@@ -594,6 +645,9 @@
           "413" : {
             "$ref" : "#/components/responses/eshop-catalog.command.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/eshop-catalog.command.415"
           },
@@ -602,6 +656,9 @@
           },
           "429" : {
             "$ref" : "#/components/responses/eshop-catalog.command.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.431"
           },
           "500" : {
             "$ref" : "#/components/responses/eshop-catalog.command.500"
@@ -692,11 +749,17 @@
           "413" : {
             "$ref" : "#/components/responses/wow.command.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/wow.command.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.command.415"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.command.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.command.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.command.500"
@@ -782,11 +845,17 @@
           "413" : {
             "$ref" : "#/components/responses/wow.command.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/wow.command.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.command.415"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.command.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.command.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.command.500"
@@ -872,11 +941,17 @@
           "413" : {
             "$ref" : "#/components/responses/wow.command.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/wow.command.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.command.415"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.command.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.command.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.command.500"
@@ -960,11 +1035,17 @@
           "413" : {
             "$ref" : "#/components/responses/wow.command.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/wow.command.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.command.415"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.command.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.command.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.command.500"
@@ -1005,6 +1086,9 @@
             "headers" : {
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
+              },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
               }
             },
             "content" : {
@@ -1025,6 +1109,9 @@
             "headers" : {
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
+              },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
               }
             }
           },
@@ -1046,8 +1133,14 @@
           "409" : {
             "$ref" : "#/components/responses/wow.state.409"
           },
+          "414" : {
+            "$ref" : "#/components/responses/wow.state.414"
+          },
           "429" : {
             "$ref" : "#/components/responses/wow.state.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.state.431"
           },
           "503" : {
             "$ref" : "#/components/responses/wow.state.503"
@@ -1112,8 +1205,14 @@
           "406" : {
             "$ref" : "#/components/responses/wow.state.406"
           },
+          "414" : {
+            "$ref" : "#/components/responses/wow.state.414"
+          },
           "429" : {
             "$ref" : "#/components/responses/wow.state.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.state.431"
           },
           "503" : {
             "$ref" : "#/components/responses/wow.state.503"
@@ -1263,11 +1362,17 @@
           "413" : {
             "$ref" : "#/components/responses/wow.query.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/wow.query.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.query.415"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.query.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.query.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.query.500"
@@ -1296,6 +1401,9 @@
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
               },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
+              },
               "Wow-Rebuilding" : {
                 "$ref" : "#/components/headers/Wow-Rebuilding"
               }
@@ -1314,6 +1422,9 @@
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
               },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
+              },
               "Wow-Rebuilding" : {
                 "$ref" : "#/components/headers/Wow-Rebuilding"
               }
@@ -1330,6 +1441,12 @@
           },
           "406" : {
             "$ref" : "#/components/responses/wow.descriptor.406"
+          },
+          "414" : {
+            "$ref" : "#/components/responses/wow.descriptor.414"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.descriptor.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.descriptor.500"
@@ -1452,11 +1569,17 @@
           "413" : {
             "$ref" : "#/components/responses/wow.query.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/wow.query.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.query.415"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.query.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.query.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.query.500"
@@ -1484,6 +1607,9 @@
             "headers" : {
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
+              },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
               }
             },
             "content" : {
@@ -1499,6 +1625,9 @@
             "headers" : {
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
+              },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
               }
             }
           },
@@ -1513,6 +1642,12 @@
           },
           "406" : {
             "$ref" : "#/components/responses/wow.descriptor.406"
+          },
+          "414" : {
+            "$ref" : "#/components/responses/wow.descriptor.414"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.descriptor.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.descriptor.500"
@@ -1595,6 +1730,9 @@
           "413" : {
             "$ref" : "#/components/responses/eshop-catalog.command.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/eshop-catalog.command.415"
           },
@@ -1603,6 +1741,9 @@
           },
           "429" : {
             "$ref" : "#/components/responses/eshop-catalog.command.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.431"
           },
           "500" : {
             "$ref" : "#/components/responses/eshop-catalog.command.500"
@@ -1691,6 +1832,9 @@
           "413" : {
             "$ref" : "#/components/responses/eshop-catalog.command.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/eshop-catalog.command.415"
           },
@@ -1699,6 +1843,9 @@
           },
           "429" : {
             "$ref" : "#/components/responses/eshop-catalog.command.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.431"
           },
           "500" : {
             "$ref" : "#/components/responses/eshop-catalog.command.500"
@@ -1789,6 +1936,9 @@
           "413" : {
             "$ref" : "#/components/responses/eshop-catalog.command.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/eshop-catalog.command.415"
           },
@@ -1797,6 +1947,9 @@
           },
           "429" : {
             "$ref" : "#/components/responses/eshop-catalog.command.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.431"
           },
           "500" : {
             "$ref" : "#/components/responses/eshop-catalog.command.500"
@@ -1887,11 +2040,17 @@
           "413" : {
             "$ref" : "#/components/responses/wow.command.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/wow.command.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.command.415"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.command.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.command.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.command.500"
@@ -1977,11 +2136,17 @@
           "413" : {
             "$ref" : "#/components/responses/wow.command.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/wow.command.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.command.415"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.command.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.command.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.command.500"
@@ -2067,11 +2232,17 @@
           "413" : {
             "$ref" : "#/components/responses/wow.command.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/wow.command.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.command.415"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.command.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.command.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.command.500"
@@ -2155,11 +2326,17 @@
           "413" : {
             "$ref" : "#/components/responses/wow.command.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/wow.command.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.command.415"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.command.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.command.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.command.500"
@@ -2200,6 +2377,9 @@
             "headers" : {
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
+              },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
               }
             },
             "content" : {
@@ -2220,6 +2400,9 @@
             "headers" : {
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
+              },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
               }
             }
           },
@@ -2241,8 +2424,14 @@
           "409" : {
             "$ref" : "#/components/responses/wow.state.409"
           },
+          "414" : {
+            "$ref" : "#/components/responses/wow.state.414"
+          },
           "429" : {
             "$ref" : "#/components/responses/wow.state.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.state.431"
           },
           "503" : {
             "$ref" : "#/components/responses/wow.state.503"
@@ -2307,8 +2496,14 @@
           "406" : {
             "$ref" : "#/components/responses/wow.state.406"
           },
+          "414" : {
+            "$ref" : "#/components/responses/wow.state.414"
+          },
           "429" : {
             "$ref" : "#/components/responses/wow.state.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.state.431"
           },
           "503" : {
             "$ref" : "#/components/responses/wow.state.503"
@@ -2458,11 +2653,17 @@
           "413" : {
             "$ref" : "#/components/responses/wow.query.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/wow.query.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.query.415"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.query.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.query.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.query.500"
@@ -2491,6 +2692,9 @@
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
               },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
+              },
               "Wow-Rebuilding" : {
                 "$ref" : "#/components/headers/Wow-Rebuilding"
               }
@@ -2509,6 +2713,9 @@
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
               },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
+              },
               "Wow-Rebuilding" : {
                 "$ref" : "#/components/headers/Wow-Rebuilding"
               }
@@ -2525,6 +2732,12 @@
           },
           "406" : {
             "$ref" : "#/components/responses/wow.descriptor.406"
+          },
+          "414" : {
+            "$ref" : "#/components/responses/wow.descriptor.414"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.descriptor.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.descriptor.500"
@@ -2647,11 +2860,17 @@
           "413" : {
             "$ref" : "#/components/responses/wow.query.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/wow.query.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.query.415"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.query.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.query.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.query.500"
@@ -2679,6 +2898,9 @@
             "headers" : {
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
+              },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
               }
             },
             "content" : {
@@ -2694,6 +2916,9 @@
             "headers" : {
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
+              },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
               }
             }
           },
@@ -2708,6 +2933,12 @@
           },
           "406" : {
             "$ref" : "#/components/responses/wow.descriptor.406"
+          },
+          "414" : {
+            "$ref" : "#/components/responses/wow.descriptor.414"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.descriptor.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.descriptor.500"
@@ -2790,6 +3021,9 @@
           "413" : {
             "$ref" : "#/components/responses/eshop-catalog.command.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/eshop-catalog.command.415"
           },
@@ -2798,6 +3032,9 @@
           },
           "429" : {
             "$ref" : "#/components/responses/eshop-catalog.command.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.431"
           },
           "500" : {
             "$ref" : "#/components/responses/eshop-catalog.command.500"
@@ -2888,6 +3125,9 @@
           "413" : {
             "$ref" : "#/components/responses/eshop-catalog.command.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/eshop-catalog.command.415"
           },
@@ -2896,6 +3136,9 @@
           },
           "429" : {
             "$ref" : "#/components/responses/eshop-catalog.command.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.431"
           },
           "500" : {
             "$ref" : "#/components/responses/eshop-catalog.command.500"
@@ -2984,6 +3227,9 @@
           "413" : {
             "$ref" : "#/components/responses/eshop-catalog.command.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/eshop-catalog.command.415"
           },
@@ -2992,6 +3238,9 @@
           },
           "429" : {
             "$ref" : "#/components/responses/eshop-catalog.command.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.431"
           },
           "500" : {
             "$ref" : "#/components/responses/eshop-catalog.command.500"
@@ -3082,6 +3331,9 @@
           "413" : {
             "$ref" : "#/components/responses/eshop-catalog.command.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/eshop-catalog.command.415"
           },
@@ -3090,6 +3342,9 @@
           },
           "429" : {
             "$ref" : "#/components/responses/eshop-catalog.command.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.431"
           },
           "500" : {
             "$ref" : "#/components/responses/eshop-catalog.command.500"
@@ -3180,6 +3435,9 @@
           "413" : {
             "$ref" : "#/components/responses/eshop-catalog.command.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/eshop-catalog.command.415"
           },
@@ -3188,6 +3446,9 @@
           },
           "429" : {
             "$ref" : "#/components/responses/eshop-catalog.command.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.431"
           },
           "500" : {
             "$ref" : "#/components/responses/eshop-catalog.command.500"
@@ -3278,6 +3539,9 @@
           "413" : {
             "$ref" : "#/components/responses/eshop-catalog.command.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/eshop-catalog.command.415"
           },
@@ -3286,6 +3550,9 @@
           },
           "429" : {
             "$ref" : "#/components/responses/eshop-catalog.command.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.431"
           },
           "500" : {
             "$ref" : "#/components/responses/eshop-catalog.command.500"
@@ -3376,6 +3643,9 @@
           "413" : {
             "$ref" : "#/components/responses/eshop-catalog.command.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/eshop-catalog.command.415"
           },
@@ -3384,6 +3654,9 @@
           },
           "429" : {
             "$ref" : "#/components/responses/eshop-catalog.command.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/eshop-catalog.command.431"
           },
           "500" : {
             "$ref" : "#/components/responses/eshop-catalog.command.500"
@@ -3474,11 +3747,17 @@
           "413" : {
             "$ref" : "#/components/responses/wow.command.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/wow.command.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.command.415"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.command.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.command.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.command.500"
@@ -3564,11 +3843,17 @@
           "413" : {
             "$ref" : "#/components/responses/wow.command.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/wow.command.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.command.415"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.command.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.command.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.command.500"
@@ -3654,11 +3939,17 @@
           "413" : {
             "$ref" : "#/components/responses/wow.command.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/wow.command.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.command.415"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.command.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.command.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.command.500"
@@ -3742,11 +4033,17 @@
           "413" : {
             "$ref" : "#/components/responses/wow.command.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/wow.command.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.command.415"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.command.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.command.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.command.500"
@@ -3787,6 +4084,9 @@
             "headers" : {
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
+              },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
               }
             },
             "content" : {
@@ -3807,6 +4107,9 @@
             "headers" : {
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
+              },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
               }
             }
           },
@@ -3828,8 +4131,14 @@
           "409" : {
             "$ref" : "#/components/responses/wow.state.409"
           },
+          "414" : {
+            "$ref" : "#/components/responses/wow.state.414"
+          },
           "429" : {
             "$ref" : "#/components/responses/wow.state.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.state.431"
           },
           "503" : {
             "$ref" : "#/components/responses/wow.state.503"
@@ -3894,8 +4203,14 @@
           "406" : {
             "$ref" : "#/components/responses/wow.state.406"
           },
+          "414" : {
+            "$ref" : "#/components/responses/wow.state.414"
+          },
           "429" : {
             "$ref" : "#/components/responses/wow.state.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.state.431"
           },
           "503" : {
             "$ref" : "#/components/responses/wow.state.503"
@@ -4045,11 +4360,17 @@
           "413" : {
             "$ref" : "#/components/responses/wow.query.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/wow.query.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.query.415"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.query.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.query.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.query.500"
@@ -4078,6 +4399,9 @@
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
               },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
+              },
               "Wow-Rebuilding" : {
                 "$ref" : "#/components/headers/Wow-Rebuilding"
               }
@@ -4096,6 +4420,9 @@
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
               },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
+              },
               "Wow-Rebuilding" : {
                 "$ref" : "#/components/headers/Wow-Rebuilding"
               }
@@ -4112,6 +4439,12 @@
           },
           "406" : {
             "$ref" : "#/components/responses/wow.descriptor.406"
+          },
+          "414" : {
+            "$ref" : "#/components/responses/wow.descriptor.414"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.descriptor.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.descriptor.500"
@@ -4234,11 +4567,17 @@
           "413" : {
             "$ref" : "#/components/responses/wow.query.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/wow.query.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.query.415"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.query.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.query.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.query.500"
@@ -4266,6 +4605,9 @@
             "headers" : {
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
+              },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
               }
             },
             "content" : {
@@ -4281,6 +4623,9 @@
             "headers" : {
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
+              },
+              "Cache-Control" : {
+                "$ref" : "#/components/headers/Cache-Control"
               }
             }
           },
@@ -4295,6 +4640,12 @@
           },
           "406" : {
             "$ref" : "#/components/responses/wow.descriptor.406"
+          },
+          "414" : {
+            "$ref" : "#/components/responses/wow.descriptor.414"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.descriptor.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.descriptor.500"
@@ -4358,6 +4709,12 @@
           },
           "406" : {
             "$ref" : "#/components/responses/wow.route.406"
+          },
+          "414" : {
+            "$ref" : "#/components/responses/wow.route.414"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.route.431"
           }
         },
         "x-wow-route" : {
@@ -4411,6 +4768,12 @@
           },
           "406" : {
             "$ref" : "#/components/responses/wow.route.406"
+          },
+          "414" : {
+            "$ref" : "#/components/responses/wow.route.414"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.route.431"
           }
         },
         "x-wow-route" : {
@@ -4470,8 +4833,14 @@
           "413" : {
             "$ref" : "#/components/responses/wow.route.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/wow.route.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.route.415"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.route.431"
           }
         },
         "x-wow-route" : {
@@ -4566,7 +4935,8 @@
             "type" : "string"
           },
           "id" : {
-            "type" : "string"
+            "type" : [ "string", "null" ],
+            "description" : "The aggregate's id; null in the result of a creation refused before admission chose its id."
           }
         },
         "required" : [ "type", "tenantId", "id" ]
@@ -4670,7 +5040,7 @@
       },
       "wow.Problem" : {
         "type" : "object",
-        "description" : "An RFC 9457 problem; `result` is the command's when it has one, and the rejection's extensions are members of their own names.",
+        "description" : "An RFC 9457 problem; `result` is the command's when it has one, and the rejection's extensions are members of their own names, except one named like a member here, `instance`, `requestId`, `traceId` or `errors`.",
         "properties" : {
           "type" : {
             "type" : "string",
@@ -6281,8 +6651,28 @@
           }
         }
       },
+      "wow.framework.414" : {
+        "description" : "URI Too Long: the request line is longer than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
+      "wow.framework.431" : {
+        "description" : "Request Header Fields Too Large: the request's headers are larger than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
       "wow.datasets.400" : {
-        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.",
+        "description" : "`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -6290,7 +6680,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.query.malformed", "wow.request.malformed" ]
+        "x-wow-error-codes" : [ "wow.request.malformed" ]
       },
       "wow.datasets.401" : {
         "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
@@ -6316,6 +6706,26 @@
       },
       "wow.datasets.406" : {
         "description" : "Not Acceptable: the route answers in none of the types Accept names.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
+      "wow.datasets.414" : {
+        "description" : "URI Too Long: the request line is longer than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
+      "wow.datasets.431" : {
+        "description" : "Request Header Fields Too Large: the request's headers are larger than this server takes.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -6399,6 +6809,16 @@
           }
         }
       },
+      "wow.dataset-query.414" : {
+        "description" : "URI Too Long: the request line is longer than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
       "wow.dataset-query.415" : {
         "description" : "Unsupported Media Type: the body is sent as application/json.",
         "content" : {
@@ -6424,6 +6844,16 @@
           }
         },
         "x-wow-error-codes" : [ "wow.query.busy" ]
+      },
+      "wow.dataset-query.431" : {
+        "description" : "Request Header Fields Too Large: the request's headers are larger than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
       },
       "wow.dataset-query.500" : {
         "description" : "`wow.query.failed`: The query backend failed to run the query.",
@@ -6464,7 +6894,7 @@
         "x-wow-error-codes" : [ "wow.query.timeout" ]
       },
       "wow.dataset-descriptor.400" : {
-        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.",
+        "description" : "`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -6472,7 +6902,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.query.malformed", "wow.request.malformed" ]
+        "x-wow-error-codes" : [ "wow.request.malformed" ]
       },
       "wow.dataset-descriptor.401" : {
         "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
@@ -6528,6 +6958,26 @@
         },
         "x-wow-error-codes" : [ "wow.query.dataset-unavailable" ]
       },
+      "wow.dataset-descriptor.414" : {
+        "description" : "URI Too Long: the request line is longer than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
+      "wow.dataset-descriptor.431" : {
+        "description" : "Request Header Fields Too Large: the request's headers are larger than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
       "wow.dataset-descriptor.500" : {
         "description" : "`wow.query.failed`: The query backend failed to run the query.",
         "content" : {
@@ -6556,7 +7006,7 @@
         "x-wow-error-codes" : [ "wow.storage.unavailable" ]
       },
       "wow.command.200" : {
-        "description" : "The result the wait ended with. With `Accept: text/event-stream`, a refusal before the command is accepted is the problem it is, with its status; once accepted, the answer is 200 and no other status: one event per result as each hop the plan names is reached, its name the hop's stage, its `id` the result's index and its data the result, until the last, which ends the stream (the plan's last hop, a rejection at its hop, or a FAILED result: `wow.wait.timeout` at the last hop reached, `wow.storage.unavailable` or `wow.command.unknown` when the execution failed). After it, one more event, `end` with `{\"reason\":\"complete\"}` and no result, says the stream is whole: a stream that ends without it, however cleanly, leaves the command's outcome unknown (retry with the same request id). A comment, `: keep-alive`, is sent at once and every 15 seconds while the stream runs: it is no event.",
+        "description" : "The result the wait ended with. With `Accept: text/event-stream`, a refusal before the command is accepted is the problem it is, with its status; once accepted, the answer is 200 and no other status: one event per result as each hop the plan names is reached, its name the hop's stage, its `id` the result's index and its data the result, until the last, which ends the stream (the plan's last hop, a rejection at its hop, or a FAILED result: `wow.wait.timeout` at the last hop reached, `wow.storage.unavailable` or `wow.command.unknown` when the execution failed). After it, one more event, `end` with `{\"reason\":\"complete\",\"resumable\":false}` and no result, says the stream is whole: a stream that ends without it, however cleanly, leaves the command's outcome unknown (retry with the same request id). A comment, `: keep-alive`, is sent at once and every 15 seconds while the stream runs: it is no event.",
         "content" : {
           "application/json" : {
             "schema" : {
@@ -6569,9 +7019,22 @@
               "description" : "Server-sent events."
             },
             "x-wow-events" : {
-              "event" : [ "accepted", "committed", "handled" ],
+              "event" : [ "accepted", "committed", "handled", "end" ],
               "data" : {
                 "$ref" : "#/components/schemas/wow.CommandResult"
+              },
+              "end" : {
+                "type" : "object",
+                "required" : [ "reason", "resumable" ],
+                "properties" : {
+                  "reason" : {
+                    "type" : "string",
+                    "enum" : [ "complete", "hold-expired", "permit-reclaimed", "node-stopping" ]
+                  },
+                  "resumable" : {
+                    "type" : "boolean"
+                  }
+                }
               }
             }
           }
@@ -6588,7 +7051,7 @@
         }
       },
       "eshop-catalog.command.400" : {
-        "description" : "`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.\n`wow.command.malformed`: The command body cannot be read as the command type.\n`wow.command.invalid`: The command failed validation; the problem lists the violations.\n`wow.wait.invalid`: The wait is not a chain the runtime can follow; the command was not run.\n`wow.command.unhandled`: The aggregate does not handle this command.\n`wow.schedule.job-invalid`: The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled.\n`wow.route.malformed`: A service route's parameter or body cannot be read as its type; the violation names the parameter.\n`eshop-catalog.limit-out-of-range`: A page of listings holds 1 to 50 products.\n`eshop-catalog.quantity-not-positive`: A quote's line asks for one or more of its product.",
+        "description" : "`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.\n`wow.command.malformed`: The command body cannot be read as the command type.\n`wow.command.invalid`: The command failed validation; the problem lists the violations.\n`wow.wait.invalid`: The wait is not a chain the runtime can follow; the command was not run.\n`wow.command.unhandled`: The aggregate does not handle this command.\n`wow.schedule.job-invalid`: The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled.\n`wow.route.malformed`: A service route's parameter or body cannot be read as its type, or the request gives a query parameter the route does not declare, or one twice; the violation names the parameter.\n`eshop-catalog.limit-out-of-range`: A page of listings holds 1 to 50 products.\n`eshop-catalog.quantity-not-positive`: A quote's line asks for one or more of its product.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -6689,6 +7152,16 @@
           }
         }
       },
+      "eshop-catalog.command.414" : {
+        "description" : "URI Too Long: the request line is longer than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
       "eshop-catalog.command.415" : {
         "description" : "Unsupported Media Type: the body is sent as application/json.",
         "content" : {
@@ -6724,6 +7197,16 @@
           }
         },
         "x-wow-error-codes" : [ "wow.request.rate-limited", "wow.command.busy" ]
+      },
+      "eshop-catalog.command.431" : {
+        "description" : "Request Header Fields Too Large: the request's headers are larger than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
       },
       "eshop-catalog.command.500" : {
         "description" : "`wow.command.failed`: The command's handling failed with an unexpected error; it committed nothing, and a retry fails alike.\n`wow.command.undeclared-event`: The command's handling produced an event its decide function or after hooks do not declare, a rejection's events held to the same declaration: a bug in the model, which the message names; it committed nothing.\n`wow.subscription.parked`: A subscription on the wait chain parked the aggregate; the wait cannot be reached until the aggregate is retried.",
@@ -6769,7 +7252,7 @@
         "x-wow-error-codes" : [ "wow.wait.timeout" ]
       },
       "wow.command.400" : {
-        "description" : "`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.\n`wow.command.malformed`: The command body cannot be read as the command type.\n`wow.command.invalid`: The command failed validation; the problem lists the violations.\n`wow.wait.invalid`: The wait is not a chain the runtime can follow; the command was not run.\n`wow.command.unhandled`: The aggregate does not handle this command.\n`wow.schedule.job-invalid`: The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled.\n`wow.route.malformed`: A service route's parameter or body cannot be read as its type; the violation names the parameter.",
+        "description" : "`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.\n`wow.command.malformed`: The command body cannot be read as the command type.\n`wow.command.invalid`: The command failed validation; the problem lists the violations.\n`wow.wait.invalid`: The wait is not a chain the runtime can follow; the command was not run.\n`wow.command.unhandled`: The aggregate does not handle this command.\n`wow.schedule.job-invalid`: The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled.\n`wow.route.malformed`: A service route's parameter or body cannot be read as its type, or the request gives a query parameter the route does not declare, or one twice; the violation names the parameter.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -6870,6 +7353,16 @@
           }
         }
       },
+      "wow.command.414" : {
+        "description" : "URI Too Long: the request line is longer than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
       "wow.command.415" : {
         "description" : "Unsupported Media Type: the body is sent as application/json.",
         "content" : {
@@ -6895,6 +7388,16 @@
           }
         },
         "x-wow-error-codes" : [ "wow.request.rate-limited", "wow.command.busy" ]
+      },
+      "wow.command.431" : {
+        "description" : "Request Header Fields Too Large: the request's headers are larger than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
       },
       "wow.command.500" : {
         "description" : "`wow.command.failed`: The command's handling failed with an unexpected error; it committed nothing, and a retry fails alike.\n`wow.command.undeclared-event`: The command's handling produced an event its decide function or after hooks do not declare, a rejection's events held to the same declaration: a bug in the model, which the message names; it committed nothing.\n`wow.subscription.parked`: A subscription on the wait chain parked the aggregate; the wait cannot be reached until the aggregate is retried.",
@@ -7009,6 +7512,16 @@
         },
         "x-wow-error-codes" : [ "wow.query.min-version-not-reached" ]
       },
+      "wow.state.414" : {
+        "description" : "URI Too Long: the request line is longer than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
       "wow.state.429" : {
         "description" : "`wow.query.busy`: The query was not run: its store has as many queries running as it allows; retry later.",
         "headers" : {
@@ -7024,6 +7537,16 @@
           }
         },
         "x-wow-error-codes" : [ "wow.query.busy" ]
+      },
+      "wow.state.431" : {
+        "description" : "Request Header Fields Too Large: the request's headers are larger than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
       },
       "wow.state.503" : {
         "description" : "`wow.storage.unavailable`: A store could not be reached or did not answer in time; retry later, a command with the same request id.",
@@ -7105,6 +7628,16 @@
           }
         }
       },
+      "wow.query.414" : {
+        "description" : "URI Too Long: the request line is longer than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
       "wow.query.415" : {
         "description" : "Unsupported Media Type: the body is sent as application/json.",
         "content" : {
@@ -7130,6 +7663,16 @@
           }
         },
         "x-wow-error-codes" : [ "wow.query.busy" ]
+      },
+      "wow.query.431" : {
+        "description" : "Request Header Fields Too Large: the request's headers are larger than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
       },
       "wow.query.500" : {
         "description" : "`wow.query.failed`: The query backend failed to run the query.",
@@ -7212,6 +7755,26 @@
           }
         }
       },
+      "wow.descriptor.414" : {
+        "description" : "URI Too Long: the request line is longer than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
+      "wow.descriptor.431" : {
+        "description" : "Request Header Fields Too Large: the request's headers are larger than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
       "wow.descriptor.500" : {
         "description" : "`wow.query.failed`: The query backend failed to run the query.",
         "content" : {
@@ -7240,7 +7803,7 @@
         "x-wow-error-codes" : [ "wow.storage.unavailable" ]
       },
       "eshop-catalog.route.categoryListings.400" : {
-        "description" : "`wow.route.malformed`: A service route's parameter or body cannot be read as its type; the violation names the parameter.\n`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.\n`eshop-catalog.limit-out-of-range`: A page of listings holds 1 to 50 products.",
+        "description" : "`wow.route.malformed`: A service route's parameter or body cannot be read as its type, or the request gives a query parameter the route does not declare, or one twice; the violation names the parameter.\n`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.\n`eshop-catalog.limit-out-of-range`: A page of listings holds 1 to 50 products.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -7282,8 +7845,28 @@
           }
         }
       },
+      "wow.route.414" : {
+        "description" : "URI Too Long: the request line is longer than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
+      "wow.route.431" : {
+        "description" : "Request Header Fields Too Large: the request's headers are larger than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
       "wow.route.400" : {
-        "description" : "`wow.route.malformed`: A service route's parameter or body cannot be read as its type; the violation names the parameter.\n`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.",
+        "description" : "`wow.route.malformed`: A service route's parameter or body cannot be read as its type, or the request gives a query parameter the route does not declare, or one twice; the violation names the parameter.\n`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -7294,7 +7877,7 @@
         "x-wow-error-codes" : [ "wow.route.malformed", "wow.request.malformed" ]
       },
       "eshop-catalog.route.quote.400" : {
-        "description" : "`wow.route.malformed`: A service route's parameter or body cannot be read as its type; the violation names the parameter.\n`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.\n`eshop-catalog.quantity-not-positive`: A quote's line asks for one or more of its product.",
+        "description" : "`wow.route.malformed`: A service route's parameter or body cannot be read as its type, or the request gives a query parameter the route does not declare, or one twice; the violation names the parameter.\n`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.\n`eshop-catalog.quantity-not-positive`: A quote's line asks for one or more of its product.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -7375,7 +7958,7 @@
       "Wow-Wait" : {
         "name" : "Wow-Wait",
         "in" : "header",
-        "description" : "The wait plan: hops separated by `>`, each `accepted`, `committed`, `snapshot`, `queryable` (the store the aggregate's snapshot queries read holds the commit) or `handled(subscription)`, with an optional `(context)`, such as `handled(order/payment-saga) > committed(inventory)`. Without it the command waits for its snapshot. A plan longer than 4096 characters, or of more than 32 hops, is 400 `wow.wait.invalid`.",
+        "description" : "The wait plan: hops separated by `>`, each `accepted`, `committed`, `snapshot`, `queryable` (the store the aggregate's snapshot queries read holds the commit) or `handled(subscription)`, with an optional `(context)`, such as `handled(order/payment-saga) > committed(inventory)`. Without it the command waits for its snapshot. A plan longer than 4096 characters, or of more hops than the node's `wow.wait.max-hops` (16 by default, 32 at most), is 400 `wow.wait.invalid`.",
         "schema" : {
           "type" : "string",
           "maxLength" : 4096
@@ -7514,6 +8097,13 @@
         "description" : "The entity tag of the representation, which If-None-Match names to be answered 304.",
         "schema" : {
           "type" : "string"
+        }
+      },
+      "Cache-Control" : {
+        "description" : "`private, no-cache` on every tagged answer, its 304 included: who may read it, and what it reads, is the caller's, so a shared cache stores none of it, and a private one asks again with If-None-Match each time.",
+        "schema" : {
+          "type" : "string",
+          "enum" : [ "private, no-cache" ]
         }
       },
       "Retry-After" : {

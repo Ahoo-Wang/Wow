@@ -20,7 +20,7 @@ import {
 } from '../../runtime/index.js';
 import { useFilterEditor, useRecordTable } from '../../react/index.js';
 import { useAnalysisExportOffer } from '../analysis/exportOffer.js';
-import { ExportDialog, type ExportWindowProps } from '../kit/ExportDialog.js';
+import { ExportDialog, type ExportWindowOptions } from '../kit/ExportDialog.js';
 import { useExportOffer } from '../record/exportOffer.js';
 
 /** What the window over a panel is told beyond the offer itself. */
@@ -89,7 +89,7 @@ function PanelWindow({
   open,
   onOpenChange,
   returnTo,
-}: Omit<PanelExportProps, 'name'> & { offer: ExportWindowProps }) {
+}: Omit<PanelExportProps, 'name'> & { offer: ExportWindowOptions }) {
   // One stable function (the compiler memoises it on `returnTo`): the
   // window's focus manager re-arms whenever it is handed a new one, and
   // hands the keyboard back on the way.

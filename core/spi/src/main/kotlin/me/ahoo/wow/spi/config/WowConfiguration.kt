@@ -14,6 +14,7 @@
 package me.ahoo.wow.spi.config
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.contract
 
@@ -24,6 +25,7 @@ import kotlin.contracts.contract
  * floor of `wow-http`, the query bulkheads of `wow-query`), and a host reports it as it reports its own:
  * the Spring Boot host through a failure analyzer, instead of a stack of bean creation failures.
  */
+@WowSpi
 class WowConfigurationException(
     val key: String,
     val value: Any?,

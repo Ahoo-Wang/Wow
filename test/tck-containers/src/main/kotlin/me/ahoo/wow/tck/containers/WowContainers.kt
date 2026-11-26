@@ -29,20 +29,31 @@ import java.time.Duration
  * The properties are shared: started on first use and kept for the rest of the JVM (Testcontainers removes them when
  * it exits), so the TCK specs and fixtures of one module run on one container each. A `new*` function builds a
  * container that is not started, for a test that owns its lifecycle: one that stops it, or configures it first.
+ *
+ * The images are fields, not constants: a caller reads the tag this jar carries, so a patch that bumps one reaches
+ * callers compiled against an earlier one.
  */
+@Suppress("MayBeConst") // a constant would be inlined into its callers
 object WowContainers {
-    const val POSTGRES_IMAGE = "postgres:17-alpine"
+    @JvmField
+    val POSTGRES_IMAGE: String = "postgres:17-alpine"
 
     /** The MongoDB image, the one 9.x's wow-tck tests against (`ContainerImages.MONGO`). */
-    const val MONGO_IMAGE = "mongo:7.0"
-    const val KAFKA_IMAGE = "confluentinc/cp-kafka:7.4.0"
-    const val CLICKHOUSE_IMAGE = "clickhouse/clickhouse-server:25.3.14.14-alpine"
+    @JvmField
+    val MONGO_IMAGE: String = "mongo:7.0"
+
+    @JvmField
+    val KAFKA_IMAGE: String = "confluentinc/cp-kafka:7.4.0"
+
+    @JvmField
+    val CLICKHOUSE_IMAGE: String = "clickhouse/clickhouse-server:25.3.14.14-alpine"
 
     /**
      * The Elasticsearch image: a patch of the minor of the Java client the Spring Boot BOM manages, as that client is
      * supported only against a server of its own or a later minor.
      */
-    const val ELASTICSEARCH_IMAGE = "docker.elastic.co/elasticsearch/elasticsearch:9.5.6"
+    @JvmField
+    val ELASTICSEARCH_IMAGE: String = "docker.elastic.co/elasticsearch/elasticsearch:9.5.6"
 
     val postgres: PostgreSQLContainer by lazy { newPostgres().also { it.start() } }
 

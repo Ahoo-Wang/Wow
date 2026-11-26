@@ -568,7 +568,7 @@ wow {
 }
 ```
 
-`generateWowManifests` 负责渲染，一旦 `values` 写了文件，它就属于 `assemble`。这些 values 文件排在构建自己生成的（`generateWowHelmValues`）之后，后一个覆盖前一个，与 `-f` 参数一样。它写出 `build/wow/k8s/`：
+`generateWowKubernetes` 负责渲染，一旦 `values` 写了文件，它就属于 `assemble`。这些 values 文件排在构建自己生成的（`generateWowHelmValues`）之后，后一个覆盖前一个，与 `-f` 参数一样。它写出 `build/wow/k8s/`：
 
 ```text
 build/wow/k8s/
@@ -587,8 +587,8 @@ build/wow/k8s/
 
 | 错误 | 构建的输出 |
 | --- | --- |
-| 没有写 values | `generateWowManifests renders the wow-service chart with the deployment's values, which the build names: wow { kubernetes { values.from("deploy/<service>/values.yaml") } }.` |
-| 没有命名空间 | `generateWowManifests renders the service for the namespace it is deployed to, which the chart derives from (…): set wow { kubernetes { namespace = "<namespace>" } }.` |
+| 没有写 values | `generateWowKubernetes renders the wow-service chart with the deployment's values, which the build names: wow { kubernetes { values.from("deploy/<service>/values.yaml") } }.` |
+| 没有命名空间 | `generateWowKubernetes renders the service for the namespace it is deployed to, which the chart derives from (…): set wow { kubernetes { namespace = "<namespace>" } }.` |
 | values 文件不存在 | `wow { kubernetes { values.from(…) } } names "…/deploy/eshop-basket/valeus.yaml", which does not exist: correct the path in values.from(…), or remove it.` |
 | schema 拒绝的值 | `Helm refused to render the wow-service chart:`，后面是 chart 自己的消息，例如 `additional properties 'replicaz' not allowed` |
 
@@ -641,13 +641,13 @@ kubectl apply -k deploy/eshop-basket/prod
 **overlay 不能把 base 挪到另一个命名空间。** chart 由命名空间派生（对端是否在另一个命名空间、自动伸缩的查询），被 overlay 的 `namespace:` 挪走的 base 会出错而不报任何错误。命名空间或上面列表中其他值不同的环境，要单独渲染一次：basket 的构建从属性读取这两者，GA 端到端测试就这样为它的集群渲染：
 
 ```bash
-./gradlew :eshop-basket-server:generateWowManifests -Peshop.kubernetes.namespace=default \
+./gradlew :eshop-basket-server:generateWowKubernetes -Peshop.kubernetes.namespace=default \
   -Peshop.kubernetes.values=.github/ga-e2e/services/values.yaml
 ```
 
 ### 由构建获取的 Helm {#helm-fetched-by-the-build}
 
-运维方只需要 `kubectl`；构建用插件固定的 Helm v4.3.1 渲染。它在 `generateWowManifests` 运行时获取，构建配置时从不获取，来源是 `https://get.helm.sh`，存入 Gradle 用户目录（`wow/helm/v4.3.1/<os>-<arch>/`），每台机器一次。不论由谁提供，压缩包的 SHA-256 与插件持有的不符即被拒绝。插件为 Linux、macOS 和 Windows 的 amd64 与 arm64 获取它。两个 Gradle 属性（写在用户目录的 `gradle.properties` 中，或用 `-P`）改变它的来源：
+运维方只需要 `kubectl`；构建用插件固定的 Helm v4.3.1 渲染。它在 `generateWowKubernetes` 运行时获取，构建配置时从不获取，来源是 `https://get.helm.sh`，存入 Gradle 用户目录（`wow/helm/v4.3.1/<os>-<arch>/`），每台机器一次。不论由谁提供，压缩包的 SHA-256 与插件持有的不符即被拒绝。插件为 Linux、macOS 和 Windows 的 amd64 与 arm64 获取它。两个 Gradle 属性（写在用户目录的 `gradle.properties` 中，或用 `-P`）改变它的来源：
 
 | 属性 | 含义 |
 | --- | --- |

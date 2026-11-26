@@ -68,16 +68,18 @@ import tools.jackson.databind.json.JsonMapper
  * ([commandTypeOf]) but not checked here: a lifecycle command is no context's, and whether a chain may
  * follow a saga's hop into a context is the wait's check, from [derivedContextsOf].
  */
-class ContractDirectory(
+class ContractDirectory @InternalWowApi constructor(
     val local: Manifest,
     peers: List<ManifestFragment> = emptyList(),
 ) : SubscriptionDirectory {
     /** The peer contracts given, each without the contexts [local] serves, and without those left with none. */
+    @InternalWowApi
     val peers: List<ManifestFragment> = PeerContracts.outside(local.contexts.map { it.name }, peers)
 
     private val manifests: List<Manifest> = listOf(local) + this.peers.map { it.manifest }
 
     /** [local] and the [peers], as the fragments `wow-client` names commands and models by. */
+    @InternalWowApi
     val fragments: List<ManifestFragment> get() = listOf(ManifestFragment(LOCAL_SOURCE, local)) + peers
 
     /** The names of the contexts [local] serves. */
@@ -333,6 +335,9 @@ class ContractDirectory(
     }
 
     companion object {
+        /** The directory of [local] alone: the service's own Manifest, without peer contracts. */
+        @JvmStatic
+        fun of(local: Manifest): ContractDirectory = ContractDirectory(local)
 
         /** What [commandsOutside] names the context of a command no Manifest of the service or its peers decides. */
         const val UNKNOWN_CONTEXT: String = "(a context no Manifest declares)"

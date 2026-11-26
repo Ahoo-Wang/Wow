@@ -498,7 +498,7 @@ class SubscriptionRunsTest {
             // x@3 is handled alone in the observation the run started, and parks: its failure is that handling's.
             observer.failed.getValue("x@3").message.assert().isEqualTo("x@3 is broken alone")
             observer.failed.keys.assert().containsExactly("x@3")
-            // x@4, never tried, is skipped behind the park: its observation ends plainly, before x@4 completes.
+            // x@4, never tried, is skipped behind the park: its observation ends as skipped, before x@4 completes.
             observer.opened.assert().containsExactly("x@1", "x@2", "x@3", "x@4")
             observer.ended.assert().containsExactly("x@1", "x@2", "x@3", "x@4")
         }

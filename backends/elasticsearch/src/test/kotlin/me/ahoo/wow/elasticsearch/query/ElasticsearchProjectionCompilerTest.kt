@@ -40,7 +40,7 @@ class ElasticsearchProjectionCompilerTest {
             .containsExactly("document", "document.*")
         ElasticsearchProjectionCompiler.compile(Projection(include = listOf(QueryField("state.lines.sku"))), schema)
             .includes().assert().containsExactly("document.lines", "document.lines.*")
-        projection.include.assert().isSameAs(include)
+        projection.include.assert().isEqualTo(include)
     }
 
     @Test

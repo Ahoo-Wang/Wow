@@ -66,6 +66,62 @@ class SubscriptionOrphansTest {
         }
 
     @Test
+    fun `a sink's other generation is an orphan with its parked entries, and no other name of Wow's is`(): Unit =
+        runBlocking {
+            // The Elasticsearch sink raised to 2: its generation 1 left behind.
+            checkpoints.save(GROUP, "wow.elasticsearch-sink-g2.account", 0, 4)
+            checkpoints.save(GROUP, "wow.elasticsearch-sink.account", 0, 3)
+            // The ClickHouse sink lowered back to 1: the generation 3 it ran left behind.
+            checkpoints.save(GROUP, "wow.clickhouse-sink.account", 1, 2)
+            checkpoints.save(GROUP, "wow.clickhouse-sink-g3.account", 1, 6)
+            // Wow's names of no sink this group runs.
+            checkpoints.save(GROUP, "wow.transport-sink.account", 0, 8)
+            checkpoints.save(GROUP, "wow.snapshot.rebuild", 0, 9)
+            ledger.park(
+                ParkedAggregate(
+                    SubscriptionId("shop", "wow.elasticsearch-sink.account"),
+                    cart("x1"),
+                    0,
+                    1,
+                    "failed",
+                    0,
+                ),
+            )
+            val runtime = SubscriptionRuntime(
+                GROUP,
+                log,
+                checkpoints,
+                ledger,
+                listOf(
+                    Subscription("wow.elasticsearch-sink-g2.account", SubscriptionFilter("shop")) { },
+                    Subscription("wow.clickhouse-sink.account", SubscriptionFilter("shop")) { },
+                ),
+                testOptions(),
+            )
+            runtime.orphans(runtime.saved(), maxParked = 10).assert().containsExactly(
+                OrphanCheckpoints(
+                    GROUP,
+                    "wow.clickhouse-sink-g3.account",
+                    listOf(Checkpoint.of("wow.clickhouse-sink-g3.account", 1, 6)),
+                    0,
+                ),
+                OrphanCheckpoints(
+                    GROUP,
+                    "wow.elasticsearch-sink.account",
+                    listOf(Checkpoint.of("wow.elasticsearch-sink.account", 0, 3)),
+                    1,
+                ),
+            )
+            val warnings = logged {
+                runtime.start(setOf(0, 1))
+                runtime.stop()
+            }
+            warnings.single().assert()
+                .contains("wow.elasticsearch-sink.account (partition 0 at 3; 1 parked)", "skip its parked entries")
+                .doesNotContain("wow.transport-sink.account", "wow.snapshot.rebuild")
+        }
+
+    @Test
     fun `a group whose checkpoints are all its subscriptions' warns of nothing`(): Unit = runBlocking {
         checkpoints.save(GROUP, "Cart.onAdded", 0, 4)
         val runtime = SubscriptionRuntime(

@@ -75,7 +75,15 @@ internal class ElasticsearchStoreProvider : StoreProvider {
     override val requirement: String = "wow-elasticsearch on the classpath and a Rest5Client bean"
 
     override val options: List<ProviderOption<*>> =
-        listOf(CLIENT, QUERY_CLIENT, INDEX_PREFIX, REFRESH, REINDEX_REQUESTS_PER_SECOND, OPERATION_TIMEOUT)
+        listOf(
+            CLIENT,
+            QUERY_CLIENT,
+            INDEX_PREFIX,
+            REFRESH,
+            REINDEX_REQUESTS_PER_SECOND,
+            OPERATION_TIMEOUT,
+            SINK_GENERATION,
+        )
 
     override fun open(config: StoreConfig): Store {
         val restClient = config.resources.resource(
@@ -88,19 +96,36 @@ internal class ElasticsearchStoreProvider : StoreProvider {
         }
         val rewriteRate = config.settings.option(REINDEX_REQUESTS_PER_SECOND)
         configCheck(
-            rewriteRate > 0 || rewriteRate == -1,
+            rewriteRate >= 0,
             "${config.key}.${REINDEX_REQUESTS_PER_SECOND.key}",
             rewriteRate,
-            "Set a number of documents a second, or -1 for no limit.",
+            "Set a number of documents a second, or 0 for no limit.",
         ) { "The rate of an Elasticsearch mapping's rewrite cannot be $rewriteRate." }
+        // The client is built at the store's first request: a bound refused there would fail that request, and each after it.
+        val operationTimeout = config.settings.option(OPERATION_TIMEOUT)
+        configCheck(
+            operationTimeout.isPositive(),
+            "${config.key}.${OPERATION_TIMEOUT.key}",
+            operationTimeout,
+            "Set it (or wow.$TYPE.${OPERATION_TIMEOUT.key}) to a positive duration: a request of the store waits that " +
+                "long for an answer at most.",
+        ) { "The operation timeout of the Elasticsearch store ${config.name} cannot be $operationTimeout." }
+        val generation = config.settings.option(SINK_GENERATION)
+        configCheck(
+            generation >= 1,
+            "${config.key}.${SINK_GENERATION.key}",
+            generation,
+            "Set it to 1, or raise it by one to write the store's events indices again from the log, once emptied.",
+        ) { "The sink generation of the Elasticsearch store ${config.name} cannot be $generation." }
         return ElasticsearchStore(
             config,
             restClient,
             ElasticsearchNames(config.settings.option(INDEX_PREFIX).orEmpty()),
             config.settings.option(REFRESH).refresh,
             queryRestClient = queryClient?.takeIf { it !== restClient },
-            rewriteRate = rewriteRate,
-            operationTimeout = config.settings.option(OPERATION_TIMEOUT),
+            // 0 is Wow's "no bound", as every bound's; Elasticsearch's own is -1 (`requests_per_second`).
+            rewriteRate = if (rewriteRate == 0) UNLIMITED_RATE else rewriteRate,
+            operationTimeout = operationTimeout,
         )
     }
 
@@ -143,9 +168,26 @@ internal class ElasticsearchStoreProvider : StoreProvider {
             "reindex-requests-per-second",
             "how many documents a second the store indexes again when its queries map a field an index lacks, so " +
                 "that the documents written before it are found by it too; a search of the field misses them until " +
-                "the rewrite ends. 1000 by default (a million documents in about 17 minutes); -1 for no limit.",
+                "the rewrite ends. 1000 by default (a million documents in about 17 minutes); 0 for no limit.",
             ElasticsearchStateMappings.DEFAULT_REWRITE_RATE,
         )
+
+        /**
+         * The option of the generation of the event search sink that writes into the store
+         * ([ElasticsearchEventSinks.processorOf]): raising it starts that sink as a new subscription, which writes the
+         * store's events indices again from the beginning of the log, after they were emptied (#7097).
+         */
+        val SINK_GENERATION = ProviderOption.int(
+            "sink.generation",
+            "the generation of the event search sink that writes into the store, 1 by default: raised, the sink " +
+                "starts again as wow.elasticsearch-sink-g<generation>.<aggregate>, a new subscription, and writes " +
+                "every aggregate it writes into the store again from the beginning of the log, once its events " +
+                "indices (<name>--1) were deleted. Only raise it: a lower one resumes that generation's checkpoints.",
+            1,
+        ).perInstance()
+
+        /** Elasticsearch's `requests_per_second` of a rewrite without a limit. */
+        private const val UNLIMITED_RATE = -1
 
         /** The option bounding each of the store's requests. */
         val OPERATION_TIMEOUT = ProviderOption.duration(

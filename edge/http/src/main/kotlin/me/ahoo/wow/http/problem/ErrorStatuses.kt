@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.http.problem
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
@@ -21,7 +22,7 @@ import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import org.springframework.http.HttpStatus
-import kotlin.math.ceil
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * The HTTP status of each error code, from the Manifest's tables:
@@ -41,6 +42,9 @@ class ErrorStatuses(manifest: Manifest, private val overrides: Map<String, Int> 
         FrameworkErrors.BY_CODE + manifest.errors.associateBy { it.code }
     private val byContext: Map<String, Map<String, ErrorManifest>> =
         manifest.contexts.associate { context -> context.name to context.errors.associateBy { it.code } }
+
+    /** The kept names a domain's extension took that this node warned of: one warning per name, so a few at most. */
+    private val warned: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
     /** The status the host configures for [code] (`wow.http.errors.[<code>].status`), or null when it configures none. */
     fun configured(code: String): Int? = overrides[code]
@@ -82,7 +86,7 @@ class ErrorStatuses(manifest: Manifest, private val overrides: Map<String, Int> 
             code = error.code,
             violations = error.violations,
             result = result,
-            extensions = error.extensions,
+            extensions = domainExtensions(error.extensions, error.code, KEPT_IN_RESULT),
             // The version a rejection answered: its events', else the one the decision saw, the next If-Match.
             version = result.version.takeIf { result.status == CommandResult.Status.REJECTED },
         )
@@ -100,7 +104,7 @@ class ErrorStatuses(manifest: Manifest, private val overrides: Map<String, Int> 
         return answered.copyWith(
             status = failure.status,
             retry = failure.retry,
-            retryAfter = failure.retryAfter?.let { ceil(it.inWholeMilliseconds / MILLIS_PER_SECOND).toLong() },
+            retryAfter = failure.retryAfter,
             violations = failure.violations.ifEmpty { answered.violations },
         )
     }
@@ -111,10 +115,34 @@ class ErrorStatuses(manifest: Manifest, private val overrides: Map<String, Int> 
         return Problem(status, title(code, context, status), detail, code)
     }
 
+    /**
+     * A domain's [extensions], a rejection's or a service route refusal's, without the names a problem writes or Wow
+     * keeps ([Problem.domainExtensions]). The first time this node leaves out a name with a value, it warns once of that
+     * name: the name and [code], never the value, and where the value still is ([kept]). A developer's own data is not
+     * dropped without a word, and a name that recurs on every request is not logged on each.
+     */
+    internal fun domainExtensions(extensions: Map<String, Any?>, code: String, kept: String): Map<String, Any?> {
+        val answered = Problem.domainExtensions(extensions)
+        extensions.filter { (name, value) -> value != null && name !in answered && warned.add(name) }.keys
+            .forEach { name ->
+                logger.warn {
+                    "The extension '$name' of $code is left out of its problem: a problem keeps the name '$name' for " +
+                        "a member of its own. $kept Rename the extension to have it answered."
+                }
+            }
+        return answered
+    }
+
     private fun find(code: String, context: String?): ErrorManifest? =
         context?.let { byContext[it]?.get(code) } ?: framework[code]
 
-    private companion object {
-        const val MILLIS_PER_SECOND = 1000.0
+    internal companion object {
+        private val logger = KotlinLogging.logger {}
+
+        /** Where a rejection's extension left out of its problem still is. */
+        const val KEPT_IN_RESULT: String = "The command's result still carries it, in its error's extensions."
+
+        /** Where a service route refusal's extension left out of its problem still is: nowhere it answers. */
+        const val KEPT_NOWHERE: String = "The refusal is answered without it."
     }
 }

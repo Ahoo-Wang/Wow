@@ -31,7 +31,7 @@ import me.ahoo.wow.spi.state.StateEventRecord
  * topic; the stream is then that record's facts, its events' payloads as JSON text.
  *
  * [message] is what an entry of a topic that holds no state events was read as: a command of a context's command
- * topic, or a receipt of its receipts topic (–). Its [stream] then only names the aggregate whose
+ * topic, or a receipt of its receipts topic. Its [stream] then only names the aggregate whose
  * lane it runs in and the command it is about: nothing was committed.
  */
 internal class SourcedEntry(
@@ -102,6 +102,12 @@ internal interface EntrySource {
 
     /** Whether the source may deliver an entry twice, so a subscription drops the copies it can recognize. */
     val repeats: Boolean get() = false
+
+    /**
+     * Whether an aggregate's entries come at every version, in order: a state topic, whose transport sink publishes
+     * every commit, so an entry above the version after the last one seen is a record not delivered ([VersionGaps]).
+     */
+    val contiguous: Boolean get() = false
 
     /**
      * Whether the source's partitions may grow while it is read, a broker's topic whose keys map to its partitions:

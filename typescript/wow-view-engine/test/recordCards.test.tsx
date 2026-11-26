@@ -99,7 +99,7 @@ describe('RecordCards outside the rows', () => {
   it('keeps the summaries under the cards, both scopes', () => {
     cards({
       summaries: {
-        scope: 'total',
+        over: 'total',
         cells: [
           {
             field: 'amount',
@@ -139,7 +139,7 @@ describe('RecordCards outside the rows', () => {
       },
       rows: [{ key: 'o-1', data: { amount: 1, createdAt: INSTANT } }],
       summaries: {
-        scope: 'total',
+        over: 'total',
         cells: [
           {
             field: 'createdAt',

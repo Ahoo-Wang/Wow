@@ -67,6 +67,7 @@ enum class EnvelopeKind {
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
+@WowSpi
 class Envelope @InternalWowApi constructor(
     val kind: EnvelopeKind,
     val id: String,
@@ -110,6 +111,7 @@ class Envelope @InternalWowApi constructor(
 }
 
 /** The headers of a topic's message, each repeating a field of its [Envelope]. */
+@WowSpi
 object EnvelopeHeaders {
     /** [Envelope.format], as a decimal number. */
     const val FORMAT: String = "wow-format"

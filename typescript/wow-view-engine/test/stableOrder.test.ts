@@ -19,7 +19,7 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it, vi } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   compileRecord,
   DEFAULT_RUNTIME_LIMITS,
   type DataViewDefinition,
@@ -65,13 +65,11 @@ function sortOf(
   sort: RecordSort[],
   page: RecordPageTarget,
 ) {
-  return compileRecord(
-    definition,
-    recordConfig({ sort }),
-    builtinFieldKinds,
+  return compileRecord(definition, recordConfig({ sort }), {
+    kinds: builtinFieldKindRegistry,
     context,
     page,
-  ).sort;
+  }).sort;
 }
 
 /**
@@ -157,13 +155,11 @@ describe('the row key breaks ties', () => {
     const applied = recordConfig({
       sort: [{ field: 'amount', direction: SortDirection.DESC }],
     });
-    compileRecord(
-      ordersDefinition(),
-      applied,
-      builtinFieldKinds,
+    compileRecord(ordersDefinition(), applied, {
+      kinds: builtinFieldKindRegistry,
       context,
-      FIRST_PAGE.paged,
-    );
+      page: FIRST_PAGE.paged,
+    });
     expect(applied.sort).toEqual([
       { field: 'amount', direction: SortDirection.DESC },
     ]);
@@ -225,7 +221,7 @@ function open(source: ViewSource): RecordViewRuntime<'paged'> {
     }),
     title: 'Mine',
     scope: 'personal',
-    kinds: builtinFieldKinds,
+    kinds: builtinFieldKindRegistry,
     limits: { ...DEFAULT_RUNTIME_LIMITS, maxPageSize: PAGE_SIZE },
     environment: testEnvironment().environment,
     source: recordSource(source),

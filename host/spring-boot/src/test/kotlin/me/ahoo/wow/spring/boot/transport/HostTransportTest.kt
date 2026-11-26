@@ -211,6 +211,17 @@ class HostTransportTest {
         val defaulted = MockEnvironment().apply { setDefaultProfiles("dev") }
         DevelopmentMode.of(everywhere, defaulted).profiles.assert().containsExactly("dev")
         DevelopmentMode.of(everywhere, environment(profiles = arrayOf("prod"))).byProfile.assert().isFalse()
+        // dev and local by default: a test or demo profile is often a shared environment's, unless the node lists it.
+        WowProperties().devProfiles.assert().containsExactly("dev", "local")
+        for (shared in listOf("test", "demo")) {
+            DevelopmentMode.of(everywhere, environment(profiles = arrayOf(shared))).active.assert().isFalse()
+            val listed = WowProperties().apply {
+                internal.host = "0.0.0.0"
+                devProfiles += shared
+            }
+            DevelopmentMode.of(listed, environment(profiles = arrayOf(shared))).reason.assert()
+                .isEqualTo("profile $shared")
+        }
         // A loopback address the operator names, for the internal port or the node, is no development statement.
         for (named in listOf(
             WowProperties().apply { internal.host = "127.0.0.1" },

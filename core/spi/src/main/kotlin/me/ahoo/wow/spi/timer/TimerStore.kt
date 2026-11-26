@@ -102,6 +102,7 @@ interface TimerStore {
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
+@WowSpi
 class TimerChange @InternalWowApi constructor(val loaded: Timer, val next: Timer) {
     init {
         require(next.id == loaded.id && next.owner == loaded.owner && next.key == loaded.key) {

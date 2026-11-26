@@ -20,7 +20,7 @@ import me.ahoo.wow.spring.boot.WowProperties
 import org.springframework.core.env.Environment
 
 /**
- * Whether the node runs for development: a profile of `wow.dev-profiles` (`dev`, `local`, `test`, `demo`) is in
+ * Whether the node runs for development: a profile of `wow.dev-profiles` (`dev`, `local` by default) is in
  * effect, and for no other reason. It is the one exemption the host's safeguards share, so a laptop starts as it is
  * and a deployment cannot: `wow.backend=auto` falls back to memory, `wow.transport=auto` keeps the topics in the JVM,
  * and the public port serves without a `CallerResolver` bean, taking its callers from request headers. [reason] says

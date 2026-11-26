@@ -20,11 +20,13 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.result.WaitSignal
+import me.ahoo.wow.http.HttpJson
 import me.ahoo.wow.runtime.cluster.ClusterChannelException
 import me.ahoo.wow.runtime.cluster.ClusterChannelHandler
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.ForwardCommand
 import me.ahoo.wow.runtime.cluster.ForwardReply
+import me.ahoo.wow.runtime.cluster.Refusal
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.springframework.http.MediaType
@@ -33,6 +35,7 @@ import org.springframework.web.reactive.function.server.bodyValueAndAwait
 import org.springframework.web.reactive.function.server.buildAndAwait
 import org.springframework.web.reactive.function.server.coRouter
 import reactor.netty.ChannelBindException
+import tools.jackson.databind.node.ObjectNode
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.util.concurrent.CopyOnWriteArrayList
@@ -180,12 +183,43 @@ class HttpClusterChannelTest {
     }
 
     @Test
-    fun `a body that is not a forward is answered 400`(): Unit = runBlocking {
-        post(InternalHttp.FORWARD_PATH, "not json").statusCode().assert().isEqualTo(400)
-        post(InternalHttp.FORWARD_PATH, """{"v":1}""").statusCode().assert().isEqualTo(400)
-        post(InternalHttp.FORWARD_PATH, "null").statusCode().assert().isEqualTo(400)
-        post(InternalHttp.FORWARD_PATH, "").statusCode().assert().isEqualTo(400)
+    fun `a body that is not a forward is refused as malformed, never answered 400, as it did not run`(): Unit =
+        runBlocking {
+            listOf("not json", """{"format":1}""", "null", "").forEach { body ->
+                refusalOf(post(InternalHttp.FORWARD_PATH, body)).assert().isEqualTo(Refusal.MALFORMED)
+            }
+            received.assert().isEmpty()
+        }
+
+    @Test
+    fun `a forward of another format is refused, never read as this one`(): Unit = runBlocking {
+        val later = (HttpJson.mapper.readTree(ClusterCodec.encode(forwardCommand())) as ObjectNode).put("format", 2)
+        refusalOf(post(InternalHttp.FORWARD_PATH, later.toString())).assert().isEqualTo(Refusal.UNKNOWN_FORMAT)
         received.assert().isEmpty()
+        // Through the channel: a refusal, the sender's to run.
+        InternalServer(internalRoutes(bank, {})).use { owner ->
+            val reply = channel.forward(owner.address, forwardCommand().copy(format = 2))
+            reply.refused.assert().isEqualTo(Refusal.UNKNOWN_FORMAT)
+        }
+        received.assert().isEmpty()
+    }
+
+    @Test
+    fun `a reply of another format fails the forward, its outcome unknown`(): Unit = runBlocking {
+        val reply = HttpJson.mapper.readTree(ClusterCodec.encode(ForwardReply(result = committed("c-1")))) as ObjectNode
+        val later = reply.put("format", 2).toString()
+        InternalServer(
+            coRouter {
+                POST(InternalHttp.FORWARD_PATH) {
+                    ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValueAndAwait(later)
+                }
+            },
+        ).use { newer ->
+            val failure = failsWith<ClusterChannelException> { channel.forward(newer.address, forwardCommand()) }
+            failure.message.assert().contains("another format", "format 2")
+            // The owner answered: it may have run the command.
+            failure.unsent.assert().isFalse()
+        }
     }
 
     @Test
@@ -200,6 +234,18 @@ class HttpClusterChannelTest {
     }
 
     @Test
+    fun `signals of another format, or with a result of another, are answered 400, none handed over`(): Unit =
+        runBlocking {
+            val written = ClusterCodec.encode(WaitSignal(waitId = "w-1", result = committed("c-1")))
+            val signal = HttpJson.mapper.readTree(written) as ObjectNode
+            val later = (signal.deepCopy() as ObjectNode).put("format", 2)
+            val laterResult = (signal.deepCopy() as ObjectNode).also { (it["result"] as ObjectNode).put("format", 2) }
+            post(InternalHttp.SIGNALS_PATH, later.toString()).statusCode().assert().isEqualTo(400)
+            post(InternalHttp.SIGNALS_PATH, "[$signal,$laterResult]").statusCode().assert().isEqualTo(400)
+            signals.assert().isEmpty()
+        }
+
+    @Test
     fun `a status other than 200 fails the forward`(): Unit = runBlocking {
         InternalServer(coRouter { POST(InternalHttp.FORWARD_PATH) { ServerResponse.status(503).buildAndAwait() } })
             .use { failing ->
@@ -211,7 +257,7 @@ class HttpClusterChannelTest {
         InternalServer(
             coRouter {
                 POST(InternalHttp.FORWARD_PATH) {
-                    ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValueAndAwait("""{"v":1}""")
+                    ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValueAndAwait("""{"format":1}""")
                 }
             },
         ).use { malformed ->
@@ -251,6 +297,12 @@ class HttpClusterChannelTest {
             release.complete(Unit)
             withTimeoutOrNull(5.seconds) { executed.await() }.assert().isEqualTo("c-1")
         }
+    }
+
+    /** The refusal code of [response], a forward's 200 reply that refused it. */
+    private fun refusalOf(response: HttpResponse<ByteArray>): String? {
+        response.statusCode().assert().isEqualTo(200)
+        return ClusterCodec.decodeReply(response.body()).refused
     }
 
     private fun post(path: String, body: String): HttpResponse<ByteArray> = client.send(

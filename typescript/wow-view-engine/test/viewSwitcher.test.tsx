@@ -29,7 +29,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { systemInstanceId } from '../src/index.js';
 import type { ViewInstanceSummary } from '../src/index.js';
 import type { ViewListState } from '../src/react/index.js';
-import { ViewSurface, ViewSwitcher } from '../src/ui/index.js';
+import { ViewSurface } from '../src/ui/index.js';
+import { ViewSwitcher } from '../src/ui/workbench/ViewSwitcher.js';
 
 afterEach(cleanup);
 
@@ -73,7 +74,7 @@ function listState(items = ITEMS): ViewListState {
     defaultInstanceId: null,
     status: 'success',
     error: null,
-    reload: () => {},
+    refresh: () => {},
   };
 }
 

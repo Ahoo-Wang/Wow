@@ -22,8 +22,8 @@ export class EshopPaymentClient {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     this.commands = new CommandClient(options, {
-      manifest: EshopPaymentManifest, bodyNumbers: {
-        'eshop-payment.payment.RequestPayment': PaymentAggregate.textNumbers.commands.RequestPayment,
+      manifest: EshopPaymentManifest, textNumbers: {
+        'eshop-payment.payment.RequestPayment': PaymentAggregate.textNumbers.commands['eshop-payment.payment.RequestPayment'],
       }
     });
     this.payment = {

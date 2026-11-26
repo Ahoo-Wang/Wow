@@ -69,7 +69,7 @@ class TimerAdmissionTest {
         registry,
         SubscriptionDirectory.NONE,
         LocalSignalSender("node-1", registry),
-        Origin("node-1", "node-1:9090", SHOP_SERVICE),
+        Origin(SHOP_SERVICE, "node-1", "node-1:9090"),
         WaitOptions(),
     )
     private val admission = ServiceCommandAdmission(
@@ -110,7 +110,7 @@ class TimerAdmissionTest {
         runBlocking {
             val unassigned = timer(CART.unassigned(TENANT))
             // The request id is the slot's, `timer#slot`, every time it fires: a firing again finds what it created.
-            unassigned.requestId.assert().isEqualTo("shop.order/$TENANT/o-1#key@1#1")
+            unassigned.requestId.assert().isEqualTo("wow:shop.order/$TENANT/o-1#key@1#1")
             firer.fire(unassigned).assert().isEqualTo(TimerOutcomes.COMMITTED)
             firer.fire(unassigned).assert().isEqualTo(TimerOutcomes.DUPLICATE)
             val created = log.findByRequestId(CART, SHARED, unassigned.requestId)!!
@@ -120,7 +120,8 @@ class TimerAdmissionTest {
 
             // The next slot is another request, which creates another aggregate.
             firer.fire(timer(CART.unassigned(TENANT), slot = 2)).assert().isEqualTo(TimerOutcomes.COMMITTED)
-            log.findByRequestId(CART, SHARED, "shop.order/$TENANT/o-1#key@1#2")!!.ref.assert().isNotEqualTo(created.ref)
+            log.findByRequestId(CART, SHARED, "wow:shop.order/$TENANT/o-1#key@1#2")!!.ref.assert()
+                .isNotEqualTo(created.ref)
         }
 
     @Test

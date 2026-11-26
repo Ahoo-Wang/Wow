@@ -29,7 +29,7 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   compileAnalysis,
   projectAnalysis,
   type AggregationFunctionName,
@@ -69,17 +69,14 @@ describe('display metadata', () => {
     } as const;
     const shanghai = { ...context, timeZone: 'Asia/Shanghai' };
 
-    const unnamed = compileAnalysis(
-      definition(),
-      config({ groups: [day] }),
-      builtinFieldKinds,
-      shanghai,
-    );
+    const unnamed = compileAnalysis(definition(), config({ groups: [day] }), {
+      kinds: builtinFieldKindRegistry,
+      context: shanghai,
+    });
     const named = compileAnalysis(
       definition(),
       config({ groups: [{ ...day, timeZone: 'UTC' }] }),
-      builtinFieldKinds,
-      shanghai,
+      { kinds: builtinFieldKindRegistry, context: shanghai },
     );
 
     expect(unnamed.groupBy?.[0]).toMatchObject({ timeZone: 'Asia/Shanghai' });
@@ -256,7 +253,7 @@ describe('projectAnalysis', () => {
         table: { columns: [{ alias: 'orders', width: 90 }], totals: true },
       }),
       rows,
-      [{ orders: 40 }],
+      { totals: [{ orders: 40 }] },
     );
     expect(view.columns.map(column => column.alias)).toEqual(['orders', 'wh']);
     expect(view.columns[0].width).toBe(90);
@@ -535,7 +532,7 @@ describe('metric card headline', () => {
         { month: '2026-08', orders: 40 },
         { month: '2026-09', orders: 20 },
       ],
-      [{ orders: 55 }],
+      { totals: [{ orders: 55 }] },
     );
     expect(view.totals).toEqual({ orders: 55 });
     expect(view.chart).toMatchObject({ type: 'metric', value: 55 });
@@ -878,7 +875,7 @@ describe('the whole beside the groups', () => {
         },
       }),
       buckets,
-      [{ orders: 120 }],
+      { totals: [{ orders: 120 }] },
     );
 
   it('headlines the whole, not the buckets that fit the limit', () => {
@@ -969,13 +966,15 @@ describe('the period still under way, in the table', () => {
     { month: august, orders: 838 },
   ];
   const month = (now: Date) =>
-    projectAnalysis(definition(), monthly, rows, undefined, undefined, {
-      now,
-      timeZone: 'UTC',
+    projectAnalysis(definition(), monthly, rows, {
+      context: {
+        now,
+        timeZone: 'UTC',
+      },
     }).columns.find(column => column.alias === 'month');
 
   it('names the month still running, wherever the sort put it', () => {
-    expect(month(new Date(Date.UTC(2026, 8, 21)))?.ongoing).toBe(september);
+    expect(month(new Date(Date.UTC(2026, 8, 21)))?.unfinished).toBe(september);
   });
 
   it('names none once every month has ended', () => {

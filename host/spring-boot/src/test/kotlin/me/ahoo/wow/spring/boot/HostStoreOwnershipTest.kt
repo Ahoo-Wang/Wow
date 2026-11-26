@@ -14,10 +14,17 @@
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.store.StoreLayout
+import me.ahoo.wow.spi.access.AccessStamps
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.config.configCheck
+import me.ahoo.wow.spi.sink.Sink
+import me.ahoo.wow.spi.sink.SinkConfig
+import me.ahoo.wow.spi.sink.SinkProvider
+import me.ahoo.wow.spi.sink.StreamSinks
+import me.ahoo.wow.spi.state.StateEventRecord
 import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.spi.store.StoreProvider
@@ -53,6 +60,30 @@ class OwnedStores {
     /** Records each step of the node's stop beside the stores' openings and closes. */
     @Bean
     fun ownedStopSteps(): ServiceNodeListener = ServiceNodeListener { step -> OwnedStore.record += "node:$step" }
+}
+
+/** The `owned` store's events Sink: it stamps the histories it indexes, as a search index's Sink does. */
+@Configuration(proxyBeanMethods = false)
+class OwnedSinks {
+    @Bean
+    fun ownedSinkProvider(): SinkProvider = object : SinkProvider {
+        override val type: String = "owned"
+
+        override fun available(config: SinkConfig): Boolean = config.store != null
+
+        override fun open(config: SinkConfig): StreamSinks = object : StreamSinks {
+            override val processor: String = "owned-sink"
+
+            override fun sinkOf(context: String, aggregate: String): Sink = OwnedSink
+        }
+    }
+
+    /** Writes nothing, and stamps nothing it has not written. */
+    private object OwnedSink : Sink, AccessStamps {
+        override suspend fun write(records: List<StateEventRecord>) = Unit
+
+        override suspend fun stamp(ref: AggregateRef, access: Map<String, Any?>, asOf: Int, from: Int, until: Int) = 0
+    }
 }
 
 /** An `owned` store: it serves `events` queries, as a search index does, and records its opening and its closes. */
@@ -133,7 +164,7 @@ class FailingAfterBackends {
  * the stores' openings, then their closes in reverse.
  */
 class HostStoreOwnershipTest {
-    private val sources = listOf(HostTestApp::class.java, OwnedStores::class.java)
+    private val sources = listOf(HostTestApp::class.java, OwnedStores::class.java, OwnedSinks::class.java)
 
     @BeforeEach
     fun clear() {

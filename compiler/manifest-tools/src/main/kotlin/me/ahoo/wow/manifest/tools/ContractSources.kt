@@ -37,7 +37,9 @@ import me.ahoo.wow.manifest.QueryFieldNames
  *   command sent without an id goes to the caller's own), `SNAPSHOT` (whether it keeps snapshots), `QUERY_MODELS` (the
  *   models a peer queries), `ref(tenantId, id)`, `unassigned(tenantId)` and a `Commands` object holding each command's full type
  *   name ([commandName]: `SubmitOrder` is `SUBMIT_ORDER`), the names a yaml file or a test refers to. The TypeScript
- *   generator's `<Aggregate>Aggregate` constant carries the same facts under the same names, in camel case.
+ *   generator's `<Aggregate>Aggregate` constant carries `CONTEXT`, `NAME`, `OWNERSHIP`, `ID_SOURCE` and `SNAPSHOT`
+ *   under the same names in camel case (`context`, `name`, `ownership`, `idSource`, `snapshot`), with the aggregate's
+ *   exact numbers and its error codes beside them (#7060).
  * - With [queryFields] (`wow-query-api` on the api module's class path, as the compiler requires for its own), each
  *   aggregate object extends `SnapshotProperties`, the system fields of a snapshot, and holds a `QueryField` per path
  *   of its state schema ([StateFields]), named by [QueryFieldNames] exactly as the compiler names the domain module's
@@ -55,7 +57,7 @@ import me.ahoo.wow.manifest.QueryFieldNames
  *   (`SubscriptionManifest.isWaitHop`) the hop of it handling the commit, named
  *   after it ([waitName]: `OrderProcessSaga.onOrderSubmitted` is `ORDER_PROCESS_SAGA__ON_ORDER_SUBMITTED`), what a
  *   caller chains in a `WaitPlan` without writing a subscription's name. Two names of one constant fail the generation.
- *   The TypeScript generator's `<context>Wait` builds the same hops.
+ *   The TypeScript generator's `<Context>Contract.Wait` builds the same hops.
  *
  * Constants are `const val` or `@JvmField` and `ref` is `@JvmStatic`, so Java reads them as static members
  * (`EshopOrderingContract.Order.TYPE`). The views of the states are classes of their own beside it

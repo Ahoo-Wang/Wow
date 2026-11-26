@@ -52,7 +52,11 @@ import { isViewPanel } from './panels.js';
 import { validateContentPanel } from './validateContent.js';
 import { shape } from './shape.js';
 import { validateOpens, validatePresentation } from './panelLook.js';
-import { declaredView, missingView } from './declared.js';
+import {
+  declaredView,
+  missingView,
+  type DefinitionLookup,
+} from './declared.js';
 import { validateTabs } from './tabs.js';
 
 /** The definition a panel's view is of, and what its bindings may name. */
@@ -78,8 +82,12 @@ export interface PanelReference extends PanelDefinition {
  */
 export type PanelReferences = ReadonlyMap<string, PanelReference | null>;
 
+/**
+ * Options of `validateDashboard`: the limits, and the definitions its panels
+ * name.
+ */
 export interface ValidateDashboardOptions {
-  limits?: RuntimeLimits;
+  limits?: Partial<RuntimeLimits>;
   /**
    * Every registered definition, by id, `null` for one this release does
    * not declare. Definitions are code, so this is a lookup rather than a
@@ -90,7 +98,7 @@ export interface ValidateDashboardOptions {
    * C). Left out, an owned view is judged by its shape alone and a declared
    * view is waited for like a saved one.
    */
-  definitions?: (definitionId: string) => PanelDefinition | null;
+  lookup?: DefinitionLookup;
 }
 
 /**
@@ -126,7 +134,7 @@ export function validateDashboard(
   kinds: FieldKindRegistry,
   options: ValidateDashboardOptions = {},
 ): Issue[] {
-  const limits = options.limits ?? DEFAULT_RUNTIME_LIMITS;
+  const limits = { ...DEFAULT_RUNTIME_LIMITS, ...options.limits };
   const columns = DASHBOARD_GRID_COLUMNS;
   // A config arrives from a store. When its skeleton is not a dashboard's,
   // nothing below can be judged, and saying so is the kernel's job rather
@@ -161,7 +169,7 @@ export function validateDashboard(
 
   const ids = new Set<string>();
   const context: ViewPanelContext = { config, scope, refs, kinds, limits };
-  const lookup = options.definitions;
+  const lookup = options.lookup;
   config.panels.forEach((panel, index) => {
     const path: IssuePath = ['panels', index];
     if (!isPlainObject(panel)) {
@@ -310,7 +318,7 @@ function panelView(
   panel: DashboardViewPanel,
   path: IssuePath,
   refs: PanelReferences,
-  lookup: ValidateDashboardOptions['definitions'],
+  lookup: ValidateDashboardOptions['lookup'],
 ): {
   view: (PanelDefinition & { config: ViewConfig; scope?: ViewScope }) | null;
   issues: Issue[];
@@ -389,7 +397,7 @@ function validateViewPanel(
   panel: DashboardViewPanel,
   path: IssuePath,
   { config, scope, refs, kinds, limits }: ViewPanelContext,
-  lookup: ValidateDashboardOptions['definitions'],
+  lookup: ValidateDashboardOptions['lookup'],
 ): Issue[] {
   const { view, issues } = panelView(panel, path, refs, lookup);
   const ignoresTime: unknown = panel.ignoresTime;
@@ -476,30 +484,30 @@ function validateBindings(
     const at: IssuePath = [...path, 'bindings', index];
     if (
       !isPlainObject(binding) ||
-      typeof binding.globalField !== 'string' ||
+      typeof binding.dashboardField !== 'string' ||
       typeof binding.panelField !== 'string'
     ) {
       issues.push(shape(at, 'object'));
       return;
     }
-    const global = globals.get(binding.globalField);
+    const global = globals.get(binding.dashboardField);
     const target = targets.get(binding.panelField);
 
     if (!global)
       issues.push(
-        issue('dashboard.binding.global-unknown', [...at, 'globalField'], {
-          field: binding.globalField,
+        issue('dashboard.binding.global-unknown', [...at, 'dashboardField'], {
+          field: binding.dashboardField,
         }),
       );
     // One leaf can only become one condition: a global field mapped twice has
     // no defined boolean meaning.
-    else if (bound.has(binding.globalField))
+    else if (bound.has(binding.dashboardField))
       issues.push(
-        issue('dashboard.binding.global-duplicate', [...at, 'globalField'], {
-          field: binding.globalField,
+        issue('dashboard.binding.global-duplicate', [...at, 'dashboardField'], {
+          field: binding.dashboardField,
         }),
       );
-    if (global) bound.add(binding.globalField);
+    if (global) bound.add(binding.dashboardField);
 
     // Said by the filter the reader sees on the board: the field it is wired
     // to is not one they could find anywhere (todo C).
@@ -507,7 +515,7 @@ function validateBindings(
       issues.push(
         issue('dashboard.binding.panel-unknown', [...at, 'panelField'], {
           field: binding.panelField,
-          filter: global?.label ?? binding.globalField,
+          filter: global?.label ?? binding.dashboardField,
         }),
       );
 

@@ -29,9 +29,9 @@ import { summaryAlias } from './summaryAlias.js';
  */
 export function summaryCurrency(
   definition: DataViewDefinition,
-  summary: { field: string; fn: SummaryFunction },
+  summary: { field: string; function: SummaryFunction },
 ): { field: string; code: string; count: string } | undefined {
-  if (summary.fn === AggregationMetricTypes.COUNT) return undefined;
+  if (summary.function === AggregationMetricTypes.COUNT) return undefined;
   const field = definition.fields.find(entry => entry.name === summary.field);
   const currency = field && currencyPathOf(field);
   if (currency === undefined) return undefined;
@@ -40,7 +40,7 @@ export function summaryCurrency(
   );
   if (aggregation?.any !== true || aggregation.distinctCount !== true)
     return undefined;
-  const alias = summaryAlias(summary.field, summary.fn);
+  const alias = summaryAlias(summary.field, summary.function);
   return {
     field: currency,
     code: `${alias}__currency`,

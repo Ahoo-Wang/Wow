@@ -35,9 +35,6 @@ public final class me/ahoo/wow/kafka/KafkaPartitionedSource : java/lang/AutoClos
 }
 
 public final class me/ahoo/wow/kafka/KafkaPartitionedSource$Companion {
-	public final fun create (Lme/ahoo/wow/kafka/KafkaOptions;)Lme/ahoo/wow/kafka/KafkaPartitionedSource;
-	public final fun create (Lme/ahoo/wow/kafka/KafkaOptions;Lme/ahoo/wow/kafka/OffsetGapPolicy;Lme/ahoo/wow/spi/observation/Observer;)Lme/ahoo/wow/kafka/KafkaPartitionedSource;
-	public static synthetic fun create$default (Lme/ahoo/wow/kafka/KafkaPartitionedSource$Companion;Lme/ahoo/wow/kafka/KafkaOptions;Lme/ahoo/wow/kafka/OffsetGapPolicy;Lme/ahoo/wow/spi/observation/Observer;ILjava/lang/Object;)Lme/ahoo/wow/kafka/KafkaPartitionedSource;
 }
 
 public final class me/ahoo/wow/kafka/KafkaTopicAdmin : java/lang/AutoCloseable, me/ahoo/wow/spi/transport/TopicAdmin {
@@ -52,8 +49,6 @@ public final class me/ahoo/wow/kafka/KafkaTopicAdmin : java/lang/AutoCloseable, 
 }
 
 public final class me/ahoo/wow/kafka/KafkaTopicAdmin$Companion {
-	public final fun create (Lme/ahoo/wow/kafka/KafkaOptions;Ljava/lang/Short;Ljava/util/Map;)Lme/ahoo/wow/kafka/KafkaTopicAdmin;
-	public static synthetic fun create$default (Lme/ahoo/wow/kafka/KafkaTopicAdmin$Companion;Lme/ahoo/wow/kafka/KafkaOptions;Ljava/lang/Short;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/kafka/KafkaTopicAdmin;
 	public final fun getDEFAULT_VISIBLE_WITHIN-UwyO8pc ()J
 }
 
@@ -66,7 +61,6 @@ public final class me/ahoo/wow/kafka/KafkaTopicProducer : java/lang/AutoCloseabl
 }
 
 public final class me/ahoo/wow/kafka/KafkaTopicProducer$Companion {
-	public final fun create (Lme/ahoo/wow/kafka/KafkaOptions;)Lme/ahoo/wow/kafka/KafkaTopicProducer;
 }
 
 public final class me/ahoo/wow/kafka/KafkaTransportProvider : me/ahoo/wow/spi/transport/TransportProvider {

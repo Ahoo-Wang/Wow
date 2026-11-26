@@ -11,7 +11,7 @@ description: '程序化 API — @ahoo-wang/wow-generator'
 
 | 成员                   | 参数/默认值                | 返回与效果                                                                                          |
 | ---------------------- | -------------------------- | --------------------------------------------------------------------------------------------------- |
-| `constructor(options)` | `GeneratorOptions`，见下表 | 同步读取 tsconfig，读不到抛出类别为 `configuration` 的 `GeneratorError`；唯一的参数是选项            |
+| `constructor(options)` | `GeneratorOptions`，见下表 | 不读取任何东西；唯一的参数是选项            |
 | `generate()`           | 无参数                     | `Promise<GenerationResult>`；先读配置再读文档、解析聚合、写模型/客户端/index、格式化并保存其拥有的输出 |
 | `DEFAULT_CONFIG_PATH`  | 常量                       | `./wow-generator.config.json`                                                                       |
 
@@ -22,13 +22,12 @@ description: '程序化 API — @ahoo-wang/wow-generator'
 | `inputPath`             | 必填                           | Wow Manifest 或 OpenAPI 3.x 文档的路径或 HTTP/HTTPS URL      |
 | `outputDir`             | 必填                           | 生成文件的写入目录                                           |
 | `configPath`            | 存在时为 `DEFAULT_CONFIG_PATH` | [配置](./configuration)的路径或 URL；显式指定的必须存在      |
-| `tsConfigFilePath`      | 无                             | 项目的 tsconfig，用于解析输出所导入的模块                    |
 | `logger`                | `new ConsoleLogger()`          | 接收进度、警告和错误                                         |
 | `headers`               | 无                             | `inputPath` 或 `configPath` 为 HTTP/HTTPS URL 时发送的请求头 |
 | `timeoutMs`             | `30000`                        | 获取 HTTP/HTTPS 文档的超时毫秒数                             |
 | `schemaDocs`            | `'summary'`                    | `'full'` 时在每个模型的文档注释中嵌入其 JSON schema          |
 
-`GeneratorOptions` 不再继承 ts-morph 的 `ProjectOptions`；传给项目的只有 `tsConfigFilePath`。
+`GeneratorOptions` 不涉及任何 ts-morph 类型，也没有 tsconfig：输出从不依赖它。
 
 <span id="generationresult"></span>
 
@@ -50,7 +49,7 @@ description: '程序化 API — @ahoo-wang/wow-generator'
 
 <span id="generatorerror"></span>
 
-`GeneratorError` 带有 `kind`（`GeneratorErrorKind`：`input`、`configuration`、`specification` 或 `output`）和 `exitCode`（该类别对应的 CLI 退出码）。`EXIT_CODES` 为 `success` 0、`internal` 1、`input` 2、`configuration` 3、`specification` 4、`output` 5、`interrupted` 130，见 [CLI 退出码](./cli#失败与退出码)。
+`GeneratorError` 带有 `kind`（`GeneratorErrorKind`：`input`、`configuration`、`specification` 或 `output`）和 `exitCode`（该类别对应的 CLI 退出码）。`EXIT_CODES` 为 `success` 0、`internal` 1、`input` 2、`configuration` 3、`specification` 4、`output` 5、`check` 6、`interrupted` 130，见 [CLI 退出码](./cli#失败与退出码)。
 
 ## 完整脚本
 
@@ -64,7 +63,6 @@ import {
 const generator = new CodeGenerator({
   inputPath: './openapi.json',
   outputDir: './src/generated',
-  tsConfigFilePath: './tsconfig.json',
   logger: new ConsoleLogger({ level: 'quiet' }),
 });
 try {

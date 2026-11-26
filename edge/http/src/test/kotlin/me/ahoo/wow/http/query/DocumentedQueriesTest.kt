@@ -83,7 +83,7 @@ class DocumentedQueriesTest {
             QueryBodies.read(QueryJson.mapper.writeValueAsBytes(body))
             null
         } catch (refused: QueryRequestException) {
-            "${refused.code} ${refused.errorMsg}"
+            "${refused.code} ${refused.message}"
         }
     }
 

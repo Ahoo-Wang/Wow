@@ -22,9 +22,11 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * is the name of that aggregate type. A snapshot written wrong is repaired this way; the rebuild runs in the background,
  * once the request is committed.
  *
+ * An application sends it as it sends any system command, to the aggregate `<context>.snapshot` by the aggregate
+ * type's name, and its authorizer names its type, [SnapshotRebuilds.REBUILD_SNAPSHOT], to allow or refuse it.
+ *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
-@InternalWowApi
 class RebuildSnapshot @InternalWowApi constructor(val ids: List<String>) {
     init {
         require(ids.isNotEmpty()) { "A rebuild names the aggregates whose snapshots it rebuilds." }
@@ -41,7 +43,6 @@ class RebuildSnapshot @InternalWowApi constructor(val ids: List<String>) {
 
     private fun valueFields(): List<Any?> = listOf(ids)
 
-    @InternalWowApi
     companion object {
         /** A RebuildSnapshot of the given fields; parameters added later come last, with a default. */
         @JvmStatic
@@ -73,39 +74,51 @@ class SnapshotRebuildRequested @InternalWowApi constructor(val ids: List<String>
     }
 }
 
-/** The names of the snapshot rebuild aggregate, its system command and event. */
-@InternalWowApi
+/**
+ * The names of the snapshot rebuild aggregate, its system command and event. [REBUILD_SNAPSHOT], the type an
+ * application's authorizer names, is application API; the rest is Wow's own.
+ */
 object SnapshotRebuilds {
     /**
      * The name of the built-in aggregate that takes a context's rebuild requests: `<context>.snapshot`, one instance
      * per aggregate type in each tenant, whose id is the aggregate type's name.
      */
+    @InternalWowApi
     const val AGGREGATE: String = "snapshot"
 
     /** The component a rebuild runs as: `system:snapshot`. */
+    @InternalWowApi
     const val COMPONENT: String = "snapshot"
 
+    /** The type of the system command [RebuildSnapshot], as the wire and an authorizer name it. */
     const val REBUILD_SNAPSHOT: String = "wow.snapshot.RebuildSnapshot"
+
+    @InternalWowApi
     const val SNAPSHOT_REBUILD_REQUESTED: String = "wow.snapshot.SnapshotRebuildRequested"
 
     /** The most ids one rebuild request names. */
+    @InternalWowApi
     const val MAX_IDS: Int = 1_000
 
     /** The system commands, by their names. */
+    @InternalWowApi
     @JvmField
     val COMMANDS: Map<String, Class<*>> = mapOf(REBUILD_SNAPSHOT to RebuildSnapshot::class.java)
 
     /** The system events, by their names. */
+    @InternalWowApi
     @JvmField
     val EVENTS: Map<String, Class<*>> = mapOf(SNAPSHOT_REBUILD_REQUESTED to SnapshotRebuildRequested::class.java)
 
     private val NAMES: Map<Class<*>, String> = (COMMANDS + EVENTS).entries.associate { (name, type) -> type to name }
 
     /** The system name of [type], the rebuild command or event, or null when it is neither. */
+    @InternalWowApi
     @JvmStatic
     fun nameOf(type: Class<*>): String? = NAMES[type]
 
     /** The rebuild aggregate of [context]. */
+    @InternalWowApi
     @JvmStatic
     fun typeOf(context: String): AggregateType = AggregateType(context, AGGREGATE)
 }

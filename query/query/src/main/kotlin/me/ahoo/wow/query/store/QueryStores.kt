@@ -136,13 +136,9 @@ class QueryStores(
         ): Pair<QueryBulkhead, AdaptiveLimitOptions?>? {
             val fixed = own?.maxConcurrent ?: global.maxConcurrent
             val derived = fixed ?: StoreQueryBounds.maxConcurrent(pool)
-            configCheck(
-                derived >= 0,
-                "wow.stores.$name.query.max-concurrent",
-                derived,
-                "Set 0 for no bound, or more."
-            ) {
-                "wow.stores.$name.query.max-concurrent (or wow.query.max-concurrent) is $derived."
+            val concurrentKey = keyOf(name, own?.maxConcurrent != null, "max-concurrent")
+            configCheck(derived >= 0, concurrentKey, derived, "Set 0 for no bound, or more.") {
+                "$concurrentKey is $derived."
             }
             if (derived == 0) return null
             // A bound no setting fixes adapts to the store's write pressure; a fixed one does not.
@@ -150,10 +146,38 @@ class QueryStores(
             val ceiling = if (adaptive) ceilingOf(name, pool, global, own) else derived
             val max = minOf(derived, ceiling)
             val wait = own?.maxWait ?: global.maxWait
+            val waitKey = keyOf(name, own?.maxWait != null, "max-wait")
+            configCheck(!wait.isNegative(), waitKey, wait, "Set 0 for no wait, or more.") {
+                "A query's wait for a permit is never negative."
+            }
             val queued = own?.maxQueued ?: global.maxQueued ?: (max * QueryBulkhead.DEFAULT_QUEUE_FACTOR)
+            val queuedKey = keyOf(name, own?.maxQueued != null, "max-queued")
+            configCheck(queued >= 0, queuedKey, queued, "Set 0 for no queue, or more.") {
+                "A store's query queue is never negative."
+            }
             val bulkhead = QueryBulkhead(name, max, wait, queued, maxOf(max, ceiling))
-            val options = if (adaptive) global.adaptive.withFloor(own?.floor ?: global.adaptive.floor) else null
+            val options = if (adaptive) global.adaptive.withFloor(floorOf(name, global, own, ceiling)) else null
             return bulkhead to options
+        }
+
+        /**
+         * The floor of the store [name]'s adaptive bound: its own, else the global one. Above [ceiling] it refuses the
+         * start: the bound would never go below the ceiling, so it would not adapt.
+         */
+        private fun floorOf(name: String, global: QueryStoreSettings, own: QueryStoreLimits?, ceiling: Int): Int {
+            val floor = own?.floor ?: global.adaptive.floor
+            val key = keyOf(name, own?.floor != null, "adaptive.floor")
+            configCheck(floor >= 1, key, floor, "Set 1 or more.") { "A store's query limit falls to 1 at the lowest." }
+            configCheck(
+                floor <= ceiling,
+                key,
+                floor,
+                "Set a floor of $ceiling or less, or raise wow.stores.$name.query.adaptive.ceiling.",
+            ) {
+                "The adaptive query bound of the store $name goes up to $ceiling, below its floor $floor: it would " +
+                    "never be lowered under write pressure."
+            }
+            return floor
         }
 
         /** The ceiling of the store [name]'s adaptive bound: its own, else the global one, else its pool's. */
@@ -163,10 +187,16 @@ class QueryStores(
             global: QueryStoreSettings,
             own: QueryStoreLimits?,
         ): Int = (own?.ceiling ?: global.adaptiveCeiling ?: StoreQueryBounds.ceiling(pool)).also {
-            configCheck(it >= 1, "wow.stores.$name.query.adaptive.ceiling", it, "Set 1 or more.") {
-                "wow.stores.$name.query.adaptive.ceiling (or wow.query.adaptive.ceiling) is $it."
-            }
+            val key = keyOf(name, own?.ceiling != null, "adaptive.ceiling")
+            configCheck(it >= 1, key, it, "Set 1 or more.") { "$key is $it." }
         }
+
+        /**
+         * The key of the store [name]'s query setting [leaf]: the store's own when it sets it ([own]), else the global
+         * one, which the store takes.
+         */
+        private fun keyOf(name: String, own: Boolean, leaf: String): String =
+            if (own) "wow.stores.$name.query.$leaf" else "wow.query.$leaf"
 
         private fun AdaptiveLimitOptions.withFloor(floor: Int): AdaptiveLimitOptions =
             AdaptiveLimitOptions(floor, interval, latencyFactor, minRise, connectionWaits, periods)

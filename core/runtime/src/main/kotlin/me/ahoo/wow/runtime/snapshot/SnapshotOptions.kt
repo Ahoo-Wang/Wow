@@ -20,12 +20,12 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The tuning of each context's [SnapshotMaintenance]: it runs every [interval]; an in-place rebuild
- * rewrites [batch] snapshots a page, at most [pages] pages a run, under a lease of [leaseTtl]; a node stays a member of
- * its state revision for [memberTtl] after its last run, so a rollback waits that long after the last node of the
- * higher revision is gone (none when it leaves gracefully). The snapshot subscriptions write at most [writeBatch]
- * snapshots of a partition with one [me.ahoo.wow.spi.snapshot.SnapshotStore.saveAll]. A command's cache miss, and a
- * shared state's, waits at most [loadTimeout] for a snapshot before it replays the log
+ * The tuning of each context's [SnapshotMaintenance]: it runs every [maintenanceInterval]; an in-place rebuild
+ * rewrites [rebuildPageSize] snapshots a page, at most [rebuildMaxPages] pages a run, under a lease of [leaseTtl]; a
+ * node stays a member of its state revision for [memberTtl] after its last run, so a rollback waits that long after the
+ * last node of the higher revision is gone (none when it leaves gracefully). The snapshot subscriptions write at most
+ * [writeBatch] snapshots of a partition with one [me.ahoo.wow.spi.snapshot.SnapshotStore.saveAll]. A command's cache
+ * miss, and a shared state's, waits at most [loadTimeout] for a snapshot before it replays the log
  * ([me.ahoo.wow.kernel.KernelOptions.snapshotLoadTimeout]). With [writesInFlight], the subscriptions run that many
  * writes at once over the store's own [me.ahoo.wow.spi.snapshot.SnapshotStore.writesInFlight]: a seam for measuring
  * the count, bound to no configuration and internal like the constructor; null, the store's. Once the writes follow
@@ -35,9 +35,9 @@ import kotlin.time.Duration.Companion.seconds
  * to Wow.
  */
 class SnapshotOptions @InternalWowApi constructor(
-    val interval: Duration = DEFAULT_INTERVAL,
-    val batch: Int = DEFAULT_BATCH,
-    val pages: Int = DEFAULT_PAGES,
+    val maintenanceInterval: Duration = DEFAULT_MAINTENANCE_INTERVAL,
+    val rebuildPageSize: Int = DEFAULT_REBUILD_PAGE_SIZE,
+    val rebuildMaxPages: Int = DEFAULT_REBUILD_MAX_PAGES,
     val leaseTtl: Duration = DEFAULT_TTL,
     val memberTtl: Duration = DEFAULT_TTL,
     val writeBatch: Int = DEFAULT_WRITE_BATCH,
@@ -46,11 +46,11 @@ class SnapshotOptions @InternalWowApi constructor(
     val writesInFlight: Int? = null,
 ) {
     init {
-        require(interval.isPositive()) { "The snapshot maintenance runs at a positive interval." }
-        require(batch >= 1) { "A rebuild rewrites at least one snapshot a page." }
-        require(pages >= 1) { "A rebuild rewrites at least one page a run." }
-        require(leaseTtl > interval) { "The rebuild lease outlives the interval between runs." }
-        require(memberTtl > interval) { "A revision membership outlives the interval between runs." }
+        require(maintenanceInterval.isPositive()) { "The snapshot maintenance runs at a positive interval." }
+        require(rebuildPageSize >= 1) { "A rebuild rewrites at least one snapshot a page." }
+        require(rebuildMaxPages >= 1) { "A rebuild rewrites at least one page a run." }
+        require(leaseTtl > maintenanceInterval) { "The rebuild lease outlives the interval between runs." }
+        require(memberTtl > maintenanceInterval) { "A revision membership outlives the interval between runs." }
         require(writeBatch >= 1) { "A snapshot write holds at least one snapshot." }
         require(loadTimeout.isPositive()) { "A snapshot load's timeout is positive." }
         require(writesInFlight == null || writesInFlight >= 1) { "The snapshot writes run at least one at a time." }
@@ -62,16 +62,26 @@ class SnapshotOptions @InternalWowApi constructor(
     override fun hashCode(): Int = valueFields().hashCode()
 
     override fun toString(): String =
-        "SnapshotOptions(interval=$interval, batch=$batch, pages=$pages, leaseTtl=$leaseTtl, " +
+        "SnapshotOptions(maintenanceInterval=$maintenanceInterval, rebuildPageSize=$rebuildPageSize, " +
+            "rebuildMaxPages=$rebuildMaxPages, leaseTtl=$leaseTtl, " +
             "memberTtl=$memberTtl, writeBatch=$writeBatch, loadTimeout=$loadTimeout, writesInFlight=$writesInFlight)"
 
     private fun valueFields(): List<Any?> =
-        listOf(interval, batch, pages, leaseTtl, memberTtl, writeBatch, loadTimeout, writesInFlight)
+        listOf(
+            maintenanceInterval,
+            rebuildPageSize,
+            rebuildMaxPages,
+            leaseTtl,
+            memberTtl,
+            writeBatch,
+            loadTimeout,
+            writesInFlight,
+        )
 
     companion object {
-        val DEFAULT_INTERVAL: Duration = 5.seconds
-        const val DEFAULT_BATCH: Int = 100
-        const val DEFAULT_PAGES: Int = 10
+        val DEFAULT_MAINTENANCE_INTERVAL: Duration = 5.seconds
+        const val DEFAULT_REBUILD_PAGE_SIZE: Int = 100
+        const val DEFAULT_REBUILD_MAX_PAGES: Int = 10
         val DEFAULT_TTL: Duration = 30.seconds
 
         /** How many snapshots one write of a partition holds at most, by default. */

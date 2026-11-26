@@ -13,7 +13,11 @@
 
 import type { Fetcher } from '@ahoo-wang/fetcher';
 import { asc, cursorQuery, filter } from '@ahoo-wang/wow-client/dsl';
-import type { CommandOptions, CommandResult } from '@ahoo-wang/wow-client';
+import type {
+  CommandOptions,
+  CommandResult,
+  WowClientOptions,
+} from '@ahoo-wang/wow-client';
 import type {
   DatasetOverrides,
   DatasetWordingStore,
@@ -25,10 +29,15 @@ import { revisionOf } from './views.js';
 import { DatasetWordingCommandClient } from './generated/view-store/dataset_wording/commandClient.js';
 import { DatasetWordingSnapshotQueryClient } from './generated/view-store/dataset_wording/queryClient.js';
 import { guard, request } from './errors.js';
+import { versionOf } from './viewWrites.js';
 import { wordingOf } from './wire.js';
+import { clientOptions } from './wowViewStore.js';
 
-/** How a V10 {@link WowDatasetWordings} reaches the view store service: as a V10 `WowViewStore` does. */
-export interface WowDatasetWordingsOptions {
+/**
+ * How a V10 {@link WowDatasetWordings} reaches the view store service: as a
+ * V10 `WowViewStore` does, by wow-client's options, the fetcher required.
+ */
+export interface WowDatasetWordingsOptions extends WowClientOptions {
   /**
    * The fetcher every request goes through, as the V10
    * `WowViewStoreOptions.fetcher`: its interceptors carry the caller, a token
@@ -36,7 +45,7 @@ export interface WowDatasetWordingsOptions {
    * The wording is the tenant's (an aggregate of the tenant, not of an owner),
    * so no request names a scope.
    */
-  fetcher: Fetcher;
+  readonly fetcher: Fetcher;
 }
 
 /**
@@ -62,7 +71,7 @@ export class WowDatasetWordings implements DatasetWordingStore {
   private readonly snapshots: DatasetWordingSnapshotQueryClient;
 
   constructor(options: WowDatasetWordingsOptions) {
-    const client = { fetcher: options.fetcher };
+    const client = clientOptions(options);
     this.commands = new DatasetWordingCommandClient(client);
     this.snapshots = new DatasetWordingSnapshotQueryClient(client);
   }
@@ -79,9 +88,10 @@ export class WowDatasetWordings implements DatasetWordingStore {
    * every dataset's, so no count of them cuts it short. The caller's signal
    * stops the reading between pages and within one.
    */
-  list({ signal }: ReadOptions = {}): Promise<
-    ReadonlyMap<string, StoredDatasetWording>
-  > {
+  list(
+    options: ReadOptions = {},
+  ): Promise<ReadonlyMap<string, StoredDatasetWording>> {
+    const { signal } = options;
     return guard(async () => {
       const wordings = new Map<string, StoredDatasetWording>();
       let cursor: string | null = null;
@@ -117,15 +127,17 @@ export class WowDatasetWordings implements DatasetWordingStore {
   /**
    * Writes a dataset's wording at the expected `revision` (`'0'` for one never
    * written), whole: what it leaves out is no longer said. Answers the new
-   * revision.
+   * revision. A revision this store never issues is refused as `INVALID`
+   * before anything is sent, as a `WowViewStore` write's is.
    */
   set(
     dataset: string,
     wording: DatasetOverrides,
     revision: string,
-    context: WriteOptions,
+    options: WriteOptions,
   ): Promise<string> {
     return guard(async () => {
+      const sent = optionsOf(revision, options);
       const result = await request(() =>
         this.commands.setDatasetWording(
           {
@@ -140,7 +152,7 @@ export class WowDatasetWordings implements DatasetWordingStore {
                   fields: wording.fields as unknown as Record<string, unknown>,
                 }),
           },
-          optionsOf(revision, context),
+          sent,
         ),
       );
       return versionAfter(result, revision);
@@ -149,32 +161,35 @@ export class WowDatasetWordings implements DatasetWordingStore {
 
   /**
    * Clears a dataset's wording at the expected `revision`: its derived words
-   * stand again. Answers the new revision.
+   * stand again. Answers the new revision; a revision never issued is
+   * `INVALID`, as for `set`.
    */
   clear(
     dataset: string,
     revision: string,
-    context: WriteOptions,
+    options: WriteOptions,
   ): Promise<string> {
     return guard(async () => {
+      const sent = optionsOf(revision, options);
       const result = await request(() =>
-        this.commands.clearDatasetWording(
-          { dataset },
-          optionsOf(revision, context),
-        ),
+        this.commands.clearDatasetWording({ dataset }, sent),
       );
       return versionAfter(result, revision);
     });
   }
 }
 
+/**
+ * A write's command options. A revision this store never issued is refused
+ * here, as `INVALID`, before anything is sent.
+ */
 function optionsOf(
   revision: string,
   { requestId, signal }: WriteOptions,
 ): CommandOptions {
   return {
     requestId,
-    expectedVersion: Number(revision),
+    expectedVersion: versionOf(revision),
     ...(signal === undefined ? {} : { signal }),
   };
 }

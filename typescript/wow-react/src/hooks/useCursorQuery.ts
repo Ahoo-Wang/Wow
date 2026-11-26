@@ -54,7 +54,9 @@ export interface UseCursorQueryOptions<
  * - `items` — the rows of the pages read so far, in order. A new query and
  *   `execute()` start again from the first page with no rows; `reset()`
  *   empties them; `abort()` and an error keep them.
- * - `hasMore` — whether a page follows the last one read.
+ * - `hasMore` — whether a page follows the last one read, for the query
+ *   there is: false while a controlled query is `undefined`, when
+ *   `fetchNext()` reads nothing.
  * - `fetchNext()` — reads the next page and appends its rows, from where the
  *   pages stand when it is called, whichever render it came from; it does
  *   nothing while a page is loading or when no page follows. A failed
@@ -230,7 +232,10 @@ export function useCursorQuery<
     },
     false,
   );
-  const hasMore = typeof pages.nextCursor === 'string';
+  // A controlled query set to `undefined` leaves nothing to read on from.
+  const hasMore =
+    typeof pages.nextCursor === 'string' &&
+    !('query' in options && options.query === undefined);
   const fetchNext = useCallback(async () => {
     const { nextCursor, running, readWith } = progress.current;
     if (running?.aborted === false || typeof nextCursor !== 'string') return;

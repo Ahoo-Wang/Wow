@@ -23,7 +23,6 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  CHART_TYPES,
   DEFAULT_RUNTIME_LIMITS,
   type AnalysisViewConfig,
   type ChartSpec,
@@ -61,6 +60,7 @@ import {
   presentationMembers,
 } from '../src/model/config.js';
 import { analysisConfig, dashboardConfig, recordConfig } from './fixtures.js';
+import { CHART_TYPES } from '../src/model/chart.js';
 
 const filterBase: Pick<DataViewConfigBase, 'filter' | 'filterMode'> = {
   filter: { op: 'and', children: [] },
@@ -271,7 +271,7 @@ describe('configs stay plain JSON', () => {
           id: 'pending',
           layout: { x: 0, y: 0, w: 6, h: 4 },
           instanceId: 'orders-pending',
-          bindings: [{ globalField: 'warehouse', panelField: 'warehouse' }],
+          bindings: [{ dashboardField: 'warehouse', panelField: 'warehouse' }],
         },
         {
           kind: 'markdown',

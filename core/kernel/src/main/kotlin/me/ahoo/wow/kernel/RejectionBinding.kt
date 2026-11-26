@@ -188,7 +188,7 @@ class ExecutionReceiptContext(
     causation: Causation,
     operator: Operator?,
     scope: Scope,
-    override val ids: Ids = IdGenerators.DEFAULT,
+    ids: Ids = IdGenerators.DEFAULT,
     headers: Map<String, String> = emptyMap(),
     /** Assigns the commands whose ref the handler leaves out their aggregate type. */
     commandTypes: CommandTypes = CommandTypes.NONE,
@@ -199,6 +199,11 @@ class ExecutionReceiptContext(
     /** What the handler declares it sends; null for a context built outside its binding. */
     sends: SagaSends? = null,
 ) : SagaContext, Derivation {
+    /** The ids this handling draws, which no command it sends may name its target by ([SagaDerivation]). */
+    private val drawn = DrawnIds(ids)
+
+    override val ids: Ids get() = drawn
+
     /**
      * The commands go to the tenant of the commit whose saga execution derived the receipt's command unless they name
      * another; their scope is that command's unless they name their target scope.
@@ -213,6 +218,7 @@ class ExecutionReceiptContext(
         Causation(causation.correlationId, receiptOf),
         operator,
         sends,
+        drawn,
     ) { ref, type, key -> compensationIdOf(executionId, receiptOf, ref, type, key) }
 
     override val queries: SubscriptionQueries get() = contextQueries.of(executionId.ref.tenantId)

@@ -10,8 +10,8 @@ import type { ViewPreferencesSet } from '../types.js';
 export const ViewPreferencesAggregate = {
   context: 'view-store',
   name: 'view_preferences',
-  path: '/view-store/view_preferences',
   ownership: 'owner',
+  idSource: 'assigned',
   snapshot: true,
 } as const;
 

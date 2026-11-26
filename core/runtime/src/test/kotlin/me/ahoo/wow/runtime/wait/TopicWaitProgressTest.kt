@@ -116,6 +116,23 @@ class TopicWaitProgressTest {
     }
 
     @Test
+    fun `a request retried through the topic answers as a duplicate at its snapshot once the snapshot handled it`():
+        Unit = runBlocking {
+        // #6775: the owner signals the hop the duplicate reached before its commit, and the commit ends a duplicate's
+        // wait: a snapshot past the first commit is where the retry's wait ends, not its commit.
+        retriedThroughTopic { coordinator, first ->
+            snapshotGate.complete(Unit)
+            eventually { snapshotRuntime!!.positions().single().watermark >= 1 }
+            val retry = first.copyWith(id = "c-retry", wait = WaitPlan.SNAPSHOT)
+            val last = withTimeout(10.seconds) { coordinator.stream(order, retry).toList() }.last()
+            last.status.assert().describedAs("${last.error?.code}").isEqualTo(CommandResult.Status.SUCCEEDED)
+            last.duplicate.assert().isTrue()
+            last.hop.assert().isEqualTo(Hop.snapshot("shop"))
+            last.version.assert().isEqualTo(1)
+        }
+    }
+
+    @Test
     fun `a retry through the topic under a plan past its commit streams its commit once`(): Unit = runBlocking {
         // #6882: the duplicate's commit is the plan's committed hop and the wait's end at once: one result, not two.
         retriedThroughTopic { coordinator, first ->
@@ -138,7 +155,7 @@ class TopicWaitProgressTest {
                 SubscriptionFilter("shop"),
                 kind = FunctionKind.SYSTEM
             ) { snapshotGate.await() },
-        )
+        ).also { snapshotRuntime = it }
         val coordinator = WaitCoordinator(
             Executor(Kernel(log)),
             waits,
@@ -443,7 +460,7 @@ class TopicWaitProgressTest {
     }
     private val log = InMemoryEventLog(partitions = 1)
     private val waits = WaitRegistry()
-    private val origin = Origin("node-1", "127.0.0.1:9090", "shop-service")
+    private val origin = Origin("shop-service", "node-1", "127.0.0.1:9090")
     private val topics = InMemoryTopics(1).also { it.create(TOPIC, 1) }
 
     /** The commit's signal, once the intake sent it. */
@@ -455,6 +472,10 @@ class TopicWaitProgressTest {
 
     /** Open once the snapshot subscription may handle the commit. */
     private val snapshotGate = CompletableDeferred<Unit>()
+
+    /** The snapshot subscription's runtime [retriedThroughTopic] runs, while it runs. */
+    @Volatile
+    private var snapshotRuntime: SubscriptionRuntime? = null
 
     /** The deadline of the scenario's wait, passed once its commit is reached. */
     private val held = HeldDeadlines()

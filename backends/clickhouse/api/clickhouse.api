@@ -67,6 +67,7 @@ public final class me/ahoo/wow/clickhouse/sink/ClickHouseSinkProvider : me/ahoo/
 	public static final field DEDUPLICATION_WINDOW Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
 	public static final field ENABLED Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
 	public static final field INSERT_INTERVAL Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
+	public static final field SINK_GENERATION Lme/ahoo/wow/spi/config/ProviderOption$Defaulted;
 	public static final field TYPE Ljava/lang/String;
 	public fun <init> ()V
 	public fun available (Lme/ahoo/wow/spi/sink/SinkConfig;)Z
@@ -78,5 +79,6 @@ public final class me/ahoo/wow/clickhouse/sink/ClickHouseSinkProvider : me/ahoo/
 
 public final class me/ahoo/wow/clickhouse/sink/ClickHouseSinkProvider$Companion {
 	public final fun options (Lme/ahoo/wow/spi/sink/SinkConfig;)Lme/ahoo/wow/clickhouse/sink/ClickHouseSinkOptions;
+	public final fun processorOf (Lme/ahoo/wow/spi/sink/SinkConfig;)Ljava/lang/String;
 }
 

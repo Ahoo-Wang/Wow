@@ -12,7 +12,7 @@ description: 部署分析目录的控制台，让数据负责人登录，并用�
 - **由目录提供控制台。** 控制台是一个单页应用，由目录服务从其发行包的 `ui/` 文件夹以静态文件提供。浏览器只与目录通信：目录自己的路由（`/analytics-catalog/…`），以及每个 Wow 节点都提供的数据集路由（`/wow/dataset/…`）。
 - **目录决定，控制台只是提供。** 每个变更都是目录的一条命令，由目录授权并检查。控制台先读取目录的设置（见下文），只提供这个目录支持的操作，并说明某个操作为什么不可用；它从不决定目录不会决定的事。
 - **数据集的行属于数据面。** 控制台像任何读取者一样，经节点的查询策略读取它们：每个调用者读取自己租户、所有者与空间的行，每个值按其数据源的说明脱敏。读取数据行不需要任何目录角色。
-- **对某一行的操作发往拥有该聚合的服务。** 行的引用字段存放着一个聚合的 ID；控制台提供该聚合的命令，目录以数据负责人的名义把选中的命令转发给它的所属服务，由那个服务而不是目录来授权。那个服务的内部命令（`@InternalCommand`）既不提供也不转发：直接调用它在该服务的公开端口上是 `404`，目录以 `wow.command.unhandled` 拒绝它。目录只经由其 Manifest 描述的对端客户端到达一个上下文（`wow.peers.<context>`，带 `contract: manifest`，并用 `mode: user` 发送数据负责人自己的凭证）；没有这样客户端的上下文不提供操作。
+- **对某一行的操作发往拥有该聚合的服务。** 行的引用字段存放着一个聚合的 ID；控制台提供该聚合的命令，目录以数据负责人的名义把选中的命令转发给它的所属服务，由那个服务而不是目录来授权。那个服务的内部命令（`@InternalCommand`）既不提供也不转发：直接调用它在该服务的公开端口上是 `404`，目录以 `wow.command.unhandled` 拒绝它。目录只经由其 Manifest 描述的对端客户端到达一个上下文（`wow.peers.<context>`，带 `contract: manifest`，并用 `mode: user` 发送数据负责人自己的凭证）；没有这样客户端的上下文不提供操作。目录按 `wow.peer.mode`（默认 `service`）读取所属服务的 Manifest，与 Kotlin 对端一样：从该服务的内部端口读取（`wow.peers.<context>.url`，或对端的 DNS 发现），所以所属服务无需在公开端口上多提供任何东西，公开端口的 Manifest 是关闭的（`wow.http.manifest.enabled`）；设置 `wow.peer.mode: user` 时，目录从公开端口读取，所属服务就要设置 `wow.http.manifest.enabled: true`。`wow-service` chart 的内部 NetworkPolicy 允许 release 所在命名空间中同一平台的 Pod 访问；位于其他命名空间的目录，需要每个所属服务的 release 把目录的 Pod 加入 `networkPolicy.internal.from`（一个 `namespaceSelector` 和一个按其标签选择的 `podSelector`）。
 
 ## 部署 {#deploy-it}
 

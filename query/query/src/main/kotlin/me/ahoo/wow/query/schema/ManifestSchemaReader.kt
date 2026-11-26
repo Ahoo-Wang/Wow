@@ -36,7 +36,7 @@ import tools.jackson.databind.JsonNode
  * | `x-wow-decimal` `{scale}` | [NumericFormat.Decimal] |
  * | `x-wow-money` `{currency \| currencyField, scale?}` | [NumericFormat.Money.of] |
  * | `x-wow-duration` `{unit}` | [TimeSpan] |
- * | `x-wow-reference` `{aggregateName, contextName?}` | [Reference] (the declaring context when omitted) |
+ * | `x-wow-reference` `{aggregate, context?}` | [Reference] (the declaring context when omitted) |
  * | `x-wow-text` `{}` | [QueryFieldDeclaration.text], on each string leaf (an array's items, a union's strings) |
  * | `x-wow-index` (state root) | informational: the storage's index DDL reads it, the query schema does not |
  */
@@ -69,7 +69,7 @@ private const val REF = "\$ref"
  * property reads. Values of another type than the one named conflict ([settled]).
  *
  * @param defs the Manifest's `$defs`, which `$ref`s point into.
- * @param contextName the bounded context of the model, the one an `x-wow-reference` without `contextName` names.
+ * @param contextName the bounded context of the model, the one an `x-wow-reference` without `context` names.
  * @param strategies resolves the custom mask strategies `x-wow-mask` names.
  */
 internal class ManifestSchemaReader(
@@ -384,8 +384,8 @@ private class ManifestKeywords(private val schema: Map<*, *>, private val field:
     fun reference(contextName: String): Reference? = keyword(ManifestQueryKeywords.REFERENCE)?.let { reference ->
         declared(ManifestQueryKeywords.REFERENCE) {
             Reference(
-                contextName = reference["contextName"] as? String ?: contextName,
-                aggregateName = reference["aggregateName"] as String,
+                contextName = reference["context"] as? String ?: contextName,
+                aggregateName = reference["aggregate"] as String,
             )
         }
     }

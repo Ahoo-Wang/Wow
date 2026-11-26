@@ -11,7 +11,6 @@ import { DatasetWordingStore } from '@ahoo-wang/wow-view-engine';
 import { Fetcher } from '@ahoo-wang/fetcher';
 import { ReadOptions } from '@ahoo-wang/wow-view-engine';
 import { StoredDatasetWording } from '@ahoo-wang/wow-view-engine';
-import { TargetScope } from '@ahoo-wang/wow-client';
 import { ViewAudience } from '@ahoo-wang/wow-view-engine';
 import { ViewConfig } from '@ahoo-wang/wow-view-engine';
 import { ViewInstance } from '@ahoo-wang/wow-view-engine';
@@ -20,43 +19,38 @@ import { ViewListPage } from '@ahoo-wang/wow-view-engine';
 import { ViewPermissions } from '@ahoo-wang/wow-view-engine';
 import { ViewPreferences } from '@ahoo-wang/wow-view-engine';
 import { ViewStore } from '@ahoo-wang/wow-view-engine';
+import { WowClientOptions } from '@ahoo-wang/wow-client';
 import { WriteOptions } from '@ahoo-wang/wow-view-engine';
 
 // @public
 export function datasetCatalogOf(client: DatasetClient): Pick<DatasetCatalog, 'list' | 'source'>;
 
 // @public
-export const SHARED_SCOPE: TargetScope;
-
-// @public
-export const SYSTEM_SCOPE: TargetScope;
-
-// @public
 export class WowDatasetWordings implements DatasetWordingStore {
     constructor(options: WowDatasetWordingsOptions);
-    clear(dataset: string, revision: string, context: WriteOptions): Promise<string>;
-    list(input?: ReadOptions): Promise<ReadonlyMap<string, StoredDatasetWording>>;
-    set(dataset: string, wording: DatasetOverrides, revision: string, context: WriteOptions): Promise<string>;
+    clear(dataset: string, revision: string, options: WriteOptions): Promise<string>;
+    list(options?: ReadOptions): Promise<ReadonlyMap<string, StoredDatasetWording>>;
+    set(dataset: string, wording: DatasetOverrides, revision: string, options: WriteOptions): Promise<string>;
 }
 
 // @public
-export interface WowDatasetWordingsOptions {
-    fetcher: Fetcher;
+export interface WowDatasetWordingsOptions extends WowClientOptions {
+    readonly fetcher: Fetcher;
 }
 
 // @public
 export class WowViewStore implements ViewStore {
     constructor(options: WowViewStoreOptions);
-    changeAudience(id: string, audience: ViewAudience, revision: string, context: WriteOptions): Promise<ViewInstance>;
-    create(input: Omit<ViewInstance, 'id' | 'revision'>, context: WriteOptions): Promise<ViewInstance>;
-    delete(id: string, revision: string, context: WriteOptions): Promise<void>;
+    changeAudience(id: string, audience: ViewAudience, revision: string, options: WriteOptions): Promise<ViewInstance>;
+    create(input: Omit<ViewInstance, 'id' | 'revision'>, options: WriteOptions): Promise<ViewInstance>;
+    delete(id: string, revision: string, options: WriteOptions): Promise<void>;
     get(id: string, options?: ReadOptions): Promise<ViewInstance>;
     getPreferences(definitionId: string, options?: ReadOptions): Promise<ViewPreferences>;
     list(definitionId: string, options?: ViewListOptions): Promise<ViewListPage>;
     readonly permissions?: (definitionId: string) => ViewPermissions;
-    rename(id: string, title: string, revision: string, context: WriteOptions): Promise<ViewInstance>;
-    save(id: string, config: ViewConfig, revision: string, context: WriteOptions): Promise<ViewInstance>;
-    setPreferences(definitionId: string, preferences: ViewPreferences, context: WriteOptions): Promise<ViewPreferences>;
+    rename(id: string, title: string, revision: string, options: WriteOptions): Promise<ViewInstance>;
+    save(id: string, config: ViewConfig, revision: string, options: WriteOptions): Promise<ViewInstance>;
+    setPreferences(definitionId: string, preferences: ViewPreferences, options: WriteOptions): Promise<ViewPreferences>;
 }
 
 // @public
@@ -73,10 +67,10 @@ export const WowViewStoreErrorCodes: {
 };
 
 // @public
-export interface WowViewStoreOptions {
-    fetcher: Fetcher;
-    pageSize?: number;
-    permissions?: (definitionId: string) => ViewPermissions;
+export interface WowViewStoreOptions extends WowClientOptions {
+    readonly fetcher: Fetcher;
+    readonly pageSize?: number;
+    readonly permissions?: (definitionId: string) => ViewPermissions;
 }
 
 // (No @packageDocumentation comment for this package)

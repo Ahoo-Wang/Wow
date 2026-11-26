@@ -25,6 +25,7 @@ import me.ahoo.wow.mongo.ClockedMongo
 import me.ahoo.wow.mongo.CountedMongo
 import me.ahoo.wow.mongo.log.MongoLogFixture
 import me.ahoo.wow.spi.StorageRefusedException
+import me.ahoo.wow.spi.snapshot.SnapshotFill
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.store.StoreCallMarks
@@ -44,6 +45,35 @@ class MongoSnapshotStoreTest : SnapshotStoreSpec() {
 
     private fun collection(context: String, aggregate: String = "aggregate") =
         "wow_snapshot__${context.replace('-', '_')}__$aggregate"
+
+    /**
+     * A revision's claim may be the store's first call, before any snapshot collection is made sure of: the registry's
+     * format record is claimed before that insert would create the registry without it (finding F1's record).
+     */
+    @Test
+    fun `a revision claimed before any snapshot should record the registry's format first`(): Unit = runBlocking {
+        val name = "snapshot-registry-${System.nanoTime()}"
+        val database = MongoLogFixture.client.getDatabase(name)
+        try {
+            val context = MongoLogFixture.newContext()
+            val store = MongoSnapshotStore(MongoLogFixture.client, name, context)
+            store.claim(AggregateType(context, "order"), 1, SnapshotFill.SUBSCRIPTION, lower = false)
+            database.getCollection("wow_format").find(Filters.eq("_id", MongoSnapshotStore.TABLES)).first()
+                .assert().isNotNull()
+            // Its fill is stored by its wire name, as every stored enumeration is.
+            database.getCollection(MongoSnapshotStore.TABLES).find().first()!!.getString("fill").assert()
+                .isEqualTo("subscription")
+            // One this version does not know, its old spelling among them, is refused, naming it.
+            database.getCollection(MongoSnapshotStore.TABLES)
+                .updateMany(Filters.empty(), Updates.set("fill", "SUBSCRIPTION"))
+            assertThrownBy<IllegalStateException> { runBlocking { store.table(AggregateType(context, "order")) } }
+                .message().contains("SUBSCRIPTION")
+            // The snapshot collection's own claim of the registry finds it recorded.
+            store.createCollection("order")
+        } finally {
+            database.drop()
+        }
+    }
 
     @Test
     fun `the store keeps two writes in flight, and four while its subscription is behind`() {
@@ -101,16 +131,6 @@ class MongoSnapshotStoreTest : SnapshotStoreSpec() {
         store.pending(type, 2, limit = 10)
             .assert().containsExactly(type.ref("t1", "a"), type.ref("t1", "b"), type.ref("t2", "a"))
         store.pending(type, 2, after = type.ref("t1", "b"), limit = 10).assert().containsExactly(type.ref("t2", "a"))
-    }
-
-    @Test
-    fun `snapshots an alpha wrote, under ObjectIds, are refused rather than saved beside`() {
-        val context = MongoLogFixture.newContext()
-        store(context)
-        // What an alpha left: a snapshot whose _id the server gave it.
-        MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection(collection(context))
-            .insertOne(Document("tenant_id", "tenant").append("aggregate_id", "a").append("version", 1))
-        assertThrownBy<IllegalStateException> { store(context) }.message().contains("earlier 10.0 alpha")
     }
 
     @Test

@@ -59,14 +59,16 @@ import { formatWaitPlan, formatWaitTimeout, WaitPlan } from './wait.js';
  * - `command`: the full type name, `context.aggregate.Command`, which names
  *   the aggregate type too; or a system command (`wow.*`, a lifecycle command
  *   of {@link LifecycleCommands} among them), which needs `type`.
- * - `id`: the aggregate's id. Absent when the command names no aggregate id:
- *   a creation, whose id the server assigns, an `@Unaddressed` command, or
- *   any command of an aggregate whose id is its owner's (the Manifest's
+ * - `aggregateId`: the aggregate's id, as Kotlin's
+ *   `CommandRequest.aggregateId` names it beside the command's and the
+ *   request's ids. Absent when the command names no aggregate id: a creation,
+ *   whose id the server assigns, an `@Unaddressed` command, or any command of
+ *   an aggregate whose id is its owner's (the Manifest's
  *   `idSource: "owner"`), which goes to the caller's own; the route without
  *   `{id}` then sends it. A command whose body names its aggregate (the
- *   Manifest's `idProperty`) goes by that route too, whether `id` is given or
- *   not: a given one is the one its body names, or is written into a body
- *   that names none.
+ *   Manifest's `idProperty`) goes by that route too, whether `aggregateId` is
+ *   given or not: a given one is the one its body names, or is written into a
+ *   body that names none.
  * - `targetTenant`, `targetScope`: the tenant and scope a caller allowed to
  *   act across scopes acts in (`Wow-Scope`); the caller's own when absent.
  * - `wait` (`Wow-Wait`), a {@link WaitPlan}, and `timeout` in milliseconds
@@ -84,7 +86,7 @@ export interface CommandRequest extends Omit<RequestOptions, 'scope'> {
    * The aggregate's id; absent for a creation, an unaddressed command or the
    * caller's own aggregate of one whose id is its owner's.
    */
-  readonly id?: string;
+  readonly aggregateId?: string;
   /**
    * The aggregate type, which `command` names unless it is a system command:
    * then it is required.
@@ -132,7 +134,7 @@ export interface CommandClientOptions {
    * client sets them for commands with `int64`, `bigint` or `decimal` fields,
    * which it types as `string`.
    */
-  readonly bodyNumbers?: Readonly<Record<string, TextNumbers>>;
+  readonly textNumbers?: Readonly<Record<string, TextNumbers>>;
 }
 
 /**
@@ -141,7 +143,7 @@ export interface CommandClientOptions {
  */
 export type CommandOptions = Omit<
   CommandRequest,
-  'command' | 'body' | 'type' | 'id'
+  'command' | 'body' | 'type' | 'aggregateId'
 >;
 
 /** The options of a command that may create its aggregate, with its id or not. */
@@ -150,7 +152,7 @@ export interface CreateCommandOptions extends CommandOptions {
    * The id of the aggregate to create (decision D176); the service generates
    * one when absent.
    */
-  readonly id?: string;
+  readonly aggregateId?: string;
 }
 
 /** The lifecycle commands an aggregate may list. */
@@ -256,8 +258,9 @@ function planOf(request: CommandRequest): WaitPlan | undefined {
 }
 
 /**
- * The route of `request` among `routes`, by `id` (the request's, none for a
- * command whose body names its aggregate): its method and path, the id in it.
+ * The route of `request` among `routes`, by `id` (the request's
+ * `aggregateId`, none for a command whose body names its aggregate): its
+ * method and path, the id in it.
  * An empty id is refused before anything is sent: it would leave the path's
  * segment empty (`/<context>/<aggregate>//…`), a route no service has.
  */
@@ -272,8 +275,8 @@ function routeOf(
   if (route === undefined) {
     throw new TypeError(
       id === undefined
-        ? `${request.command} has no route without an aggregate id: set the request's id.`
-        : `${request.command} has no route to an aggregate by its id: send it without an id.`,
+        ? `${request.command} has no route without an aggregate id: set the request's aggregateId.`
+        : `${request.command} has no route to an aggregate by its id: send it without an aggregateId.`,
     );
   }
   if (id === '') {
@@ -298,8 +301,9 @@ function routeOf(
 
 /**
  * The body `request` sends, `{}` when it has none. Of a command whose body
- * names its aggregate in `idProperty`, the route has no id: the request's id,
- * when it names one, is the body's too, written into a body that names none.
+ * names its aggregate in `idProperty`, the route has no id: the request's
+ * `aggregateId`, when it names one, is the body's too, written into a body
+ * that names none.
  *
  * @throws TypeError when the body names another aggregate than the request
  */
@@ -308,7 +312,7 @@ function bodyOf(
   idProperty: string | undefined,
 ): object {
   const body = request.body ?? {};
-  const id = request.id;
+  const id = request.aggregateId;
   if (idProperty === undefined || id === undefined) return body;
   const named: unknown = (body as Record<string, unknown>)[idProperty];
   if (named === undefined || named === null) {
@@ -316,7 +320,7 @@ function bodyOf(
   }
   if (named !== id) {
     throw new TypeError(
-      `The request names the aggregate ${id}, but the body of ${request.command} names ${String(named)}: send it without an id.`,
+      `The request names the aggregate ${id}, but the body of ${request.command} names ${String(named)}: send it without an aggregateId.`,
     );
   }
   return body;
@@ -334,32 +338,13 @@ function typeNamed(command: string): AggregateType {
 }
 
 /**
- * The wait `request` states (`Wow-Wait-Timeout`), in milliseconds: its own
- * timeout or its plan's, none when it leaves the service its default.
+ * How long the whole answer of a request waiting with `plan` may take: the
+ * wait it states, its plan's timeout, else the service's default wait
+ * (`defaultWaitMs`, a minute when absent), and a grace after it.
  */
-function statedTimeout(
-  request: CommandRequest,
-  plan: WaitPlan | undefined,
-): number | undefined {
-  return plan !== undefined &&
-    (request.timeout !== undefined || plan.timeout !== WaitPlan.DEFAULT_TIMEOUT)
-    ? plan.timeout
-    : undefined;
-}
-
-/**
- * How long `request`'s whole answer may take: the wait it states, else the
- * service's default wait (`defaultWaitMs`, a minute when absent), and a grace
- * after it.
- */
-function boundOf(
-  request: CommandRequest,
-  plan: WaitPlan | undefined,
-  client: WowClientOptions,
-): number {
+function boundOf(plan: WaitPlan | undefined, client: WowClientOptions): number {
   return (
-    (statedTimeout(request, plan) ?? client.defaultWaitMs ?? LONGEST_WAIT_MS) +
-    ANSWER_GRACE_MS
+    (plan?.timeout ?? client.defaultWaitMs ?? LONGEST_WAIT_MS) + ANSWER_GRACE_MS
   );
 }
 
@@ -369,15 +354,16 @@ function commandHeaders(
   requestId: string,
   accept?: string,
 ): Record<string, string | undefined> {
-  const timeout = statedTimeout(request, plan);
   return {
     [WowHeaders.REQUEST_ID]: requestId,
     // The default plan is the service's to pick: it sends no plan.
     [WowHeaders.WAIT]:
       plan === undefined || plan.isDefault ? undefined : formatWaitPlan(plan),
-    // A plan's own timeout, or the request's; the service's default otherwise.
+    // Every plan states its timeout, as Kotlin's client does (10 seconds
+    // unless `within` or the request's `timeout` says otherwise); a request
+    // with no plan leaves the service its default.
     [WowHeaders.WAIT_TIMEOUT]:
-      timeout === undefined ? undefined : formatWaitTimeout(timeout),
+      plan === undefined ? undefined : formatWaitTimeout(plan.timeout),
     [WowHeaders.IF_MATCH]:
       request.expectedVersion === undefined
         ? undefined
@@ -413,9 +399,11 @@ function targetOf(request: CommandRequest): TargetScope | undefined {
  * one, and whatever it rejects with carries that id ({@link requestIdOf}).
  *
  * A command's whole answer, its head, its body and a stream's every event,
- * is bounded by the wait it states (`timeout`, or its plan's) and 5 seconds
- * more, as the Kotlin client's is; one that states none, whose wait is the
- * service's default, by the client's
+ * is bounded by the wait it states and 5 seconds more, as the Kotlin
+ * client's is. Every plan states its timeout (`Wow-Wait-Timeout`): the
+ * plan's own, 10 seconds unless `within` says otherwise, or the request's
+ * `timeout` over it. A request with neither `wait` nor `timeout` states
+ * none, so its wait is the service's default, bounded by the client's
  * {@link WowClientOptions.defaultWaitMs} (a minute when absent, the longest
  * default a service takes unless its `wow.wait.max-timeout` is raised) and
  * the same grace. The service answers `wow.wait.timeout` at the wait's end,
@@ -428,24 +416,24 @@ function targetOf(request: CommandRequest): TargetScope | undefined {
  */
 export class CommandClient {
   private readonly manifest: ManifestSource;
-  private readonly bodyNumbers: Readonly<Record<string, TextNumbers>>;
+  private readonly textNumbers: Readonly<Record<string, TextNumbers>>;
 
   /**
-   * @param client - How the service is reached
-   * @param options - The service's Manifest, and the commands' exact numbers
+   * @param options - How the service is reached
+   * @param contract - The service's Manifest, and the commands' exact numbers
    */
   constructor(
-    readonly client: WowClientOptions = {},
-    options: CommandClientOptions = {},
+    private readonly options: WowClientOptions = {},
+    contract: CommandClientOptions = {},
   ) {
-    this.manifest = new ManifestSource(client, options.manifest);
-    this.bodyNumbers = options.bodyNumbers ?? {};
+    this.manifest = new ManifestSource(options, contract.manifest);
+    this.textNumbers = contract.textNumbers ?? {};
   }
 
   /**
    * Sends a command and answers once it is accepted (202), within the
-   * request's timeout (the service's default without one) and the grace
-   * after it, as Kotlin's `CommandClient.send`. A request whose `wait` waits
+   * request's timeout (10 seconds without one), stated as its wait, and the
+   * grace after it, as Kotlin's `CommandClient.send`. A request whose `wait` waits
    * for more rejects with a `TypeError` before it is sent: {@link wait}
    * answers with that plan's result.
    *
@@ -560,18 +548,15 @@ export class CommandClient {
     const route = routeOf(
       request,
       declared.routes,
-      idProperty === undefined ? request.id : undefined,
+      idProperty === undefined ? request.aggregateId : undefined,
     );
     const scope = targetOf(request);
-    const bodyNumbers = this.bodyNumbers[request.command];
+    const bodyNumbers = this.textNumbers[request.command];
     const body =
       route.method === 'DELETE' ? {} : { body: bodyOf(request, idProperty) };
-    const bound = new AnswerBound(
-      boundOf(request, plan, this.client),
-      request.signal,
-    );
+    const bound = new AnswerBound(boundOf(plan, this.options), request.signal);
     try {
-      const answer = await send(this.client, {
+      const answer = await send(this.options, {
         method: route.method,
         path: route.path,
         headers: commandHeaders(request, plan, requestId, accept),
@@ -607,7 +592,8 @@ export class CommandClient {
 
   /**
    * `request`'s command as the Manifest lists it, with its routes: a domain
-   * command among its aggregate's commands, by name or former name; a system
+   * command among its aggregate's commands, by name or former name, a former
+   * name listed alone or as a full type name; a system
    * command among its type's, else among its context's (a job's).
    */
   private async commandOf(request: CommandRequest): Promise<RoutingCommand> {
@@ -630,7 +616,12 @@ export class CommandClient {
       context?.aggregates
         ?.find(aggregate => aggregate.name === type.name)
         ?.commands?.find(
-          item => item.name === name || item.aliases?.includes(name) === true,
+          item =>
+            item.name === name ||
+            item.aliases?.includes(name) === true ||
+            // A former name the Manifest lists as a full type name, as the
+            // Kotlin client matches it (`ManifestPeers.declared`).
+            item.aliases?.includes(command) === true,
         ) ??
       (system
         ? context?.commands?.find(item => item.name === name)

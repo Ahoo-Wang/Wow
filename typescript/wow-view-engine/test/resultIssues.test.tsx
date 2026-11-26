@@ -52,7 +52,7 @@ import { AggregationFunction, SortDirection } from '@ahoo-wang/wow-client/dsl';
 afterEach(cleanup);
 
 const SUMMED = recordConfig({
-  summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+  summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
 });
 
 /** The sentence a catalogue gives a finding, with its values filled in. */
@@ -125,7 +125,7 @@ describe('the findings a result carries', () => {
   it('reports the summary scope it had to give up', async () => {
     const data = await ran(SUMMED, noAggregate());
 
-    expect(data.kind === 'record' && data.summaries?.scope).toBe('page');
+    expect(data.kind === 'record' && data.summaries?.over).toBe('page');
     expect(data.issues).toEqual([
       {
         code: 'runtime.summary.page-only',
@@ -138,7 +138,7 @@ describe('the findings a result carries', () => {
   it('reports nothing when the totals query answered', async () => {
     const data = await ran(SUMMED, testSource());
 
-    expect(data.kind === 'record' && data.summaries?.scope).toBe('total');
+    expect(data.kind === 'record' && data.summaries?.over).toBe('total');
     expect(data.issues).toEqual([]);
   });
 

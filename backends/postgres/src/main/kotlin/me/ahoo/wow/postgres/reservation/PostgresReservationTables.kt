@@ -38,8 +38,8 @@ internal class PostgresReservationTables(context: String, aggregate: String) {
             tenant_id text COLLATE "C" NOT NULL,
             namespace text COLLATE "C" NOT NULL,
             key text COLLATE "C" NOT NULL,
-            owner_tenant_id text NOT NULL,
-            owner_id text NOT NULL,
+            aggregate_tenant_id text NOT NULL,
+            aggregate_id text NOT NULL,
             expires_at bigint,
             holds text[] NOT NULL DEFAULT '{}',
             version integer NOT NULL DEFAULT 0,
@@ -61,7 +61,7 @@ internal class PostgresReservationTables(context: String, aggregate: String) {
     val reserve = """
         INSERT INTO $table AS held ($COLUMNS) VALUES (?, ?, ?, ?, ?, ?, ARRAY[?]::text[], 0)
         ON CONFLICT (tenant_id, namespace, key) DO UPDATE
-        SET owner_tenant_id = excluded.owner_tenant_id, owner_id = excluded.owner_id,
+        SET aggregate_tenant_id = excluded.aggregate_tenant_id, aggregate_id = excluded.aggregate_id,
             expires_at = CASE
                 WHEN $SAME_OWNER AND held.expires_at IS NULL THEN NULL
                 WHEN $SAME_OWNER AND held.expires_at > ? THEN greatest(held.expires_at, excluded.expires_at)
@@ -94,7 +94,7 @@ internal class PostgresReservationTables(context: String, aggregate: String) {
     val confirm = """
         INSERT INTO $table AS held ($COLUMNS) VALUES (?, ?, ?, ?, ?, NULL, '{}', ?)
         ON CONFLICT (tenant_id, namespace, key) DO UPDATE
-        SET owner_tenant_id = excluded.owner_tenant_id, owner_id = excluded.owner_id, expires_at = NULL, holds = '{}',
+        SET aggregate_tenant_id = excluded.aggregate_tenant_id, aggregate_id = excluded.aggregate_id, expires_at = NULL, holds = '{}',
             version = greatest(held.version, excluded.version)
         WHERE $SAME_OWNER OR held.expires_at <= ?
         RETURNING expires_at
@@ -115,11 +115,11 @@ internal class PostgresReservationTables(context: String, aggregate: String) {
 
         /** The prefix of the tables' names, `wow_reservation__<context>__<aggregate>`. */
         const val PREFIX = "wow_reservation"
-        private const val COLUMNS = "tenant_id, namespace, key, owner_tenant_id, owner_id, expires_at, holds, version"
-        private const val OWNER_COLUMNS = "owner_tenant_id, owner_id, expires_at, holds, version"
+        private const val COLUMNS = "tenant_id, namespace, key, aggregate_tenant_id, aggregate_id, expires_at, holds, version"
+        private const val OWNER_COLUMNS = "aggregate_tenant_id, aggregate_id, expires_at, holds, version"
         private const val KEY = "tenant_id = ? AND namespace = ? AND key = ?"
-        private const val OWNER = "owner_tenant_id = ? AND owner_id = ?"
+        private const val OWNER = "aggregate_tenant_id = ? AND aggregate_id = ?"
         private const val SAME_OWNER =
-            "(held.owner_tenant_id = excluded.owner_tenant_id AND held.owner_id = excluded.owner_id)"
+            "(held.aggregate_tenant_id = excluded.aggregate_tenant_id AND held.aggregate_id = excluded.aggregate_id)"
     }
 }

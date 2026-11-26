@@ -17,7 +17,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.result.FunctionKind
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.StartFrom
 import me.ahoo.wow.runtime.health.NodeFatals
@@ -48,6 +48,14 @@ import me.ahoo.wow.spi.state.StateEventRecord
  *   events at their current revision (an event stored at an older revision or under a former name is upgraded
  *   through the model), and the aggregate's state after the commit and deleted mark. The state is
  *   left out when [includeState] is false; the deleted mark is written either way.
+ * - **Every commit** ([everyCommit], the transport sink's): a commit whose events the model all retired is written as
+ *   a record that holds none, and a commit that only changes schedules with its schedule events, as a commit that
+ *   holds others is, so an aggregate's versions on its state topic are contiguous from its first record. A store's
+ *   sink writes nothing for the first and does not take the second: its readers query it, they follow no versions.
+ * - **Published** ([published], the transport sink's): the record goes to other contexts on the state topic, so its
+ *   headers leave out the client's address and `User-Agent` ([RequestFacts.REMOTE_IP], [RequestFacts.USER_AGENT]),
+ *   personal data that stays with the service the request reached and its log; the application ([RequestFacts.APP_ID])
+ *   and the host's request facts go on. A store's sink, the service's own, keeps the log's headers.
  * - **The state**: read through the context's shared decoder ([EntryDecoder.stateEvents]) by [reader], whose name
  *   must be [name], so the sink is one of the context's state consumers: the view the executor took when the stream
  *   committed, else the nearest view or snapshot evolved with the log's tail, else the log replayed. It is mapped to
@@ -78,6 +86,8 @@ internal class SinkSubscription(
     private val includeState: Boolean = true,
     private val masks: RecordMasks?,
     startFrom: StartFrom = StartFrom.BEGINNING,
+    private val everyCommit: Boolean = false,
+    private val published: Boolean = false,
 ) {
     private val model: AggregateModel<*> = reader.modelOf(type)
     private val codec = reader.codec
@@ -98,12 +108,12 @@ internal class SinkSubscription(
 
     /** The subscription to register: of [type]'s streams only, every event of them. */
     val subscription: Subscription = if (writes == null) {
-        Subscription(
+        Subscription.sink(
             name = name,
             filter = SubscriptionFilter(type.context, setOf(type.name)),
             startFrom = startFrom,
             decoder = EntryDecoder.stateEvents(reader, decodeEvents = false),
-            kind = FunctionKind.SYSTEM,
+            takesEventless = everyCommit,
             handler = ::write,
         )
     } else {
@@ -115,6 +125,7 @@ internal class SinkSubscription(
             paced = sink.toString(),
             startFrom = startFrom,
             decoder = EntryDecoder.stateEvents(reader, decodeEvents = false),
+            takesEventless = everyCommit,
             runHandler = ::writeRun,
             handler = ::write,
         )
@@ -161,12 +172,13 @@ internal class SinkSubscription(
     }
 
     /**
-     * The record of [entry], its events at their current names and revisions without those the model retired;
-     * null when every event of the stream is retired: nothing is written, and the sink moves past it.
+     * The record of [entry], its events at their current names and revisions without those the model retired. When
+     * every event of the stream is retired: a record that holds none for a sink of [everyCommit], else null: nothing
+     * is written, and the sink moves past it.
      */
     internal suspend fun recordOf(entry: SubscribedEntry): StateEventRecord? {
         val events = entry.stream.events.filterNot { model.isRetired(it.name) }
-        if (events.isEmpty()) {
+        if (events.isEmpty() && !everyCommit) {
             return null
         }
         val stream = entry.stream
@@ -185,7 +197,7 @@ internal class SinkSubscription(
             deleted = view.deleted,
             access = access,
             causation = stream.causation,
-            headers = stream.headers,
+            headers = if (published) stream.headers - CLIENT_FACTS else stream.headers,
             operator = stream.operator,
             transport = published(entry.transport, currentCoroutineContext().trace),
             imported = entry.imported,
@@ -249,4 +261,9 @@ internal class SinkSubscription(
     }
 
     override fun toString(): String = "SinkSubscription($name)"
+
+    private companion object {
+        /** The request facts of where a request came from, which a published record leaves out: the client's. */
+        val CLIENT_FACTS: Set<String> = RequestFacts.STANDARD - RequestFacts.PROPAGATED
+    }
 }

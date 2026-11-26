@@ -286,7 +286,7 @@ describe('DataWorkbench export', () => {
     });
     render(
       <DataWorkbench
-        engine={engineFor(source, { exportMax: 3 })}
+        engine={engineFor(source, { maxExportRows: 3 })}
         definitionId="orders"
         instanceId="orders-1"
       />,

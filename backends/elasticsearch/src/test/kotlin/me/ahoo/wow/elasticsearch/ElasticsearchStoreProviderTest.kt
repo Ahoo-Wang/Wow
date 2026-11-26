@@ -97,14 +97,40 @@ class ElasticsearchStoreProviderTest {
         (ElasticsearchStoreProvider().open(config()) as ElasticsearchStore).rewriteRate.assert().isEqualTo(1000)
         (ElasticsearchStoreProvider().open(config(mapOf(rate.key to "50"))) as ElasticsearchStore)
             .rewriteRate.assert().isEqualTo(50)
-        (ElasticsearchStoreProvider().open(config(mapOf(rate.key to "-1"))) as ElasticsearchStore)
+        // 0 is no limit, Elasticsearch's -1 (D484 ①).
+        (ElasticsearchStoreProvider().open(config(mapOf(rate.key to "0"))) as ElasticsearchStore)
             .rewriteRate.assert().isEqualTo(-1)
-        listOf("0", "-2").forEach { refused ->
+        listOf("-1", "-2").forEach { refused ->
             val failure = assertThrows<WowConfigurationException> {
                 ElasticsearchStoreProvider().open(config(mapOf(rate.key to refused)))
             }
             failure.key.assert().isEqualTo("wow.stores.search.reindex-requests-per-second")
             failure.value.assert().isEqualTo(refused.toInt())
+        }
+    }
+
+    @Test
+    fun `an operation timeout that is not positive should refuse the store when it opens, naming the key`() {
+        val timeout = ElasticsearchStoreProvider.OPERATION_TIMEOUT
+        listOf("0s", "-5s").forEach { refused ->
+            val failure = assertThrows<WowConfigurationException> {
+                ElasticsearchStoreProvider().open(config(mapOf(timeout.key to refused)))
+            }
+            failure.key.assert().isEqualTo("wow.stores.search.operation-timeout")
+            failure.fix.assert().contains("wow.elasticsearch.operation-timeout")
+        }
+        ElasticsearchStoreProvider().open(config(mapOf(timeout.key to "1ms"))).close()
+    }
+
+    @Test
+    fun `a sink generation below 1 should refuse the store when it opens, naming the key`() {
+        listOf("0", "-1").forEach { refused ->
+            val failure = assertThrows<WowConfigurationException> {
+                ElasticsearchStoreProvider().open(
+                    config(mapOf(ElasticsearchStoreProvider.SINK_GENERATION.key to refused)),
+                )
+            }
+            failure.key.assert().isEqualTo("wow.stores.search.sink.generation")
         }
     }
 

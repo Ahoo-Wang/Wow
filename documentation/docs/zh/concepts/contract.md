@@ -36,7 +36,7 @@ annotations ─▶ compiler ─▶ Manifest ─┬▶ HTTP routes (at run time)
 
 schema 来自 Jackson 本身。构建过程加载编译好的类，询问 Jackson 会怎样序列化它们，所以命名策略、`@JsonProperty` 和 Kotlin 默认值，都按它们在线上的真实样子体现出来。由类自己的序列化器写出的类不会：构建看不到序列化器的内部，所以会停下来，要求声明这个类的结构（[由自定义序列化器写出的类型](../guide/manifest#a-type-written-by-a-custom-serializer)）。这只发生在构建时；运行时不做任何内省。
 
-服务在公开端口的 `GET /wow/manifest` 上发布它的 Manifest，与所有路由一样需要认证（没有调用方时 401），任何已认证的调用方都能读取。
+服务在 `GET /wow/manifest` 上提供它的 Manifest：在内部端口上提供给集群中的服务；在公开端口上只有当它在那里公开契约时才提供（`wow.http.manifest.enabled: true`，默认关闭），与所有路由一样需要认证（没有调用方时 401），任何已认证的调用方都能读取。
 
 ## 从它推出什么 {#what-is-derived-from-it}
 
@@ -59,6 +59,8 @@ schema 来自 Jackson 本身。构建过程加载编译好的类，询问 Jackso
 用到另一个上下文生成代码（例如它的 `<State>View`）的代码，要按名字索取契约：`implementation(wow.contract(project(":ordering-api")))`，也可以写该模块的坐标或版本目录条目。没有应用 Wow 插件的模块在 api 依赖上写 `requireFeature("contract")`；Maven 构建加上该模块分类器为 `contract`、版本相同的 jar。
 
 消费方可以持有一个上下文的契约而没有它的任何类，通过 JSON 访问它；但不可以只持有其中一部分类。一个上下文的类有的在、有的缺，说明契约和类型的版本不一致，构建和节点启动都会拒绝，并指出两者。
+
+对端的契约可能来自 Wow 的下一个次版本，因为相邻次版本的服务互相使用对方的 api jar。这时它可能带着本版本不认识的值，例如一种新的命令创建方式。构建和节点按同样的方式读它：这个值所属的部分被略去，并给出指明该契约的警告，其余照常读取。
 
 ## 兼容 {#compatibility}
 

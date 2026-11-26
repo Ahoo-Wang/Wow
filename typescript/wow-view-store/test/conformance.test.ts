@@ -15,13 +15,19 @@
  * The `ViewStore` port's conformance suite over the V10 `WowViewStore` and
  * the in-memory stand-in for the V10 service: the cases the real service
  * passes in `typescript/integration-test/test/view-store/`, here without
- * a JVM. The service deduplicates every write by its request id, creates
- * included, so `idempotentCreate` holds whichever store retries.
+ * a JVM, and the service's own rules the port's stores answer alike
+ * (`viewStoreServiceRules.ts`). The service deduplicates every write by its
+ * request id, creates included, so `idempotentCreate` holds whichever store
+ * retries.
  */
 
 import { beforeEach } from 'vitest';
 import { WowViewStore } from '../src/index.js';
-import { describeViewStoreConformance } from '../../wow-view-engine/test/conformance/viewStoreConformance.js';
+import {
+  describeViewStoreConformance,
+  type ViewStoreConformance,
+} from '../../wow-view-engine/test/conformance/viewStoreConformance.js';
+import { describeViewStoreServiceRules } from '../../wow-view-engine/test/conformance/viewStoreServiceRules.js';
 import { actingAs, installFake, WRITER_ROLES } from './support.js';
 
 const SYSTEM_DEFINITION = 'conformance-system';
@@ -42,7 +48,7 @@ beforeEach(() => {
 /** The views one list page answers: small, so a few views cross pages. */
 const PAGE = 3;
 
-describeViewStoreConformance({
+const V10: ViewStoreConformance = {
   name: 'V10 WowViewStore on the fake V10 service',
   capabilities: {
     owners: true,
@@ -66,4 +72,7 @@ describeViewStoreConformance({
         }),
         pageSize: PAGE,
       }),
-});
+};
+
+describeViewStoreConformance(V10);
+describeViewStoreServiceRules(V10);

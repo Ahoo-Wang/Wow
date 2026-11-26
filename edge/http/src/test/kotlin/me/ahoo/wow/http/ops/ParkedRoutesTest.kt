@@ -193,7 +193,7 @@ class ParkedRoutesTest {
         body["reason"].asString().assert().isEqualTo("a failed")
         body["failedAt"].asLong().assert().isEqualTo(FAILED_AT)
         body["retries"].asInt().assert().isEqualTo(0)
-        body["retryAt"].isNull.assert().isTrue()
+        body["lastRetryAt"].isNull.assert().isTrue()
         body["retrySpec"]["maxRetries"].asInt().assert().isEqualTo(3)
         body["retrySpec"]["initialBackoff"].asString().assert().isEqualTo("PT1H")
         body["retrySpec"]["claimTtl"].asString().assert().isEqualTo("PT1M")
@@ -619,6 +619,8 @@ class ParkedRoutesTest {
         answer.status.assert().isEqualTo(503)
         answer.contentType.assert().contains("problem+json")
         answer.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.STORAGE_UNAVAILABLE)
+        // The code's title, the same for every occurrence, never the status's reason phrase (#7063).
+        answer.body["title"].asString().assert().isEqualTo("Storage unavailable")
         answer.headers.getFirst("Retry-After").assert().isEqualTo("1")
     }
 

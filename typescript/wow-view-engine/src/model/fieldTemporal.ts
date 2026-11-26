@@ -40,12 +40,14 @@ import { TimeUnits } from './wire.js';
  */
 export type FieldTemporal = EpochTemporal | DateTemporal;
 
+/** A field that holds a time as a number since the epoch, in its unit. */
 export interface EpochTemporal {
   type: 'epoch';
   /** Wow's `timeUnit`; milliseconds when unsaid, as Wow's own default is. */
   timeUnit?: EpochTimeUnit;
 }
 
+/** A field that holds a calendar date with no time. */
 export interface DateTemporal {
   type: 'date';
 }

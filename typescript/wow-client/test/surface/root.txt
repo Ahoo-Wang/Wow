@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-client — 135 names, from src/index.ts.
+# @ahoo-wang/wow-client — 129 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 type  AccessAttributeManifest
@@ -22,11 +22,8 @@ type  CommandResultStream
 type  CommitView
 type  CommittedEvent
 type  ContextManifest
-type  CountQuery
-type  CountResult
 type  CreateCommandOptions
 type  Creation
-value DEFAULT_RETRY
 value DatasetClient
 type  DatasetEntry
 type  DevelopmentCaller
@@ -45,7 +42,7 @@ type  FrameworkRetry
 type  FunctionInfo
 value FunctionKind
 type  FunctionManifest
-type  Hop
+value Hop
 type  Including
 type  JobManifest
 type  LifecycleCommand
@@ -67,7 +64,7 @@ type  QueryManifest
 value QueryModelClient
 type  RefusedResult
 type  RequestOptions
-type  Retry
+type  RetryAdvice
 type  RetryManifest
 type  RouteManifest
 type  RouteParameterManifest
@@ -113,7 +110,6 @@ value WaitPlan
 type  WowClientOptions
 value WowHeaders
 value WowProblemError
-value checkManifest
 value developmentCaller
 value developmentCallerHeaders
 value fetchManifest
@@ -127,12 +123,10 @@ value parseHop
 value parseJson
 value parseRetryAfter
 value parseWaitPlan
-value queryPath
 value readProblem
 value requestIdOf
 value retryOf
 value stringifyJson
-value textNumberOr
 value textNumbersBy
+value textNumbersOr
 value toWowProblemError
-value wait

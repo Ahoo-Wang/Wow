@@ -29,14 +29,14 @@ import {
 // `unmarkedErrors` is a question about the tree, so it moved to the filter
 // kernel; the strip beside it only renders what it is handed.
 import { unmarkedErrors } from '../src/filter/index.js';
-import {
-  ErrorStrip,
-  MessagesProvider,
-  QueryStrip,
-  WarningStrip,
-} from '../src/ui/index.js';
+import { MessagesProvider } from '../src/ui/index.js';
 import { zhCN } from '../src/ui/messages/zh-CN.js';
 import { AggregationFunction, FilterOperator } from '@ahoo-wang/wow-client/dsl';
+import {
+  ErrorStrip,
+  QueryStrip,
+  WarningStrip,
+} from '../src/ui/kit/StatusStrip.js';
 
 afterEach(cleanup);
 

@@ -320,7 +320,7 @@ class CommandIntake internal constructor(
 
         private val logger = KotlinLogging.logger {}
 
-        /** The default of [maxScheduleWait]: as long as a timer's claim holds (`wow.timers.claim-timeout`). */
+        /** The default of [maxScheduleWait]: as long as a timer's claim holds (`wow.timers.claim-ttl`). */
         internal val DEFAULT_MAX_SCHEDULE_WAIT: Duration = 30.seconds
 
         /**

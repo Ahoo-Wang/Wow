@@ -140,10 +140,12 @@ class PeerOwnerIdTest {
         return stock to sales
     }
 
-    private fun request(command: Any, caller: Caller, id: String? = null) = ServerCommandRequest.builder(
+    private fun request(command: Any, caller: Caller, id: String? = null) = ServerCommandRequest.of(
         command,
         if (id == null) BASKET.unassigned(TENANT) else BASKET.ref(TENANT, id),
-    ).caller(caller).wait(WaitPlan.COMMITTED.within(10.seconds)).build()
+        caller = caller,
+        wait = WaitPlan.COMMITTED.within(10.seconds),
+    )
 
     @Test
     fun `an owner's command naming no basket is relayed to its own basket`(): Unit = runBlocking {

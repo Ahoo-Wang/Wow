@@ -40,7 +40,7 @@ wow:
 | `wow.stores.<name>.index-prefix` | 每个索引名的前缀：`shop_wow_snapshot__…`、`shop_wow_events__…` | 无 |
 | `wow.stores.<name>.refresh` | 快照写入何时变得可检索：`none`（在索引的刷新间隔内）、`wait-for`（写入返回时）或 `immediate` | `none` |
 | `wow.stores.<name>.ddl` | 是否创建索引，并为状态和事件的 body 字段建立映射 | `wow.ddl` |
-| `wow.stores.<name>.reindex-requests-per-second` | 为后来映射的字段重新索引已有文档的速度（[见下文](#field-mapped-later)）；`-1` 表示不限 | `1000` |
+| `wow.stores.<name>.reindex-requests-per-second` | 为后来映射的字段重新索引已有文档的速度（[见下文](#field-mapped-later)）；`0` 表示不限 | `1000` |
 | `wow.stores.<name>.operation-timeout` | 它的每个请求的调用方最多等待应答多久（[见下文](#a-server-that-stops-answering)） | `wow.elasticsearch.operation-timeout`，`30s` |
 | `wow.aggregates.[<context>.<aggregate>].snapshot.store` | 聚合快照所在的存储，命令从它加载状态，状态读取也读它；也可以是 Elasticsearch（[下文](#only-snapshot-store)） | `wow.snapshot.store`，否则为日志的存储 |
 | `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` | 它的快照查询所读取的存储；不是它自己的存储时，这个存储就为这些查询保存一份它的快照副本 | 它自己的快照存储 |
@@ -50,19 +50,19 @@ wow:
 
 ### 索引及其别名 {#indices-and-aliases}
 
-每个索引都是一对：别名 `<name>` 之后的具体索引 `<name>--1`，是别名的写入索引。存储按这个名字读写。每次写入都要求 Elasticsearch 在这个名字不是别名时拒绝它（`require_alias`），所以无论索引为何缺失，写入都不会建出一个由 Elasticsearch 猜测映射的索引：
+存储的索引有：每个聚合的快照 `[<prefix>_]wow_snapshot__<context>__<aggregate>`、事件搜索 Sink 的事件 `[<prefix>_]wow_events__<context>__<aggregate>`（[事件检索](#event-search)），以及另一个 `[<prefix>_]wow_snapshot_table`：每个快照索引一个文档，记录这个索引持有的状态修订版本，就像 PostgreSQL 和 MongoDB 的 `wow_snapshot_table` 为它们的表记录的那样。每个索引都是一对：别名 `<name>` 之后的具体索引 `<name>--1`，是别名的写入索引。存储按这个名字读写。每次写入都要求 Elasticsearch 在这个名字不是别名时拒绝它（`require_alias`），所以无论索引为何缺失，写入都不会建出一个由 Elasticsearch 猜测映射的索引：
 - `ddl: auto` 用一个请求同时建出这一对：索引和它的别名。
 - `ddl: validate` 在别名缺失时拒绝存储，指名这一对，并检查别名之后那个索引的布局。
 - `ddl: none` 什么都不检查，写入一个缺失的别名会失败，并指名它。
 - 指向多个索引的别名，或不是其索引写入别名的别名，会被拒绝并指名；Wow 不经由这样的别名写入。
 - **节点运行中被删除的索引**会让下一次写入失败，而不是以猜测的映射被重新建出。在 `ddl: auto` 下，再下一次写入会重新建出这一对（空的），并记录一条指名该别名的警告。它原来保存的内容由[重建](#rebuild)找回。
-- **早先预发布版本建出的索引**是一个与别名同名的具体索引。存储会拒绝它并指名：删除它，再重建。
+- **早先预发布版本建出的索引**是一个与别名同名的具体索引。存储会拒绝它并指名：删除它，再从日志重新填充（[重建](#rebuild)）。
 
 `--1` 为以后的版本在同一个别名之后重新索引留出余地；10.0 中没有任何东西会移动它。若节点的账号不能建索引，就用能建索引的账号以 `ddl: auto` 建出这一对一次。或者手工建出：`<name>--1`，带上 `ddl: auto` 会给它的映射，以及 `"aliases": {"<name>": {"is_write_index": true}}`。
 
 ### 服务器不再应答 {#a-server-that-stops-answering}
 
-存储的每个请求，无论写入、加载还是查询，其调用方最多等待 `operation-timeout` 得到应答，与 MongoDB 或 PostgreSQL 存储的调用一样：超过它，调用方以暂时性错误失败。加载失败的命令重放它的日志，写入失败的快照订阅暂停它的分区并重试。
+存储的每个请求，无论写入、加载还是查询，其调用方最多等待 `operation-timeout` 得到应答，与 MongoDB 或 PostgreSQL 存储的调用一样：超过它，调用方以暂时性错误失败。超时为零或负数会拒绝启动并指出该键。加载失败的命令重放它的日志，写入失败的快照订阅暂停它的分区并重试。
 
 这个上限约束的是调用方，而不是连接。存储不取消任何请求：HttpClient 5 会保留交换被取消的复用连接，并且会在一条新连接上重新执行在字节写出前被取消的请求，而那条连接没有任何东西会释放。请求在应用的 `Rest5Client` 中继续运行，它的连接在服务器应答或重置连接时释放，或者在客户端自己的响应超时时释放。服务器被暂停期间，客户端的连接池可能被占满：之后的请求等待连接，它们的调用方仍在上限处失败；服务器恢复应答后，这些连接随之归还。
 
@@ -127,7 +127,7 @@ fun elasticsearchResponseTimeout(): Rest5ClientBuilderCustomizer = object : Rest
 
 状态和事件 body 的字段在查询第一次加载聚合的 schema 时建立映射（`ddl: auto` 下），所以 schema 后来新增的字段，是在已经有文档的索引上建立映射的。这些文档会在后台由一个 `_update_by_query` 任务重新索引，任务保持每个文档原样，好让新字段也能找到它们。任务结束之前，按新字段过滤、排序或分组的查询会漏掉映射之前写入的文档：结果是不完整的。
 
-任务以每秒 `reindex-requests-per-second` 个文档的速度运行，默认 1,000，切片数与索引的分片数相同。按默认值，一百万个文档约需 17 分钟，一千万个约需 3 小时。集群负载高时调低它；需要尽快用上新字段时调高，或设为 `-1` 不限速。
+任务以每秒 `reindex-requests-per-second` 个文档的速度运行，默认 1,000，切片数与索引的分片数相同。按默认值，一百万个文档约需 17 分钟，一千万个约需 3 小时。集群负载高时调低它；需要尽快用上新字段时调高，或设为 `0` 不限速。
 
 存储在任务开始时记录它的 id：`Elasticsearch index [<index>] mapped [<fields>]: … task [<node>:<id>]`。它不记录任务何时结束，那只能轮询任务才知道。用 Elasticsearch 自己的接口跟踪任务，并在运行中调整速度：
 
@@ -144,7 +144,7 @@ curl -X POST "$ELASTICSEARCH_URL/_update_by_query/<node>:<id>/_rethrottle?reques
 
 `query.events.store` 指向 Elasticsearch 存储的聚合，它的 `events` 查询从那个索引提供：事件条件是一个 nested 查询，`expand("events")` 聚合是一个 nested 聚合，不指明聚合的查询会检索索引，而不是扫描日志。索引显示的是 Sink 已写入的内容：一次提交在 Sink 写入并且索引刷新之后才可检索，刷新默认为一秒。
 
-每个 Sink 都作为名为 `wow.elasticsearch-sink.<aggregate>` 的订阅运行，所以它从检查点续读，也可以从日志开头重新开始。宿主会自行启动这些 Sink，不需要单独的配置：对 `query.events.store` 指向的每个 Elasticsearch 存储，它把正好这些聚合的流写入该存储，不论服务是否发布它们。
+每个 Sink 都作为名为 `wow.elasticsearch-sink.<aggregate>` 的订阅运行，所以它从检查点续读；它的新一代，即存储的 `sink.generation` 调到 n 之后的 `wow.elasticsearch-sink-g<n>.<aggregate>`，从日志开头开始（[重建](#rebuild)）。宿主会自行启动这些 Sink，只有存储的这一项配置：对 `query.events.store` 指向的每个 Elasticsearch 存储，它把正好这些聚合的流写入该存储，不论服务是否发布它们。
 
 ## 作聚合唯一的快照存储 {#only-snapshot-store}
 
@@ -186,7 +186,13 @@ wow:
 
 ## 重建 {#rebuild}
 
-两种副本都来自日志。快照索引通过重建聚合的快照来重建（[重建与重放](./replay)）。事件索引通过从日志开头启动它的 Sink 订阅来重新填充。若要先清空一个索引，删除它的具体索引 `<name>--1`，因为 Elasticsearch 不经由别名删除索引；在 `ddl: auto` 下，下一次写入会重新建出这一对。两者都不需要自己的备份（[备份与恢复](./backup)）。
+两种副本都来自日志。快照索引通过重建聚合的快照来重建（[重建与重放](./replay)）。事件索引由它的 Sink 的新一代重新填充，新一代从日志开头开始：
+
+1. 清空索引：删除它的具体索引 `<name>--1`，因为 Elasticsearch 不经由别名删除索引。
+2. 把存储的 Sink 代数加一：`wow.stores.<name>.sink.generation`，默认 1。
+3. 滚动重启节点。
+
+Sink 随后作为新的订阅 `wow.elasticsearch-sink-g<n>.<aggregate>` 运行，该存储的 Sink 写入的每个聚合一个，各自从日志开头写起；在 `ddl: auto` 下，它的第一次写入会重新建出这一对。代数只能调高：调低会续用那一代的检查点，已删除的不会再写。节点滚动期间新旧两代都在写，这无害，因为一个提交的文档只有一个 id。旧一代的检查点留着，它停放的条目也留着：每个节点首次启动时以旧名字告警它们，`GET /wow/ops/subscriptions` 把它们列为 `orphans`（[改名与回卷](./ops-console#rename-and-rewind)）。这些停放条目属于已清空的目标：在 ops 控制台里跳过它们。调低代数，较高的那一代也会这样显示为遗留，这正是代数只能调高的原因。 两者都不需要自己的备份（[备份与恢复](./backup)）。
 
 ## 从 9.x 而来 {#from-9-x}
 

@@ -33,7 +33,7 @@ Whichever you choose, two rules hold, and the engine's conflict handling rests o
 
 ## In memory, or in one browser
 
-`MemoryViewStore` keeps the rules honest, not convenient: a stale revision conflicts, a replayed request id answers the first outcome, and the order of the list and the limits on titles and configs are the server's. Code that is right against it behaves the same against a real backend. Seeded with a stored system view, and with only administrators allowed to edit system views:
+`MemoryViewStore` keeps the rules honest, not convenient: a stale revision conflicts, a replayed request id answers the first outcome, the order of the list and the checks of a definition id, a title, a config and preferences are the server's, a list cursor it did not issue is refused as `INVALID`, and a write that changes nothing (a rename to the title the view has, preferences as they are stored) answers as it is, its revision unmoved, as the server records nothing for it. Code that is right against it behaves the same against a real backend. Seeded with a stored system view, and with only administrators allowed to edit system views:
 
 <!-- typecheck: file=memoryStore.ts -->
 <!-- typecheck-context
@@ -95,7 +95,7 @@ Wow's view store service, `platform/view-store`, keeps saved views, preferences 
 
 ### Wire it
 
-`WowViewStore` takes a fetcher and, optionally, `permissions`. **It takes no tenant, owner, user or application**: the fetcher's interceptors carry who is asking, as they do for every other request of the application. The service takes the tenant and the owner from the caller, and keeps every view in the application the request was authorized in.
+`WowViewStore` takes wow-client's options, as every Wow client does (a fetcher, and optionally a gateway's `basePath` and the service's `defaultWaitMs`), and, optionally, `permissions`. **It takes no tenant, owner, user or application**: the fetcher's interceptors carry who is asking, as they do for every other request of the application. The service takes the tenant and the owner from the caller, and keeps every view in the application the request was authorized in.
 
 <!-- typecheck: file=viewStore.ts -->
 <!-- typecheck-context
@@ -183,13 +183,13 @@ Publishing a view as a system view makes a copy; the source view stays as it was
 
 ### Long lists
 
-The engine reads a definition's saved views page by page, up to `RuntimeLimits.listedViews` (1000 by default). A definition with more lists the first 1000, and the view list and Manage views say "Only the first 1000 views are listed; a link to another still opens it": a view past the cap still opens from its address or a board. A host whose definitions hold more raises the limit (`new ViewEngine({ limits: { listedViews: 5000 } })`).
+The engine reads a definition's saved views page by page, up to `RuntimeLimits.maxListedViews` (1000 by default). A definition with more lists the first 1000, and the view list and Manage views say "Only the first 1000 views are listed; a link to another still opens it": a view past the cap still opens from its address or a board. A host whose definitions hold more raises the limit (`new ViewEngine({ limits: { maxListedViews: 5000 } })`).
 
 ### Writes and retries
 
 - Every write sends the port's request id as `Wow-Request-Id` and the revision as `If-Match`, and waits for the snapshot. The service deduplicates request ids, creations included, so a retry is answered with the first attempt's outcome.
 - A stale revision is `CONFLICT`, carrying the view as it is now.
-- The service lists at most 1,000 stored system views of a definition; shared and personal views are read page by page, up to `listedViews` in all. A view past the cut is still read by its id.
+- The service lists at most 1,000 stored system views of a definition; shared and personal views are read page by page, up to `maxListedViews` in all. A view past the cut is still read by its id.
 
 ### Errors
 
@@ -214,6 +214,7 @@ Not for a Wow backend: `WowViewStore` already handles replays, audience moves, s
 - Keep the two rules: a stale revision throws `CONFLICT` with the current instance; a repeated request id answers the first outcome.
 - Answer `list` a page at a time: `{ items, nextCursor }`, the first page without a `cursor` and each next one with the `nextCursor` before it, `null` after the last. Keep the order across pages (system, shared, personal, each oldest first). Every read takes `{ signal }` and every write `{ requestId, signal }`; hand the signal on to the request.
 - Never issue an id starting with `system:`.
+- Refuse a list cursor or a revision you did not issue as `INVALID`: it is malformed, not stale.
 - Map the backend's failures onto the codes the engine knows:
 
 <!-- typecheck: file=storeErrors.ts -->

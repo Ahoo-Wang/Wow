@@ -340,6 +340,8 @@ export type ElementFilterExpression<FIELDS extends string = string> =
  * filter, but not inside `ELEMENT_MATCH`. It is an expensive operator: the
  * descriptor lists `EXPRESSION` in `record.rootOperators` only where the
  * server allows expensive operators. Wow 9.2 and later.
+ *
+ * @experimental
  */
 export type ExpressionFilter<FIELDS extends string = string> = {
   op: FilterOperator.EXPRESSION;

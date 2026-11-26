@@ -13,12 +13,8 @@
 
 import {
   audienceOf,
-  configBytes,
   isSystemInstanceId,
   isSystemScope,
-  MAX_VIEW_CONFIG_BYTES,
-  MAX_VIEW_TITLE_LENGTH,
-  titleProblem,
   toSummary,
   ViewStoreError,
   type ViewAudience,
@@ -26,6 +22,16 @@ import {
   type ViewInstance,
   type ViewPreferences,
 } from '../model/index.js';
+import {
+  AUDIENCE_RANK,
+  configRefusal,
+  definitionRefusal,
+  nextRevision,
+  preferencesRefusal,
+  readCursor,
+  samePreferences,
+  titleRefusal,
+} from './memoryViewRules.js';
 import {
   type ViewListOptions,
   type ViewListPage,
@@ -79,6 +85,10 @@ export interface MemorySnapshot {
   subscribe?(listener: () => void): () => void;
 }
 
+/**
+ * What a `MemoryViewStore` holds and a snapshot saves: the instances and each
+ * definition's preferences.
+ */
 export interface MemoryState {
   instances: ViewInstance[];
   preferences: Record<string, ViewPreferences>;
@@ -91,9 +101,12 @@ export interface MemoryState {
  * It keeps the two consistency rules honest rather than convenient. A write
  * with a stale revision conflicts, and a replayed `requestId` returns the
  * first outcome instead of writing twice, so code written against it behaves
- * the same against a real backend — as do the port's list order and the
- * server's limits on a title and a config, which it refuses as the server
- * does (`INVALID`).
+ * the same against a real backend — as do the port's list order, the
+ * server's checks of a definition id, a title, a config and preferences,
+ * and a list cursor it did not issue, which it refuses as the server does
+ * (`INVALID`), and a write that changes nothing (a rename to the title the
+ * view has, preferences as they are stored), which it answers as it is,
+ * no revision spent, as the server records no event for it.
  *
  * System views come two ways (D81). One seeded with `scope: 'system'` and
  * no `stored` is a configured one, as the backend's configuration serves
@@ -159,12 +172,15 @@ export class MemoryViewStore implements ViewStore {
    * audience does not move. A page is `pageSize` of them. The cursor names
    * the last view listed by its place in that order, not by an index, so a
    * view deleted between two pages (here, or in another tab sharing the
-   * snapshot) hides none that is still there (#6913).
+   * snapshot) hides none that is still there (#6913). A cursor it did not
+   * issue is refused as `INVALID`.
    */
   list(
     definitionId: string,
     options: ViewListOptions = {},
   ): Promise<ViewListPage> {
+    const after = readCursor(options.cursor);
+    if (after instanceof ViewStoreError) return Promise.reject(after);
     const ordered = [...this.instances.values()]
       .filter(instance => instance.definitionId === definitionId)
       .map(instance => ({
@@ -173,7 +189,6 @@ export class MemoryViewStore implements ViewStore {
         place: this.placeOf(instance.id),
       }))
       .sort((a, b) => a.rank - b.rank || a.place - b.place);
-    const after = readCursor(options.cursor);
     const rest = after
       ? ordered.filter(
           entry =>
@@ -212,7 +227,11 @@ export class MemoryViewStore implements ViewStore {
   ): Promise<ViewInstance> {
     const replayed = this.outcomes.get(context.requestId);
     if (replayed) return Promise.resolve(copy(replayed));
-    const refused = titleRefusal(input.title) ?? configRefusal(input.config);
+    // In the service's order (`View.onCreate`).
+    const refused =
+      definitionRefusal(input.definitionId) ??
+      titleRefusal(input.title) ??
+      configRefusal(input.config);
     if (refused) return Promise.reject(refused);
     this.reload();
 
@@ -268,7 +287,11 @@ export class MemoryViewStore implements ViewStore {
       id,
       revision,
       context,
-      current => ({ ...current, title: title.trim() }),
+      // A rename to the title the view has records nothing (`View.onRename`).
+      current =>
+        title.trim() === current.title
+          ? null
+          : { ...current, title: title.trim() },
       titleRefusal(title),
     );
   }
@@ -278,9 +301,10 @@ export class MemoryViewStore implements ViewStore {
    * and everything else stay. Asked for the audience the view already has,
    * it answers the view unchanged — no revision spent, nothing written — and
    * remembers that answer under the `requestId` like any other outcome.
-   * A view a shared (or system) board shows is refused as `INVALID` when it
-   * would become personal, `boards` naming those boards by title. A system
-   * view, stored or not, never moves (`FORBIDDEN`).
+   * A view a shared board or a stored system board shows is refused as
+   * `INVALID` when it would become personal, `boards` naming those boards by
+   * title, as the service refuses the claim (`QueriedBoardReferences`). A
+   * system view, stored or not, never moves (`FORBIDDEN`).
    */
   changeAudience(
     id: string,
@@ -346,6 +370,8 @@ export class MemoryViewStore implements ViewStore {
     // write, and reporting a conflict for it would be a lie.
     const replayed = this.preferenceOutcomes.get(context.requestId);
     if (replayed) return Promise.resolve(copy(replayed));
+    const refused = preferencesRefusal(definitionId, preferences);
+    if (refused) return Promise.reject(refused);
     this.reload();
 
     const held = this.preferences.get(definitionId);
@@ -358,6 +384,12 @@ export class MemoryViewStore implements ViewStore {
           { preferences: copy(current) },
         ),
       );
+    // What is stored already records nothing (`ViewPreferences.onSet`):
+    // answered as it is, its revision unmoved.
+    if (held && samePreferences(held, preferences)) {
+      this.preferenceOutcomes.set(context.requestId, held);
+      return Promise.resolve(copy(held));
+    }
 
     // Held as a copy and answered as one, as an instance is (#5557): the
     // `order` and `lastTabs` a caller handed in, or read back and edits as a
@@ -368,12 +400,12 @@ export class MemoryViewStore implements ViewStore {
       revision: nextRevision(current.revision),
     });
     this.preferences.set(definitionId, next);
-    const refused = this.persist(() =>
+    const unkept = this.persist(() =>
       held
         ? this.preferences.set(definitionId, held)
         : this.preferences.delete(definitionId),
     );
-    if (refused) return Promise.reject(refused);
+    if (unkept) return Promise.reject(unkept);
     this.preferenceOutcomes.set(context.requestId, next);
     return Promise.resolve(copy(next));
   }
@@ -425,19 +457,23 @@ export class MemoryViewStore implements ViewStore {
   }
 
   /**
-   * The titles of the boards everyone sees that show `id` in a panel — the
-   * reference the dashboard kernel's `coversScope` guards from the board's
-   * side. Read off the stored configs as the untrusted JSON they are: the
-   * store may import nothing but the model.
+   * The titles of the boards everyone sees that show `id` in a panel, other
+   * than the view itself: the shared ones and the stored system ones, as the
+   * service reads them (D486 ④); a configured system board is the
+   * deployment's, never checked. The reference the dashboard kernel's
+   * `coversScope` guards from the board's side. Read off the stored configs
+   * as the untrusted JSON they are: the store may import nothing but the
+   * model.
    */
   private sharedBoardsShowing(id: string): string[] {
     const boards: string[] = [];
     for (const instance of this.instances.values()) {
       const { config } = instance;
-      if (
-        config.kind !== 'dashboard' ||
-        audienceOf(instance.scope) !== 'shared'
-      )
+      // By the scope itself: `audienceOf` reads every system view as shared.
+      const everyones =
+        instance.scope === 'shared' ||
+        (isSystemScope(instance.scope) && instance.stored === true);
+      if (config.kind !== 'dashboard' || !everyones || instance.id === id)
         continue;
       const panels: unknown = config.panels;
       if (Array.isArray(panels) && panels.some(panel => shows(panel, id)))
@@ -541,61 +577,6 @@ function shows(panel: unknown, id: string): boolean {
 /** A system view no write reaches: configured, not one this store keeps. */
 function readOnlySystem(instance: ViewInstance): boolean {
   return isSystemScope(instance.scope) && instance.stored !== true;
-}
-
-/** System views first, then shared, then personal: the port's list order. */
-/** Where a list cursor says the last page ended; none for the first page. */
-function readCursor(
-  cursor: string | null | undefined,
-): { rank: number; place: number } | undefined {
-  const match = cursor ? /^(\d+):(\d+)$/.exec(cursor) : null;
-  return match
-    ? { rank: Number(match[1]), place: Number(match[2]) }
-    : undefined;
-}
-
-const AUDIENCE_RANK: Readonly<Record<ViewInstance['scope'], number>> = {
-  system: 0,
-  shared: 1,
-  personal: 2,
-};
-
-/**
- * The revision after `current`. Revisions are opaque to the port, and a host
- * may seed any string; one this store did not write as a count (`'ops-1'`)
- * starts the count again at `'1'`, which it can never have been, so a write
- * against it still conflicts. A count goes on counting.
- */
-function nextRevision(current: string): string {
-  return /^(0|[1-9]\d{0,14})$/.test(current)
-    ? String(Number(current) + 1)
-    : '1';
-}
-
-/** A title the server refuses (`ViewConfigs.requireTitle`), in its words. */
-function titleRefusal(title: string): ViewStoreError | undefined {
-  switch (titleProblem(title)) {
-    case 'empty':
-      return new ViewStoreError('INVALID', "A view's title must not be blank.");
-    case 'too-long':
-      return new ViewStoreError(
-        'INVALID',
-        `A view's title is longer than ${MAX_VIEW_TITLE_LENGTH} characters.`,
-      );
-    default:
-      return undefined;
-  }
-}
-
-/** A config larger than the server keeps, in its words. */
-function configRefusal(config: ViewConfig): ViewStoreError | undefined {
-  const bytes = configBytes(config);
-  return bytes > MAX_VIEW_CONFIG_BYTES
-    ? new ViewStoreError(
-        'INVALID',
-        `A view's config is ${bytes} bytes; the limit is ${MAX_VIEW_CONFIG_BYTES}.`,
-      )
-    : undefined;
 }
 
 /** What a refusal said — a `DOMException` is an `Error` only in some realms. */

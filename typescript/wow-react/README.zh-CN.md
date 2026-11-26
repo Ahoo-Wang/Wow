@@ -184,14 +184,14 @@ export function PaidOrderFeed({
 }
 ```
 
-| 字段       | 含义                                                                                     |
-| ---------- | ---------------------------------------------------------------------------------------- |
-| `items`    | 当前查询到目前为止收到的记录，按到达顺序。新查询从空列表开始；`reset()` 清空它。         |
-| `position` | 最后一条带位置的记录的位置；新查询和 `reset()` 清除它。                                  |
-| `done`     | 流正常结束，`items` 已包含全部记录。等同于 `status === 'success'`。                      |
-| `loading`  | 从发出请求直到流结束、出错或被中止。                                                     |
-| `problem`  | 请求失败、或服务端在流中途发来错误事件时的 `WowProblemError`。                           |
-| `abort()`  | 停止读取流并保留已收到的行。`reset()` 停止并清空 `items`。`execute()` 重新执行当前查询。 |
+| 字段       | 含义                                                                                               |
+| ---------- | -------------------------------------------------------------------------------------------------- |
+| `items`    | 当前查询到目前为止收到的记录，按到达顺序。新查询从空列表开始；`reset()` 清空它。                   |
+| `position` | 最后一条带位置的记录的位置；新查询和 `reset()` 清除它。                                            |
+| `done`     | 流正常结束，`items` 已包含全部记录。等同于 `status === 'success'`。                                |
+| `loading`  | 从发出请求直到流结束、出错或被中止。                                                               |
+| `problem`  | 请求失败、或服务端在流中途发来错误事件时所带的 RFC 9457 problem：即 `error` 的，按服务写出的原样。 |
+| `abort()`  | 停止读取流并保留已收到的行。`reset()` 停止并清空 `items`。`execute()` 重新执行当前查询。           |
 
 流由 hook 自己持有：它负责读取，无论到达多少记录，最多约每帧（16 毫秒）渲染一次，并在新查询开始、
 调用 `abort()` 或 `reset()`、组件卸载时取消流。组件不接触 reader，所以在 StrictMode 下
@@ -205,8 +205,8 @@ export function PaidOrderFeed({
 每个 hook 在挂载时执行查询，之后 `query` 或 `requestOptions`（都按内容比较）或 `setQuery()`
 改变时再次执行；设置 `autoExecute: false` 则只在调用 `execute()` 时执行。`requestOptions`
 也算在内，是因为作用域、空间和请求头都可能改变答案：每次渲染都变的请求头值会让查询每次渲染都
-重新执行，所以要让这样的值保持稳定。新的查询会中止正在进行的请求，所以迟到的响应不会覆盖较新的
-结果。受控的 `query` 重新变为 `undefined` 时（如 `id ? singleQuery(…) : undefined`），中止进行中的
+重新执行，所以要让这样的值保持稳定。新的查询会中止正在进行的请求（不论 `autoExecute`），所以迟到的
+响应不会覆盖较新的结果。受控的 `query` 重新变为 `undefined` 时（如 `id ? singleQuery(…) : undefined`），中止进行中的
 请求并回到 `idle`，保留上一次结果；再给出查询之前不会执行。`onSuccess`、`onError` 分别以结果和
 错误为参数调用。
 
@@ -222,13 +222,14 @@ export function PaidOrderFeed({
 `'idle' | 'loading' | 'success' | 'error'`，组件 props 或测试里可以直接写字面量。
 
 `error` 是一个 `Error`：本次运行失败的原因；抛出的值不是 `Error` 时，会被包进一个 `Error`，
-原值作为它的 `cause`。Wow 服务以 problem 应答时，`problem` 就是这个错误，一个带着服务的
-`code`、`status` 和重试提示的 `WowProblemError`；没有服务应答的失败（例如网络错误）时它是
-`undefined`：
+原值作为它的 `cause`；不是由本次运行自己的信号（新的查询、`abort()`、`reset()`、卸载）引起的
+`AbortError` 也是失败。Wow 服务以 problem 应答时，`error` 是一个带着重试提示的 `WowProblemError`，
+`problem` 则是它的 RFC 9457 体，与 `@ahoo-wang/wow-client` 一致：服务的 `code`、`status`、
+`detail` 与 `violations`；没有服务应答的失败（例如网络错误）时它是 `undefined`：
 
 ```tsx
 import type { SnapshotQueryClient } from '@ahoo-wang/wow-client';
-import { FrameworkErrorCodes } from '@ahoo-wang/wow-client';
+import { FrameworkErrorCodes, WowProblemError } from '@ahoo-wang/wow-client';
 import { filter } from '@ahoo-wang/wow-client/dsl';
 import { useCountQuery } from '@ahoo-wang/wow-react';
 
@@ -237,8 +238,12 @@ export function OrderCount({ client }: { client: SnapshotQueryClient }) {
     query: { filter: filter.matchAll() },
     execute: (query, options) => client.count(query, options),
   });
-  if (problem?.code === FrameworkErrorCodes.QUERY_BUSY)
-    return <p>繁忙，{problem.retry.afterMs} 毫秒后重试</p>;
+  if (
+    error instanceof WowProblemError &&
+    error.code === FrameworkErrorCodes.QUERY_BUSY
+  )
+    return <p>繁忙，{error.retryAfterMs ?? 1000} 毫秒后重试</p>;
+  if (problem) return <p role="alert">{problem.detail ?? problem.title}</p>;
   if (error) return <p role="alert">{error.message}</p>;
   return <p>共 {result?.count ?? '…'} 个订单</p>;
 }

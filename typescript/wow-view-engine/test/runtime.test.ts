@@ -21,7 +21,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { DataViewRuntime } from '../src/runtime/viewRuntime.js';
 import type { RecordDataViewRuntime } from '../src/runtime/recordRuntime.js';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   DEFAULT_RUNTIME_LIMITS,
   defaultRuntimeEnvironment,
   type DataViewConfig,
@@ -82,7 +82,7 @@ function harness(
     title: 'Mine',
     scope: 'personal',
     saved: options.saved ?? null,
-    kinds: builtinFieldKinds,
+    kinds: builtinFieldKindRegistry,
     limits: options.limits ?? DEFAULT_RUNTIME_LIMITS,
     environment: clock.environment,
     source: recordSource(source),
@@ -256,7 +256,7 @@ describe('DataViewRuntime execution', () => {
   it('runs the summary aggregation alongside the page', async () => {
     const { runtime, source } = harness({
       config: recordConfig({
-        summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+        summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
       }),
     });
 
@@ -265,7 +265,7 @@ describe('DataViewRuntime execution', () => {
 
     expect(source.aggregate).toHaveBeenCalledTimes(1);
     expect(recordData(runtime).summaries).toMatchObject({
-      scope: 'total',
+      over: 'total',
       cells: [{ field: 'amount', value: 30 }],
     });
   });
@@ -276,7 +276,7 @@ describe('DataViewRuntime execution', () => {
     });
     const { runtime } = harness({
       config: recordConfig({
-        summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+        summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
       }),
       source,
     });
@@ -286,7 +286,7 @@ describe('DataViewRuntime execution', () => {
 
     expect(runtime.getSnapshot().query.status).toBe('success');
     expect(recordData(runtime).summaries).toMatchObject({
-      scope: 'page',
+      over: 'page',
       cells: [{ value: 30 }],
     });
   });
@@ -820,7 +820,7 @@ describe('DataViewRuntime admission', () => {
 
     expect(runtime.getSnapshot().issues).toEqual([]);
     expect(runtime.scopeFilter).toBeNull();
-    expect(runtime.refusedScope.map(found => found.code)).toEqual([
+    expect(runtime.refusedScopeFilter.map(found => found.code)).toEqual([
       'filter.field.unknown',
     ]);
 
@@ -843,7 +843,7 @@ describe('DataViewRuntime admission', () => {
       scopeFilter: unknownField,
     });
 
-    expect(runtime.refusedScope.map(found => found.code)).toEqual([
+    expect(runtime.refusedScopeFilter.map(found => found.code)).toEqual([
       'filter.field.unknown',
     ]);
     expect(runtime.getSnapshot().issues.map(found => found.code)).toEqual([
@@ -872,8 +872,8 @@ describe('DataViewRuntime admission', () => {
     const { runtime } = harness({ scopeFilter: unknownField });
     runtime.dispose();
 
-    expect(runtime.setScopeFilter(null)).toBe(runtime.refusedScope);
-    expect(runtime.refusedScope).toHaveLength(1);
+    expect(runtime.setScopeFilter(null)).toBe(runtime.refusedScopeFilter);
+    expect(runtime.refusedScopeFilter).toHaveLength(1);
   });
 
   /**
@@ -883,7 +883,7 @@ describe('DataViewRuntime admission', () => {
    */
   it('keeps the refusal it has while the answer says the same', () => {
     const { runtime } = harness({ scopeFilter: unknownField });
-    const first = runtime.refusedScope;
+    const first = runtime.refusedScopeFilter;
     const listener = vi.fn();
     runtime.subscribe(listener);
 
@@ -892,7 +892,7 @@ describe('DataViewRuntime admission', () => {
       children: [...unknownField.children],
     });
 
-    expect(runtime.refusedScope).toBe(first);
+    expect(runtime.refusedScopeFilter).toBe(first);
     expect(listener).not.toHaveBeenCalled();
   });
 
@@ -999,7 +999,7 @@ describe('DataViewRuntime admission', () => {
       scopeFilter: warehouseCN,
     });
     // Three of its own plus two: refused, so the draft is judged without it.
-    expect(runtime.refusedScope.map(found => found.code)).toEqual([
+    expect(runtime.refusedScopeFilter.map(found => found.code)).toEqual([
       'filter.tree.too-many-nodes',
     ]);
     expect(runtime.getSnapshot().issues).toEqual([]);
@@ -1008,7 +1008,7 @@ describe('DataViewRuntime admission', () => {
     expect(runtime.setScopeFilter(null)).toEqual([]);
     await nextTask();
 
-    expect(runtime.refusedScope).toEqual([]);
+    expect(runtime.refusedScopeFilter).toEqual([]);
     expect(runtime.getSnapshot().issues).toEqual([]);
     runtime.apply();
     await nextTask();

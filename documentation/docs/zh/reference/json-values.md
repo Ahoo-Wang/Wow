@@ -8,7 +8,7 @@ description: Wow 的 JSON 如何写出状态、命令和事件所持有的每个
 Wow 的 JSON（`WowJson`）写出并读取服务的状态、命令和事件：在事件存储中、在快照中、在 Kafka 上和经由 HTTP。本页列出它写成标量的每个平台值类，以及 Manifest 的 schema 为这个类给出的 JSON 类型和格式，和 Wow 的 JSON 为它写出的文本。
 
 - 这些类是 JVM 的类：Kotlin 的 `Int` 是 `int`，可空或作为类型实参时是 `Integer`；`ByteArray` 是 `byte[]`。一行只匹配它的类本身，不匹配子类。
-- JavaScript 的 `number` 只能精确持有至多 2^53 − 1（`9007199254740991`）的整数：客户端把更大的 `long` 读作 `bigint`。
+- JavaScript 的 `number` 只能精确持有至多 2^53 − 1（`9007199254740991`）的整数：TypeScript 客户端在 Manifest 的 schema 所及之处，把 `long`、`BigInteger` 和 `BigDecimal` 读作它的精确文本，在生成的类型中是 `string`（[精确数字](../typescript/generate#exact-numbers)）。schema 不及之处，JSON 数字读作 `number`，超出该范围即被取整：命令结果的 `results`，以及聚合查询的指标值；聚合查询中以这类字段分组的 `terms` 键按文本读取。`double` 或 `float` 在生成的类型中是 `number`，它的非数与无穷以下表所列的字符串到达，尽管类型写着 `number`。
 - 枚举按名字写出，与其 schema 的 `enum` 列出的一样：`Month` 写作 `"JANUARY"`。读取时只按名字：数字，或不是其名字的数字文本，会被拒绝（`wrong-kind`、`not-in-enumeration`），而 Jackson 会把它读作该序号的常量。不指向任何常量的文本是未知值：只有在应用开启 Jackson 的 `READ_UNKNOWN_ENUM_VALUES_USING_DEFAULT_VALUE` 或 `READ_UNKNOWN_ENUM_VALUES_AS_NULL` 时，才读作默认常量或 null。`Month` 也读取从 1 开始的序号，写成数字的枚举（`@JsonFormat(shape = NUMBER)`）读取其数字，不读取数字的文本。
 - 同一输入在 Wow 支持的每个 Jackson 次版本上只有一个结果。两个次版本对同一输入读法不同时，Wow 在所有次版本上都按更严格的那个回答：只有一个子标签的 `Locale` 按 BCP 47 标签读取，与 Jackson 3.2 一样；给 `Locale` 的数字或布尔值会被拒绝。
 - 请求体（命令的、查询的或服务路由的）在同一对象中多次给出同一属性时会被拒绝（`duplicate-property`），而 JSON 读取方通常保留最后一个。给出其类型没有的属性时也会被拒绝（`unknown-property`）；Wow 写出的计算属性（只有 getter）是已知属性，读取时不写入任何值。事件、快照和集群消息忽略未知属性，因此较旧或较新的写入方的消息都能读取。

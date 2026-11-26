@@ -54,7 +54,8 @@ const active = await carts.list(
 `DatasetClient` 列出服务的数据集（`GET /wow/dataset`）。
 
 每个方法最后一个参数是 `RequestOptions`：要在其中操作的 `scope` 和 `space`、附加的
-`headers`，以及取消请求的 `signal`。
+`headers`（不能是客户端由请求自身字段写出的请求头，例如 `Wow-Request-Id`：请设置对应字段），
+以及取消请求的 `signal`。
 
 相对时间由服务端解析，从不用浏览器的时钟：
 
@@ -79,7 +80,7 @@ const commands = new CommandClient({ fetcher });
 const result = await commands.wait({
   command: 'shop.cart.AddCartItem',
   body: { productId: 'p-1', quantity: 1 },
-  id: 'cart-42',
+  aggregateId: 'cart-42',
   wait: WaitPlan.SNAPSHOT,
   timeout: 10_000,
 });
@@ -87,18 +88,18 @@ const result = await commands.wait({
 
 `command` 是完整类型名 `context.aggregate.Command`。命令按服务 Manifest 列出的路由发送：
 交给客户端的 Manifest（`new CommandClient(options, { manifest })`，完整的 Manifest，或生成的客户端的
-`manifest.ts`，只有路由），否则取服务的 Manifest（`GET /wow/manifest`，只取一次）。可以创建聚合的命令不带 `id`，走不带 id 的路由。
+`manifest.ts`，只有路由），否则取服务的 Manifest（`GET /wow/manifest`，只取一次）。可以创建聚合的命令不带 `aggregateId`，走不带 id 的路由。
 与 Kotlin 的 `CommandClient` 一样，`send` 在命令被接受后应答，`wait` 以等待计划最后
 一跳的结果应答（没有计划时用服务端的默认计划），`stream` 每到一跳应答一个
 `CommandResult`。`wait` 是与 Kotlin 一致的 `WaitPlan`：`WaitPlan.ACCEPTED`、`COMMITTED`、
-`SNAPSHOT`，或由 `wait` 各跳（`accepted`、`committed`、`snapshot`、`queryable`，或某个订阅的 `handled`，
+`SNAPSHOT`，或由与 Kotlin 一样构建的 `Hop`（`Hop.accepted()`、`committed`、`snapshot`、`queryable`，或某个订阅的 `handled`，
 也可以跨过 Saga 派生的命令）组成的 `WaitPlan.of(...hops)`，`.within(ms)` 给它超时；
-`timeout` 以毫秒计并覆盖计划的超时。`parseWaitPlan` 和 `formatWaitPlan` 读写 `Wow-Wait` 头。`targetTenant` 和
+`timeout` 以毫秒计并覆盖计划的超时；每个计划都声明它的超时（`Wow-Wait-Timeout`），与 Kotlin 客户端一样。`parseWaitPlan` 和 `formatWaitPlan` 读写 `Wow-Wait` 头。`targetTenant` 和
 `targetScope`（`{ ownerId?, spaceId? }`）在另一个租户、所有者或空间中操作。
 每条命令都带请求 id（`Wow-Request-Id`），传入的或生成的：用同一个 id 重试，应答的是
 第一次提交的重复结果；`requestIdOf(error)` 取回失败请求所用的 id。系统命令（例如聚合列出的生命周期命令
 `LifecycleCommands.DELETE_AGGREGATE` 等）还要指明聚合的 `type: { context, name }`，
-生命周期命令还要指明 `id`。
+生命周期命令还要指明 `aggregateId`。
 
 `StateClient` 按版本或时间读取聚合的状态及其轨迹；聚合不存在时（404
 `wow.aggregate.not-found`）`get` 和 `read` 拒绝，`find(id, options?)` 则返回

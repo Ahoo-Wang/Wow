@@ -48,7 +48,7 @@ export type EditCommand =
   | 'bindPanel'
   | 'unbindPanels'
   | 'setTimeGrouping'
-  | 'removeFixedScope'
+  | 'removeFixed'
   | 'setWidth';
 
 /**
@@ -140,7 +140,7 @@ export const EDIT_HISTORY_DEPTH = 100;
  * else, and a fixed scope changed or a refresh interval set in
  * between stays as it is.
  *
- * The fixed scope is one step's too — its removal (`removeFixedScope`) —
+ * The fixed scope is one step's too — its removal (`removeFixed`) —
  * yet stays open to a plain `edit`, the one way a host sets it: a host that
  * sets it after the author removed it has it put back by an undo of that
  * removal, which is what the step says it takes back.

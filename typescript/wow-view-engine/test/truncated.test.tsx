@@ -16,7 +16,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ViewInstanceSummary } from '../src/index.js';
 import type { ViewListState } from '../src/react/index.js';
-import { ViewList } from '../src/ui/index.js';
+import { ViewList } from '../src/ui/workbench/ViewList.js';
 import { Truncated } from '../src/ui/kit/Truncated.js';
 
 afterEach(cleanup);
@@ -95,7 +95,7 @@ describe('Truncated (R2-75)', () => {
       defaultInstanceId: null,
       status: 'success',
       error: null,
-      reload: () => {},
+      refresh: () => {},
     };
     render(<ViewList list={list} currentId={null} onOpen={() => {}} />);
     const name = screen.getByText(LONG);

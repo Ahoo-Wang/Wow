@@ -122,7 +122,7 @@ describe('RecordTable row actions', () => {
       <RecordTable
         table={tableController({
           summaries: {
-            scope: 'page',
+            over: 'page',
             cells: [
               {
                 field: 'amount',

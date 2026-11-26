@@ -19,6 +19,8 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.decide.RequestFacts
+import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.manifest.Manifest
@@ -43,6 +45,8 @@ import me.ahoo.wow.runtime.node.fastNodeOptions
 import me.ahoo.wow.runtime.source.orderRecord
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.log.AppendOutcome
+import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.sink.Sink
 import me.ahoo.wow.spi.state.StateEventRecord
@@ -259,6 +263,71 @@ class PublishedSinksTest {
         eventually { written.size == 2 }
         written.associate { it.ref.id to it.imported }.assert().isEqualTo(mapOf("o-1" to true, "o-2" to false))
     }
+
+    /**
+     * D485 ④: a record the transport sink publishes, which other contexts read, leaves out the client's address and
+     * `User-Agent`, the facts of where the request came from; the application goes on. A store's sink, the service's
+     * own, keeps them, as the log does.
+     */
+    @Test
+    fun `the transport sink should publish no client address or User-Agent, which a store's sink keeps`(): Unit =
+        runBlocking {
+            val facts = mapOf(RequestFacts.REMOTE_IP to "203.0.113.7", RequestFacts.USER_AGENT to "curl/8.9")
+            val node = node().also { it.start() }
+            val console = Caller(TENANT, Scope(ownerId = "alice"), attributes = mapOf(Caller.APP to listOf("console")))
+            node.gateway.execute(
+                request("order", "Place", """{"items":["apple"]}""", "o-1").copyWith(caller = console, headers = facts),
+            ).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            val committed = backends.opened.getValue(SHOP).log.read(ORDER.ref(TENANT, "o-1")).toList().single()
+            committed.headers.assert().containsAllEntriesOf(facts).containsEntry(RequestFacts.APP_ID, "console")
+            eventually { records("dev.wow.shop.order.state").size == 1 }
+            records("dev.wow.shop.order.state").single().headers.assert()
+                .isEqualTo(committed.headers - RequestFacts.REMOTE_IP - RequestFacts.USER_AGENT)
+                .containsEntry(RequestFacts.APP_ID, "console")
+            node.stop()
+            val written = CopyOnWriteArrayList<StateEventRecord>()
+            val data = PublishedSinks(PublishedSinks.publishedOf(manifest), "analytics-sink", masks = null) { _, _ ->
+                Sink { written += it }
+            }
+            node(subscriptions = data.factory).start()
+            eventually { written.isNotEmpty() }
+            written.single().headers.assert().isEqualTo(committed.headers)
+        }
+
+    @Test
+    fun `the transport sink alone should publish a commit of only retired events, as a record that holds none`(): Unit =
+        runBlocking {
+            val history = node(subscriptions = SubscriptionFactory { emptyList() })
+            history.start()
+            history.place("o-1")
+            history.stop()
+            // Version 2 holds only an event every model retired: a commit, though no model reads it.
+            val log = backends.opened.getValue(SHOP).log
+            val first = log.read(ORDER.ref(TENANT, "o-1")).toList().single()
+            val retired = EventRecord("wow.lifecycle.TagsApplied", 1, """{"tags":{}}""")
+            val stream = first.copyWith(
+                version = 2,
+                commandId = "c-retired",
+                requestId = "r-retired",
+                events = listOf(retired),
+            )
+            log.append(stream).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            val written = CopyOnWriteArrayList<StateEventRecord>()
+            val data = PublishedSinks(PublishedSinks.publishedOf(manifest), "analytics-sink", masks = null) { _, _ ->
+                Sink { written += it }
+            }
+            // A store's sink writes nothing for it, and moves past it.
+            val second = log.positionOf(ORDER.ref(TENANT, "o-1"), 2)!!
+            val store = node(subscriptions = data.factory).also { it.start() }
+            eventually { (checkpoint("analytics-sink.order", second.partition) ?: 0L) >= second.sequence }
+            written.map { it.version }.assert().containsExactly(1)
+            store.stop()
+            // The transport sink publishes it: the aggregate's versions on its topic are contiguous.
+            node().start()
+            eventually { records("dev.wow.shop.order.state").size == 2 }
+            records("dev.wow.shop.order.state").map { it.version to it.events.size }.assert()
+                .containsExactly(1 to 1, 2 to 0)
+        }
 
     @Test
     fun `each sink should be a state reader of the type it publishes`(): Unit = runBlocking {

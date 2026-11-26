@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.ops.server
 
-import me.ahoo.cosec.annotations.ExperimentalCoSecApi
 import me.ahoo.cosec.annotations.InternalCoSecApi
 import me.ahoo.cosec.runtime.http.ProblemEncoder
 import me.ahoo.cosec.runtime.http.ProblemRenderer
@@ -36,7 +35,7 @@ import java.time.Duration
  * written by CoSec as they are (`wow.cosec.problems` left out, or `cosec`), or as Wow's problems (`wow`), the body
  * alone changed, the status and CoSec's headers kept (#6591).
  */
-@OptIn(ExperimentalWowApi::class, ExperimentalCoSecApi::class, InternalCoSecApi::class)
+@OptIn(ExperimentalWowApi::class, InternalCoSecApi::class)
 class OpsCoSecProblemsTest {
     /** A refusal: its status, body, content type and the request id CoSec named it by. */
     private class Refusal(val status: Int, val body: String, val contentType: String?, val requestId: String?)

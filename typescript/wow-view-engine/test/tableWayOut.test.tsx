@@ -24,7 +24,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,
   ViewEngine,
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   projectAnalysis,
   validateAnalysis,
   type AnalysisViewConfig,
@@ -99,7 +99,7 @@ describe('a shape no chart can draw', () => {
     const issues = validateAnalysis(
       threeDimensions(),
       threeWay('table'),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(issues).toEqual([]);
   });
@@ -108,7 +108,7 @@ describe('a shape no chart can draw', () => {
     const issues = validateAnalysis(
       threeDimensions(),
       threeWay('chart'),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(issues).toEqual([
       {
@@ -134,7 +134,7 @@ describe('a shape no chart can draw', () => {
     const codes = validateAnalysis(
       threeDimensions(),
       config,
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     ).map(found => [found.code, found.severity]);
     expect(codes).toEqual([['chart.group.unconsumed', 'error']]);
     // Under the table the same config runs.
@@ -142,7 +142,7 @@ describe('a shape no chart can draw', () => {
       validateAnalysis(
         threeDimensions(),
         { ...config, layout: 'table' },
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       ),
     ).toEqual([]);
   });
@@ -153,7 +153,7 @@ describe('a shape no chart can draw', () => {
       chart: { type: 'chord' },
     } as unknown as AnalysisViewConfig;
     const codes = (config: AnalysisViewConfig) =>
-      validateAnalysis(threeDimensions(), config, builtinFieldKinds).map(
+      validateAnalysis(threeDimensions(), config, builtinFieldKindRegistry).map(
         found => found.code,
       );
     expect(codes(unknown)).toEqual(['chart.type.unknown']);

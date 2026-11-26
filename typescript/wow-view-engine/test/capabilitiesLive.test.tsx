@@ -636,7 +636,7 @@ describe('a cursor-paged view (#3502)', () => {
     const { engine } = cursorHarness(cursor as never);
     const runtime = engine.create('orders', {
       title: 'Orders',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
     await nextTask();
@@ -679,7 +679,7 @@ describe('a cursor-paged view (#3502)', () => {
     const { engine, onError } = cursorHarness(cursor as never);
     const runtime = engine.create('orders', {
       title: 'Orders',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
     await nextTask();
@@ -703,7 +703,7 @@ describe('a cursor-paged view (#3502)', () => {
     const { engine, onError } = cursorHarness(cursor as never);
     const runtime = engine.create('orders', {
       title: 'Orders',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
     await nextTask();
@@ -727,7 +727,7 @@ describe('a cursor-paged view (#3502)', () => {
     const { engine, onError } = cursorHarness(cursor as never);
     const runtime = engine.create('orders', {
       title: 'Orders',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
     await nextTask();
@@ -747,7 +747,7 @@ describe('a cursor-paged view (#3502)', () => {
     const { engine, onError } = cursorHarness(cursor);
     const runtime = engine.create('orders', {
       title: 'Orders',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
     await nextTask();

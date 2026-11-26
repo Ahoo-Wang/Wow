@@ -23,6 +23,7 @@ import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.kernel.AggregateIds
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CallerAdmission
+import me.ahoo.wow.spi.id.DerivedIds
 
 /**
  * The rules that decide a request's identity facts, step 2 of admission ([CommandGateway]), which a command of this
@@ -53,7 +54,7 @@ internal object AdmissionIdentity {
             FrameworkCodes.AUTH_FORBIDDEN to
                 "Only a service identity calls on behalf of a root command."
 
-        request.target != null -> FrameworkCodes.COMMAND_MALFORMED to "A call names its scope in the call, not in Wow-Scope."
+        request.targetScope != null -> FrameworkCodes.COMMAND_MALFORMED to "A call names its scope in the call, not in Wow-Scope."
         else -> null
     }
 
@@ -154,6 +155,9 @@ internal object AdmissionIdentity {
         return when {
             reserved != null -> "Header $reserved is reserved: identity, ids and the wait have fields of their own."
             request.requestId?.isBlank() == true -> "A request id, when given, is not blank."
+            request.requestId?.let(DerivedIds::isFrameworkRequestId) == true &&
+                request.call == null && !request.frameworkRequestId ->
+                "A request id never starts with ${DerivedIds.PREFIX}: the framework gives those to its own commands."
             request.aggregateId?.isBlank() == true -> "An aggregate id, when given, is not blank."
             request.aggregateId == AggregateRef.UNASSIGNED ->
                 "An aggregate id is never ${AggregateRef.UNASSIGNED}: leave it out for admission to choose one."

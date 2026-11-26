@@ -31,6 +31,7 @@ import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.ForwardCommand
 import me.ahoo.wow.runtime.cluster.ForwardReply
 import me.ahoo.wow.runtime.cluster.Refusal
+import me.ahoo.wow.runtime.cluster.UnknownFormatException
 import me.ahoo.wow.runtime.wait.WaitRegistry
 import org.springframework.core.io.buffer.DataBufferLimitException
 import org.springframework.http.HttpStatus
@@ -53,9 +54,11 @@ import tools.jackson.core.JacksonException
  *   hands each to [signals] and answers 204, whether or not a
  *   wait took it: a signal is an observation, its sender does not act on the answer.
  *
- * A body that is not such a message is answered 400. A forward larger than the port's codecs take is refused
- * ([Refusal.TOO_LARGE]): this node surely did not run it, so its sender runs it; such a signal is
- * answered 413. A node's [forward] is its [me.ahoo.wow.runtime.node.ServiceNode.forwardHandler], which hands a command
+ * A forward this node cannot read is refused, never answered 400: one larger than the port's codecs take
+ * ([Refusal.TOO_LARGE]), one of a format it does not read ([Refusal.UNKNOWN_FORMAT], [ClusterCodec]) and a body that is
+ * not a forward ([Refusal.MALFORMED]). This node surely did not run it, so its sender runs it. A body of signals that
+ * is not one, or holds a signal of a format this node does not read, is answered 400, and one larger than the port
+ * takes 413: the sender sends a batch so refused again in parts (`HttpSignalSender`). A node's [forward] is its [me.ahoo.wow.runtime.node.ServiceNode.forwardHandler], which hands a command
  * to the endpoint of its context.
  *
  * Each request names the service it comes from (`Wow-Service`), a statement the internal port takes on
@@ -81,11 +84,13 @@ fun internalRoutes(
     POST(InternalHttp.FORWARD_PATH) { request ->
         request.refusal(service, anyService = false)?.let { return@POST it.respond() }
         val command = try {
-            request.decode(ClusterCodec::decodeCommand) ?: return@POST malformed()
+            request.decode(ClusterCodec::decodeCommand) ?: return@POST refused(Refusal.MALFORMED)
         } catch (tooLarge: DataBufferLimitException) {
             logger.warn { "A forward on ${request.path()} is larger than the internal port takes: ${tooLarge.message}" }
-            return@POST ServerResponse.ok().contentType(MediaType.APPLICATION_JSON)
-                .bodyValueAndAwait(ClusterCodec.encode(ForwardReply.refused(Refusal.TOO_LARGE)))
+            return@POST refused(Refusal.TOO_LARGE)
+        } catch (unknown: UnknownFormatException) {
+            logger.warn { "Refused a forward on ${request.path()}: ${unknown.message}" }
+            return@POST refused(Refusal.UNKNOWN_FORMAT)
         }
         val reply = scope.async { forward.forward(command) }.await()
         ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValueAndAwait(ClusterCodec.encode(reply))
@@ -96,6 +101,9 @@ fun internalRoutes(
             request.decode(ClusterCodec::decodeSignals) ?: return@POST malformed()
         } catch (_: DataBufferLimitException) {
             return@POST ServerResponse.status(CONTENT_TOO_LARGE).buildAndAwait()
+        } catch (unknown: UnknownFormatException) {
+            logger.warn { "Refused the signals on ${request.path()}: ${unknown.message}" }
+            return@POST malformed()
         }
         batch.forEach(signals)
         ServerResponse.noContent().buildAndAwait()
@@ -202,5 +210,9 @@ private suspend fun <T : Any> ServerRequest.decode(decode: (ByteArray) -> T): T?
 }
 
 private suspend fun malformed(): ServerResponse = ServerResponse.badRequest().buildAndAwait()
+
+/** The forward refused with [code]: this node did not run it. */
+private suspend fun refused(code: String): ServerResponse = ServerResponse.ok().contentType(MediaType.APPLICATION_JSON)
+    .bodyValueAndAwait(ClusterCodec.encode(ForwardReply.refused(code)))
 
 private const val CONTENT_TOO_LARGE = 413

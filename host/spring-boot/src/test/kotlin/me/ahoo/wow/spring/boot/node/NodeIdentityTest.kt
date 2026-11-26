@@ -70,6 +70,20 @@ class NodeIdentityTest {
         failure.fix.assert().contains("[::1]:9191")
     }
 
+    /**
+     * #7042: an address without a port (which the other nodes would join as `http://host`, port 80), with port 0 or one
+     * past 65535, which nothing listens on, started the node, which advertised it.
+     */
+    @Test
+    fun `a configured address with no port that listens should fail, naming the key and the port's range`() {
+        listOf("127.0.0.1", "127.0.0.1:0", "127.0.0.1:99999").forEach { address ->
+            val failure = assertThrows<WowConfigurationException> { identity(address = address) }
+            failure.key.assert().isEqualTo("wow.node.address")
+            failure.value.assert().isEqualTo(address)
+            failure.fix.assert().contains("1 to 65535")
+        }
+    }
+
     private fun named(service: String?, application: String?): NodeIdentity = NodeIdentity.of(
         WowProperties().apply {
             this.service = service

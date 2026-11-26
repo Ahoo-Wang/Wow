@@ -33,10 +33,7 @@ import {
   type WriteOptions,
 } from '@ahoo-wang/wow-view-engine';
 import { SHARED_OWNER_ID, SYSTEM_OWNER_ID, type Place } from './paths.js';
-import {
-  ViewStoreContract,
-  viewStoreWait,
-} from './generated/view-store/contract.js';
+import { ViewStoreContract } from './generated/view-store/contract.js';
 import type { ViewStateClient } from './generated/view-store/view/queryClient.js';
 import { boardTitles, Failure, guard, request } from './errors.js';
 import { Remembered } from './remembered.js';
@@ -49,8 +46,8 @@ import { scopeAt, toInstance } from './wire.js';
  * later (`ViewAudienceSaga`).
  */
 const AUDIENCE_WAIT = WaitPlan.of(
-  viewStoreWait.handled('ViewAudienceSaga.onAudienceChanged'),
-  viewStoreWait.snapshot(),
+  ViewStoreContract.Wait.handled('ViewAudienceSaga.onAudienceChanged'),
+  ViewStoreContract.Wait.snapshot(),
 );
 
 /** One instance write, as sent from the place the view is at. */
@@ -253,12 +250,16 @@ function ownedAt(ownerId: string | null | undefined): Place {
       : 'personal';
 }
 
-/** The aggregate version a revision of this store names. */
+/**
+ * The aggregate version a revision of this store names. A revision it never
+ * issued is refused as `INVALID`, as a cursor it never issued is: the
+ * request is malformed, not stale, so it carries no view to merge with.
+ */
 export function versionOf(revision: string): number {
   const version = Number(revision);
-  if (!Number.isInteger(version) || version < 0)
+  if (!/^\d+$/.test(revision) || !Number.isSafeInteger(version))
     throw new ViewStoreError(
-      'CONFLICT',
+      'INVALID',
       `Not a revision of this store: ${revision}`,
     );
   return version;

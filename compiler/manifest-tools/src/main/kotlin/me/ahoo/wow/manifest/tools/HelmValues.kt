@@ -50,7 +50,10 @@ internal class HelmValues(val service: String, val peers: List<Peer>) {
     }
 
     companion object {
-        /** Where a node serves its Manifest, on either port (the HTTP edge's `GET /wow/manifest`). */
+        /**
+         * Where a node serves its Manifest (the HTTP edge's `GET /wow/manifest`): on its internal port, and on its public
+         * one when `wow.http.manifest.enabled` is on.
+         */
         const val MANIFEST_ROUTE: String = "/wow/manifest"
 
         private val mapper = jacksonObjectMapper()

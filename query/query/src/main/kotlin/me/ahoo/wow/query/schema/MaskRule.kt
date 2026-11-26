@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.annotation.KeepMaskStrategy
 import me.ahoo.wow.api.query.annotation.MaskStrategy
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
@@ -131,6 +132,7 @@ fun interface MaskStrategyResolver {
  * The sensitivity of one value: its [level] and how responses [mask] it, with the [compiled] strategy. Two rules are
  * equal when their level and mask are; the compiled instance is not part of the identity.
  */
+@WowSpi
 class MaskRule private constructor(
     val level: SensitivityLevel,
     val mask: QueryMask,
@@ -165,6 +167,7 @@ class MaskRule private constructor(
  * Whether a filter or sort may compare a protected value. [displayComparable] lets queries compare
  * [SensitivityLevel.DISPLAY] values (the 9.x default); [SensitivityLevel.CONFIDENTIAL] values never compare.
  */
+@WowSpi
 class QuerySensitivityPolicy @InternalWowApi constructor(val displayComparable: Boolean = true) {
     /** Whether a filter or sort may compare a value protected at [level]; unprotected values always compare. */
     fun comparable(level: SensitivityLevel?): Boolean = when (level) {

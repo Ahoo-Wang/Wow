@@ -21,7 +21,7 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   defineView,
   text,
   validateDefinition,
@@ -101,7 +101,7 @@ describe('the second review', () => {
     const { definition: narrowed, findings } = narrowDefinition(
       definition,
       live,
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(narrowed.analysis?.fields.map(entry => entry.field)).toEqual(['id']);
     expect(findings).toContainEqual(
@@ -113,7 +113,7 @@ describe('the second review', () => {
     const { definition: byHand } = narrowDefinition(
       { ...definition, described: undefined },
       live,
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(byHand.analysis?.fields.map(entry => entry.field)).toEqual(['id']);
   });
@@ -155,7 +155,7 @@ describe('the second review', () => {
     ]);
     const after = read(removeFilter(read(storedTimeWires(config)), 'window'));
     expect(wires(after)[1]).toEqual([
-      { globalField: 'shipped', panelField: 'shippedAt', auto: true },
+      { dashboardField: 'shipped', panelField: 'shippedAt', auto: true },
     ]);
   });
 
@@ -171,7 +171,7 @@ describe('the second review', () => {
         { views: [{ id: 'a', title: 'A', config: analysisConfig() }] },
       ),
     );
-    const found = validateDefinition(definition, builtinFieldKinds);
+    const found = validateDefinition(definition, builtinFieldKindRegistry);
     expect(found.filter(entry => entry.severity === 'error')).toEqual([]);
     expect(found).toContainEqual(
       expect.objectContaining({
@@ -215,7 +215,7 @@ describe('the second review', () => {
   });
 
   it('6: a field of a host’s own kind gets the snapshot’s comparisons, given the kinds', () => {
-    const kinds = withFieldKinds(builtinFieldKinds, [
+    const kinds = withFieldKinds(builtinFieldKindRegistry, [
       { ...stringFieldKind, id: 'sku' },
     ]);
     const snapshot = ordersDescriptor({

@@ -181,7 +181,7 @@ abstract class CreationRetrySpec {
     private fun partitionOf(id: String) = Partitioner.partitionOf(model.type.ref(TENANT, id), PARTITIONS)
 
     private val gateway by lazy {
-        val origin = Origin("node-1", "127.0.0.1:9090", context)
+        val origin = Origin(context, "node-1", "127.0.0.1:9090")
         val registry = WaitRegistry()
         val coordinator = WaitCoordinator(
             Executor(Kernel(recorded), laneCapacity = 4),

@@ -15,6 +15,7 @@ package me.ahoo.wow.query.admission
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CursorQuery
@@ -45,7 +46,6 @@ import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.policy.ReadAction
 import me.ahoo.wow.query.policy.ReadAuthorizer
-import me.ahoo.wow.query.policy.admitted
 import me.ahoo.wow.query.policy.authorizeOrThrow
 import me.ahoo.wow.query.resolve.AggregationResolution
 import me.ahoo.wow.query.resolve.QueryResolver
@@ -67,8 +67,7 @@ import kotlin.time.toJavaDuration
  *
  * 0. the entry is accepted by the [entry policy][QueryEntryPolicy], the caller is authorized to read the model
  *    ([ReadAuthorizer], before anything of the query is judged or the schema loads), and the submitted query plus the
- *    caller's scope fit the entry's budget; once the schema is known, an authenticated scope is required when the
- *    policy says so;
+ *    caller's scope fit the entry's budget;
  * 1. the [QueryFilter]s rewrite the query, in order;
  * 2. the caller's [scope][QueryCaller.scope], the route's [selection][QueryCaller.selection] (an operation constraint,
  *    such as the aggregate id of a load route, not caller scope) and every [QueryPolicy] restriction are appended,
@@ -86,7 +85,8 @@ import kotlin.time.toJavaDuration
  * Code that drives a backend directly and owns governance itself (backend conformance tests, tools, benchmarks)
  * admits through [Trusted] instead, whose name says it skips steps 0 to 3.
  */
-class QueryAdmission(
+@WowSpi
+class QueryAdmission @InternalWowApi constructor(
     private val aggregateType: AggregateType,
     filters: List<QueryFilter> = emptyList(),
     policies: List<QueryPolicy> = emptyList(),
@@ -107,14 +107,13 @@ class QueryAdmission(
         schema: suspend () -> QueryModelSchema,
         trail: QueryAuditTrail? = null,
     ): AdmittedQuery<Q> {
-        val entry = entryPolicy.admit(caller.entry)
-        authorizer.authorizeOrThrow(caller) { ReadAction(aggregateType, model, operation.queryType, entry.admitted()) }
+        val entry = caller.entry
+        authorizer.authorizeOrThrow(caller) { ReadAction(aggregateType, model, operation.queryType, entry) }
         val budget = entryPolicy.budget(entry)
         // The route selection is an operation constraint the caller did not write, so only the caller's scope counts.
         budget?.let { operation.budget(it, query, caller.scope.filter) }
         val model = schema()
         trail?.schema(model)
-        entryPolicy.requireScope(entry, caller.scope.authenticated, model.profile)
         fun context(current: Q) = QueryContext(current, aggregateType, model, operation.queryType, entry)
         val appended = mutableListOf<FilterExpression>()
         val rewritten = rewrite(query, ::context)
@@ -150,9 +149,8 @@ class QueryAdmission(
      * Point-read admission of [record], the snapshot-shaped record of a state that [selection] chose (by id; a
      * tracing read also states its deletion scope), under [caller]'s entry and scope.
      *
-     * Step 0 accepts the entry and, when the [entry policy][QueryEntryPolicy] says so, requires an authenticated scope
-     * against [schema]'s profile (the snapshot profile without one), as a query route does. Steps 2 and 3 then run on a
-     * [QueryType.SINGLE] query of [selection]: the caller's scope and every [QueryPolicy] restriction are appended,
+     * Steps 2 and 3 run on a [QueryType.SINGLE] query of [selection], against [schema]'s profile (the snapshot profile
+     * without one): the caller's scope and every [QueryPolicy] restriction are appended,
      * then the snapshot model's default scope. There is no submitted query to budget or rewrite, so the budget and
      * step 1 do not apply. The resulting filter is then admitted as trusted code's query of a record ([Trusted.single]
      * against [schema]'s in-memory form, [recordSchema]): aliases replaced, validated, normalized, relative time
@@ -181,9 +179,8 @@ class QueryAdmission(
         schema: QueryModelSchema,
         caller: QueryCaller,
     ): (ObjectNode) -> Boolean {
-        val entry = entryPolicy.admit(caller.entry)
+        val entry = caller.entry
         val profile = schema.profile ?: SnapshotQueryModelProfile
-        entryPolicy.requireScope(entry, caller.scope.authenticated, profile)
         fun context(current: SingleQuery): QueryContext<SingleQuery> =
             QueryContext(current, aggregateType, schema, QueryType.SINGLE, entry)
         val appended = mutableListOf<FilterExpression>()

@@ -11,7 +11,11 @@
  * limitations under the License.
  */
 
-import type { FieldOption, RuntimeLimits } from '../model/index.js';
+import {
+  isNamedError,
+  type FieldOption,
+  type RuntimeLimits,
+} from '../model/index.js';
 import type { RuntimeEnvironment } from './environment.js';
 import { reportError } from './failure/failures.js';
 import type { OptionSource, SourceOptions } from './source.js';
@@ -47,8 +51,8 @@ export interface ReferenceLabelReader {
 
 /** What `ReferenceLabels` stands on: the host's sources and its budget. */
 export interface ReferenceLabelsHost {
-  /** The host's `resolveOptions`; left out, every id reads as itself. */
-  resolveOptions?: ((remote: string) => OptionSource) | undefined;
+  /** The host's `optionSource`; left out, every id reads as itself. */
+  optionSource?: ((remote: string) => OptionSource) | undefined;
   /** The most ids one `resolve` is asked (`RuntimeLimits.referenceBatch`). */
   batch: number;
   /**
@@ -94,17 +98,29 @@ export class ReferenceLabelTimeoutError extends Error {
 }
 
 /**
- * An engine's cache: its host's sources (an engine with no `resolveOptions`
+ * Whether `error` is a {@link ReferenceLabelTimeoutError}: what `onError`
+ * receives for a lookup that ran past `RuntimeLimits.referenceTimeout`, and
+ * what the lookup's signal is aborted with. By name, as every guard of the
+ * engine's errors (`isViewStoreError`).
+ */
+export function isReferenceLabelTimeoutError(
+  error: unknown,
+): error is ReferenceLabelTimeoutError {
+  return isNamedError(error, 'ReferenceLabelTimeoutError');
+}
+
+/**
+ * An engine's cache: its host's sources (an engine with no `optionSource`
  * throws for each, which reads as no source), its batch and concurrency,
  * and a failed read told to `onError` as a `labels` query.
  */
 export function engineLabels(engine: {
-  resolveOptions(remote: string): OptionSource;
+  optionSource(remote: string): OptionSource;
   readonly limits: RuntimeLimits;
   readonly environment: RuntimeEnvironment;
 }): ReferenceLabels {
   return new ReferenceLabels({
-    resolveOptions: remote => engine.resolveOptions(remote),
+    optionSource: remote => engine.optionSource(remote),
     batch: engine.limits.referenceBatch,
     concurrency: engine.limits.referenceConcurrency,
     timeout: engine.limits.referenceTimeout,
@@ -183,14 +199,14 @@ export class ReferenceLabels implements ReferenceLabelReader {
   constructor(private readonly host: ReferenceLabelsHost) {}
 
   /**
-   * The host's source for `remote`, asked of `resolveOptions` once; `null`
+   * The host's source for `remote`, asked of `optionSource` once; `null`
    * when there is none to ask.
    */
   sourceOf(remote: string): OptionSource | null {
     if (!this.sources.has(remote)) {
       let source: OptionSource | null = null;
       try {
-        source = this.host.resolveOptions?.(remote) ?? null;
+        source = this.host.optionSource?.(remote) ?? null;
       } catch {
         // A remote the host does not serve reads its ids as themselves;
         // admission says so where a definition names it.

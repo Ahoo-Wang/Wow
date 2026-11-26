@@ -113,7 +113,7 @@ abstract class WaitCoordinatorFixtures {
     protected val log = InMemoryEventLog(partitions = 2)
     protected val ledger = InMemoryFailureLedger()
     protected val registry = WaitRegistry()
-    protected val origin = Origin("node-1", "127.0.0.1:9090", "shop")
+    protected val origin = Origin("shop", "node-1", "127.0.0.1:9090")
     protected val signals = LocalSignalSender(origin.node, registry)
     protected val sequence = AtomicInteger()
 

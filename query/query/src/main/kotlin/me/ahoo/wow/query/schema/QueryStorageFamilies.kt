@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 
 /**
  * A storage-neutral family of native types a logical value may be stored as. A storage adapter maps each family to
@@ -22,6 +23,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  *
  * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
+@WowSpi
 enum class QueryStorageFamily {
     /** Any string representation, analyzed text included. */
     STRING,
@@ -49,6 +51,7 @@ enum class QueryStorageFamily {
  * storages, kept so that every adapter reproduces today's capabilities exactly; the defaults are the strict table
  * ([STRICT]), and [of] gives another.
  */
+@WowSpi
 class QueryStorageFamilyRules @InternalWowApi constructor(
     /**
      * Whether a [Temporal.Date] value supports the capabilities that compare operands to it (exact match, literal
@@ -93,6 +96,7 @@ class QueryStorageFamilyRules @InternalWowApi constructor(
  * families: they are storage structure, not value types.
  */
 @Suppress("CyclomaticComplexMethod") // One exhaustive table: capability by logical value.
+@WowSpi
 fun QueryValueSchema.storageFamilies(
     capability: QueryCapability,
     rules: QueryStorageFamilyRules = QueryStorageFamilyRules.STRICT,

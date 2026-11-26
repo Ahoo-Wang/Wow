@@ -20,7 +20,7 @@ import {
 } from "@ahoo-wang/wow-client";
 import {
   AnalyticsCatalogClient,
-  analyticsCatalogWait,
+  AnalyticsCatalogContract,
   type DatasetDefinition,
   type FieldSensitivity,
   type ReviseSource,
@@ -58,7 +58,7 @@ export interface CatalogCommands {
 
 /** Each command waits for the snapshot of its record (`Wow-Wait`). */
 const OPTIONS: CommandOptions = {
-  wait: WaitPlan.of(analyticsCatalogWait.snapshot()),
+  wait: WaitPlan.of(AnalyticsCatalogContract.Wait.snapshot()),
 };
 
 /** A blank title is no title. */
@@ -74,7 +74,7 @@ export function catalogCommands(fetcher: Fetcher): CatalogCommands {
   const datasets = catalog.dataset.commands;
   return {
     draftSource: (database, table, id) =>
-      sources.draftSource({ database, table }, { ...OPTIONS, id }),
+      sources.draftSource({ database, table }, { ...OPTIONS, aggregateId: id }),
     reviseSource: (id, revision) => sources.reviseSource(id, revision, OPTIONS),
     reviewSensitivity: (id, fields) =>
       sources.reviewSourceSensitivity(id, { fields }, OPTIONS),
@@ -85,7 +85,7 @@ export function catalogCommands(fetcher: Fetcher): CatalogCommands {
     draftDataset: (context, name, definition, title) =>
       datasets.draftDataset(
         { context, name, definition, ...titleOf(title) },
-        { ...OPTIONS, id: `${context}.${name}` },
+        { ...OPTIONS, aggregateId: `${context}.${name}` },
       ),
     reviseDataset: (id, definition, title) =>
       datasets.reviseDataset(id, { definition, ...titleOf(title) }, OPTIONS),

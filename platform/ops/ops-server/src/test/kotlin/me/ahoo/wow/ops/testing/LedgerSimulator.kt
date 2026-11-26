@@ -11,10 +11,13 @@
  * limitations under the License.
  */
 
+@file:OptIn(WowSpi::class)
+
 package me.ahoo.wow.ops.testing
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.result.ErrorInfo
@@ -49,7 +52,7 @@ import java.util.UUID
  */
 @OptIn(InternalWowApi::class) // A service's command sender, ledger operator and receipts, as its node wires them.
 class LedgerSimulator(manifest: Manifest, private val topics: InMemoryTopics) {
-    private val sender = CommandSender(ContractDirectory(manifest), SourceTopics.of(topics, producer = topics))
+    private val sender = CommandSender(ContractDirectory.of(manifest), SourceTopics.of(topics, producer = topics))
 
     /** Publishes [entry] to `wow.ops.commands` as an owning service's ledger does; the id of its ops aggregate. */
     suspend fun publish(entry: ParkedEntry): String {
@@ -119,6 +122,7 @@ class LedgerSimulator(manifest: Manifest, private val topics: InMemoryTopics) {
  *
  * It lives in the server's test classes only: nothing of it ships.
  */
+@OptIn(InternalWowApi::class) // refuses the ledger's commands as their service does (CommandWire)
 @Configuration(proxyBeanMethods = false)
 class LedgerSimulatorRoutes {
     @Bean

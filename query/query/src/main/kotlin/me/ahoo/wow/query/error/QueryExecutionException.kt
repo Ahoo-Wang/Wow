@@ -15,6 +15,7 @@ package me.ahoo.wow.query.error
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.spi.StorageBusyException
 import java.math.BigDecimal
 import java.time.Duration
@@ -26,6 +27,7 @@ import java.time.Duration
  *
  * [message] is returned to clients, so it names what failed without internal detail; [cause] stays server-side.
  */
+@WowSpi
 open class QueryExecutionException(
     message: String,
     cause: Throwable? = null,
@@ -33,8 +35,8 @@ open class QueryExecutionException(
     override val errorCode: String
         get() = QueryErrors.FAILED
 
-    override val errorMsg: String
-        get() = checkNotNull(message)
+    override val message: String
+        get() = checkNotNull(super.message)
 }
 
 /** Throws a [QueryExecutionException] with [message] unless [value] holds. */
@@ -43,10 +45,11 @@ internal inline fun checkExecution(value: Boolean, message: () -> String) {
 }
 
 /**
- * A query that ran out of the execution time its budget gives it: [QueryErrors.TIMEOUT] (HTTP 503).
+ * A query that ran out of the execution time its budget gives it: [QueryErrors.TIMEOUT] (HTTP 504).
  * The backend received the same [timeout] to bound the statement natively (`statement_timeout`, `maxTimeMS`); the core
  * enforces it as well, so a backend that ignores it still fails here.
  */
+@WowSpi
 class QueryTimeoutException(
     val timeout: Duration,
     cause: Throwable? = null,
@@ -81,6 +84,7 @@ class QueryStorageUnavailableException(cause: Throwable? = null) :
  * message names no store: its name is the server's configuration. Its cause is a [StorageBusyException] naming the
  * store, which a subscription handler that ran the query retries as backpressure.
  */
+@InternalWowApi
 class QueryBusyException(
     val store: String,
     val maxConcurrent: Int,
@@ -98,6 +102,7 @@ class QueryBusyException(
  * value as none (an underflow as 0), as `AggregationExpression`'s finite doubles say; running it again fails the same
  * way. [cause] is the store's own error, kept server-side.
  */
+@WowSpi
 class QueryOutOfRangeException(cause: Throwable? = null) : QueryExecutionException(
     "A computed value went beyond a double's range on this backend; narrow the operands, or compute from stored fields.",
     cause,
@@ -111,6 +116,7 @@ class QueryOutOfRangeException(cause: Throwable? = null) : QueryExecutionExcepti
  * 7.2b-2): [QueryErrors.DATASET_UNAVAILABLE] (HTTP 409). The message names the dataset and the
  * [reason], fixed words such as `needs revision`; what made it so stays with whoever marked it.
  */
+@InternalWowApi
 class QueryDatasetUnavailableException(
     val dataset: AggregateType,
     val reason: String,

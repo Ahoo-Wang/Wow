@@ -22,5 +22,4 @@ export {
   WowViewStoreErrorCodes,
   type WowViewStoreErrorCode,
 } from './errors.js';
-export { SHARED_SCOPE, SYSTEM_SCOPE } from './wire.js';
 export { datasetCatalogOf } from './source.js';

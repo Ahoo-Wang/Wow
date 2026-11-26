@@ -114,17 +114,34 @@ test('the framework codes are read from the error catalog snapshot, with their r
 
 test('the query codes, kebab-case as the source writes them, take the first sentence of their group’s comment', () => {
   const source = `object QueryErrorCodes {
-    // Reading the body; BindingError.name is the path.
+    // Reading the body; Violation.path is the path.
     const val INVALID_JSON = "invalid-json"
     const val EMPTY_BODY = "empty-body"
 
     // Admission against the model. More.
     const val UNKNOWN_FIELD = "unknown-field"
+    @ExperimentalWowApi
+    const val METRIC_FILTER_SEARCH = "metric-filter-search"
+    const val NOT_PROJECTABLE = "not-projectable"
 }`;
   assert.deepEqual(queryErrorCodes(source), [
-    { code: 'invalid-json', group: 'Reading the body.' },
-    { code: 'empty-body', group: 'Reading the body.' },
-    { code: 'unknown-field', group: 'Admission against the model.' },
+    { code: 'invalid-json', group: 'Reading the body.', experimental: false },
+    { code: 'empty-body', group: 'Reading the body.', experimental: false },
+    {
+      code: 'unknown-field',
+      group: 'Admission against the model.',
+      experimental: false,
+    },
+    {
+      code: 'metric-filter-search',
+      group: 'Admission against the model.',
+      experimental: true,
+    },
+    {
+      code: 'not-projectable',
+      group: 'Admission against the model.',
+      experimental: false,
+    },
   ]);
 });
 
@@ -347,6 +364,15 @@ class Plain {
     val size: Int = 0
 }
 
+class Notice @InternalWowApi constructor(
+    /** A record of a port's, at the SPI's level. */
+    @property:WowSpi
+    val entry: Entry,
+    @get:WowSpi
+    val spec: Spec,
+    val at: Long,
+)
+
 enum class Operator {
     EQ,
 
@@ -367,6 +393,8 @@ internal enum class Hidden {
     { name: 'me.ahoo.wow.q.Listener', kind: 'interface' },
     { name: 'me.ahoo.wow.q.rows', kind: 'fun' },
     { name: 'me.ahoo.wow.q.Plain.size', kind: 'val' },
+    { name: 'me.ahoo.wow.q.Notice.entry', kind: 'val' },
+    { name: 'me.ahoo.wow.q.Notice.spec', kind: 'val' },
     { name: 'me.ahoo.wow.q.Operator.EXPRESSION', kind: 'enum entry' },
   ]);
 });

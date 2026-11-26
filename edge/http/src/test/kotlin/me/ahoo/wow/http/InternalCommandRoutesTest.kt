@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.caller.DeclaredServices
 import me.ahoo.wow.runtime.admission.CallContext
@@ -35,7 +36,9 @@ class InternalCommandRoutesTest {
     private val calls = callRoutes(manifest, node.gateway, DeclaredServices.resolver(TENANT))
     private val internal: WebTestClient = WebTestClient.bindToRouterFunction(calls).build()
 
-    private fun call(path: String, body: String): Answer = internal.post().uri(path)
+    private fun call(path: String, body: String, headers: Map<String, String> = emptyMap()): Answer = internal.post()
+        .uri(path)
+        .headers { http -> headers.forEach { (name, value) -> http.set(name, value) } }
         .header(WowHeaders.SERVICE, SERVICE)
         .header(
             WowHeaders.CALL,
@@ -70,6 +73,32 @@ class InternalCommandRoutesTest {
         node.post("/shop/cart/cart-1/add-item", """{"sku":"mug"}""").status.assert().isEqualTo(200)
         call("/shop/cart/cart-1/checkout", "{}").status.assert().isEqualTo(200)
         node.commands.map { it.body }.assert().containsExactly(AddItem("mug"), Checkout())
+    }
+
+    /**
+     * #7053: a command route takes no query parameter, on either port: one is refused, naming it, and the command does
+     * not run. A misspelled parameter, or one a proxy appends to the URL (a cache-buster, a signature), is not dropped.
+     */
+    @Test
+    fun `a command route should refuse a query parameter on either port, naming it, and not run the command`() {
+        listOf(
+            node.post("/shop/cart/cart-1/add-item?x=1", """{"sku":"mug"}""") to "x",
+            call("/shop/cart/cart-1/checkout?_=1700000000", "{}") to "_",
+        ).forEach { (refused, parameter) ->
+            refused.status.assert().isEqualTo(400)
+            refused.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.REQUEST_MALFORMED)
+            refused.body["violations"][0]["path"].asString().assert().isEqualTo(parameter)
+            refused.body["detail"].asString().assert().startsWith("'$parameter' is a query parameter")
+        }
+        node.commands.assert().isEmpty()
+    }
+
+    @Test
+    fun `a call whose Wow-Scope does not parse should be a malformed request, as on the public port`() {
+        val refused = call("/shop/cart/cart-1/checkout", "{}", mapOf(WowHeaders.SCOPE to "owner"))
+        refused.status.assert().isEqualTo(400)
+        refused.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.REQUEST_MALFORMED)
+        node.commands.assert().isEmpty()
     }
 
     @Test

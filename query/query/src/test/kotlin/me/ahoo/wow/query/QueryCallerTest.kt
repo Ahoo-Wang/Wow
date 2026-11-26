@@ -63,13 +63,12 @@ class QueryCallerTest {
     }
 
     @Test
-    fun `entry is unspecified until stated and in-process queries drop the caller, scope and entry`() {
+    fun `entry is in process until stated and in-process queries drop the caller, scope and entry`() {
         val http = QueryCaller(
             Caller(subject = "alice", attributes = mapOf("dept" to listOf("eng"))),
             entry = QueryEntry.HTTP,
         ).withScope(QueryScope(declared = TenantIdFilter("tenant"))).withSelection(IdFilter("a1"))
-        QueryCaller().entry.assert().isEqualTo(QueryEntry.UNSPECIFIED)
-        QueryCaller.UNSPECIFIED.entry.assert().isEqualTo(QueryEntry.UNSPECIFIED)
+        QueryCaller().entry.assert().isEqualTo(QueryEntry.IN_PROCESS)
         QueryCaller.IN_PROCESS.entry.assert().isEqualTo(QueryEntry.IN_PROCESS)
         QueryCaller.IN_PROCESS.scope.assert().isEqualTo(QueryScope.NONE)
         http.entry.assert().isEqualTo(QueryEntry.HTTP)
@@ -87,7 +86,7 @@ class QueryCallerTest {
 
     @Test
     fun `a route selection accumulates apart from the scope`() {
-        val caller = QueryCaller.UNSPECIFIED.withSelection(IdFilter("a1"))
+        val caller = QueryCaller.IN_PROCESS.withSelection(IdFilter("a1"))
         caller.selection.assert().isEqualTo(IdFilter("a1"))
         caller.scope.filter.assert().isSameAs(MatchAllFilter)
         caller.withSelection(MatchAllFilter).assert().isSameAs(caller)
@@ -102,8 +101,8 @@ class QueryCallerTest {
         plain.caller.assert().isSameAs(alice)
         plain.entry.assert().isEqualTo(QueryEntry.HTTP)
         plain.crossTenant.assert().isNull()
-        plain.target.assert().isNull()
-        QueryCaller.of(alice).entry.assert().isEqualTo(QueryEntry.UNSPECIFIED)
+        plain.targetScope.assert().isNull()
+        QueryCaller.of(alice).entry.assert().isEqualTo(QueryEntry.IN_PROCESS)
         plain.assert().isEqualTo(QueryCaller.of(alice, QueryEntry.HTTP))
         plain.hashCode().assert().isEqualTo(QueryCaller.of(alice, QueryEntry.HTTP).hashCode())
         plain.assert().isNotEqualTo(plain.copy(crossTenant = CrossTenant.ALL))

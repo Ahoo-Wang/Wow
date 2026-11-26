@@ -87,6 +87,17 @@ class ClickHouseSinks internal constructor(
     companion object {
         /** The processor name of the ClickHouse Sink's subscriptions: `wow.clickhouse-sink.<aggregate>`. */
         const val PROCESSOR: String = "wow.clickhouse-sink"
+
+        /**
+         * The processor name of the Sink's subscriptions in [generation] (`sink.generation`): [PROCESSOR] in the first,
+         * so that nothing is renamed, and `wow.clickhouse-sink-g<generation>` from the second on, new subscriptions
+         * that write the warehouse again from the beginning of the log (#7097).
+         */
+        @JvmStatic
+        fun processorOf(generation: Int): String {
+            require(generation >= 1) { "A sink generation is 1 or more, not $generation." }
+            return if (generation == 1) PROCESSOR else "$PROCESSOR-g$generation"
+        }
     }
 }
 

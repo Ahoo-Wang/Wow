@@ -34,7 +34,7 @@ import type { HeldFilters } from '../../runtime/index.js';
 export type DashboardFilterMode = 'adjustable' | 'hidden' | 'locked';
 
 /** The modes a page gives a board's filters, and its time grouping. */
-export interface BoardFilterModes {
+export interface DashboardFilterModes {
   /** By filter name; a filter not named is `adjustable`. */
   filters?: Readonly<Record<string, DashboardFilterMode>>;
   /** The time grouping's (按日｜周｜月); `adjustable` when left out. */
@@ -43,21 +43,23 @@ export interface BoardFilterModes {
 
 /** One filter's mode: `adjustable` unless the page named it. */
 export function filterModeOf(
-  modes: BoardFilterModes | undefined,
+  modes: DashboardFilterModes | undefined,
   name: string,
 ): DashboardFilterMode {
   return modes?.filters?.[name] ?? 'adjustable';
 }
 
 /** The filters the page holds — locked or hidden — by name. */
-export function heldFilters(modes: BoardFilterModes | undefined): string[] {
+export function heldFilters(modes: DashboardFilterModes | undefined): string[] {
   return Object.entries(modes?.filters ?? {}).flatMap(([name, mode]) =>
     mode === 'adjustable' ? [] : [name],
   );
 }
 
 /** Whether the page holds the time grouping. */
-export function holdsGrouping(modes: BoardFilterModes | undefined): boolean {
+export function holdsGrouping(
+  modes: DashboardFilterModes | undefined,
+): boolean {
   return (modes?.grouping ?? 'adjustable') !== 'adjustable';
 }
 
@@ -69,7 +71,7 @@ export function holdsGrouping(modes: BoardFilterModes | undefined): boolean {
  * part of it.
  */
 export function heldOf(
-  modes: BoardFilterModes | undefined,
+  modes: DashboardFilterModes | undefined,
   page: DashboardFilters | null | undefined,
 ): HeldFilters | null {
   const names = heldFilters(modes);
@@ -83,14 +85,14 @@ export function heldOf(
 }
 
 /**
- * What of the filters is the reader's (`EmbeddedDashboard.initialFilters`,
+ * What of the filters is the reader's (`EmbeddedDashboard.defaultFilters`,
  * `onFiltersChange`): the adjustable filters, and the time grouping unless the
  * page holds it. A locked or hidden filter's value never travels as the
  * reader's — not in from the address, where a reader could edit it, and not
  * out to it, where it would be read back as theirs.
  */
 export function readersOf(
-  modes: BoardFilterModes | undefined,
+  modes: DashboardFilterModes | undefined,
   filters: DashboardFilters,
 ): DashboardFilters {
   const held = new Set(heldFilters(modes));
@@ -117,8 +119,8 @@ export function readersOf(
  */
 export function staticModes(
   fields: readonly { name: string }[],
-  modes: BoardFilterModes | undefined,
-): BoardFilterModes {
+  modes: DashboardFilterModes | undefined,
+): DashboardFilterModes {
   const fixed = (mode: DashboardFilterMode): DashboardFilterMode =>
     mode === 'hidden' ? 'hidden' : 'locked';
   return {

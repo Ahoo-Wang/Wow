@@ -26,7 +26,7 @@ import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.engine.QueryEngine
 import me.ahoo.wow.query.engine.ReadFacade
-import me.ahoo.wow.query.error.QueryRequestException
+import me.ahoo.wow.query.error.QueryError
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
@@ -71,8 +71,8 @@ class ReadAuthorizerTest {
     private val reader = caller("alice", "roles" to listOf("reader"))
     private val stranger = caller("alice")
 
-    private fun refused(read: suspend () -> Unit): QueryRequestException =
-        assertThrows<QueryRequestException> { runBlocking { read() } }
+    private fun refused(read: suspend () -> Unit): QueryError =
+        assertThrows<RuntimeException> { runBlocking { read() } }.let { it as QueryError }
 
     @Test
     fun `every query of every model asks first, and a refused caller reads nothing`(): Unit = runBlocking {
@@ -88,7 +88,9 @@ class ReadAuthorizerTest {
         )
         val denied = refused { snapshots.single(SingleQuery(MatchAllFilter), stranger) }
         denied.errorCode.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
-        denied.errorMsg.assert().contains("needs the reader role")
+        denied.message.assert().contains("needs the reader role")
+        // A refusal is about who reads, never what the request asks: no violation of the request (#7029).
+        denied.violations.assert().isEmpty()
         refused { engine.events(NOTE)!!.list(ListQuery(MatchAllFilter, limit = 10), stranger).toList() }
             .errorCode.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
     }
@@ -170,12 +172,6 @@ class ReadAuthorizerTest {
         denied.assert().isEqualTo(again).hasSameHashCodeAs(again)
             .isNotEqualTo(ReadAuthorization.Denied.of("no", FrameworkCodes.QUERY_MALFORMED))
         denied.toString().assert().contains(FrameworkCodes.AUTH_FORBIDDEN)
-    }
-
-    @Test
-    fun `an entry nobody stated is read as in process`() {
-        QueryEntry.UNSPECIFIED.admitted().assert().isEqualTo(QueryEntry.IN_PROCESS)
-        QueryEntry.HTTP.admitted().assert().isEqualTo(QueryEntry.HTTP)
     }
 
     @Test

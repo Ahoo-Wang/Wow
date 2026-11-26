@@ -173,7 +173,7 @@ describe('resources (host-integration.md 4)', () => {
       environment: testEnvironment().environment,
       onIssue: () => {},
     });
-    const input = { title: 'New', scope: 'personal' as const };
+    const input = { title: 'New', audience: 'personal' as const };
     engine.create('again', { ...input, config: recordConfig() });
     await nextTask();
     expect(first.paged).toHaveBeenCalled();

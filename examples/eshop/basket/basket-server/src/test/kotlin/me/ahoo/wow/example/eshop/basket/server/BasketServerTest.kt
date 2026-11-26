@@ -82,7 +82,7 @@ class BasketServerTest {
         call.service.assert().isEqualTo("eshop-basket-service")
         call.scope.assert().isEqualTo(Scope(ownerId = "alice"))
         call.operator?.id.assert().isEqualTo("alice")
-        call.aggregateId.assert().isNull()
+        call.ref.isAssigned.assert().isFalse()
         (call.command as SubmitOrder).items.single().productId.assert().isEqualTo("mug")
 
         assertRejected { alice.wait(CheckoutBasket) }.code.assert().isEqualTo(EshopBasketContract.Basket.Errors.EMPTY)

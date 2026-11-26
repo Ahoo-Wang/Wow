@@ -17,6 +17,7 @@ import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationExpressionOperator
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.BetweenFilter
+import me.ahoo.wow.api.query.CaseFolding
 import me.ahoo.wow.api.query.ComparisonOperator
 import me.ahoo.wow.api.query.ContainsAllFilter
 import me.ahoo.wow.api.query.ContainsFilter
@@ -49,7 +50,6 @@ import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.query.admission.AdmittedQuery
-import me.ahoo.wow.query.backend.CaseFolding
 import me.ahoo.wow.query.dataset.DatasetAccess
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.filter.predicateField
@@ -67,6 +67,7 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import java.util.concurrent.TimeUnit
+import kotlin.math.abs
 
 /**
  * Translates an admitted filter into a `WHERE` predicate. Columns come from each node's resolution, system-field
@@ -259,11 +260,31 @@ internal class ClickHouseFilterCompiler(
         if (column.family == ClickHouseTypeFamily.INTEGER || column.family == ClickHouseTypeFamily.DECIMAL) {
             return number(operand, column, field)
         }
+        if (column.family == ClickHouseTypeFamily.FLOAT && operand is Number) {
+            return parameters.bind(float(operand, field).toString(), column.parameterType)
+        }
         val text = when (operand) {
             is BigDecimal -> operand.toPlainString()
             else -> operand.toString()
         }
         return parameters.bind(text, column.parameterType)
+    }
+
+    /**
+     * [operand] of a float column as the double the column compares it as, never its every digit written out (#7070):
+     * one past a double's range, or a nonzero one that rounds to zero or to a subnormal double, which ClickHouse reads
+     * as zero (#7009), is refused, since the column holds neither.
+     */
+    private fun float(operand: Number, field: QueryField<*>): Double {
+        val value = operand.toDouble()
+        val zero = when (operand) {
+            is BigDecimal -> operand.signum() == 0
+            else -> value == 0.0
+        }
+        if (!value.isFinite() || !zero && abs(value) < java.lang.Double.MIN_NORMAL) {
+            throw QueryViolation.StorageUnsupported("a numeric operand beyond a double's range", field).rejection()
+        }
+        return value
     }
 
     private fun instant(operand: Any, column: TypedColumn, field: QueryField<*>): String = when (operand) {

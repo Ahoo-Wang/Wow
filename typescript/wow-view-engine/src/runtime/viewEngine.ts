@@ -24,7 +24,7 @@ import {
   type ViewPreferences,
 } from '../model/index.js';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   issue,
   type FieldKindRegistry,
 } from '../filter/index.js';
@@ -170,7 +170,7 @@ export class ViewEngine {
     // A store failure is told to the host's `onError` once, whichever
     // command or read it failed under.
     this.store = reportingStore(options.store, this.environment);
-    this.kinds = options.kinds ?? builtinFieldKinds;
+    this.kinds = options.kinds ?? builtinFieldKindRegistry;
     this.capabilities = new SourceCapabilities({
       kinds: this.kinds,
       limits: options.limits,
@@ -327,9 +327,9 @@ export class ViewEngine {
     return this.resources.wordingOf(definitionId);
   }
 
-  /** The remote candidates of `reference` fields under `key` (`ViewEngineOptions.resolveOptions`). */
-  resolveOptions(key: string): OptionSource {
-    return this.resources.resolveOptions(key);
+  /** The remote candidates of `reference` fields under `key` (`ViewEngineOptions.optionSource`). */
+  optionSource(key: string): OptionSource {
+    return this.resources.optionSource(key);
   }
 
   /** What `validateDefinition` said about one definition, for a host to show. */
@@ -373,7 +373,7 @@ export class ViewEngine {
             definitionId,
           ),
         {
-          limit: this.limits.listedViews,
+          limit: this.limits.maxListedViews,
           ...(options.signal === undefined ? {} : { signal: options.signal }),
         },
       ),
@@ -579,8 +579,11 @@ export class ViewEngine {
    * either take those edits or leave them over a baseline they were not
    * made on. A board open and unedited takes the new board as it lands.
    */
-  addToDashboard(boardId: string, instanceId: string): Promise<ViewInstance> {
-    return this.writes.addToDashboard(boardId, instanceId);
+  addToDashboard(
+    dashboardId: string,
+    instanceId: string,
+  ): Promise<ViewInstance> {
+    return this.writes.addToDashboard(dashboardId, instanceId);
   }
 
   delete(id: string): Promise<void> {
@@ -715,7 +718,7 @@ export class ViewEngine {
   private ledgerHost(): WriteLedgerHost {
     return {
       store: this.store,
-      newId: this.options.newId,
+      newRequestId: this.options.newRequestId,
       noteInstance: instance => this.summaries.note(instance),
       dropInstance: (id, owner) => {
         this.summaries.drop(id);

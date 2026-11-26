@@ -17,13 +17,10 @@ import type { RecordRow } from '../../record/index.js';
 import type { RecordViewRuntime } from '../../runtime/index.js';
 import type { RecordActions } from '../../runtime/actions.js';
 import {
-  useRecordDetail,
   useRecordKanban,
   useRecordTable,
-  useSearchBox,
   type RecordActionSlots,
   type RecordDetailControl,
-  type RecordDetailController,
   type RecordDetailSection,
   type RecordDetailSectionContext,
   type WorkbenchController,
@@ -60,6 +57,11 @@ import {
 } from '../kit/RenderBoundary.js';
 import { NO_PARTS, type RenderParts } from './parts.js';
 import { SearchBox } from './SearchBox.js';
+import {
+  useRecordDetail,
+  type RecordDetailController,
+} from '../../react/useRecordDetail.js';
+import { useSearchBox } from '../../react/useSearchBox.js';
 
 /**
  * What a host may say about the record views a workbench draws: what may be
@@ -68,7 +70,7 @@ import { SearchBox } from './SearchBox.js';
  * anything to an analysis view, so it is one object rather than a spread of
  * props over the workbench.
  */
-export interface RecordViewProps {
+export interface RecordViewOptions {
   /**
    * The host's declared actions (`actions()`, host-integration.md 5): what
    * may be *done* to a record, which the workbench places — the row's
@@ -163,7 +165,7 @@ export interface RecordDetailOptions extends RecordDetailControl {
 
 export type { ExportedFile } from '../record/exportOffer.js';
 
-export interface RecordPartsProps extends RecordViewProps {
+export interface RecordPartsProps extends RecordViewOptions {
   workbench: WorkbenchController;
   /** The open record view, or null while what is open is not one. */
   runtime: RecordViewRuntime | null;

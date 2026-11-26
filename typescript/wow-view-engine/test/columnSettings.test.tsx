@@ -28,7 +28,7 @@ import {
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { FieldDefinition, RecordViewConfig } from '../src/model/index.js';
-import { builtinFieldKinds, validateRecord } from '../src/index.js';
+import { builtinFieldKindRegistry, validateRecord } from '../src/index.js';
 import type { RecordTableController } from '../src/react/index.js';
 import { ColumnSettings } from '../src/ui/columns/ColumnSettings.js';
 import { MessagesProvider } from '../src/ui/kit/MessagesProvider.js';
@@ -1129,14 +1129,14 @@ describe('a summary on a field that is not a column', () => {
   /** The finding that row exists for, and what pressing it leaves behind. */
   it('clears the finding the config was being refused over', () => {
     const codes = (config: RecordViewConfig) =>
-      validateRecord(ordersDefinition(), config, builtinFieldKinds).map(
+      validateRecord(ordersDefinition(), config, builtinFieldKindRegistry).map(
         found => found.code,
       );
 
     expect(
       codes(
         recordConfig({
-          summaries: [{ field: 'gone', fn: AggregationFunction.SUM }],
+          summaries: [{ field: 'gone', function: AggregationFunction.SUM }],
         }),
       ),
     ).toEqual(['record.field.unknown']);

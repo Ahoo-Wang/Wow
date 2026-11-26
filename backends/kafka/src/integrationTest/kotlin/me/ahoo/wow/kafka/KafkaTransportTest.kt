@@ -54,7 +54,7 @@ class KafkaTransportTest : TopicTransportSpec() {
             "topics.replication-factor" to "1",
             "topics.min-insync-replicas" to "1",
             "topics.configs.retention.ms" to "60000",
-            "topics.partition-refresh" to "10s",
+            "topics.partition-refresh-interval" to "10s",
         ),
     )
 

@@ -66,6 +66,7 @@ interface CheckpointStore {
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
+@WowSpi
 class Checkpoint @InternalWowApi constructor(val subscription: String, val partition: Int, val position: Long) {
     override fun equals(other: Any?): Boolean =
         this === other || other is Checkpoint && valueFields() == other.valueFields()

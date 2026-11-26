@@ -36,7 +36,7 @@ import {
   type SummaryChoice,
   groupFor,
 } from '../src/analysis/index.js';
-import { builtinFieldKinds } from '../src/filter/index.js';
+import { builtinFieldKindRegistry } from '../src/filter/index.js';
 import {
   FIELD_METRIC_TYPES,
   type AggregationFieldCapability,
@@ -120,7 +120,7 @@ describe('groupOfType', () => {
     ).toHaveProperty('missingKey', DEFAULT_MISSING_KEY);
     expect(
       groupOfType(
-        groupFacts(warehouse, [], builtinFieldKinds.get('string')),
+        groupFacts(warehouse, [], builtinFieldKindRegistry.get('string')),
         AggregationGroupType.TERMS,
         'w',
       ),

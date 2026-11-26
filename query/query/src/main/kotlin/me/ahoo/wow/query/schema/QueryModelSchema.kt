@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
@@ -30,6 +31,7 @@ private val QUERY_STORAGE_TYPE_PATTERN = Regex("[A-Za-z_][A-Za-z0-9_-]*")
  * A storage's own name for a native type, such as a PostgreSQL `jsonb` cast or a MongoDB BSON type ([of]): a letter
  * or `_`, then letters, digits, `_` and `-`.
  */
+@WowSpi
 class QueryStorageType @InternalWowApi constructor(val value: String) {
     init {
         require(QUERY_STORAGE_TYPE_PATTERN.matches(value)) { "Query storage type is invalid: [$value]." }
@@ -84,6 +86,7 @@ class QueryFieldBinding(
  * native binding snapshot, with the [sensitivity] policy its masked values are protected under. The core builds it; a
  * storage adapter reads its [values], each logical path template with its value, to report its facts.
  */
+@WowSpi
 class LogicalQuerySchema @InternalWowApi constructor(
     val root: QueryValueSchema,
     val sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,

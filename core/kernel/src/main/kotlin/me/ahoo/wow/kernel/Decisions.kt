@@ -22,42 +22,68 @@ import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.decide.RejectedException
 import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.spi.call.DecidingCommand
 import kotlin.coroutines.CoroutineContext
 
 /**
  * How the [Kernel] calls the code of a decision ([decideAll]): the command's decide function, then its after hooks,
  * each checked against the events it declares. One marked `@Blocking` ([DecideFunction.Suspending.blocking]) runs on
- * [blocking], by default the node's virtual threads ([BlockingDispatcher]); every other one runs inline in the
- * caller's coroutine.
+ * [blocking], by default the node's virtual threads ([BlockingDispatcher]), with the command being decided kept on its
+ * thread; every other one runs inline in the caller's coroutine.
+ *
+ * Each of them may refuse the command by throwing, as `DecideScope.reject` does ([ThrownRejections]): an after hook's
+ * refusal is the command's rejection as a decide function's is, so the command commits none of the events decided
+ * before it, and the attempt's compensations run.
  *
  * A function that ends with a cancellation of its own while its caller still waits, a call it bounded with
  * `withTimeout` that did not answer in time, fails the command ([CancelledDecisionException]); only the caller's own
  * cancellation goes through as a cancellation.
  */
 internal class Decisions(private val blocking: CoroutineContext) {
-    /** The decision of [decider] on [state], its events followed by those of [model]'s after hooks. */
+    /**
+     * The decision of [decider] on [state], its events followed by those of [model]'s after hooks, deciding the command
+     * [deciding], whose element the caller's context holds; a `@Blocking` function also keeps it on its thread.
+     */
     internal suspend fun <S : Any> decideAll(
         model: AggregateModel<S>,
         decider: DecideFunction<S>,
         scope: DecideScope,
         state: S,
         body: Any,
+        deciding: DecidingCommand,
     ): Decision {
-        val decision = decide(decider, scope, state, body)
+        val decision = decide(decider, scope, state, body, deciding)
         val decided = when (decision) {
             is Decision.Events -> decision.events
             Decision.NoOp -> emptyList()
-            is Decision.Rejected -> return decision.also { rejectedWith(model, body, it.events, decider.produces) }
+            is Decision.Rejected -> return decision.also {
+                rejectedWith(model, body, it.events, decider.produces, "decide function")
+            }
         }
         declared(model, body, decided, decider.produces, "decide function")
         val afters = model.afterFunctions(body.javaClass)
         if (afters.isEmpty()) {
             return decision
         }
-        val domain = decided + afters.flatMap { hook ->
-            after(hook, scope, state, body).also { declared(model, body, it, hook.produces, "after hook") }
+        val domain = ArrayList<Any>(decided)
+        for (hook in afters) {
+            val hooked = after(hook, scope, state, body, deciding)
+            if (hooked is AfterResult.Refused) {
+                rejectedWith(model, body, hooked.rejected.events, hook.produces, "after hook")
+                return hooked.rejected
+            }
+            val events = (hooked as AfterResult.Appended).events
+            declared(model, body, events, hook.produces, "after hook")
+            domain.addAll(events)
         }
         return if (domain.isEmpty()) Decision.NoOp else Decision.Events(domain)
+    }
+
+    /** What an after hook did: appended its [Appended.events], or refused the command ([Refused.rejected]). */
+    private sealed interface AfterResult {
+        class Appended(val events: List<Any>) : AfterResult
+
+        class Refused(val rejected: Decision.Rejected) : AfterResult
     }
 
     /**
@@ -91,14 +117,20 @@ internal class Decisions(private val blocking: CoroutineContext) {
      * `produces`, so an event a rejection carries is declared there as a decision's is. Replaying a log is unaffected:
      * events are sourced, never decided again.
      */
-    private fun rejectedWith(model: AggregateModel<*>, command: Any, events: List<Any>, produces: Set<Class<*>>?) {
+    private fun rejectedWith(
+        model: AggregateModel<*>,
+        command: Any,
+        events: List<Any>,
+        produces: Set<Class<*>>?,
+        function: String,
+    ) {
         val commandClass = command.javaClass
         events.firstOrNull { it.javaClass in LIFECYCLE_EVENTS }?.let { lifecycle ->
             throw UndeclaredEventException(
                 model.type,
                 commandClass,
                 lifecycle.javaClass,
-                "${model.type}'s decide function of ${commandClass.simpleName} rejected it with " +
+                "${model.type}'s $function of ${commandClass.simpleName} rejected it with " +
                     "${lifecycle.javaClass.simpleName}: a rejection's events are the aggregate's own, never a " +
                     "lifecycle event, which only a decision of events commits.",
             )
@@ -110,7 +142,7 @@ internal class Decisions(private val blocking: CoroutineContext) {
             model.type,
             commandClass,
             undeclared.javaClass,
-            "${model.type}'s decide function of ${commandClass.simpleName} rejected it with $event, which it does " +
+            "${model.type}'s $function of ${commandClass.simpleName} rejected it with $event, which it does " +
                 "not declare: a rejection's events are declared as a decision's are. Add it to the function's " +
                 "@OnCommand(produces = [$event::class]).",
         )
@@ -122,11 +154,12 @@ internal class Decisions(private val blocking: CoroutineContext) {
         scope: DecideScope,
         state: S,
         body: Any,
+        deciding: DecidingCommand,
     ): Decision = try {
         when (decider) {
             is DecideFunction.Sync -> decider.decide(scope, state, body)
             is DecideFunction.Suspending -> if (decider.blocking) {
-                withContext(blocking) { decider.decide(scope, state, body) }
+                withContext(blockingOf(deciding)) { decider.decide(scope, state, body) }
             } else {
                 decider.decide(scope, state, body)
             }
@@ -138,23 +171,37 @@ internal class Decisions(private val blocking: CoroutineContext) {
             ?: throw thrown
     }
 
+    /** The events of the after hook [after], or its refusal, thrown as a decide function's is ([ThrownRejections]). */
     private suspend fun <S : Any> after(
         after: AfterFunction<S>,
         scope: DecideScope,
         state: S,
         body: Any,
-    ): List<Any> = try {
-        when (after) {
-            is AfterFunction.Sync -> after.after(scope, state, body)
-            is AfterFunction.Suspending -> if (after.blocking) {
-                withContext(blocking) { after.after(scope, state, body) }
-            } else {
-                after.after(scope, state, body)
-            }
-        }
+        deciding: DecidingCommand,
+    ): AfterResult = try {
+        AfterResult.Appended(
+            when (after) {
+                is AfterFunction.Sync -> after.after(scope, state, body)
+                is AfterFunction.Suspending -> if (after.blocking) {
+                    withContext(blockingOf(deciding)) { after.after(scope, state, body) }
+                } else {
+                    after.after(scope, state, body)
+                }
+            },
+        )
     } catch (cancelled: CancellationException) {
         throw cancellationOf(cancelled, body, "after hook")
+    } catch (@Suppress("TooGenericExceptionCaught") thrown: Exception) {
+        ThrownRejections.rejectionOf(thrown)
+            ?.let { AfterResult.Refused(Decision.Rejected(it, (thrown as? RejectedException)?.events.orEmpty())) }
+            ?: throw thrown
     }
+
+    /**
+     * Where a `@Blocking` function runs: on [blocking], with the command being decided kept on its thread
+     * ([DecidingCommand.onThread]), for a call its body makes through `runBlocking { }` (#7083).
+     */
+    private fun blockingOf(deciding: DecidingCommand): CoroutineContext = blocking + deciding.onThread()
 
     /**
      * What [cancelled], ending the [function] of the command [body], is: the caller's cancellation, thrown on as it is,

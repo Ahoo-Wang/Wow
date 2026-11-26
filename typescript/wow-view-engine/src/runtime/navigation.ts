@@ -58,7 +58,7 @@ export interface GroupNaming {
  * and where it goes — the board on the tab and under the filters it was
  * left on. The workbench draws the way back; the host only routes `back`.
  */
-export interface BoardOrigin {
+export interface DashboardOrigin {
   title: string;
   back: DashboardTarget;
 }
@@ -83,7 +83,7 @@ export interface HandOver {
    */
   filter: FilterTree | null;
   /** The board it left, for the way back; absent for a board never saved. */
-  from?: BoardOrigin;
+  from?: DashboardOrigin;
 }
 
 /**
@@ -114,23 +114,23 @@ export interface UnsavedViewTarget {
   scopeFilter: FilterTree | null;
   /** What `title` says of a group pressed, when it names one. */
   named?: GroupNaming;
-  from?: BoardOrigin;
+  from?: DashboardOrigin;
 }
 
 /**
  * A dashboard, opened with `filters` as its reader's values — the host
- * hands them to `DashboardWorkbench`'s `initialFilters` (or
+ * hands them to `DashboardWorkbench`'s `defaultFilters` (or
  * `OpenOptions.filters`), never into the board's config. Another board a
  * panel's click opens (D23 Q17: each filter the author mapped holds the
  * group's value, every other one its default), or the way back to the one
- * a view left (`BoardOrigin.back`, on the tab it was left on).
+ * a view left (`DashboardOrigin.back`, on the tab it was left on).
  */
 export interface DashboardTarget {
   kind: 'dashboard';
   definitionId: string;
   instanceId: string;
   filters: DashboardFilters;
-  /** The tab to open on (`initialTab`); absent, where its reader last read it. */
+  /** The tab to open on (`defaultTab`); absent, where its reader last read it. */
   tab?: string | null;
 }
 

@@ -68,7 +68,9 @@ class InMemoryTopicsAutoConfiguration(environment: Environment) {
     @Bean
     @ConditionalOnMissingBean
     fun wowInMemoryTopics(properties: WowProperties): InMemoryTopics =
-        InMemoryTopics(properties.log.partitions).apply { retention = properties.memory.topicRetention }
+        InMemoryTopics(properties.log.partitions).apply {
+            retention = properties.memory.topicRetention
+        }
 
     @Bean
     @ConditionalOnMissingBean

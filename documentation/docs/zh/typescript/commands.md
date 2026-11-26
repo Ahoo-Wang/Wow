@@ -31,7 +31,7 @@ export const orderStates = new OrderStateClient(ordering);
 
 每个路由都以它的上下文开头，例如 `/eshop-ordering/order/…`，所以放在一个按这个前缀路由的网关上的 Fetcher 能服务所有服务；`basePath` 在每个路由前加上网关自己的前缀。
 
-生成的客户端按它所在上下文的 `manifest.ts` 里的路由发送，即生成器根据服务的 Manifest 写出的 `<Context>Manifest`，所以运行时从不去拉取 Manifest。自己构建的 `CommandClient`，`new CommandClient(options, { manifest })`，同样接收这样的 Manifest；不给时它为所有等待它的命令只拉取一次 `GET /wow/manifest`，只在拉取失败后才再拉取。每条命令的等待各自独立：它的 `signal` 结束它自己的等待，拉取仍为其他命令继续；拉取失败时，每条命令各自以自己的错误拒绝（同一个 problem，或一个指明这次拉取并保留其 cause 的 `Error`），携带该命令自己的请求 ID。客户端的名字是 `CommandClient`，与 Kotlin 一致：Wow 所说的命令网关，指的是服务端的准入。
+生成的客户端按它所在上下文的 `manifest.ts` 里的路由发送，即生成器根据服务的 Manifest 写出的 `<Context>Manifest`，所以运行时从不去拉取 Manifest。自己构建的 `CommandClient`，`new CommandClient(options, { manifest })`，同样接收这样的 Manifest；不给时它为所有等待它的命令只拉取一次 `GET /wow/manifest`，只在拉取失败后才再拉取；而服务只有设置了 `wow.http.manifest.enabled: true`（默认关闭）才会应答这个请求，否则请把生成的 Manifest 交给客户端。每条命令的等待各自独立：它的 `signal` 结束它自己的等待，拉取仍为其他命令继续；拉取失败时，每条命令各自以自己的错误拒绝（同一个 problem，或一个指明这次拉取并保留其 cause 的 `Error`），携带该命令自己的请求 ID。客户端的名字是 `CommandClient`，与 Kotlin 一致：Wow 所说的命令网关，指的是服务端的准入。
 
 ## 发送命令 {#send-a-command}
 
@@ -47,7 +47,7 @@ const result = await orders.submitOrder({
 console.log(result.ref.id, result.version, result.status);
 ```
 
-`SubmitOrder` 会创建它的聚合，所以它的方法不接收 ID：服务生成一个，`result.ref.id` 给出它。在选项中传入 `{ id }` 可以自己选定。作用于已有聚合的命令先接收它的 ID：`orders.payOrder(id, body)`。ID 取其所有者的聚合，例如购物者的购物车，还有一个不带 ID 的 `…Own` 方法，`baskets.checkoutBasketOwn(body)`，作用于调用方自己的聚合；按 ID 的方法给没有所有者的调用方用，例如代购物者操作的后台。`unitPrice` 在服务端是 `BigDecimal`，所以它的类型是 `string`，以精确数字写入命令体。
+`SubmitOrder` 会创建它的聚合，所以它的方法不接收 ID：服务生成一个，`result.ref.id` 给出它。在选项中传入 `{ aggregateId }` 可以自己选定。作用于已有聚合的命令先接收它的 ID：`orders.payOrder(id, body)`。ID 取其所有者的聚合，例如购物者的购物车，还有一个不带 ID 的 `…Own` 方法，`baskets.checkoutBasketOwn(body)`，作用于调用方自己的聚合；按 ID 的方法给没有所有者的调用方用，例如代购物者操作的后台。`unitPrice` 在服务端是 `BigDecimal`，所以它的类型是 `string`，以精确数字写入命令体。
 
 结果说明命令到达了哪里：
 
@@ -63,7 +63,7 @@ console.log(result.ref.id, result.version, result.status);
 
 ### 命令体指明了聚合 {#a-body-that-names-its-aggregate}
 
-命令体指明了聚合的命令（命令类上的 `@AggregateId`，Manifest 中的 `idProperty`）没有 ID 参数，也没有 `id` 选项。它的方法把命令体发往不带 `{id}` 的路由，服务作用于命令体指明的聚合。这个属性由其他字段算出时，命令体可以省略它，由服务算出 ID，与任何[计算属性](#a-computed-property)一样。
+命令体指明了聚合的命令（命令类上的 `@AggregateId`，Manifest 中的 `idProperty`）没有 ID 参数，也没有 `aggregateId` 选项。它的方法把命令体发往不带 `{id}` 的路由，服务作用于命令体指明的聚合。这个属性由其他字段算出时，命令体可以省略它，由服务算出 ID，与任何[计算属性](#a-computed-property)一样。
 
 手写的 `CommandClient` 请求同样按这条路由发送这类命令。eShop 没有这类命令，所以这里发送的是[在命令体中指明聚合](../guide/aggregates#name-the-aggregate-in-the-body)里的 `RestockProduct`：
 
@@ -79,7 +79,7 @@ await commands.wait({
 });
 ```
 
-这类请求给出的 `id` 必须就是命令体指明的那个：命令体没有指明时，客户端把它写入命令体；命令体指明了另一个 ID 时，在发出任何请求之前抛出 `TypeError`。计算出的 ID 属于服务：为它给出的 `id` 会被忽略，因为服务从字段算出 ID，所以不要传 `id`。
+这类请求给出的 `aggregateId` 必须就是命令体指明的那个：命令体没有指明时，客户端把它写入命令体；命令体指明了另一个 ID 时，在发出任何请求之前抛出 `TypeError`。计算出的 ID 属于服务：为它给出的 `aggregateId` 会被忽略，因为服务从字段算出 ID，所以不要传 `aggregateId`。
 
 ### 计算属性 {#a-computed-property}
 
@@ -108,13 +108,13 @@ const accepted = await orders.cancelOrder(
 
 | 跳 | 何时回答 |
 | --- | --- |
-| `wait.accepted()` | 命令通过了准入；路由以 202 回答 |
-| `wait.committed()` | 它的事件已在日志中 |
-| `wait.snapshot()` | 快照包含这次提交，所以读取能看到它 |
-| `wait.queryable()` | 聚合的快照查询所读的存储包含这次提交，所以紧接着重新加载的列表能看到它；查询读副本时比 `snapshot` 晚 |
-| `wait.handled('Processor.function')` | 那个订阅处理了这次提交 |
+| `Hop.accepted()` | 命令通过了准入；路由以 202 回答 |
+| `Hop.committed()` | 它的事件已在日志中 |
+| `Hop.snapshot()` | 快照包含这次提交，所以读取能看到它 |
+| `Hop.queryable()` | 聚合的快照查询所读的存储包含这次提交，所以紧接着重新加载的列表能看到它；查询读副本时比 `snapshot` 晚 |
+| `Hop.handled('Processor.function')` | 那个订阅处理了这次提交 |
 
-计划可以跟随命令走得更远：经过 Saga 的 `handled` 那一跳，到达 Saga 发出的、位于它们各自上下文中的命令。每个上下文的 `contract.ts` 包含它的各跳，以它的订阅名提供类型。为购物车结账，并一直等到它提交的订单在 ordering 上下文中提交：
+计划可以跟随命令走得更远：经过 Saga 的 `handled` 那一跳，到达 Saga 发出的、位于它们各自上下文中的命令。每个上下文的契约包含它的各跳，即 `<Context>Contract.Wait`，以它的订阅名提供类型。为购物车结账，并一直等到它提交的订单在 ordering 上下文中提交：
 
 <!-- typecheck-context
 import { BasketCommandClient } from './generated/basket/index.js';
@@ -123,16 +123,16 @@ declare const baskets: BasketCommandClient;
 
 ```ts
 import { WaitPlan } from '@ahoo-wang/wow-client';
-import { eshopBasketWait } from './generated/basket/index.js';
-import { eshopOrderingWait } from './generated/ordering/index.js';
+import { EshopBasketContract } from './generated/basket/index.js';
+import { EshopOrderingContract } from './generated/ordering/index.js';
 
 const placed = await baskets.checkoutBasketOwn(
   {},
   {
     wait: WaitPlan.of(
-      eshopBasketWait.committed(),
-      eshopBasketWait.handled('BasketCheckoutSaga.onBasketCheckedOut'),
-      eshopOrderingWait.committed(),
+      EshopBasketContract.Wait.committed(),
+      EshopBasketContract.Wait.handled('BasketCheckoutSaga.onBasketCheckedOut'),
+      EshopOrderingContract.Wait.committed(),
     ),
     timeout: 10_000,
   },
@@ -140,7 +140,7 @@ const placed = await baskets.checkoutBasketOwn(
 console.log(`order ${placed.ref.id} at version ${placed.version}`);
 ```
 
-调用以最后一跳的结果回答：这里是订单的提交，所以 `placed.ref` 是订单。`timeout` 以毫秒计，覆盖计划自己的超时（除非 `.within` 另给，计划的超时是 10 秒）。`parseWaitPlan` 读取一个 `Wow-Wait` 值，`formatWaitPlan` 写出一个。用完时间的等待以 504 `wow.wait.timeout` reject；命令仍可能已经提交。服务怎样跟随一条链，见[等待结果](../concepts/waits)。
+调用以最后一跳的结果回答：这里是订单的提交，所以 `placed.ref` 是订单。`timeout` 以毫秒计，覆盖计划自己的超时（除非 `.within` 另给，计划的超时是 10 秒）；每个计划都把它的超时作为 `Wow-Wait-Timeout` 声明，与 Kotlin 客户端一样；`send` 声明受理的超时，除非 `timeout` 另给，是 10 秒。`parseWaitPlan` 像服务那样读取一个 `Wow-Wait` 值，拒绝长于 4,096 个字符或多于 32 跳的值，`formatWaitPlan` 写出一个。用完时间的等待以 504 `wow.wait.timeout` reject；命令仍可能已经提交。服务怎样跟随一条链，见[等待结果](../concepts/waits)。
 
 ## 以流的形式跟随等待 {#follow-the-wait-as-a-stream}
 
@@ -148,8 +148,8 @@ console.log(`order ${placed.ref.id} at version ${placed.version}`);
 
 <!-- typecheck-context
 import { WaitPlan } from '@ahoo-wang/wow-client';
-import { BasketCommandClient, eshopBasketWait } from './generated/basket/index.js';
-import { eshopOrderingWait } from './generated/ordering/index.js';
+import { BasketCommandClient, EshopBasketContract } from './generated/basket/index.js';
+import { EshopOrderingContract } from './generated/ordering/index.js';
 declare const baskets: BasketCommandClient;
 -->
 
@@ -158,9 +158,9 @@ const stream = await baskets.checkoutBasketOwnStream(
   {},
   {
     wait: WaitPlan.of(
-      eshopBasketWait.committed(),
-      eshopBasketWait.handled('BasketCheckoutSaga.onBasketCheckedOut'),
-      eshopOrderingWait.committed(),
+      EshopBasketContract.Wait.committed(),
+      EshopBasketContract.Wait.handled('BasketCheckoutSaga.onBasketCheckedOut'),
+      EshopOrderingContract.Wait.committed(),
     ),
   },
 );
@@ -173,7 +173,7 @@ for (;;) {
 }
 ```
 
-在准入时被拒绝的命令，会在任何结果流出之前 reject 这次调用，抛出的是 `result.status` 为 `rejected` 的 `WowProblemError`：流式调用不会像 `wait` 那样把它转成 `CommandRejectedError`，所以要检查 `error.result?.status`。准入之后的拒绝是流的最后一个结果，带着它的 `status` 和 `error`。当某个 Saga 不再发出任何东西时，链会在计划结束之前结束：那个结果带有 `chainEnded`，`pending` 指明不会到来的那些跳。eShop 的结账页面就是这样把它十五跳的链一直跟随到支付的（`examples/eshop/web/src/shop/checkout.ts`）。流在服务最后一个结果之后的 `end` 事件上关闭，`end` 不是结果。没有它就结束的流（无论结束得多干净）、开始之后连接断开的流、发来的不是结果的流，读取都以 `wow.command.unknown` 的 `WowProblemError`（`retry` 为 `same-request`）reject，网络的错误是它的 `cause`：命令可能已经提交，所以用它发送时的请求 ID 再发一次，`requestIdOf(error)` 交回这个 ID。
+在准入时被拒绝的命令，会在任何结果流出之前 reject 这次调用，抛出的是 `result.status` 为 `rejected` 的 `WowProblemError`：流式调用不会像 `wait` 那样把它转成 `CommandRejectedError`，所以要检查 `error.result?.status`。准入之后的拒绝是流的最后一个结果，带着它的 `status` 和 `error`。当某个 Saga 不再发出任何东西时，链会在计划结束之前结束：那个结果带有 `chainEnded`，`pending` 指明不会到来的那些跳。eShop 的结账页面就是这样把它十五跳的链一直跟随到支付的（`examples/eshop/web/src/shop/checkout.ts`）。流在服务最后一个结果之后、原因为 `complete` 的 `end` 事件上关闭，`end` 不是结果。客户端不认识的事件（较新的服务可能发送）被跳过；客户端不认识的阶段的结果仍是结果，它的 `hop.stage` 照服务所写。没有 `end` 就结束的流（无论结束得多干净）、`end` 给出别的原因的流、开始之后连接断开的流、结果不是 JSON 的流，读取都以 `wow.command.unknown` 的 `WowProblemError`（`retry` 为 `same-request`）reject，网络的错误是它的 `cause`：命令可能已经提交，所以用它发送时的请求 ID 再发一次，`requestIdOf(error)` 交回这个 ID。
 
 ## 命令失败时 {#when-a-command-fails}
 
@@ -218,9 +218,9 @@ try {
 }
 ```
 
-命令的整个应答都有界：以它声明的 `timeout`（或其计划的超时）再加 5 秒为界，与 Kotlin 客户端一样。没有声明的命令等待服务的默认时长（`wow.wait.default-timeout`），客户端并不知道这个时长，所以以客户端选项的 `defaultWaitMs` 再加同样的 5 秒为界：没有给出时是一分钟，即服务默认等待的最大值，除非服务调大了 `wow.wait.max-timeout`。服务默认等待更久的部署，在构建客户端的选项里设置 `defaultWaitMs`（`new OrderCommandClient({ fetcher, defaultWaitMs: 120_000 })`），或者让每条命令声明它的等待。服务在等待结束时应答 `wow.wait.timeout`，所以到那时仍未应答的节点不会再应答：请求被中止、连接关闭，调用以 `wow.command.unknown` reject。`wait` 或 `send` 的应答在开始之后丢失或无法读取时也是如此。中止请求自己的 `signal` 时，以中止的原因 reject，`requestIdOf` 同样能读出请求 ID。
+命令的整个应答都有界：以它的计划声明的等待再加 5 秒为界，与 Kotlin 客户端一样。没有计划的命令（既无 `wait` 也无 `timeout`）不声明等待，等待服务的默认时长（`wow.wait.default-timeout`），客户端并不知道这个时长，所以以客户端选项的 `defaultWaitMs` 再加同样的 5 秒为界：没有给出时是一分钟，即服务默认等待的最大值，除非服务调大了 `wow.wait.max-timeout`。服务默认等待更久的部署，在构建客户端的选项里设置 `defaultWaitMs`（`new OrderCommandClient({ fetcher, defaultWaitMs: 120_000 })`），或者让每条命令声明它的等待。服务在等待结束时应答 `wow.wait.timeout`，所以到那时仍未应答的节点不会再应答：请求被中止、连接关闭，调用以 `wow.command.unknown` reject。`wait` 或 `send` 的应答在开始之后丢失或无法读取时也是如此。中止请求自己的 `signal` 时，以中止的原因 reject，`requestIdOf` 同样能读出请求 ID。
 
-`WowProblemError` 的 `retry` 说明重试能做什么，由错误目录按它的代码声明：`none`，重试同样失败；`same-request`，以同一个请求 ID 再发；`new-request`，原样再发。`retryAfterMs` 说明要先等多久（`Retry-After`）。每条命令都带着一个请求 ID（`Wow-Request-Id`）：选项中给出的，或者客户端生成的 UUIDv7（`newRequestId`，按生成时的毫秒排序，与 Kotlin 客户端一致），两种错误的 `requestId` 都会把它交回来。用同一个 ID 重试，会被当作第一次提交的重复请求来回答，绝不会执行两次，所以用它重试 `wow.command.unknown` 和 `wow.wait.timeout`。重试可能来自别处时（例如页面重新加载），从一开始就传入 `requestId`：
+`WowProblemError` 的 `retry` 说明重试能做什么，由错误目录按它的代码声明：`none`，重试同样失败；`same-request`，以同一个请求 ID 再发；`new-request`，原样再发。客户端不认识的 `retry` 值（更新的服务写出的）按不存在读取：取错误目录为该代码声明的值，与 Kotlin 客户端一样。`retryAfterMs` 说明要先等多久（`Retry-After`，秒数或 HTTP 日期；其他写法按不存在读取，于是采用错误目录的等待）。每条命令都带着一个请求 ID（`Wow-Request-Id`）：选项中给出的，或者客户端生成的 UUIDv7（`newRequestId`，按生成时的毫秒排序，与 Kotlin 客户端一致），两种错误的 `requestId` 都会把它交回来。用同一个 ID 重试，会被当作第一次提交的重复请求来回答，绝不会执行两次，所以用它重试 `wow.command.unknown` 和 `wow.wait.timeout`。重试可能来自别处时（例如页面重新加载），从一开始就传入 `requestId`：
 
 <!-- typecheck-context
 import { OrderCommandClient } from './generated/ordering/index.js';
@@ -249,4 +249,4 @@ await orders.shipOrder('order-1', {}, { requestId, expectedVersion: 4 });
 3. 原来读取 `tags` 的地方，改读 `access.<name>`。整数属性是 `string`，即它的精确文本。
 4. 原来按 `tags` 过滤的查询，改按 `access.<name>` 过滤；事件流上还可以按 `access.owner` 与 `access.space` 过滤。
 
-每个方法的最后一个参数都是请求选项。`space` 选择调用方的一个空间（`Wow-Space`；CoSec 服务改读 `CoSec-Space-Id`）；`targetTenant` 和 `targetScope`（`{ ownerId?, spaceId? }`）在另一个租户、所有者或空间中行事（`Wow-Scope`），供被允许跨作用域行事的调用方使用；`headers` 加上你自己的请求头；`signal` 取消请求。请求是哪个调用方、能做什么，由服务根据它的凭据决定（[身份](../concepts/identity)）。
+每个方法的最后一个参数都是请求选项。`space` 选择调用方的一个空间（`Wow-Space`；CoSec 服务改读 `CoSec-Space-Id`）；`targetTenant` 和 `targetScope`（`{ ownerId?, spaceId? }`）在另一个租户、所有者或空间中行事（`Wow-Scope`），供被允许跨作用域行事的调用方使用；`headers` 加上你自己的请求头，客户端由请求自身字段写出的请求头（`Wow-Request-Id`、`Wow-Wait`、`Wow-Wait-Timeout`、`Wow-Scope`、`Wow-Space`、`If-Match`、`If-None-Match`、`Last-Event-ID`，不分大小写）在发送任何内容之前即被拒绝：请设置对应字段，这样 `requestIdOf` 交回的请求 ID 就是实际发送的那个；`signal` 取消请求。请求是哪个调用方、能做什么，由服务根据它的凭据决定（[身份](../concepts/identity)）。

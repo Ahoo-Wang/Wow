@@ -33,6 +33,12 @@ enum class ObservedOutcome(val value: String) {
     /** The stage was cancelled. */
     CANCELLED("cancelled"),
 
+    /**
+     * A subscription passed over the entry without handling it: its aggregate is parked, or a topic delivered a copy
+     * of an entry it handled.
+     */
+    SKIPPED("skipped"),
+
     /** A request was admitted. */
     ADMITTED("admitted"),
 

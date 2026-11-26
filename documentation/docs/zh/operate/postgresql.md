@@ -57,11 +57,13 @@ spring:
 
 | `wow.ddl` | 作用 |
 | --- | --- |
-| `auto`（默认） | 创建缺失的东西 |
-| `validate` | 什么都不创建；缺少表或表是另一种格式时拒绝启动 |
+| `auto`（默认） | 创建缺失的东西，再像 `validate` 一样检查已有的 |
+| `validate` | 什么都不创建；缺少表、表是另一种格式、表缺少 Wow 的 schema 中的某个键，或缺少索引时拒绝启动 |
 | `none` | 什么都不创建，也不检查 |
 
 数据库账户不能建表的部署，先用一个能建表的账户运行一次，或者自己应用 schema，然后以 `validate` 运行。`wow.stores.<name>.ddl` 为单个存储设置它。
+
+**键会被检查。** 表的唯一键负责拒绝重复写入：日志表的版本键拒绝同一版本的第二次提交，请求键拒绝同一请求的第二次提交。`CREATE TABLE IF NOT EXISTS` 不改动已存在的表，所以在 `auto` 和 `validate` 下，存储检查它用到的每张表在每个键的列上都有唯一索引（名字、列序不限，不带谓词），缺少时拒绝启动，并指出表和键。手工应用的 schema 要保留 Wow 语句中的每个 `PRIMARY KEY` 和 `UNIQUE`。其他索引按名字检查：`auto` 创建缺少的，`validate` 拒绝。
 
 **登记表是数据。** 尾读只在 `wow_log_aggregate` 里找一个上下文的日志表，定时循环只在 `wow_timer_aggregate` 里找它的定时表。无论 `wow.ddl` 取什么值，存储发现一张已有的表在那里没有记录时，都会在这张表第一次被使用时写入这条记录，所以账户需要这两张表的 `INSERT` 权限。手工应用的 schema（比如只复制了 schema 的数据库副本）有登记表本身，却没有其中的记录。`validate` 与 `none` 写不进记录时拒绝这张表，并说出要插入的那条记录。尾读停在计数器已经越过的序号上（没有一张已登记的表持有这个条目）达 30 秒时发出警告，说出分区与序号。
 
@@ -172,7 +174,7 @@ synchronous_commit = on
 
 按数据库计算连接数：连接池大小乘以服务的节点数，再加一个连接池，留给替换崩溃节点的新节点，因为崩溃节点的连接在上面的 keepalive 结束它们之前仍然开着，再加上迁移和运维人员使用的连接，要在 PostgreSQL 的 `max_connections` 之内。
 
-存储借出的每个连接等待回应最多 `wow.postgres.operation-timeout`（默认 30 秒，单个存储的 `operation-timeout`（`wow.stores.<name>.operation-timeout`）可覆盖），建表类语句最多 5 分钟：在故障切换中或代理之后丢失的回应会让调用以暂时性错误失败并换掉这个连接，而不是一直挂住。连接池的驱动已设了更短的 `socketTimeout` 时保留它。服务器按同一个超时为 Wow 的每个事务设上限（[服务端设置](#server-settings)）。
+存储借出的每个连接等待回应最多 `wow.postgres.operation-timeout`（默认 30 秒，单个存储的 `operation-timeout`（`wow.stores.<name>.operation-timeout`）可覆盖），建表类语句最多 5 分钟：在故障切换中或代理之后丢失的回应会让调用以暂时性错误失败并换掉这个连接，而不是一直挂住。连接池的驱动已设了更短的 `socketTimeout` 时保留它。服务器按同一个超时为 Wow 的每个事务设上限（[服务端设置](#server-settings)）。超时为零或负数，或超过约 24.8 天（JDBC 的网络超时是以毫秒计的 `int`），会拒绝启动并指出该键。
 
 ## 空闲节点读取什么 {#what-an-idle-node-reads}
 

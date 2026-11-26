@@ -14,7 +14,7 @@
 import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   compileFilter,
   describeFilter,
   validateFilter,
@@ -59,7 +59,7 @@ function errors(issues: { severity: string; code: string }[]): string[] {
 }
 
 function compile(node: FilterTree['children'][number]) {
-  return compileFilter(fields, tree(node), builtinFieldKinds, context);
+  return compileFilter(fields, tree(node), builtinFieldKindRegistry, context);
 }
 
 describe('metadata field kinds', () => {
@@ -78,7 +78,9 @@ describe('metadata field kinds', () => {
       record: { rowKey: 'orderNo', paging: 'paged', layouts: ['table'] },
     };
 
-    expect(validateDefinition(definition, builtinFieldKinds)).toEqual([]);
+    expect(validateDefinition(definition, builtinFieldKindRegistry)).toEqual(
+      [],
+    );
   });
 
   it.each([
@@ -151,7 +153,7 @@ describe('metadata field kinds', () => {
           operator: FilterOperator.OWNER_ID,
           value: { items: [{ id: 'u-7', label: 'Ada' }] },
         }),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       ).map(item => item.text),
     ).toEqual(['Owner Ada']);
   });
@@ -173,14 +175,14 @@ describe('metadata field kinds', () => {
         validateFilter(
           fields,
           tree({ field, operator, value }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual([]);
   });
 
   it('starts a picker empty and a text field blank', () => {
-    const picker = builtinFieldKinds.get('ownerId')!;
+    const picker = builtinFieldKindRegistry.get('ownerId')!;
     const plain = fields.find(f => f.name === '@ownerId')!;
     const remote = fields.find(f => f.name === '@ownerPicked')!;
 
@@ -189,14 +191,14 @@ describe('metadata field kinds', () => {
     });
     expect(picker.emptyValue(FilterOperator.OWNER_ID, plain)).toBe('');
     expect(
-      builtinFieldKinds
+      builtinFieldKindRegistry
         .get('documentId')!
         .emptyValue(FilterOperator.IDS, plain),
     ).toEqual([]);
   });
 
   it('asks for a picker only where candidates were declared', () => {
-    const owner = builtinFieldKinds.get('ownerId')!;
+    const owner = builtinFieldKindRegistry.get('ownerId')!;
 
     expect(
       owner.editor(
@@ -213,7 +215,7 @@ describe('metadata field kinds', () => {
   });
 
   it('collects several ids in one input for the plural operator', () => {
-    const document = builtinFieldKinds.get('documentId')!;
+    const document = builtinFieldKindRegistry.get('documentId')!;
     const field = fields.find(f => f.name === '@id')!;
 
     expect(document.editor(FilterOperator.IDS, field)).toEqual({
@@ -236,7 +238,7 @@ describe('metadata field kinds', () => {
       describeFilter(
         fields,
         tree({ field, operator, value }),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       ).map(item => item.text),
     ).toEqual([want]);
   });
@@ -251,7 +253,7 @@ describe('metadata field kinds', () => {
             operator: FilterOperator.OWNER_ID,
             value: 42,
           }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['filter.value.expected-id']);
@@ -273,7 +275,7 @@ describe('metadata field kinds', () => {
               ],
             },
           }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['filter.value.expects-one']);
@@ -291,7 +293,7 @@ describe('metadata field kinds', () => {
               operator: FilterOperator.IDS,
               value: value as never,
             }),
-            builtinFieldKinds,
+            builtinFieldKindRegistry,
           ),
         ),
       ).toEqual(['filter.value.expected-id-list']);
@@ -301,7 +303,7 @@ describe('metadata field kinds', () => {
   it('summarises a value it should never have been given', () => {
     // `describe` runs on whatever the leaf holds. Validation refuses a bare
     // number, but a summary line must not answer with `[object Object]`.
-    const kind = builtinFieldKinds.get('ownerId')!;
+    const kind = builtinFieldKindRegistry.get('ownerId')!;
     const field = fields.find(entry => entry.name === '@ownerId')!;
 
     expect(
@@ -312,7 +314,7 @@ describe('metadata field kinds', () => {
           value: 7,
         },
         field,
-        kinds: builtinFieldKinds,
+        kinds: builtinFieldKindRegistry,
       }).text,
     ).toBe('Created by 7');
     expect(
@@ -323,7 +325,7 @@ describe('metadata field kinds', () => {
           value: { a: 1 },
         },
         field,
-        kinds: builtinFieldKinds,
+        kinds: builtinFieldKindRegistry,
       }),
     ).toMatchObject({ text: 'Created by', value: { kind: 'blank' } });
   });
@@ -341,7 +343,7 @@ describe('metadata field kinds', () => {
             operator: FilterOperator.OWNER_ID,
             value: { items: [{ id: '   ', label: 'Ada' }] },
           }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['filter.value.expected-id']);
@@ -355,7 +357,7 @@ describe('metadata field kinds', () => {
             operator: FilterOperator.IDS,
             value: ['o-1', '  '],
           }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['filter.value.expected-id-list']);
@@ -371,10 +373,12 @@ describe('metadata field kinds', () => {
       value: [],
     };
     expect(
-      errors(validateFilter(fields, tree(leaf), builtinFieldKinds)),
+      errors(validateFilter(fields, tree(leaf), builtinFieldKindRegistry)),
     ).toEqual([]);
     expect(compile(leaf)).toEqual({ op: FilterOperator.MATCH_ALL });
-    expect(describeFilter(fields, tree(leaf), builtinFieldKinds)).toEqual([]);
+    expect(
+      describeFilter(fields, tree(leaf), builtinFieldKindRegistry),
+    ).toEqual([]);
   });
 
   /**
@@ -385,7 +389,7 @@ describe('metadata field kinds', () => {
    * is reported as an error the moment it is added.
    */
   const starting = fields.flatMap(field => {
-    const kind = builtinFieldKinds.get(field.kind)!;
+    const kind = builtinFieldKindRegistry.get(field.kind)!;
     return kind.operators.map(
       operator =>
         [field.name, operator, kind.emptyValue(operator, field)] as [
@@ -401,10 +405,12 @@ describe('metadata field kinds', () => {
     (field, operator, value) => {
       const leaf = { field, operator, value };
       expect(
-        errors(validateFilter(fields, tree(leaf), builtinFieldKinds)),
+        errors(validateFilter(fields, tree(leaf), builtinFieldKindRegistry)),
       ).toEqual([]);
       expect(compile(leaf)).toEqual({ op: FilterOperator.MATCH_ALL });
-      expect(describeFilter(fields, tree(leaf), builtinFieldKinds)).toEqual([]);
+      expect(
+        describeFilter(fields, tree(leaf), builtinFieldKindRegistry),
+      ).toEqual([]);
     },
   );
 
@@ -419,7 +425,7 @@ describe('metadata field kinds', () => {
       // a store may hold `null` where the editor would have written `''`.
       const leaf = { field, operator, value };
       expect(
-        errors(validateFilter(fields, tree(leaf), builtinFieldKinds)),
+        errors(validateFilter(fields, tree(leaf), builtinFieldKindRegistry)),
       ).toEqual([]);
       expect(compile(leaf)).toEqual({ op: FilterOperator.MATCH_ALL });
     },
@@ -428,7 +434,7 @@ describe('metadata field kinds', () => {
   it('offers no plural operator where Wow has none', () => {
     for (const name of ['@tenantId', '@ownerId', '@spaceId']) {
       const field = fields.find(entry => entry.name === name);
-      const kind = builtinFieldKinds.get(field!.kind);
+      const kind = builtinFieldKindRegistry.get(field!.kind);
       expect(kind?.operators).toHaveLength(1);
     }
   });
@@ -436,7 +442,7 @@ describe('metadata field kinds', () => {
   it('offers no presence operators', () => {
     // `IS_NULL` carries a field name, and these kinds' names are labels
     // rather than paths; one leaf must not mean both.
-    const kind = builtinFieldKinds.get('ownerId');
+    const kind = builtinFieldKindRegistry.get('ownerId');
     expect(kind?.operators).not.toContain(FilterOperator.IS_NULL);
   });
 });

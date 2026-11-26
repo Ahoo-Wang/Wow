@@ -98,7 +98,7 @@ class RunWaitsTest {
         check(entry.version != failAt) { "o-1@$failAt fails alone" }
     }
     private val registry = WaitRegistry()
-    private val origin = Origin("node-1", "127.0.0.1:9090", "shop")
+    private val origin = Origin("shop", "node-1", "127.0.0.1:9090")
     private val signals = LocalSignalSender(origin.node, registry)
     private val runtime = SubscriptionRuntime(
         "shop",

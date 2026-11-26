@@ -115,11 +115,12 @@ class ConfigurationReadersTest {
     private companion object {
         const val REPOSITORY_ROOT = "wow-test.repository.root"
 
-        /** The configuration keys a build may set for its tests as system properties, each with its reason. */
-        val RUNTIME_KEYS: Map<String, String> = mapOf(
-            "wow.internal.host" to "the internal port's host, which the servers' and the quickstart's tests bind to " +
-                "the loopback: a configuration key, which the host knows",
-        )
+        /**
+         * The configuration keys a build may set for its tests as system properties, each with its reason: none since
+         * the platform services' local runs stopped setting `wow.internal.host`, a development node binding the loopback
+         * by itself (#7057).
+         */
+        val RUNTIME_KEYS: Map<String, String> = emptyMap()
 
         /** The files that may, each with its reason. */
         val ALLOWED: Map<String, String> = mapOf(
@@ -127,7 +128,7 @@ class ConfigurationReadersTest {
                 "a provider's own settings, `wow.<type>.*` and `wow.stores.<name>.*`, handed to it as a map: the " +
                 "settings its provider declares, which no properties bean knows",
             "extensions/cosid/src/main/kotlin/me/ahoo/wow/cosid/WowCosIdAutoConfiguration.kt" to
-                "module imports no Spring Boot (D118): it reads its key, CosIdProperties holding the one default",
+                "module imports no Spring Boot (D118): it reads its key, WowCosIdProperties holding the one default",
             "extensions/cocache/src/main/kotlin/me/ahoo/wow/cocache/WowCoCacheAutoConfiguration.kt" to
                 "module imports no Spring Boot (D118): it reads its keys, WowCoCacheProperties holding the defaults",
         )

@@ -39,8 +39,9 @@ import {
 } from '../filter/index.js';
 import { kanbanShapeIssues, validateKanban } from './kanban.js';
 
+/** Options of `validateRecord`: the limits to hold the config to. */
 export interface ValidateRecordOptions {
-  limits?: RuntimeLimits;
+  limits?: Partial<RuntimeLimits>;
 }
 
 /**
@@ -57,7 +58,7 @@ export function validateRecord(
   kinds: FieldKindRegistry,
   options: ValidateRecordOptions = {},
 ): Issue[] {
-  const limits = options.limits ?? DEFAULT_RUNTIME_LIMITS;
+  const limits = { ...DEFAULT_RUNTIME_LIMITS, ...options.limits };
   const capability = definition.record;
   if (!capability)
     return [
@@ -179,7 +180,7 @@ function validateShape(config: RecordViewConfig): Issue[] {
       config.summaries,
       ['summaries'],
       'record.summaries.invalid',
-      entry => namesField(entry) && typeof entry.fn === 'string',
+      entry => namesField(entry) && typeof entry.function === 'string',
     );
   issues.push(...kanbanShapeIssues(config));
   return issues;
@@ -424,12 +425,12 @@ function validateSummaries(
     const issues: Issue[] = [];
     // One cell per field and function: the pair is what `summaryAlias` names,
     // and two cells sharing an alias would read back the same one number.
-    const cell = `${summary.field}\u0000${summary.fn}`;
+    const cell = `${summary.field}\u0000${summary.function}`;
     if (seen.has(cell))
       issues.push(
         issue('record.summary.duplicate', path, {
           field: summary.field,
-          fn: summary.fn,
+          fn: summary.function,
         }),
       );
     seen.add(cell);
@@ -446,13 +447,13 @@ function validateSummaries(
     // and the field's own values say which of those mean anything: a column
     // of moments offers its earliest and its latest, never their sum
     // (`summaryFunctionsOf`).
-    return summaryFunctionsOf(field).includes(summary.fn)
+    return summaryFunctionsOf(field).includes(summary.function)
       ? issues
       : [
           ...issues,
           issue('record.summary.unsupported', [...path, 'fn'], {
             field: field.name,
-            fn: summary.fn,
+            fn: summary.function,
           }),
         ];
   });

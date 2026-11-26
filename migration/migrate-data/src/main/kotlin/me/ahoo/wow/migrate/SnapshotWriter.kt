@@ -114,7 +114,7 @@ internal class SnapshotWriter(
     private val codec: EventCodec = EventCodec(),
     private val report: (String) -> Unit = {},
     /** The most streams one stamp of an instance's history writes. */
-    private val batch: Int = AccessStampOptions.DEFAULT_BATCH,
+    private val batch: Int = AccessStampOptions.DEFAULT_STAMP_BATCH,
 ) {
     /**
      * Writes the snapshots of [aggregate]'s instances not yet written, and marks its snapshot writing complete, unless

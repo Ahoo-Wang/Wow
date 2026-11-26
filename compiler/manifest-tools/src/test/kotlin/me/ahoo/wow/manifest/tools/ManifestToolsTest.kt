@@ -513,13 +513,15 @@ class ManifestToolsTest {
     @Test
     fun `a classes directory should carry its peer contract`() {
         val classes = File(directory, "api-classes")
-        ManifestJson.contract(classes).assert().isNull()
+        val unexpected: (String) -> Unit = { error("No contract here holds a newer Wow's value: $it") }
+        ManifestJson.contract(classes, unexpected).assert().isNull()
         ManifestJson.write(fragment("shop", CartState::class.java), File(classes, PeerContracts.RESOURCE))
-        ManifestJson.contract(classes)!!.manifest.contexts.single().name.assert().isEqualTo("shop")
+        ManifestJson.contract(classes, unexpected)!!.manifest.contexts.single().name.assert().isEqualTo("shop")
         // A jar without one, or what is neither a directory nor a jar, carries none.
-        ManifestJson.contract(jar("billing", fragment("billing", AccountState::class.java))).assert().isNull()
-        ManifestJson.contract(File(directory, "notes.txt").apply { writeText("") }).assert().isNull()
-        ManifestJson.contract(contractJar("shop-api", fragment("shop", CartState::class.java)))!!
+        ManifestJson.contract(jar("billing", fragment("billing", AccountState::class.java)), unexpected).assert()
+            .isNull()
+        ManifestJson.contract(File(directory, "notes.txt").apply { writeText("") }, unexpected).assert().isNull()
+        ManifestJson.contract(contractJar("shop-api", fragment("shop", CartState::class.java)), unexpected)!!
             .manifest.contexts.single().name.assert().isEqualTo("shop")
     }
 

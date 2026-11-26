@@ -100,14 +100,14 @@ export declare function ViewHost(input: ViewHostProps): import('react').JSX.Elem
 | `route` | 这份定义的视图或仪表盘在宿主地址里的位置：打开 `instanceId` 的页面路径——`null` 表示没人保存过的视图（分组上的追问、仪表盘自己的分析），它在页面的缺省视图上打开并整体交接。引擎把路径连同页面打开所需的东西（`ViewRoute.state`）交给路由器或 `navigate`；没有路由的定义原样交出。`useViewNavigation` 问链接时不带 `target` |
 | `actions` | 它的记录能接受的命令，用 [`actions()`](#api-actions) 声明：引擎把它们放到记录出现的每个地方——工作台的行、选择、详情，以及建在它上面的仪表盘记录面板——先问、几条几条地执行、再报告结果 |
 | `slots` | 宿主自己的标记，画在声明的操作之后——视图上方一个、选择上一个、每行一个：声明说不了的东西的出口，比如一个外链 |
-| `reading` | 一条记录怎样读：详情自己的读法、标题、分节、谁握着打开哪条记录——即 `DataWorkbench` 的 `record.detail`，也是 `EmbeddedView` 的 `detail` 打开时用的 |
+| `detail` | 一条记录怎样读：详情自己的读法、标题、分节、谁握着打开哪条记录——即 `DataWorkbench` 的 `record.detail`，也是 `EmbeddedView` 的 `detail` 打开时用的 |
 
 ```ts
 export declare function bind(definitionId: string, options?: ViewBindingOptions): ViewBinding;
 
 export interface ViewBindingOptions {
   actions?: RecordActions;
-  reading?: RecordDetailOptions;
+  detail?: RecordDetailOptions;
   route?(instanceId: string | null, target?: RoutedTarget): string;
   slots?: RecordActionSlots;
 }

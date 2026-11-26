@@ -31,6 +31,8 @@ rows.map { it.state.price }.assert().containsExactly(BigDecimal("5.00"), BigDeci
 ```
 
 - A `filter { }` block's conditions combine with `and`; `and { }`, `or { }`, `nor { }` and `not { }` nest. A value is compared as the JSON it writes as, so an enum matches its name.
+- `"state".path { }` names its block's fields under `state`, the same way in a `filter`, a `sort` and a `projection`: `sort { "state".path { "price".asc() } }`. A field already under the path, such as `ProductStateProperties.STATE__PRICE`, stays as it is.
+- `beforeNow` and `afterNow` compare a field with the server's clock plus a `kotlin.time.Duration`: `"state.createdAt".afterNow((-30).minutes)` is within the last half hour.
 - `ProductStateProperties.STATE__PRICE` is `state.price`; the system fields (`AGGREGATE_ID`, `OWNER_ID`, `VERSION`, `LAST_EVENT_TIME`, `ACCESS`, …) come from `SnapshotProperties`, and `SnapshotProperties.access(name)` is the access attribute `access.<name>`.
 - `snapshots<ProductState>()` decodes each row as a `Snapshot<ProductState>`: its `ref`, `version`, `scope`, `access` and typed `state`. A query that projects fields cannot fill a typed row: run it through `dynamic<Map<String, Any?>>()` instead.
 - `of(caller)` runs the query as that caller sees the model; `trusted()` as trusted code ([Read State](./reading-state#in-kotlin)).
@@ -149,7 +151,9 @@ A few more annotations of `me.ahoo.wow.api.query.annotation` tell the query mode
 | `@QueryText` | Prose a reader searches by words, such as a name or a description: a `search` may name it, and one that names no field reads it ([on Elasticsearch](../operate/elasticsearch#full-text-search)) |
 | `@Sensitive` | A string masked in every result: `DISPLAY` may still be filtered and sorted, `CONFIDENTIAL` never is |
 
-A masked field is masked for every caller, in queries, state reads, event queries and traces alike, in the warehouse's catalog, and in the [state view cache](./extensions/cocache). It is masked where Wow returns it as a read and where Wow publishes it to other contexts, not where Wow stores it: [Where masking stops](#where-masking-stops). A `DISPLAY` value has two exceptions, each said in so many words: the service's own read of it ([below](#read-a-display-value-raw)), and a published stream whose owner declares that it reveals it ([Where masking stops](#where-masking-stops)).
+A level a later 10.x release adds protects no more than masking: a level that protects more than `CONFIDENTIAL` comes only with a major version, since every node would have to read it first. So a node that meets a level it does not know, in another service's catalog row say, treats it as `CONFIDENTIAL`, masked and never compared, and never protects it less than the level asks.
+
+A masked field is masked for every caller, in queries, state reads, event queries and traces alike, in the warehouse's catalog, and in the [state view cache](./extensions/cocache). It is masked where Wow returns it as a read and where Wow publishes it to other contexts, not where Wow stores it: [Where masking stops](#where-masking-stops). A `DISPLAY` value has two exceptions, each said in so many words: the service's own read of it ([below](#read-a-display-value-raw)), and a published stream whose owner declares that it reveals it ([Where masking stops](#where-masking-stops)). A schedule's command, which its event `wow.schedule.ScheduleSet` holds until the command is sent, is masked as a body of its command type is, by that command's schema, a peer's contract's for a command of another context ([Scheduling](./scheduling)).
 
 ### Read a `DISPLAY` value raw {#read-a-display-value-raw}
 

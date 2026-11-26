@@ -55,7 +55,7 @@ class SoakDatabase(private val connection: Connection, val context: String) {
 
     /** The parked entries, keyed by subscription and aggregate. */
     fun parked(): Map<String, Map<String, Any?>> = query(
-        "SELECT subscription, context, aggregate_name, tenant_id, aggregate_id, from_version, reason, failed_at " +
+        "SELECT subscription, context, aggregate, tenant_id, aggregate_id, from_version, reason, failed_at " +
             "FROM wow_failure_ledger",
     ) { row ->
         val key = "${row.getString(1)}|${row.getString(2)}.${row.getString(3)}|${row.getString(5)}"
@@ -173,7 +173,7 @@ class SoakDatabase(private val connection: Connection, val context: String) {
     ) { row ->
         val events = json.readTree(row.getString(4)).values().map { event ->
             val name = event["name"].asString()
-            Event(name.substringAfterLast('.'), event["payload"], system = name.startsWith(SYSTEM_PREFIX))
+            Event(name.substringAfterLast('.'), event["body"], system = name.startsWith(SYSTEM_PREFIX))
         }
         Commit(row.getString(1), row.getInt(2), row.getString(3), events)
     }.groupBy { it.aggregateId }

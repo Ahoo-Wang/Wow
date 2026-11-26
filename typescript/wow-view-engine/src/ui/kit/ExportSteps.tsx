@@ -20,7 +20,7 @@
 import { useId, type RefObject } from 'react';
 import type {
   RecordExportController,
-  RecordExportScope,
+  RecordExportExtent,
 } from '../../react/index.js';
 import { LineAlert } from './alerts.js';
 import { AlertTitle } from '../components/alert.js';
@@ -35,7 +35,7 @@ import {
 } from '../components/field.js';
 import { Progress } from '../components/progress.js';
 import { RadioGroup, RadioGroupItem } from '../components/radio-group.js';
-import type { ExportOffer, ExportWindowProps } from './ExportDialog.js';
+import type { ExportOffer, ExportWindowOptions } from './ExportDialog.js';
 import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
 import { conditionsText } from './summary.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
@@ -82,11 +82,11 @@ export function ChooseStep({
   holds,
   scope,
   onScope,
-}: ExportWindowProps & {
+}: ExportWindowOptions & {
   /** The name this opening settled on; see `ExportOffer.nameFile`. */
   fileName: string;
-  scope: RecordExportScope;
-  onScope(scope: RecordExportScope): void;
+  scope: RecordExportExtent;
+  onScope(scope: RecordExportExtent): void;
 }) {
   const messages = useViewMessages();
   const display = useSurfaceDisplay();
@@ -187,7 +187,7 @@ function ScopeChoice({
   label,
 }: {
   id: string;
-  value: RecordExportScope;
+  value: RecordExportExtent;
   label: string;
 }) {
   return (
@@ -291,7 +291,7 @@ export function ExportActions({
 }: {
   phase: ExportPhase;
   control: RecordExportController;
-  scope: RecordExportScope;
+  scope: RecordExportExtent;
   /** The name this opening settled on; see `ExportOffer.nameFile`. */
   fileName: string;
   primary: RefObject<HTMLButtonElement | null>;

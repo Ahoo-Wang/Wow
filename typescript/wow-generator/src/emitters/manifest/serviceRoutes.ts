@@ -13,9 +13,17 @@
 
 import type { ModuleSet } from '../../emit/moduleBuilder';
 import type { ContextModel } from '../../manifest/model';
-import { classMembers, ROUTES_CLIENT_MEMBERS } from '../../manifest/names';
+import {
+  classMembers,
+  memberName,
+  ROUTES_CLIENT_MEMBERS,
+} from '../../manifest/names';
 import type { ServiceRouteModel } from '../../manifest/serviceRoutes';
-import { quoteStringLiteral, resolvePropertyName } from '../../naming/naming';
+import {
+  quoteStringLiteral,
+  resolvePropertyName,
+  toIdentifier,
+} from '../../naming/naming';
 import {
   addStatement,
   doc,
@@ -59,9 +67,10 @@ export function emitServiceRoutes(
         .flatMap(type => type.match(/[A-Za-z_$][A-Za-z0-9_$]*/g) ?? []),
     ),
   );
-  // A route `routes` takes `routesRoute`, apart from the class's own members.
+  // Named as a command's method is (`export-orders` is `exportOrders`); a
+  // route `routes` takes `routesRoute`, apart from the class's own members.
   const names = classMembers(
-    context.routes.map(route => route.name),
+    context.routes.map(route => toIdentifier(memberName(route.name))),
     ROUTES_CLIENT_MEMBERS,
     'Route',
   );

@@ -24,7 +24,7 @@
 #   cluster.sh services <arm>     the services in waves, each a release of the wow-service chart (deploy/helm) with the
 #                                 values its build generated and its arm's values files (services/), until ready; those
 #                                 of KUSTOMIZED instead by kubectl apply -k of the base their build renders
-#                                 (generateWowManifests) with the same values, and an overlay (overlays/)
+#                                 (generateWowKubernetes) with the same values, and an overlay (overlays/)
 #   cluster.sh dns <file>         what CoreDNS answers for the internal ports' headless Services (SRV and A), for D305
 #   cluster.sh diagnostics <dir>  every pod's description and log (the previous container's too), the events, and
 #                                 each JVM's threads
@@ -210,7 +210,7 @@ kustomized() {
   local name=$1 namespace
   shift
   namespace=$(kubectl config view --minify -o jsonpath='{..namespace}')
-  "$root/gradlew" -p "$root" --quiet ":$name-server:generateWowManifests" \
+  "$root/gradlew" -p "$root" --quiet ":$name-server:generateWowKubernetes" \
     -Peshop.kubernetes.namespace="${namespace:-default}" -Peshop.kubernetes.values="$(IFS=,; echo "$*")"
   kubectl apply --validate=strict -k "$here/overlays/$name"
 }

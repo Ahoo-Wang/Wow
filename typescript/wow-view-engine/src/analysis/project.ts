@@ -24,6 +24,7 @@ import {
   type RuntimeLimits,
   AggregationGroupTypes,
   AggregationMetricTypes,
+  DEFAULT_RUNTIME_LIMITS,
 } from '../model/index.js';
 import { inCurrency, joinCurrencies } from '../model/currency.js';
 import type { FieldKindRegistry } from '../filter/index.js';
@@ -56,6 +57,10 @@ import {
   type ColumnCurrency,
 } from './columns.js';
 
+/**
+ * An analysis result shaped for the screen: its columns, rows and totals, and
+ * the chart data when the view is a chart.
+ */
 export interface AnalysisProjection {
   /**
    * The table's columns: every alias the result holds, those `table.columns`
@@ -169,6 +174,18 @@ function wholeOf(row: RecordData, config: AnalysisViewConfig): RecordData {
   );
 }
 
+/** How `projectAnalysis` reads a result, beside the result itself. */
+export interface ProjectAnalysisOptions {
+  /** The totals row's answer, when the config asked for one. */
+  totals?: readonly RecordData[];
+  /** The field kinds a metric's own condition is read with. */
+  kinds?: FieldKindRegistry;
+  /** The engine's zone and the moment the question was asked. */
+  context?: ShapeContext;
+  /** The runtime's limits the query was compiled under, over `DEFAULT_RUNTIME_LIMITS`. */
+  limits?: Partial<RuntimeLimits>;
+}
+
 /**
  * Turns aggregation rows into table columns plus whatever the chart family
  * needs. A DERIVED metric is an ordinary column: the backend computed it.
@@ -189,11 +206,11 @@ export function projectAnalysis(
   definition: DataViewDefinition,
   config: AnalysisViewConfig,
   result: readonly RecordData[],
-  totals?: readonly RecordData[],
-  kinds?: FieldKindRegistry,
-  context: ShapeContext = {},
-  limits?: Pick<RuntimeLimits, 'maxAnalysisRows'>,
+  options: ProjectAnalysisOptions = {},
 ): AnalysisProjection {
+  const { totals, kinds } = options;
+  const context = options.context ?? {};
+  const limits = { ...DEFAULT_RUNTIME_LIMITS, ...options.limits };
   const declared = new Map(
     config.table.columns.map(column => [column.alias, column]),
   );
@@ -283,7 +300,7 @@ export function projectAnalysis(
       context.timeZone ?? hostTimeZone(),
       context.now,
     );
-    return ongoing ? { ongoing: ongoing.at } : {};
+    return ongoing ? { unfinished: ongoing.at } : {};
   };
   const settledTotals = totals && settle(totals);
   const overall =

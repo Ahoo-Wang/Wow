@@ -24,7 +24,7 @@ The port's conformance suite runs over this package against the service in `type
 
 ```
 src/
-  index.ts          — the entry: WowViewStore, WowDatasetWordings and their options, WowViewStoreErrorCodes, SHARED_SCOPE, SYSTEM_SCOPE, datasetCatalogOf, the reserved ids, by name
+  index.ts          — the entry: WowViewStore, WowDatasetWordings and their options, WowViewStoreErrorCodes, datasetCatalogOf; the reserved owners' ids and scopes stay inside
   wowViewStore.ts   — the store: the owner as the audience (`Wow-Scope`), the list across audiences, the reads by id, the system views' versions, the preferences
   viewWrites.ts     — ViewWrites: one instance write by request id and If-Match, from where the view is, the move waited for (ViewAudienceSaga), read back by state version; a stale one refused with the view as it is
   datasetWordings.ts — WowDatasetWordings: the tenant's wording over its datasets (view engine D86), ids derived by the service
@@ -48,7 +48,7 @@ scripts/size-budget.json   — the entry's gzip regression ceiling (typescript/A
 
 ## Boundaries
 
-- `WowViewStoreOptions` is `{ fetcher, permissions? }` only. The tenant, the owner, the application and the space come from the fetcher's interceptors (a host's own, or CoSec's); never add options for them.
+- `WowViewStoreOptions` is wow-client's `WowClientOptions` (`fetcher`, required here, `basePath`, `defaultWaitMs`) with `permissions?` and `pageSize?`; `WowDatasetWordingsOptions` is `WowClientOptions` with the fetcher required. The tenant, the owner, the application and the space come from the fetcher's interceptors (a host's own, or CoSec's); never add options for them.
 - No path names a tenant or an owner; the store sends `Wow-Scope` only to act as a reserved owner (`(shared)`, or `(system)` of `(platform)`), never as a user.
 - Read the service by its problem code first (`errors.ts`); the HTTP status is the fallback for an answer without a known code. Every rejection of a port method is a `ViewStoreError` (`guard`).
 - The `ViewStoreError` is the engine's: the view engine is a peer, never bundled (`verify-package.mjs`).

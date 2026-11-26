@@ -34,13 +34,13 @@ import me.ahoo.wow.spi.store.StorePool
 @WowSpi
 interface StoreQueries {
     /** The snapshot queries of the store, opened with [options], or null when its snapshots are not queried. */
-    fun snapshots(options: StoreQueryOptions): SnapshotQueries? = null
+    fun snapshots(options: StoreQueryOptions): SnapshotStoreQueries? = null
 
     /**
-     * The `events` queries of the store's logs, opened with [options], or null when they are not queried. When they
-     * are [EventQueries], the host manages the indexes of the logs' access attributes too.
+     * The `events` queries of the store's logs, opened with [options], or null when they are not queried; the host
+     * manages the indexes of the logs' access attributes when they do ([EventStoreQueries.managesIndexes]).
      */
-    fun events(options: StoreQueryOptions): QueryBindings<AggregateType>? = null
+    fun events(options: StoreQueryOptions): EventStoreQueries? = null
 }
 
 /**
@@ -90,7 +90,7 @@ object StoreQueryBounds {
  * aggregate's storage and [manageIndexes] them at startup.
  */
 @WowSpi
-interface SnapshotQueries : QueryBindings<AggregateType> {
+interface SnapshotStoreQueries : QueryBindings<AggregateType> {
     /** Whether it manages the indexes ([manageIndexes]). */
     val managesIndexes: Boolean get() = false
 
@@ -112,7 +112,7 @@ interface SnapshotQueries : QueryBindings<AggregateType> {
  * served by an index rather than a scan of the log.
  */
 @WowSpi
-interface EventQueries : QueryBindings<AggregateType> {
+interface EventStoreQueries : QueryBindings<AggregateType> {
     /** Whether it manages the indexes ([manageIndexes]). */
     val managesIndexes: Boolean get() = false
 

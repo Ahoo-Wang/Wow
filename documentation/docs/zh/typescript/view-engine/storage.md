@@ -33,7 +33,7 @@ flowchart LR
 
 ## 内存，或一个浏览器 {#in-memory-or-in-one-browser}
 
-`MemoryViewStore` 严守规则，而不是图方便：过期的 revision 会冲突，重放的请求 ID 返回第一次的结果，列表的顺序以及对标题和配置的限制都与服务端相同。对它正确的代码，对真实的后端也表现一致。下面的例子预置了一个存储的系统视图，并且只允许管理员编辑系统视图：
+`MemoryViewStore` 严守规则，而不是图方便：过期的 revision 会冲突，重放的请求 ID 返回第一次的结果，列表的顺序以及对定义 ID、标题、配置和偏好的检查都与服务端相同，不是它签发的列表游标以 `INVALID` 拒绝，什么也不改变的写入（改成视图已有的标题、与已存储相同的偏好）按原样回答、不耗费 revision，因为服务端对它不记录任何东西。对它正确的代码，对真实的后端也表现一致。下面的例子预置了一个存储的系统视图，并且只允许管理员编辑系统视图：
 
 <!-- typecheck: file=memoryStore.ts -->
 <!-- typecheck-context
@@ -95,7 +95,7 @@ Wow 的视图存储服务 `platform/view-store` 把保存的视图、偏好和�
 
 ### 接上它 {#wire-it}
 
-`WowViewStore` 接收一个 fetcher，以及可选的 `permissions`。**它不接收租户、所有者、用户或应用**：fetcher 的拦截器携带是谁在请求，就像应用的其他每个请求一样。服务从调用方获取租户和所有者，并把每个视图放在请求获得授权的那个应用里。
+`WowViewStore` 与每个 Wow 客户端一样接收 wow-client 的选项（一个 fetcher，以及可选的网关 `basePath` 与服务的 `defaultWaitMs`），以及可选的 `permissions`。**它不接收租户、所有者、用户或应用**：fetcher 的拦截器携带是谁在请求，就像应用的其他每个请求一样。服务从调用方获取租户和所有者，并把每个视图放在请求获得授权的那个应用里。
 
 <!-- typecheck: file=viewStore.ts -->
 <!-- typecheck-context
@@ -183,13 +183,13 @@ export const store = new WowViewStore({ fetcher, permissions });
 
 ### 很长的列表 {#long-lists}
 
-引擎一页一页地读一个定义的已保存视图，至多读 `RuntimeLimits.listedViews` 个（缺省 1000）。超过的定义列出前 1000 个，视图列表与「管理视图」写明「只列出前 1000 个视图；其余的凭链接仍能打开」：上限之外的视图仍能从它的地址或仪表盘打开。定义的视图更多的宿主调高这个上限（`new ViewEngine({ limits: { listedViews: 5000 } })`）。
+引擎一页一页地读一个定义的已保存视图，至多读 `RuntimeLimits.maxListedViews` 个（缺省 1000）。超过的定义列出前 1000 个，视图列表与「管理视图」写明「只列出前 1000 个视图；其余的凭链接仍能打开」：上限之外的视图仍能从它的地址或仪表盘打开。定义的视图更多的宿主调高这个上限（`new ViewEngine({ limits: { maxListedViews: 5000 } })`）。
 
 ### 写入与重试 {#writes-and-retries}
 
 - 每次写入都把端口的请求 ID 作为 `Wow-Request-Id`、把 revision 作为 `If-Match` 发送，并等待快照。服务对请求 ID 去重（包括创建），所以重试得到的是第一次尝试的结果。
 - 过期的 revision 是 `CONFLICT`，并带上视图现在的样子。
-- 服务对一个定义最多列出 1,000 个存储的系统视图；共享与个人视图分页读取，总数最多到 `listedViews`。超出的视图仍可按 id 读取。
+- 服务对一个定义最多列出 1,000 个存储的系统视图；共享与个人视图分页读取，总数最多到 `maxListedViews`。超出的视图仍可按 id 读取。
 
 ### 错误 {#errors}
 
@@ -214,6 +214,7 @@ export const store = new WowViewStore({ fetcher, permissions });
 - 守住两条规则：过期的 revision 抛出带当前实例的 `CONFLICT`；重复的请求 ID 返回第一次的结果。
 - `list` 一页一页地答：`{ items, nextCursor }`，第一页不带 `cursor`，之后每页带上一页的 `nextCursor`，最后一页之后为 `null`。顺序跨页不变（系统、共享、个人，各按最早创建的在前）。每个读都收 `{ signal }`，每个写都收 `{ requestId, signal }`；把 signal 交给请求。
 - 绝不签发以 `system:` 开头的 id。
+- 不是你签发的列表游标或 revision 以 `INVALID` 拒绝：它是格式错误，而不是过期。
 - 把后端的失败映射到引擎认识的错误码：
 
 <!-- typecheck: file=storeErrors.ts -->

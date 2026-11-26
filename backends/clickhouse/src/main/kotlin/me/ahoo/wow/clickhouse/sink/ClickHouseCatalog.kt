@@ -41,7 +41,7 @@ data class CatalogReference(val path: String, val context: String, val aggregate
  *   `TENANT`).
  * - [tenantColumn], [ownerColumn], [spaceColumn]: the scope's columns; the owner's is empty for a tenant's resource.
  * - [sensitive]: each sensitive value by its path from the column that holds it (`state.customer.phone`,
- *   `payload.card`, a flat column's name), an event's by its name and revision too.
+ *   `body.card`, a flat column's name), an event's by its name and revision too.
  * - [references]: each value that refers to an aggregate, by path.
  * - [eventRevisions]: the revision of each event of the aggregate.
  * - [columnsHash]: [ClickHouseCatalog.columnsHash] of the columns the Sink expects the table to have.
@@ -105,11 +105,17 @@ object ClickHouseCatalog {
     /** The format of its rows; raised only by an incompatible change. */
     const val FORMAT: Int = 1
 
-    /** The `access` of an aggregate read by an access policy of its own: no reader but its service decides its rows. */
-    const val ACCESS_POLICY: String = "POLICY"
+    /**
+     * The `access` of an aggregate read by an access policy of its own: no reader but its service decides its rows. In
+     * lower case, as every value Wow stores of a closed set is.
+     */
+    const val ACCESS_POLICY: String = "policy"
 
-    /** The `access` of an aggregate read by the default rule: its tenant, owner and space columns. */
-    const val ACCESS_DEFAULT: String = "DEFAULT"
+    /**
+     * The `access` of an aggregate read by the default rule: its tenant, owner and space columns. The one value a
+     * reader takes for ungoverned: any other, unknown or misspelled, reads as a policy's.
+     */
+    const val ACCESS_DEFAULT: String = "default"
 
     /** The columns of `wow_catalog`, in order, with their ClickHouse types. */
     val COLUMNS: List<ClickHouseColumn> = listOf(

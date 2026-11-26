@@ -213,7 +213,7 @@ class ExecutorTest {
         val gate = CompletableDeferred<Unit>().also { gates["wd"] = it }
         val held = async(Dispatchers.Default) { timed.execute(model, command("w", Hold("wd"))) }
         withTimeout(TIMEOUT_MS) { holding.computeIfAbsent("wd") { CompletableDeferred() }.await() }
-        val wait = WaitContext.of("wait-1", Origin("n", "a:1", "s"), emptyList(), deadline = 1_050)
+        val wait = WaitContext.of("wait-1", Origin("s", "n", "a:1"), emptyList(), deadline = 1_050)
         val queued = command("w", Add(5))
         val withdrawn = runCatching { timed.execute(model, queued, wait) }.exceptionOrNull()
         withdrawn.assert().isInstanceOf(CommandWithdrawnException::class.java)
@@ -223,7 +223,7 @@ class ExecutorTest {
         limit.inFlight.assert().isEqualTo(0)
         timed.activeLanes.assert().isEqualTo(0)
         // The withdrawn command never ran: the next one is at version 2, after the held one alone.
-        val later = WaitContext.of("wait-3", Origin("n", "a:1", "s"), emptyList(), deadline = 10_000)
+        val later = WaitContext.of("wait-3", Origin("s", "n", "a:1"), emptyList(), deadline = 10_000)
         val next = timed.execute(model, command("w", Add(1)), later)
         (next as CommandOutcome.Committed).stream.version.assert().isEqualTo(2)
     }
@@ -231,7 +231,7 @@ class ExecutorTest {
     @Test
     fun `a command whose lane is free runs even past its wait's deadline`(): Unit = runBlocking {
         val timed = Executor(Kernel(InMemoryEventLog()), clock = clockOf { 5_000 })
-        val wait = WaitContext.of("wait-2", Origin("n", "a:1", "s"), emptyList(), deadline = 1_000)
+        val wait = WaitContext.of("wait-2", Origin("s", "n", "a:1"), emptyList(), deadline = 1_000)
         timed.execute(model, command("free", Add(1)), wait).assert().isInstanceOf(CommandOutcome.Committed::class.java)
     }
 

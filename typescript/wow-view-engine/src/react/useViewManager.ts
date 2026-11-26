@@ -46,6 +46,10 @@ export type {
   ViewManagerAbilities,
 } from './manager/abilities.js';
 
+/**
+ * What `useViewManager` answers: the commands that rename, move, share, publish
+ * and delete saved views.
+ */
 export interface ViewManagerController {
   rename(id: string, title: string): Promise<boolean>;
   /**
@@ -151,12 +155,12 @@ export function useViewManager(
   definitionId: string,
   { list }: ViewManagerOptions,
 ): ViewManagerController {
-  const { all, items, permissions, reload } = list;
+  const { all, items, permissions, refresh } = list;
   const preferences = list.preferences.value;
   const { run, outcomes, pending, held, record, owns } = useCommandRunner(
     engine,
     definitionId,
-    reload,
+    refresh,
   );
   // What the moves already queued have submitted; see `move`.
   const optimistic = useRef<PendingOrder | null>(null);

@@ -11,11 +11,15 @@
  * limitations under the License.
  */
 
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   type AggregateType,
   CommandClient,
+  DatasetClient,
   EventQueryClient,
+  parseJson,
   SnapshotQueryClient,
   StateClient,
 } from '../src/index.js';
@@ -43,6 +47,30 @@ afterEach(() => {
 });
 
 describe('exact numbers through the clients (review R4-Q, Q-9)', () => {
+  it('reads a long larger than a number holds as json-values.md says the client reads it', () => {
+    // #7038: the page said "a bigint"; the client reads its exact text.
+    const page = (language: string) =>
+      readFileSync(
+        fileURLToPath(
+          new URL(
+            `../../../documentation/docs/${language}/reference/json-values.md`,
+            import.meta.url,
+          ),
+        ),
+        'utf8',
+      );
+    const read = parseJson('{"id":9007199254740993}', { id: true }) as {
+      id: unknown;
+    };
+    expect(read.id).toBe('9007199254740993');
+    expect(page('en')).toContain(
+      'the TypeScript client reads a `long`, a `BigInteger` and a `BigDecimal` as its exact text, a `string`',
+    );
+    expect(page('zh')).toContain('读作它的精确文本，在生成的类型中是 `string`');
+    for (const language of ['en', 'zh'])
+      expect(page(language), language).not.toMatch(/`bigint`。|as a `bigint`/);
+  });
+
   it('reads a state view and a snapshot page with their marked numbers as text', async () => {
     stubFetch(request =>
       request.url.endsWith('/state')
@@ -162,19 +190,32 @@ describe('exact numbers through the clients (review R4-Q, Q-9)', () => {
     const { requests } = stubFetch(() => raw('{"status":"succeeded"}'));
     await new CommandClient(client(), {
       manifest: TEST_MANIFEST,
-      bodyNumbers: {
+      textNumbers: {
         'eshop-catalog.product.ChangeProductPrice':
           PRODUCT.textNumbers!.commands!.ChangeProductPrice,
       },
     }).wait({
       command: 'eshop-catalog.product.ChangeProductPrice',
       body: { price: '9007199254740993.10', note: '1.5' },
-      id: 'p1',
+      aggregateId: 'p1',
     });
     expect(requests[0]!.text).toBe(
       '{"price":9007199254740993.10,"note":"1.5"}',
     );
     expect(requests[0]!.headers.get('Content-Type')).toBe('application/json');
+  });
+
+  it('names the marks textNumbers wherever a client takes them, a dataset row included', async () => {
+    const marks = { amount: true } as const;
+    const { requests } = stubFetch(() =>
+      raw('[{"amount":12345678901234567.25}]'),
+    );
+    const rows = new DatasetClient(client()).dataset('shop', 'sales', marks);
+    expect(rows.textNumbers).toBe(marks);
+    expect(await rows.list({ filter: filter.matchAll() })).toEqual([
+      { amount: '12345678901234567.25' },
+    ]);
+    expect(requests[0]!.url).toContain('/wow/dataset/shop/sales/query');
   });
 
   it('reads with plain JSON.parse when the type marks nothing', async () => {

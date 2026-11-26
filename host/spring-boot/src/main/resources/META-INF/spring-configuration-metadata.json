@@ -25,7 +25,7 @@
   }, {
     "name" : "wow.cosec",
     "type" : "me.ahoo.wow.spring.boot.security.CoSecProperties",
-    "description" : "The keys wow-cosec reads (`wow.cosec.*`), bound here so they are checked and documented as the others are. Experimental in 10.0 with wow-cosec, which follows CoSec 8's pre-release: they may change within 10.x.",
+    "description" : "The keys wow-cosec reads (`wow.cosec.*`), bound here so they are checked and documented as the others are. Experimental in 10.0 with wow-cosec: they may change within 10.x until a 10.x minor release drops the marker.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.cosec.authorizer",
@@ -288,7 +288,7 @@
   }, {
     "name" : "wow.subscription.read-retry",
     "type" : "me.ahoo.wow.spring.boot.node.ReadRetryProperties",
-    "description" : "How a failing read of the log, or write of a store, is retried: until the node stops, the backoff growing for `error-after` (5) attempts, after which each failure is logged as an error and retried at `max-backoff`, so a long outage does not stop the subscription.",
+    "description" : "How a failing read of the log, or write of a store, is retried: until the node stops, the backoff growing for `error-after-attempts` (5) attempts, after which each failure is logged as an error and retried at `max-backoff`, so a long outage does not stop the subscription.",
     "sourceType" : "me.ahoo.wow.spring.boot.node.SubscriptionProperties"
   }, {
     "name" : "wow.subscription.retry",
@@ -420,6 +420,12 @@
     "sourceType" : "me.ahoo.wow.clickhouse.sink.ClickHouseSinkProvider",
     "defaultValue" : false
   }, {
+    "name" : "wow.clickhouse.sink.generation",
+    "type" : "java.lang.Integer",
+    "description" : "The generation of the Sink's subscriptions, 1 by default: raised, they start again as wow.clickhouse-sink-g<generation>.<aggregate>, new subscriptions, and write every published stream again from the beginning of the log, once the Sink's tables were dropped. Only raise it: a lower one resumes that generation's checkpoints.",
+    "sourceType" : "me.ahoo.wow.clickhouse.sink.ClickHouseSinkProvider",
+    "defaultValue" : 1
+  }, {
     "name" : "wow.clickhouse.sink.insert-interval",
     "type" : "java.time.Duration",
     "description" : "The least time between the starts of two inserts of one aggregate type's Sink on a node, unless batch-size records are waiting; the commits arriving meanwhile join the next insert. At most half the subscription's handler timeout; 0 inserts as often as one returns.",
@@ -542,9 +548,9 @@
   }, {
     "name" : "wow.dev-profiles",
     "type" : "java.util.Set<java.lang.String>",
-    "description" : "The profiles in which the node runs for development, its one statement: an address states nothing, so a node whose `wow.internal.host` is a loopback address, without such a profile, is a deployment. In development `wow.backend=auto` falls back to memory when no durable backend is available, the public port serves without a `CallerResolver` bean, a single Kafka broker gives no durability warning, and a platform service may take its callers from request headers. None of them is allowed in a deployment. In one of these profiles the internal port binds `127.0.0.1` unless `wow.internal.host` or `wow.node.address` names another address.",
+    "description" : "The profiles in which the node runs for development, its one statement: an address states nothing, so a node whose `wow.internal.host` is a loopback address, without such a profile, is a deployment. In development `wow.backend=auto` falls back to memory when no durable backend is available, the public port serves without a `CallerResolver` bean, a single Kafka broker gives no durability warning, and a platform service may take its callers from request headers. None of them is allowed in a deployment. In one of these profiles the internal port binds `127.0.0.1` unless `wow.internal.host` or `wow.node.address` names another address. `dev` and `local` by default: a profile named `test` or `demo` is often a shared environment's, which must not run so.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties",
-    "defaultValue" : [ "dev", "local", "test", "demo" ]
+    "defaultValue" : [ "dev", "local" ]
   }, {
     "name" : "wow.elasticsearch.index-prefix",
     "type" : "java.lang.String",
@@ -565,7 +571,7 @@
   }, {
     "name" : "wow.elasticsearch.reindex-requests-per-second",
     "type" : "java.lang.Integer",
-    "description" : "How many documents a second the store indexes again when its queries map a field an index lacks, so that the documents written before it are found by it too; a search of the field misses them until the rewrite ends. 1000 by default (a million documents in about 17 minutes); -1 for no limit.",
+    "description" : "How many documents a second the store indexes again when its queries map a field an index lacks, so that the documents written before it are found by it too; a search of the field misses them until the rewrite ends. 1000 by default (a million documents in about 17 minutes); 0 for no limit.",
     "sourceType" : "me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider",
     "defaultValue" : 1000
   }, {
@@ -643,13 +649,13 @@
   }, {
     "name" : "wow.http.client-facts.enabled",
     "type" : "java.lang.Boolean",
-    "description" : "Whether the public port records each command's client address and `User-Agent` as the request facts `remote_ip` and `user_agent`, for audit. They are personal data, and written into the event stream, which is never deleted: once recorded, they cannot be erased. On by default; off records neither.",
+    "description" : "Whether the public port records each command's client address and `User-Agent` as the request facts `remote_ip` and `user_agent`, for audit. They are personal data, and written into the event stream, which is never deleted: once recorded, they cannot be erased. The records the service publishes to other contexts leave both out. On by default; off records neither.",
     "sourceType" : "me.ahoo.wow.spring.boot.http.HttpProperties$ClientFacts",
     "defaultValue" : true
   }, {
     "name" : "wow.http.errors",
     "type" : "java.util.Map<java.lang.String,me.ahoo.wow.spring.boot.http.HttpProperties$Error>",
-    "description" : "The HTTP status of an error code, by code (bracketed in a property name: `wow.http.errors.[a.b].status`).",
+    "description" : "The HTTP status of an error code, by code (bracketed in a property name: `wow.http.errors.[a.b].status`). A code under `wow.` that is not one of the framework's refuses the start, naming the nearest framework codes. A code of the application's that neither the service's Manifest nor a peer contract on the class path declares starts with a warning: it may still be right, a domain rejection's code that no `@ErrorCode` declares, a `ProblemMapper`'s or a peer's whose contract is not on the class path.",
     "sourceType" : "me.ahoo.wow.spring.boot.http.HttpProperties"
   }, {
     "name" : "wow.http.global-errors.enabled",
@@ -660,9 +666,9 @@
   }, {
     "name" : "wow.http.manifest.enabled",
     "type" : "java.lang.Boolean",
-    "description" : "Serves `GET /wow/manifest`.",
+    "description" : "Serves `GET /wow/manifest` on the public port: off by default, as the Manifest lists every route, schema, error and internal command of the service. The internal port serves it to the cluster's services whatever this says; a tool or a client that reads it from the public port (a peer of `contract: manifest` in `mode: user`, `wow-client` given no Manifest, the generator given the service's URL) needs it on. `GET /wow/openapi` stays on.",
     "sourceType" : "me.ahoo.wow.spring.boot.http.HttpProperties$Manifest",
-    "defaultValue" : true
+    "defaultValue" : false
   }, {
     "name" : "wow.http.openapi.enabled",
     "type" : "java.lang.Boolean",
@@ -688,9 +694,15 @@
     "sourceType" : "me.ahoo.wow.spring.boot.http.HttpProperties$HttpOps",
     "defaultValue" : false
   }, {
+    "name" : "wow.http.read-timeout",
+    "type" : "java.time.Duration",
+    "description" : "The longest a request's body may stall on the public port and the internal port: the time between two reads of it, from the request's headers to the body's end, whether or not a route has answered by then. A request whose body stalls longer, sent slowly or not at all, is answered 408, unless it was answered already, and its connection closed (over HTTP/2, its stream). An upload that keeps sending is not cut, however long it takes, and neither is the answer: a stream or a wait runs as long as it does. It counts the time nothing of the body is read, whoever stops the reads: an application's own route that reads its body as a stream and asks for none of it for as long (subscribing late, pausing between pieces) is answered 408 too, though its client keeps sending. Wow's own routes read a body at once. Positive.",
+    "sourceType" : "me.ahoo.wow.spring.boot.http.HttpProperties",
+    "defaultValue" : "PT30S"
+  }, {
     "name" : "wow.http.request-facts",
     "type" : "java.util.Set<java.lang.String>",
-    "description" : "The request headers copied into a command's headers, beside the standard request facts: `app_id`, the application the caller resolver authenticated, which admission records for every command of a caller, and on the public port `user_agent` and `remote_ip`; none of the three can be listed, and each fact is cut to 512 characters. `remote_ip` is the server's remote address, which the host takes from the gateway's `X-Forwarded-For` (`server.request.header.forwarded.strategy` is `web-server` unless the application sets it, `none` included).",
+    "description" : "The request headers copied into a command's headers, beside the standard request facts: `app_id`, the application the caller resolver authenticated, which admission records for every command of a caller, and on the public port `user_agent` and `remote_ip`; none of the three can be listed (one listed, in any case, refuses the start: no request header sets it), and each fact is cut to 512 characters. `remote_ip` is the server's remote address, which the host takes from the gateway's `X-Forwarded-For` (`server.request.header.forwarded.strategy` is `web-server` unless the application sets it, `none` included).",
     "sourceType" : "me.ahoo.wow.spring.boot.http.HttpProperties"
   }, {
     "name" : "wow.internal.connect-timeout",
@@ -756,10 +768,10 @@
   }, {
     "name" : "wow.kafka.topics.min-insync-replicas",
     "type" : "java.lang.Integer",
-    "description" : "The min.insync.replicas auto creates a topic with; the broker's default when not set.",
+    "description" : "The min.insync.replicas auto creates a topic with; the broker's default when not set. Above topics.replication-factor it refuses the start: every write that waits for all replicas would fail.",
     "sourceType" : "me.ahoo.wow.kafka.KafkaTransportProvider"
   }, {
-    "name" : "wow.kafka.topics.partition-refresh",
+    "name" : "wow.kafka.topics.partition-refresh-interval",
     "type" : "java.time.Duration",
     "description" : "How often the node looks for partitions added to the topics it reads; new partitions are read within about twice this.",
     "sourceType" : "me.ahoo.wow.kafka.KafkaTransportProvider",
@@ -870,13 +882,13 @@
   }, {
     "name" : "wow.ops.publish.context",
     "type" : "java.lang.String",
-    "description" : "The ops context the ledger is published to.",
+    "description" : "The ops context the ledger is published to, a context name (lower-case letters, digits and hyphens, starting with a letter): its command topic is named after it, so another name would never be found, and `auto` would never publish. Another name refuses the start.",
     "sourceType" : "me.ahoo.wow.spring.boot.node.PublishProperties",
     "defaultValue" : "ops"
   }, {
     "name" : "wow.ops.publish.enabled",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Switch",
-    "description" : "Whether the node publishes its failure ledger to the ops context: `auto` (the default) while the ops context's command topic exists on the node's transport, which the ops service creates once it is deployed, checked at start and every `wow.kafka.topics.partition-refresh`, and not at all without a transport; `true` always, which needs a transport; `false` never.",
+    "description" : "Whether the node publishes its failure ledger to the ops context: `auto` (the default) while the ops context's command topic exists on the node's transport, which the ops service creates once it is deployed, checked at start and every `wow.kafka.topics.partition-refresh-interval`, and not at all without a transport; `true` always, which needs a transport; `false` never.",
     "sourceType" : "me.ahoo.wow.spring.boot.node.PublishProperties",
     "defaultValue" : "auto"
   }, {
@@ -996,7 +1008,7 @@
   }, {
     "name" : "wow.query.adaptive.floor",
     "type" : "java.lang.Integer",
-    "description" : "The lowest bound the adaptation halves down to.",
+    "description" : "The lowest bound the adaptation halves down to; above a store's ceiling it refuses the start.",
     "sourceType" : "me.ahoo.wow.spring.boot.query.QueryProperties$Adaptive",
     "defaultValue" : 1
   }, {
@@ -1236,18 +1248,6 @@
     "sourceType" : "me.ahoo.wow.spring.boot.query.QueryProperties$Memory",
     "defaultValue" : true
   }, {
-    "name" : "wow.query.require-authenticated-scope",
-    "type" : "java.lang.Boolean",
-    "description" : "Whether an HTTP query of a built-in model is refused unless the caller's authenticated scope pins its tenant; off, a declared scope, such as a tenant header, is trusted.",
-    "sourceType" : "me.ahoo.wow.spring.boot.query.QueryProperties",
-    "defaultValue" : false
-  }, {
-    "name" : "wow.query.require-explicit-entry",
-    "type" : "java.lang.Boolean",
-    "description" : "Whether a query must say whether it comes over HTTP or in process; off, a query that does not say is taken as in-process.",
-    "sourceType" : "me.ahoo.wow.spring.boot.query.QueryProperties",
-    "defaultValue" : false
-  }, {
     "name" : "wow.query.sensitivity.display-comparable",
     "type" : "java.lang.Boolean",
     "description" : "Whether filters and sorts may compare a field whose sensitivity is `DISPLAY`.",
@@ -1447,7 +1447,7 @@
     "sourceType" : "me.ahoo.wow.spring.boot.node.ParkedProperties",
     "defaultValue" : "PT10S"
   }, {
-    "name" : "wow.subscription.read-retry.error-after",
+    "name" : "wow.subscription.read-retry.error-after-attempts",
     "type" : "java.lang.Integer",
     "description" : "The attempts after which each failure is logged as an error, and retried at `max-backoff`.",
     "sourceType" : "me.ahoo.wow.spring.boot.node.ReadRetryProperties",
@@ -1497,7 +1497,7 @@
   }, {
     "name" : "wow.subscription.retry.timeout",
     "type" : "java.time.Duration",
-    "description" : "How long one attempt of a handler may run before it is cancelled and counts as failed; not set, an attempt runs as long as it takes.",
+    "description" : "How long one attempt of a handler may run before it is cancelled and counts as failed; `0` or not set, an attempt runs as long as it takes.",
     "sourceType" : "me.ahoo.wow.spring.boot.node.RetryProperties"
   }, {
     "name" : "wow.subscription.stop-timeout",
@@ -1541,7 +1541,7 @@
     "sourceType" : "me.ahoo.wow.spring.boot.node.TenantProperties",
     "defaultValue" : "(0)"
   }, {
-    "name" : "wow.timers.claim-timeout",
+    "name" : "wow.timers.claim-ttl",
     "type" : "java.time.Duration",
     "description" : "How long the claim on a timer being sent holds: when its node dies, the next owner of the partition sends the timer again after it. Longer than a send takes.",
     "sourceType" : "me.ahoo.wow.spring.boot.node.TimersProperties",
@@ -1549,7 +1549,7 @@
   }, {
     "name" : "wow.timers.expires-after",
     "type" : "java.time.Duration",
-    "description" : "How late a timer may be sent, after an outage, before it is cancelled with the outcome `EXPIRED` instead; not set, every timer is sent however late.",
+    "description" : "How late a timer may be sent, after an outage, before it is cancelled with the outcome `EXPIRED` instead; `0` or not set, every timer is sent however late.",
     "sourceType" : "me.ahoo.wow.spring.boot.node.TimersProperties"
   }, {
     "name" : "wow.timers.lookahead",
@@ -1572,7 +1572,7 @@
   }, {
     "name" : "wow.timers.max-fire-rate",
     "type" : "java.lang.Double",
-    "description" : "The most commands of timers a partition sends a second, so a backlog of overdue timers drains at that rate; not set, as fast as `parallelism` allows.",
+    "description" : "The most commands of timers a partition sends a second, so a backlog of overdue timers drains at that rate; `0` or not set, as fast as `parallelism` allows.",
     "sourceType" : "me.ahoo.wow.spring.boot.node.TimersProperties"
   }, {
     "name" : "wow.timers.parallelism",
@@ -1619,7 +1619,7 @@
   }, {
     "name" : "wow.wait.unknown-contexts",
     "type" : "me.ahoo.wow.runtime.wait.UnknownContexts",
-    "description" : "Whether a wait plan may name a context the node knows no Manifest of: `allow`, checked where the chain arrives, or `reject`.",
+    "description" : "Whether a wait plan may name a context the node knows no Manifest of: `allow`, checked where the chain arrives, or `refuse`.",
     "sourceType" : "me.ahoo.wow.spring.boot.node.WaitProperties",
     "defaultValue" : "allow"
   } ],

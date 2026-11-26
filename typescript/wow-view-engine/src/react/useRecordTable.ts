@@ -80,6 +80,10 @@ export interface ToggleSortOptions {
   exclusive?: boolean;
 }
 
+/**
+ * What `useRecordTable` answers: the columns, rows, paging, selection and sort
+ * of the record view on screen.
+ */
 export interface RecordTableController {
   /** Columns of the result on screen, which follow the executed config. */
   columns: RecordColumnView[];
@@ -664,7 +668,7 @@ export function useRecordTable(
     ),
     summaryOf: useCallback(
       (field: string) =>
-        summaries.find(entry => entry.field === field)?.fn ?? null,
+        summaries.find(entry => entry.field === field)?.function ?? null,
       [summaries],
     ),
     summaryFields: useMemo(
@@ -680,7 +684,7 @@ export function useRecordTable(
         );
         editAndApply({
           summaries: summariesOf(
-            fn === null ? rest : [...rest, { field, fn }],
+            fn === null ? rest : [...rest, { field, function: fn }],
             state.saved,
           ),
         });

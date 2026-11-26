@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.node
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.kernel.WritePolicies
 import me.ahoo.wow.runtime.ExecutorOptions
 import me.ahoo.wow.runtime.StateCacheOptions
@@ -55,7 +56,7 @@ enum class Routing {
 }
 
 /**
- * The tuning of a [ServiceNode] (names the host's keys for them).
+ * The tuning of a [ServiceNode], which the host sets from its configuration keys.
  *
  * - [cluster]: partition ownership and the cluster channel; [routing]: where commands run.
  * - [wait]: the waits ([WaitOptions]); its default timeout is that of every command whose request names none,
@@ -207,7 +208,7 @@ data class AdmissionPlugins(
  *
  * - **Published streams**: the node reads other contexts' streams from [source], each topic named as
  *   the publishing context's Manifest names it (`PublishedManifest.topic`, [topicOf]). Partitions added to a topic
- *   it reads are read too, within [partitionRefresh] of the source seeing them.
+ *   it reads are read too, within [partitionRefreshInterval] of the source seeing them.
  * - **Commands across contexts**, with a [producer]: a saga's command to an aggregate of
  *   a context outside its own is sent to that context's command topic, `wow.<context>.commands` ([commandsOf]), and
  *   the receipts of those another context rejects are read from the saga's context's receipts topic,
@@ -218,6 +219,7 @@ data class AdmissionPlugins(
  * - **Topic management**: at its start, the node validates or creates the topics its contexts own as
  *   [ddl] says, through [admin], which any [ddl] but [Ddl.NONE] needs.
  */
+@WowSpi
 class SourceTopics @InternalWowApi constructor(
     val source: PartitionedSource,
     val prefix: String = "",
@@ -225,12 +227,14 @@ class SourceTopics @InternalWowApi constructor(
     val intake: Boolean = false,
     val admin: TopicAdmin? = null,
     val ddl: Ddl = Ddl.NONE,
-    val partitionRefresh: Duration = DEFAULT_PARTITION_REFRESH,
+    val partitionRefreshInterval: Duration = DEFAULT_PARTITION_REFRESH_INTERVAL,
 ) {
     init {
         require(!intake || producer != null) { "A command intake sends receipts: it needs a producer." }
         require(!ddl.checks || admin != null) { "Topics are validated or created through an admin: $ddl." }
-        require(partitionRefresh.isPositive()) { "The partitions of a topic are refreshed at a positive interval." }
+        require(partitionRefreshInterval.isPositive()) {
+            "The partitions of a topic are refreshed at a positive interval."
+        }
     }
 
     /** The topic of a stream the Manifest publishes on [topic]. */
@@ -251,8 +255,8 @@ class SourceTopics @InternalWowApi constructor(
         intake: Boolean = this.intake,
         admin: TopicAdmin? = this.admin,
         ddl: Ddl = this.ddl,
-        partitionRefresh: Duration = this.partitionRefresh,
-    ): SourceTopics = SourceTopics(source, prefix, producer, intake, admin, ddl, partitionRefresh)
+        partitionRefreshInterval: Duration = this.partitionRefreshInterval,
+    ): SourceTopics = SourceTopics(source, prefix, producer, intake, admin, ddl, partitionRefreshInterval)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is SourceTopics && valueFields() == other.valueFields()
@@ -260,9 +264,11 @@ class SourceTopics @InternalWowApi constructor(
     override fun hashCode(): Int = valueFields().hashCode()
 
     override fun toString(): String = "SourceTopics(" +
-        "source=$source, prefix=$prefix, producer=$producer, intake=$intake, admin=$admin, ddl=$ddl, partitionRefresh=$partitionRefresh)"
+        "source=$source, prefix=$prefix, producer=$producer, intake=$intake, admin=$admin, ddl=$ddl, " +
+        "partitionRefreshInterval=$partitionRefreshInterval)"
 
-    private fun valueFields(): List<Any?> = listOf(source, prefix, producer, intake, admin, ddl, partitionRefresh)
+    private fun valueFields(): List<Any?> =
+        listOf(source, prefix, producer, intake, admin, ddl, partitionRefreshInterval)
 
     companion object {
         /** A SourceTopics of the given fields; parameters added later come last, with a default. */
@@ -275,7 +281,7 @@ class SourceTopics @InternalWowApi constructor(
             intake: Boolean = false,
             admin: TopicAdmin? = null,
             ddl: Ddl = Ddl.NONE,
-            partitionRefresh: Duration = DEFAULT_PARTITION_REFRESH
+            partitionRefreshInterval: Duration = DEFAULT_PARTITION_REFRESH_INTERVAL
         ): SourceTopics = SourceTopics(
             source,
             prefix,
@@ -283,9 +289,9 @@ class SourceTopics @InternalWowApi constructor(
             intake,
             admin,
             ddl,
-            partitionRefresh
+            partitionRefreshInterval
         )
 
-        val DEFAULT_PARTITION_REFRESH: Duration = 30.seconds
+        val DEFAULT_PARTITION_REFRESH_INTERVAL: Duration = 30.seconds
     }
 }

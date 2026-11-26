@@ -43,8 +43,12 @@ class NodeAddressTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = ["::1:9191", "fd00::7:41234", "a b:9191"])
-    fun `an address whose host a URI cannot tell from its port should not be valid`(address: String) {
+    @ValueSource(
+        strings = ["::1:9191", "fd00::7:41234", "a b:9191", "127.0.0.1", "[::1]", "127.0.0.1:0", "127.0.0.1:65536"],
+    )
+    fun `an address whose host a URI cannot tell from its port, or with no port that listens, should not be valid`(
+        address: String,
+    ) {
         NodeAddress.isValid(address).assert().isFalse()
     }
 }

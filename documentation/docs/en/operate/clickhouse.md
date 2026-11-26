@@ -121,7 +121,7 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_events`
     `operator_id` String CODEC(ZSTD(1)),
     `operator_tenant_id` String CODEC(ZSTD(1)),
     `operator_acted_elsewhere` Bool,
-    `events` Array(Tuple(name LowCardinality(String), revision UInt32, payload String)) CODEC(ZSTD(1)),
+    `events` Array(Tuple(name LowCardinality(String), revision UInt32, body String)) CODEC(ZSTD(1)),
     `state` String CODEC(ZSTD(1)),
     `state_fingerprint` String CODEC(ZSTD(1)),
     `state_numbers` Map(String, String) CODEC(ZSTD(1))
@@ -180,7 +180,7 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_events`
     `sequence` UInt32,
     `event_name` LowCardinality(String),
     `event_revision` UInt32,
-    `payload` String CODEC(ZSTD(1)),
+    `body` String CODEC(ZSTD(1)),
     `command_id` String CODEC(ZSTD(1)),
     `request_id` String CODEC(ZSTD(1)),
     `command_type` LowCardinality(String),
@@ -202,7 +202,7 @@ FROM `default`.`shop_order_state_events`)
 COMMENT 'wow-sink-format:1';
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS `default`.`shop_order_events_mv` TO `default`.`shop_order_events` AS
-(SELECT id, tenant_id, aggregate_id, version, toUInt32(sequence) AS sequence, event.name AS event_name, event.revision AS event_revision, event.payload AS payload, command_id, request_id, command_type, commit_time, owner_id, space_id, correlation_id, causation_id
+(SELECT id, tenant_id, aggregate_id, version, toUInt32(sequence) AS sequence, event.name AS event_name, event.revision AS event_revision, event.body AS body, command_id, request_id, command_type, commit_time, owner_id, space_id, correlation_id, causation_id
 FROM `default`.`shop_order_state_events`
 ARRAY JOIN events AS event, arrayEnumerate(events) AS sequence)
 COMMENT 'wow-sink-format:1';
@@ -240,11 +240,11 @@ Each table of an aggregate has `SETTINGS non_replicated_deduplication_window = N
 | `correlation_id`, `causation_id` | The root command's id and the direct cause, empty for a command a caller sent directly |
 | `headers` | The request facts the command carried; `_state_events` only |
 | `operator_id`, `operator_tenant_id`, `operator_acted_elsewhere` | Who committed it; empty and false when none |
-| `events` | The commit's events, each `(name, revision, payload)`, the payload as JSON text; `_state_events` only |
+| `events` | The commit's events, each `(name, revision, body)`, the body, the event's data, as JSON text; `_state_events` only |
 | `state`, `state_fingerprint` | The state after the commit as JSON text, and the fingerprint of its schema; empty for an aggregate that publishes no state |
 | `state_numbers` | The exact text of each top-level number of the state, which `_state_flat` reads decimals from |
 
-**`_events`**, one row per event: `sequence` (the event's place in its commit, from 1), `event_name`, `event_revision` and `payload`, with the commit's `id`, `tenant_id`, `aggregate_id`, `version`, `command_id`, `request_id`, `command_type`, `commit_time`, `owner_id`, `space_id`, `correlation_id` and `causation_id`.
+**`_events`**, one row per event: `sequence` (the event's place in its commit, from 1), `event_name`, `event_revision` and `body`, the event's data, with the commit's `id`, `tenant_id`, `aggregate_id`, `version`, `command_id`, `request_id`, `command_type`, `commit_time`, `owner_id`, `space_id`, `correlation_id` and `causation_id`.
 
 **The computed columns of `_state`.** After its stored columns, `_state` has columns ClickHouse computes from them when a row is inserted (`MATERIALIZED`): no insert sets them, and `SELECT *` leaves them out, so name them. Each one's comment keeps a fingerprint of its type and expression (`wow:<fingerprint>`). They are:
 
@@ -288,9 +288,11 @@ The sink does not use ClickHouse's `async_insert`, and does not need it: it batc
 
 `wow.clickhouse.ddl` decides what the sink does with its tables before its first write, and again from time to time: `auto` (the default) creates what is missing and validates the rest; `validate` only checks; `none` does neither. A table dropped or altered fails the writes, which the subscription retries, until it is as the sink expects.
 
-Every table and view the sink keeps says the format of the sink's tables in its comment, `wow-sink-format:1`. A table or view the sink expects is the sink's when it exists, has the columns above and says that format; otherwise the sink refuses to write, naming each one and what is wrong with it (`<table> is not of format 1`, `<table> has the columns …`). `auto` creates what is missing with the comment, and leaves a table that exists as it is: one of another format is refused, as one of other columns is. The tables hold nothing the log does not: drop them, and resetting the sink's subscription fills them again ([Rebuild the warehouse](#rebuild-the-warehouse)). `none` checks nothing.
+Every table and view the sink keeps says the format of the sink's tables in its comment, `wow-sink-format:1`. A table or view the sink expects is the sink's when it exists, has at least the columns above, each of its type, in any order, and says that format: other columns, an operator's own (stored, `MATERIALIZED` or `ALIAS`) or a later version's within the format, are no reason. Otherwise the sink refuses to write, naming each one and what is wrong with it (`<table> is not of format 1`, `<table> has no <column> <type>`, `<table> has <column> <type>, not <type>`). `auto` creates what is missing with the comment; of a table that exists, it adds only a column Wow adds within the format, with its default (`ALTER TABLE <db>.<table> ADD COLUMN IF NOT EXISTS <column> <type> DEFAULT <default>`; 10.0 has none), and the computed columns below, and `validate` names those statements. A table of another format, or one that lacks another column of the format or has one of another type, is refused under every mode and left as it is. The tables hold nothing the log does not: drop them, and a new generation of the sink fills them again ([Rebuild the warehouse](#rebuild-the-warehouse)). `none` checks nothing before a write, but no write loses a value without a word: every insert sets `input_format_skip_unknown_fields=0` and `input_format_json_ignore_unknown_keys_in_named_tuple=0`, so a field the table has no column for, or no element of its named tuple, refuses the insert, naming the field; the subscription retries it and parks the aggregate in the end. The parked entry's reason names ClickHouse's error code, `com.clickhouse.client.api.ServerException: clickhouse server error code 117`, never the field, since ClickHouse's message may go on to quote the row; the field is in the node's warning of the park, `Subscription wow.clickhouse-sink.<aggregate> parks <context>.<aggregate>/<tenant>/<id> from version <n> after <n> attempts.`, whose exception is ClickHouse's message. A column the sink does not write, an operator's own, takes its default.
 
-The sink neither checks nor changes a column's codec, so a table an earlier version created keeps the codecs it was created with. To give it the codecs above, run `ALTER TABLE <db>.<table> MODIFY COLUMN <column> <type> CODEC(<codec>)` for each column, which applies to the parts written and merged from then on, or drop the sink's tables and reset its subscription so that it fills them again.
+The tables a 10.0 pre-release wrote are recreated with the upgrade: they say format 1, but an event's data is `payload` there, where it is `body`, and the sink refuses them, naming the column (`<ctx>_<agg>_events has no body String`, and the history's `events` of another type). Drop them and raise the sink's generation ([Rebuild the warehouse](#rebuild-the-warehouse)). Under `ddl: none`, which checks nothing, the inserts into them are refused instead.
+
+The sink neither checks nor changes a column's codec, so a table an earlier version created keeps the codecs it was created with. To give it the codecs above, run `ALTER TABLE <db>.<table> MODIFY COLUMN <column> <type> CODEC(<codec>)` for each column, which applies to the parts written and merged from then on, or drop the sink's tables and raise its generation so that it fills them again ([Rebuild the warehouse](#rebuild-the-warehouse)).
 
 During a rolling upgrade, two versions of a service may write two state schemas at once. The flat view keeps the fingerprints of the definitions it was created with in its comment, after the format (`wow-sink-format:1 wow-sink-flat:<fingerprint>,…`), and a writer replaces it only with a newer one, so an older node that restarts does not undo a newer one's view.
 
@@ -299,7 +301,7 @@ During a rolling upgrade, two versions of a service may write two state schemas 
 `_state` is the sink's when it has at least the computed columns a writer expects, each with its fingerprint. A computed column it does not expect, another writer's, is left as it is.
 
 - **A property or an access attribute added.** `auto` adds its column, `ALTER TABLE <db>.<ctx>_<agg>_state ADD COLUMN IF NOT EXISTS <column> <type> MATERIALIZED <expression> COMMENT 'wow:<fingerprint>' AFTER <the column before it>`, before the flat view selects it. This changes metadata only: a part written before is computed when it is read, until a merge rewrites it, which `_state`'s merges do as rows are written. To compute it in every part at once, run `ALTER TABLE <db>.<ctx>_<agg>_state MATERIALIZE COLUMN <column>`, a mutation, which is optional. With `validate`, the sink refuses to write and names the statements that add the columns. An older writer finds a column it does not compute, and writes on.
-- **A property's type changed** (a field that became nullable, a decimal of another scale, a string that became a number). The column is of another definition, and ClickHouse cannot change it without rewriting every row: the sink refuses to write, naming the column, its type and the one this version computes. A type change cannot roll: the older writers keep writing until they are replaced; then drop the tables and reset the sink's subscription ([Rebuild the warehouse](#rebuild-the-warehouse)).
+- **A property's type changed** (a field that became nullable, a decimal of another scale, a string that became a number). The column is of another definition, and ClickHouse cannot change it without rewriting every row: the sink refuses to write, naming the column, its type and the one this version computes. A type change cannot roll: the older writers keep writing until they are replaced; then drop the tables and raise the sink's generation ([Rebuild the warehouse](#rebuild-the-warehouse)).
 - **A property removed.** Its column stays, and is still computed on every insert, until you drop it: `ALTER TABLE <db>.<ctx>_<agg>_state DROP COLUMN <column>`, once no writer computes it.
 - **An access attribute declared later** has its column at once, but a row keeps the attributes it was written with: an aggregate's newest row has no value of it until its next commit.
 
@@ -346,7 +348,7 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_events_local` ON CLUSTER 
     `operator_id` String CODEC(ZSTD(1)),
     `operator_tenant_id` String CODEC(ZSTD(1)),
     `operator_acted_elsewhere` Bool,
-    `events` Array(Tuple(name LowCardinality(String), revision UInt32, payload String)) CODEC(ZSTD(1)),
+    `events` Array(Tuple(name LowCardinality(String), revision UInt32, body String)) CODEC(ZSTD(1)),
     `state` String CODEC(ZSTD(1)),
     `state_fingerprint` String CODEC(ZSTD(1)),
     `state_numbers` Map(String, String) CODEC(ZSTD(1))
@@ -406,7 +408,7 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_events_local` ON CLUSTER '{clus
     `sequence` UInt32,
     `event_name` LowCardinality(String),
     `event_revision` UInt32,
-    `payload` String CODEC(ZSTD(1)),
+    `body` String CODEC(ZSTD(1)),
     `command_id` String CODEC(ZSTD(1)),
     `request_id` String CODEC(ZSTD(1)),
     `command_type` LowCardinality(String),
@@ -446,7 +448,7 @@ FROM `default`.`shop_order_state_events_local`)
 COMMENT 'wow-sink-format:1';
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS `default`.`shop_order_events_mv` ON CLUSTER '{cluster}' TO `default`.`shop_order_events_local` AS
-(SELECT id, tenant_id, aggregate_id, version, toUInt32(sequence) AS sequence, event.name AS event_name, event.revision AS event_revision, event.payload AS payload, command_id, request_id, command_type, commit_time, owner_id, space_id, correlation_id, causation_id
+(SELECT id, tenant_id, aggregate_id, version, toUInt32(sequence) AS sequence, event.name AS event_name, event.revision AS event_revision, event.body AS body, command_id, request_id, command_type, commit_time, owner_id, space_id, correlation_id, causation_id
 FROM `default`.`shop_order_state_events_local`
 ARRAY JOIN events AS event, arrayEnumerate(events) AS sequence)
 COMMENT 'wow-sink-format:1';
@@ -457,7 +459,7 @@ FROM `default`.`shop_order_state` FINAL
 COMMENT 'wow-sink-format:1 wow-sink-flat:abec05d592597f99';
 ```
 
-- **Set `wow.clickhouse.ddl: validate`.** The sink then creates nothing, and refuses to write while a table or view it expects is missing, has other columns or does not say the sink's format, naming it. The Distributed tables pass, since ClickHouse reports their columns as their local tables'. The sink reads the format from their own comments, which `AS` does not copy, so the example gives each one its `COMMENT`. `auto` would create what is missing on the one node its endpoint reaches, as a single-node table; `none` checks nothing.
+- **Set `wow.clickhouse.ddl: validate`.** The sink then creates nothing, and refuses to write while a table or view it expects is missing, lacks a column of the format or has one of another type, or does not say the sink's format, naming it. The Distributed tables pass, since ClickHouse reports their columns as their local tables'. The sink reads the format from their own comments, which `AS` does not copy, so the example gives each one its `COMMENT`. `auto` would create what is missing on the one node its endpoint reaches, as a single-node table; `none` checks nothing.
 - **Shard by the aggregate.** The sharding key is `sipHash64(tenant_id, aggregate_id)`, as in 9.x, so all of an aggregate's commits are on one shard: `_state` keeps the highest version of a key, and the history tables merge a replayed row away by their keys, each within a shard.
 - **Replicate by one replica per shard.** Set `<internal_replication>true</internal_replication>` on the cluster's shards, as for any replicated table: a Distributed insert then writes one replica of a shard, and the replicas copy it.
 - **Insert synchronously.** By default ClickHouse answers an insert into a Distributed table once the rows are on the receiving node's disk, and sends them to the shards afterwards. The sink takes an answer as the commit being in the warehouse, and moves its checkpoint on. Make the sink's user insert synchronously, which answers once the shards have the rows:
@@ -474,7 +476,7 @@ COMMENT 'wow-sink-format:1 wow-sink-flat:abec05d592597f99';
 
 ## Commands are not written
 
-Wow 9.x's BI sync also created a table of commands, `<ctx>_<agg>_command`, filled from the command topic. Wow 10 writes no command to ClickHouse: the sink copies commits, so a command that was rejected, or changed nothing, leaves no row. What a commit keeps of its command is in `_state_events`: `command_id`, `request_id` and `command_type`; the operator in `operator_id`, `operator_tenant_id` and `operator_acted_elsewhere`; `correlation_id` and `causation_id`, which for a saga's command is the commit it handled; the request facts in `headers`; and the events the command produced, with their payloads. The command's body is not kept. For a history of commands:
+Wow 9.x's BI sync also created a table of commands, `<ctx>_<agg>_command`, filled from the command topic. Wow 10 writes no command to ClickHouse: the sink copies commits, so a command that was rejected, or changed nothing, leaves no row. What a commit keeps of its command is in `_state_events`: `command_id`, `request_id` and `command_type`; the operator in `operator_id`, `operator_tenant_id` and `operator_acted_elsewhere`; `correlation_id` and `causation_id`, which for a saga's command is the commit it handled; the request facts in `headers`; and the events the command produced, with their bodies. The command's body is not kept. For a history of commands:
 
 - **Read it from the commits**, for which command changed an aggregate, when, and for whom:
 
@@ -485,12 +487,12 @@ Wow 9.x's BI sync also created a table of commands, `<ctx>_<agg>_command`, fille
   ORDER BY version
   ```
 
-- **Put into the event what an audit needs of the command.** A command's business data reaches an event's payload, which `_events.payload` keeps per event.
+- **Put into the event what an audit needs of the command.** A command's business data reaches an event's body, which `_events.body` keeps per event.
 - **Read rejections where they happen**, not in the warehouse: `wow.command.rejections` counts them and the rejection log lists them ([Health, Metrics and Tracing](./observability)).
 
 ## wow_catalog
 
-The sink appends one row per table it keeps to the database's `wow_catalog`, from the Manifest rather than from the table's name: the table and its role (`state_events`, `state`, `events`, `state_flat`), the service, context and aggregate it belongs to, the aggregate's ownership and the columns of its tenant, owner and space, its sensitive values and references by path, and its events' revisions, and whether an access policy of the aggregate decides its rows (`access`: `POLICY` or `DEFAULT`, as the service's access policies say). Analytics tools and the analytics catalog read it to know what a table holds and how to scope and mask it; the catalog's datasets read no table whose aggregate has a policy. A failed write to it is logged and never fails the sink.
+The sink appends one row per table it keeps to the database's `wow_catalog`, from the Manifest rather than from the table's name: the table and its role (`state_events`, `state`, `events`, `state_flat`), the service, context and aggregate it belongs to, the aggregate's ownership and the columns of its tenant, owner and space, its sensitive values and references by path, and its events' revisions, and whether an access policy of the aggregate decides its rows (`access`: `policy` or `default`, as the service's access policies say; only `default` reads as ungoverned, any other value as a policy's). Analytics tools and the analytics catalog read it to know what a table holds and how to scope and mask it; the catalog's datasets read no table whose aggregate has a policy. A failed write to it is logged and never fails the sink.
 
 ## Datasets
 
@@ -500,4 +502,10 @@ While ClickHouse cannot be reached or cannot take writes (a refused or timed-out
 
 ## Rebuild the warehouse
 
-The sink is a subscription with checkpoints of its own, so the warehouse is never the only copy of anything: it can always be filled again from the log, from the beginning.
+The sink is a subscription with checkpoints of its own, so the warehouse is never the only copy of anything: a new generation of the sink fills it again from the log, from the beginning.
+
+1. Drop the sink's tables and views ([The tables](#the-tables)) of the aggregate types to fill again, or the sink's database.
+2. Raise `wow.clickhouse.sink.generation` by one, 1 by default.
+3. Roll the nodes.
+
+The sink then runs as new subscriptions, `wow.clickhouse-sink-g<n>.<aggregate>`, one for every stream it writes, and writes each from the beginning of the log; under `ddl: auto` it creates its tables again before its first insert. Only raise the generation: a lower one resumes that generation's checkpoints, and what was dropped is not written again. While the nodes roll, the old generation and the new one both write, which the tables absorb as they absorb a replay: their `ReplacingMergeTree` engines, keyed by a commit's `ref@version`, keep each commit once. Raised without dropping the tables, the new generation writes every commit again, and the tables merge the second copy away: a read with `FINAL`, as the flat views read, counts each commit and event once at once, while a read of a table without `FINAL` may count one twice until ClickHouse merges its parts. The old generation's checkpoints stay, and so do the entries it parked: each node warns of them at its first start under the old name, and `GET /wow/ops/subscriptions` lists them as `orphans` ([Rename and rewind](./ops-console#rename-and-rewind)). Those parked entries belong to a destination that was emptied: skip them in the ops console. A lowered generation shows the higher one as an orphan the same way, which is why the generation is only raised.

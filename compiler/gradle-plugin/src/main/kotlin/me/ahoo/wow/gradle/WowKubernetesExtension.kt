@@ -17,9 +17,9 @@ import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.provider.Property
 
 /**
- * The service's Kubernetes manifests, `wow { kubernetes { … } }`: what `generateWowManifests` renders the `wow-service`
- * chart (the plugin's own, at its version) with, into a Kustomize base of plain YAML, `build/wow/k8s/`, which a
- * deployment overlays with `kubectl apply -k` without running Helm.
+ * The service's Kubernetes manifests, `wow { kubernetes { … } }`: what `generateWowKubernetes` renders the
+ * `wow-service` chart (the plugin's own, at its version) with, into a Kustomize base of plain YAML, `build/wow/k8s/`,
+ * which a deployment overlays with `kubectl apply -k` without running Helm.
  *
  * ```kotlin
  * wow {
@@ -30,7 +30,7 @@ import org.gradle.api.provider.Property
  * }
  * ```
  *
- * Naming [values] puts `generateWowManifests` in `assemble`. Every value that feeds a derivation of the chart (the
+ * Naming [values] puts `generateWowKubernetes` in `assemble`. Every value that feeds a derivation of the chart (the
  * namespace, the peers' namespaces, `partOf`, the gateway rule, the monitors, the autoscaler, the shutdown bounds) is a
  * value here, checked by the chart's schema when the build renders; anything else (the image, the replicas, the
  * resources, extra environment, labels) an overlay patches.

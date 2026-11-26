@@ -107,37 +107,35 @@ class QueryDslTest {
         filter { "state".path { "state" eq "paid" } }.assert().isEqualTo(EqualFilter(nestedState, "paid"))
         filter { state.path { "state.name" eq "x" } }.assert().isEqualTo(EqualFilter(QueryField("state.name"), "x"))
         projection {
-            nested("state")
-            include("state", "state.name")
+            "state".path { include("state", "state.name") }
         }.include.assert().containsExactly(nestedState, QueryField("state.name"))
         sort {
-            nested(state)
-            "state".asc()
+            state.path { "state".asc() }
         }.assert().containsExactly(Sort(nestedState, Sort.Direction.ASC))
     }
 
     @Test
-    fun `no prefix, or a blank one, leaves a path as written, by the same rule in every block`() {
+    fun `no path leaves a path as written, and a path block's names leave it when the block ends, in every block`() {
         val plain = QueryField("state")
         plain.absoluteTo(null).assert().isSameAs(plain)
         filter { "state" eq "paid" }.assert().isEqualTo(EqualFilter(plain, "paid"))
-        projection {
-            nested(" ")
-            include("state")
-        }.include.assert().containsExactly(plain)
+        projection { include("state") }.include.assert().containsExactly(plain)
         sort {
-            nested("state")
-            nested("")
+            "state".path { "name".asc() }
             "state".asc()
-        }.assert().containsExactly(Sort(plain, Sort.Direction.ASC))
+        }.assert().containsExactly(Sort(QueryField("state.name"), Sort.Direction.ASC), Sort(plain, Sort.Direction.ASC))
+        // Paths nest: a path within a path is under both.
+        projection { "state".path { "address".path { include("city") } } }.include.assert()
+            .containsExactly(QueryField("state.address.city"))
     }
 
     @Test
     fun `sort, projection and pagination stand alone`() {
         sort {
-            nested("state")
-            "name".asc()
-            QueryField("state.price").desc()
+            "state".path {
+                "name".asc()
+                QueryField("state.price").desc()
+            }
             sort(Sort(QueryField("version"), Sort.Direction.ASC))
         }.assert().containsExactly(
             Sort(name, Sort.Direction.ASC),
@@ -147,11 +145,12 @@ class QueryDslTest {
         sort { QueryField("lastEventTime").asc() }.assert()
             .containsExactly(Sort(QueryField("lastEventTime"), Sort.Direction.ASC))
         projection {
-            nested(QueryField("state"))
-            include("name", "state.price")
-            include(QueryField("address"))
-            exclude("secret")
-            exclude(QueryField("state.token"))
+            QueryField("state").path {
+                include("name", "state.price")
+                include(QueryField("address"))
+                exclude("secret")
+                exclude(QueryField("state.token"))
+            }
         }.assert().isEqualTo(
             Projection(
                 include = listOf(name, QueryField("state.price"), QueryField("state.address")),
@@ -170,5 +169,25 @@ class QueryDslTest {
         SnapshotProperties.SCHEDULES.assert().isEqualTo(QueryField("schedules"))
         SnapshotProperties.schedule("tick").assert().isEqualTo(QueryField("schedules.tick"))
         SnapshotProperties.STATE.assert().isEqualTo(QueryField("state"))
+    }
+
+    @Test
+    fun `an access attribute's and a schedule's field should compare in the filter DSL as any field (#7027)`() {
+        val query = listQuery {
+            filter {
+                SnapshotProperties.access("region") eq "EU"
+                SnapshotProperties.access("team") isIn listOf("a", "b")
+                SnapshotProperties.schedule("tick") ne null
+            }
+        }
+        query.filter.assert().isEqualTo(
+            listQuery {
+                filter {
+                    "access.region" eq "EU"
+                    "access.team" isIn listOf("a", "b")
+                    "schedules.tick" ne null
+                }
+            }.filter,
+        )
     }
 }

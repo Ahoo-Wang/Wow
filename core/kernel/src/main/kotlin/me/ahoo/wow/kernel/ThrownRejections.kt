@@ -49,7 +49,9 @@ internal object ThrownRejections {
             else -> null
         }
         if (rejection != null) {
-            logger.debug(thrown) { "The decide function refused the command by throwing: ${rejection.code}." }
+            logger.debug(thrown) {
+                "A decide function or an after hook refused the command by throwing: ${rejection.code}."
+            }
         }
         return rejection
     }

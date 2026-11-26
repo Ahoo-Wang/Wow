@@ -33,9 +33,8 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   compileAnalysis,
-  fitChartSlots,
   validateAnalysis,
   validateDefinition,
   type AnalysisCapability,
@@ -66,6 +65,7 @@ import {
   errorCodes as codes,
 } from './fixtures/analysis.js';
 import { describedField, ordersDescriptor } from './fixtures/descriptor.js';
+import { fitChartSlots } from '../src/analysis/chartSlots.js';
 
 const capability: AnalysisCapability = {
   count: true,
@@ -190,7 +190,11 @@ const candleConfig = (
 
 const check = (overrides: Partial<AnalysisViewConfig>) =>
   codes(
-    validateAnalysis(definition(), candleConfig(overrides), builtinFieldKinds),
+    validateAnalysis(
+      definition(),
+      candleConfig(overrides),
+      builtinFieldKindRegistry,
+    ),
   );
 
 describe('the opening and the closing value as metrics', () => {
@@ -262,7 +266,7 @@ describe('the opening and the closing value as metrics', () => {
             sort: [],
             chart: { type: 'metric', metric: { metric: 'close' } },
           }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       );
     expect(inLines()).toEqual(['analysis.first-last.order-by-required']);
@@ -310,8 +314,7 @@ describe('the opening and the closing value as metrics', () => {
           { ...close, filter: { op: 'and', children: [] } },
         ],
       }),
-      builtinFieldKinds,
-      context,
+      { kinds: builtinFieldKindRegistry, context },
     );
     expect(query.metrics[0]).toEqual({
       type: AggregationMetricType.FIRST,
@@ -342,8 +345,7 @@ describe('the opening and the closing value as metrics', () => {
         sort: [],
         chart: { type: 'metric', metric: { metric: 'open' } },
       }),
-      builtinFieldKinds,
-      context,
+      { kinds: builtinFieldKindRegistry, context },
     );
     expect(inLines.metrics[0]).toMatchObject({ field: 'price', orderBy: 'at' });
   });
@@ -368,7 +370,7 @@ describe('the opening and the closing value as metrics', () => {
             ],
           },
         }),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       ).filter(found => found.code === 'definition.analysis.no-metric'),
     ).toEqual([]);
   });
@@ -404,7 +406,7 @@ describe('narrowing by the descriptor', () => {
     const { definition: narrowed } = narrowDefinition(
       noElements,
       described(() => {}),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(narrowed.analysis?.fields[1]).toMatchObject({ firstLast: true });
     expect(narrowed.analysis?.firstLastOrderBy).toBe('eventTime');
@@ -420,7 +422,7 @@ describe('narrowing by the descriptor', () => {
           WindowFunction.TOTAL,
         ];
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(newer.definition.analysis?.windows).toEqual([
       WindowFunction.RANK,
@@ -431,7 +433,7 @@ describe('narrowing by the descriptor', () => {
       described(descriptor => {
         descriptor.analysis.windows = ['median'];
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(unknownOnly.definition.analysis).not.toHaveProperty('windows');
   });
@@ -442,7 +444,7 @@ describe('narrowing by the descriptor', () => {
       described(descriptor => {
         descriptor.analysis.rootGroups = true;
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(offered.definition.analysis?.rootGroups).toBe(true);
     // A definition that turns them off keeps them off.
@@ -453,7 +455,7 @@ describe('narrowing by the descriptor', () => {
       described(descriptor => {
         descriptor.analysis.rootGroups = true;
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(declined.definition.analysis).not.toHaveProperty('rootGroups');
     const older = narrowDefinition(
@@ -461,7 +463,7 @@ describe('narrowing by the descriptor', () => {
         analysis: { ...capability, elements: undefined, rootGroups: true },
       }),
       described(() => {}),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(older.definition.analysis).not.toHaveProperty('rootGroups');
   });
@@ -475,7 +477,7 @@ describe('narrowing by the descriptor', () => {
         );
         delete descriptor.analysis.firstLastOrderBy;
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(noMetric.definition.analysis?.fields[1]).toMatchObject({
       firstLast: false,
@@ -500,7 +502,7 @@ describe('narrowing by the descriptor', () => {
           },
         });
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(noField.definition.analysis?.fields[1]).toMatchObject({
       firstLast: false,
@@ -640,7 +642,7 @@ describe('the candlestick family', () => {
             { type: AggregationGroupType.TERMS, field: 'qty', alias: 'day' },
           ],
         }),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       ),
     ).toEqual([
       expect.objectContaining({

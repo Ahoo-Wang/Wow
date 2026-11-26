@@ -615,10 +615,11 @@ configure(libraryProjects) {
                     "me.ahoo.wow.api.annotation.ExperimentalWowApi",
                 )
             }
-            // Test, contract and benchmark code exercises the SPI directly; main code opts in per module. Wow's own
-            // modules implement or wire the `:spi` ports (D216), so they opt in whole; a user module does not.
+            // Wow's own modules implement or wire the `:spi` ports (D216), so they opt in whole, and the test, contract
+            // and benchmark code of Wow's own projects exercises the SPI directly. A user module does not, its tests
+            // included: it opts in where it implements or calls an SPI seam, as an application does (D483 ⑬).
             val wowModule = project in moduleProjects && project !in userProjects
-            if (wowModule || name != "compileKotlin") {
+            if (wowModule || project !in userProjects && name != "compileKotlin") {
                 optIn.add("me.ahoo.wow.api.annotation.WowSpi")
             }
             javaParameters = true

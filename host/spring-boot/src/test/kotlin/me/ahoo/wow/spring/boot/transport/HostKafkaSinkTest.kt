@@ -128,7 +128,7 @@ class HostKafkaSinkTest {
                 "wow.kafka.ddl=auto",
                 "wow.kafka.topics.replication-factor=3",
                 "wow.kafka.topics.configs.retention.ms=600000",
-                "wow.kafka.topics.partition-refresh=5s",
+                "wow.kafka.topics.partition-refresh-interval=5s",
                 "wow.kafka.offset-gap=earliest",
             )
             .withBean(Manifest::class.java, { Manifest(service = ServiceInfo("bank-service")) })
@@ -154,7 +154,7 @@ class HostKafkaSinkTest {
                     context.getBean(TopicAdmin::class.java)
                 ).isInstanceOf(KafkaTopicAdmin::class.java)
                 topics.ddl.assert().isEqualTo(Ddl.AUTO)
-                topics.partitionRefresh.assert().isEqualTo(5.seconds)
+                topics.partitionRefreshInterval.assert().isEqualTo(5.seconds)
                 // The transport reads the settings it declares under wow.kafka, flattened (finding R5.B-5).
                 val config = context.getBean(SelectedTransport::class.java).config
                 config.settings.values.assert().containsEntry("topics.replication-factor", "3")

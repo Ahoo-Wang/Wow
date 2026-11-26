@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+import type { Violation } from './violation.js';
+
 /**
  * The codes the violations of a rejected query carry: which rule the request
  * broke, stable where the human text is not. A query route answers a query it
@@ -93,18 +95,17 @@ export const QueryErrorCodes = Object.freeze({
    * A `having` or metric sort the storage evaluates after grouping read more
    * groups than the server allows; `path` is `body`. It may end a stream
    * partway through.
+   *
+   * @experimental
    */
   RESIDUAL_GROUPS_EXCEEDED: 'residual-groups-exceeded',
   /**
    * An aggregation that names no sort found more groups than its `limit`;
    * `path` is `limit`. Add a sort for a top-N, or raise the limit.
+   *
+   * @experimental
    */
   TOO_MANY_GROUPS: 'too-many-groups',
-  /**
-   * An in-process query named no entry where one is required. Never
-   * answered over HTTP; listed so the mirror stays complete.
-   */
-  EXPLICIT_ENTRY_REQUIRED: 'explicit-entry-required',
   /**
    * A state point read (`GET …/{id}/state?version=|at=`, `…/state/trace`): the
    * state asked for is more commits away from the snapshot, or from version 1,
@@ -127,7 +128,11 @@ export const QueryErrorCodes = Object.freeze({
   MODEL_SEARCH_UNSUPPORTED: 'model-search-unsupported',
   /** The field cannot be used for a cursor. */
   CURSOR_NOT_ALLOWED: 'cursor-not-allowed',
-  /** The field is protected and cannot be aggregated. */
+  /**
+   * The field is protected and cannot be aggregated.
+   *
+   * @experimental
+   */
   PROTECTED_AGGREGATION: 'protected-aggregation',
   /**
    * The field is protected and cannot be filtered or sorted: its descriptor
@@ -135,17 +140,37 @@ export const QueryErrorCodes = Object.freeze({
    * the same way.
    */
   PROTECTED_COMPARISON: 'protected-comparison',
-  /** A terms group's `missingKey` needs a single-valued string field. */
+  /**
+   * A terms group's `missingKey` needs a single-valued string field.
+   *
+   * @experimental
+   */
   MISSING_KEY_REQUIRES_STRING: 'missing-key-requires-string',
-  /** `ANY` needs a single value. */
+  /**
+   * `ANY` needs a single value.
+   *
+   * @experimental
+   */
   ANY_REQUIRES_SINGLE_VALUE: 'any-requires-single-value',
   /** The storage cannot deliver a complete projection; select fields explicitly. */
   INCOMPLETE_PROJECTION: 'incomplete-projection',
-  /** A metric filter uses a search filter. */
+  /**
+   * A metric filter uses a search filter.
+   *
+   * @experimental
+   */
   METRIC_FILTER_SEARCH: 'metric-filter-search',
-  /** A metric filter uses `ELEMENT_MATCH`. */
+  /**
+   * A metric filter uses `ELEMENT_MATCH`.
+   *
+   * @experimental
+   */
   METRIC_FILTER_ELEMENT_MATCH: 'metric-filter-element-match',
-  /** A metric filter names an array field; it must be scalar. */
+  /**
+   * A metric filter names an array field; it must be scalar.
+   *
+   * @experimental
+   */
   METRIC_FILTER_ARRAY_FIELD: 'metric-filter-array-field',
   /** The field cannot be projected. */
   NOT_PROJECTABLE: 'not-projectable',
@@ -168,18 +193,24 @@ export const QueryErrorCodes = Object.freeze({
   /**
    * A `FIRST` or `LAST` metric names a field that may hold several values;
    * it needs a single-valued one (`aggregate.firstLast` in the descriptor).
+   *
+   * @experimental
    */
   FIRST_LAST_REQUIRES_SINGLE_VALUE: 'first-last-requires-single-value',
   /**
    * A `FIRST` or `LAST` metric names no `orderBy` where there is no event
    * time to order by, such as inside an element or on a model whose
    * descriptor has no `analysis.firstLastOrderBy`; `path` is its field.
+   *
+   * @experimental
    */
   FIRST_LAST_REQUIRES_ORDER_BY: 'first-last-requires-order-by',
   /**
    * A date group or date difference names a field that stores neither a
    * date nor an epoch (a formatted string, say), so it cannot be aggregated
    * by time.
+   *
+   * @experimental
    */
   TEMPORAL_AGGREGATION_UNSUPPORTED: 'temporal-aggregation-unsupported',
   /** The sort has more fields than the protocol allows; `path` is `''`. */
@@ -202,6 +233,8 @@ export const QueryErrorCodes = Object.freeze({
    * conditions where its range cannot be shifted to the earlier period:
    * outside the top-level `AND`, or with a value that is not an instant;
    * `path` is the field.
+   *
+   * @experimental
    */
   PREVIOUS_UNSHIFTABLE: 'previous-unshiftable',
 } as const);
@@ -218,18 +251,19 @@ export type QueryErrorCode = KnownQueryErrorCode | (string & {});
 
 /**
  * Why the server rejected a query: one violation of its `wow.query.invalid`
- * problem, which rule failed, where, and the server's words.
+ * problem, which rule failed, where, and the server's words: a
+ * {@link Violation} whose `code` is a query's.
  */
-export interface QueryViolation {
+export interface QueryViolation extends Violation {
   /** Which rule failed; switch on it against {@link QueryErrorCodes}. */
-  code: QueryErrorCode;
+  readonly code: QueryErrorCode;
   /**
    * Where: the JSON path of the offending value for a decoding error
    * (`filter.state`, `metrics[0]`, `body`), the absolute logical field path
    * for an admission error (`state.items.sku`), or `''` when the rule is about
    * the model rather than a field.
    */
-  path: string;
+  readonly path: string;
   /** The server's words. */
-  message: string;
+  readonly message: string;
 }

@@ -43,7 +43,7 @@ An internal command (`@InternalCommand`, `"internal": true` in the Manifest) has
 
 | Method and path | Answers |
 | --- | --- |
-| `GET /wow/manifest` | The service's merged Manifest (`wow.http.manifest.enabled`), its internal commands among them, marked `internal` |
+| `GET /wow/manifest` | The service's merged Manifest, its internal commands among them, marked `internal`; on the public port only with `wow.http.manifest.enabled: true` (off by default), always on the internal port to the cluster's services |
 | `GET /wow/openapi` | The OpenAPI 3.1 document of these routes (`wow.http.openapi.enabled`): the internal commands are not among them, and each aggregate's records are typed by its Manifest, the `state` by its state schema and the `access` by the access attributes it declares |
 
 A context's own service routes, the handlers its code declares, are served as its Manifest lists them. `wow.http.ops.enabled: true` (off by default) also serves the operator's routes: the parked entries under `/wow/ops/parked` and the read of the node's subscriptions, `GET /wow/ops/subscriptions` ([Ops Console](../operate/ops-console)).
@@ -54,15 +54,16 @@ Any other request under a context's path is a `404` problem.
 
 | Header | On | Means |
 | --- | --- | --- |
-| `Wow-Request-Id` | Commands | The caller's id of the request: a retry with the same id is answered as done (`duplicate`), never decided twice; the same id with another command is `wow.command.request-id-reused` |
+| `Wow-Request-Id` | Commands | The caller's id of the request: a retry with the same id is answered as done (`duplicate`), never decided twice; the same id with another command is `wow.command.request-id-reused`. It never starts with `wow:`, which the request ids the framework gives its own commands start with (a timer's, a saga's): one that does is `400 wow.command.malformed` |
 | `Wow-Wait` | Commands | How far to wait before answering (below); `snapshot` by default, `committed` for an aggregate without snapshots, where an explicit `snapshot` is `wow.wait.invalid` |
 | `Wow-Wait-Timeout` | Commands | How long to wait: `500ms`, `10s`, `1m`, the unit right after the number, or ISO-8601, one millisecond or more (`10 s` and `PT0.0001S` are `wow.wait.invalid`); `wow.wait.default-timeout` (10 s) by default. A longer one is capped at `wow.wait.max-timeout` (1 min): the timeout is the client's bound on its wait, and the node's maximum bounds it |
 | `If-Match` | Commands | The version the aggregate must be at, as a strong tag: `"3"`, or the `"3-…"` a state read wrote, whose digest is not compared; `412 wow.aggregate.version-mismatch` when the aggregate is at another. Tags that name no version (`W/"3"`, `"03"`, `"2147483648"`) or two are `400 wow.request.malformed`. Its lines are one list ([Entity tags](./protocols#entity-tags)) |
 | `If-None-Match` | State reads, descriptors | The last `ETag`; `304` when it still holds. One that does not parse is ignored: a cache condition fails open ([Entity tags](./protocols#entity-tags)) |
 | `Accept: text/event-stream` | Commands, `list` queries | Server-sent events (below) |
 | `Last-Event-ID` | Streamed `list` queries | The position to resume after |
-| `Wow-Scope` | Every route | For a caller allowed to act across scopes: the tenant, owner and space to act in, an RFC 8941 dictionary, `tenant="t1", owner="u1", space="s1"`. On a query route, `tenant=*` or `tenant=("t1" "t2")` reads across tenants when `wow.query.allow-cross-tenant` is on. Its lines are one dictionary, joined by commas; a member given twice is malformed (`wow.command.malformed`, `wow.query.malformed` on a read) |
+| `Wow-Scope` | Every route | For a caller allowed to act across scopes: the tenant, owner and space to act in, an RFC 8941 dictionary, `tenant="t1", owner="u1", space="s1"`. It always names a scope: an owner or a space it leaves out is none, so `tenant="t1"` alone acts in `t1` with no owner or space checked; Wow's clients write the caller's own scope for a request that names only a tenant, which keeps it. On a query route, `tenant=*` or `tenant=("t1" "t2")` reads across tenants when `wow.query.allow-cross-tenant` is on. Its lines are one dictionary, joined by commas. One that does not parse, a member given twice included, or that names several tenants on a route other than a query's, is `400 wow.request.malformed` on every route |
 | `Wow-Space` | Every route | The space, among the caller's own, to act in |
+| `traceparent`, `tracestate`, `baggage` | Commands | The W3C trace context, kept as the command's trace; without `traceparent`, the other two are not read |
 
 The headers `wow.http.request-facts` lists are copied into the command and written into its event stream.
 
@@ -77,12 +78,15 @@ Nothing a client sends outside the body is read as something else, or dropped:
 | A `Wow-` header the port does not take (`Wow-Wiat`, a typo of `Wow-Wait`) | `400 wow.request.malformed`, naming it |
 | A Wow header given in two lines or more (`Wow-Request-Id: r1` and `Wow-Request-Id: r2`), but `Wow-Scope` | `400 wow.request.malformed`, naming it: a proxy that appends a line does not choose the value |
 | `Wow-Call`, the header of a service's synchronous call, on any route: a command, a query, a state read, a service route | `403 wow.auth.forbidden`, whatever the credential: calls are taken on the internal port alone |
-| Matrix parameters in the path (`/shop/cart/c-1;x=1/add-item`), a `;` that names none included (`c-1;`, `c-1;=v`) | `400 wow.request.malformed`: no route takes them |
+| `Wow-Reveal`, a service's read of its peer's `DISPLAY` values, on any route | `403 wow.auth.forbidden`, whatever the credential: a read on the public port is a caller's, whose `DISPLAY` values are masked |
+| Matrix parameters in the path (`/shop/cart/c-1;x=1/add-item`), a `;` that names none included (`c-1;`, `c-1;=v`), on the internal port's call routes too | `400 wow.request.malformed`: no route takes them |
 | A body of another type than `application/json` or `application/<name>+json`, any parameters aside (`*/*`, `application/*`, `image/x+json`) | `415` |
 | An aggregate id the [id rule](#aggregate-ids) refuses: a control character (`a%00b`), white space at either end (`%20c-1`), `.` or `..`, a `/`, `;` or `\` (`a%2Fb`), longer than 256 characters, or longer than 512 bytes in UTF-8 | `400 wow.command.malformed`. A unicode id (`%E8%B4%AD`) is taken as it is: a client encodes the ids it sends. An id long enough that the request line passes its limit is refused first, `414` ([before any route](#server-refusals)) |
 | A blank id on a state read (`/shop/cart/%20/state`) | `400 wow.query.malformed` |
 | A parameter of a state read or a trace it does not take (`?verison=1`), or one given twice (`?version=1&version=9`) | `400 wow.query.invalid`, the violation naming it |
 | `version`, `minVersion`, `from`, `to` or `limit` that is not ASCII digits without a sign or a leading zero (`%2B1`, `001`, `١`) | `400 wow.query.invalid`, the violation naming it |
+| A query parameter on a command route (`/shop/cart/c-1/add-item?x=1`), on the internal port too: a command reads its body and its headers alone | `400 wow.request.malformed`, the violation naming it; the command does not run |
+| A query parameter a service route does not declare (`?limt=1`), or a declared one given twice (`?limit=1&limit=2`) | `400 wow.route.malformed`, the violation naming it; the handler does not run |
 | A number parameter of a service route that is not a number as JSON writes one (`NaN`, `Infinity`, a space, `+1`, `01`; for a whole number, a fraction or an exponent) | `400 wow.route.malformed`, the violation naming it |
 
 ### What the server refuses before any route {#server-refusals}
@@ -92,13 +96,15 @@ Four of the server's limits are met before a route reads the request. Each answe
 | Request | Answer | Limit: key, default |
 | --- | --- | --- |
 | A request line (the method, the path with its query, the version) longer than the limit | `414`, and the connection closes | `server.netty.max-initial-line-length`, 4 KB |
-| A header block larger than the limit | `431`, and the connection closes | `server.max-http-request-header-size`, 8 KB |
+| A header block larger than the limit | `431`, and the connection closes | `server.max-http-request-header-size`, 8 KB; 16 KB in CoSec's [gateway mode](../operate/security#run-services-in-gateway-mode) |
 | A request the server cannot read as HTTP, such as two `Content-Length` headers that disagree | `400`, and the connection closes | |
 | A body larger than the codecs take in memory | `413` | `spring.http.codecs.max-in-memory-size`, 256 KB |
 
 The internal port answers the first three alike, at Reactor Netty's own limits, 4,096 and 8,192 bytes, which no key sets.
 
 A body past the codecs' limit is refused from its `Content-Length`, before any of it is read: a client that sent `Expect: 100-continue` gets the `413` in place of `100 Continue`, and sends no body. A body sent without a length is refused once its reading passes the limit. When the connection closes after an answer given before the request's body was read to its end (`Connection: close`, HTTP/1.0, or a refusal above), the server shuts its side down and reads what the client still sends, for at most 5 seconds, before closing: the answer reaches the client rather than a reset.
+
+A body that stalls, nothing of it arriving for `wow.http.read-timeout` (30 seconds), is answered `408`, a problem of its status alone whose `detail` names the timeout and its key, and its connection closes; over HTTP/2 its stream is reset after the answer. The timeout holds on both ports, from the request's headers to the body's end, so it also ends a body still arriving after an earlier answer (a `401`, a `404`), which the server otherwise reads on to take the connection's next request. It bounds neither a body that keeps arriving, however slowly, nor the answer: a query stream or a wait runs as long as it does, and a connection idle between its requests is kept. It counts the time nothing of the body is read, whoever stops the reads: Wow's own routes read a body at once, but an application's route that reads its body as a stream and asks for none of it for as long (subscribing to it late, or pausing between pieces) is answered `408` too, while its client is still sending. Such a route raises the key, or takes its body without pausing.
 
 ### Aggregate ids {#aggregate-ids}
 
@@ -146,7 +152,7 @@ hop  := "accepted" ["(" context ")"]
 | `queryable` | The store the aggregate's snapshot queries read holds the commit: its copy where its queries read another store (`query.snapshot.store`), else the same as `snapshot` |
 | `handled(sub)` | The subscription `sub`, `processor.function`, handled the commit |
 
-A hop without a context is in the command's context. After a saga's `handled` hop, the following hops apply to the commands the saga derived, in their contexts. A plan has at most `wow.wait.max-hops` (16) hops. A `Wow-Wait` longer than 4,096 characters, or of more than 32 hops, is `wow.wait.invalid` before any hop is read. A hop of a context the node has no Manifest of is checked where the chain arrives, unless `wow.wait.unknown-contexts: reject` refuses it with `wow.wait.invalid`.
+A hop without a context is in the command's context. After a saga's `handled` hop, the following hops apply to the commands the saga derived, in their contexts. A plan has at most `wow.wait.max-hops` (16) hops. A `Wow-Wait` longer than 4,096 characters, or of more than 32 hops, is `wow.wait.invalid` before any hop is read. A hop of a context the node has no Manifest of is checked where the chain arrives, unless `wow.wait.unknown-contexts: refuse` refuses it with `wow.wait.invalid`.
 
 ## Responses
 
@@ -157,7 +163,14 @@ A hop without a context is in the command's context. After a saga's `handled` ho
 | `304` | A state or a descriptor whose `ETag` the request named |
 | `4xx`, `5xx` | An RFC 9457 problem (below), with `Retry-After` when a retry may succeed later |
 
-**Server-sent events.** A command with `Accept: text/event-stream` answers `200` once accepted, then one event per result as each hop its plan names is reached (a hop that several derived commands reach gives one each), its `id` the result's index, its name the hop's stage, its data the result, until the wait ends. A refusal before it is accepted is a problem with its own status instead: an admission refusal, a full node (`429 wow.command.busy`), an invalid plan, a command topic that did not take it. After the head, a rejection, a timeout or a failure is the stream's last result, a failure a FAILED result with its code (`wow.storage.unavailable`, `wow.command.unknown`), and so is a chain that ended before its plan did (`chainEnded`). After the last result, one more event, `end` with `{"reason":"complete"}` and no `id`, says the stream is whole; it is no result. A stream that ends without it, however cleanly (a node that stopped, a connection cut), leaves the command's outcome unknown: send it again with the same `Wow-Request-Id`. A reader does not infer the end from the plan. A comment, `: keep-alive`, is written at once and every 15 seconds while the stream runs, so a gateway's idle timeout does not close the stream; a reader of server-sent events skips it. A streamed `list` answers one `row` event per record, its `id` the cursor of the row's position (none when the list's sort cannot be resumed), then an `end` event `{"reason", "resumable"}`: `complete` (`"resumable":false`) once every record was sent, `hold-expired` after `wow.query.stream.max-hold`, `node-stopping` when the node stops, or `permit-reclaimed` when the store had no query permit for the next chunk in time. In a resumable stream every reason but `complete` resumes with `Last-Event-ID`. A failure after the first row ends the stream with an `error` event holding the problem.
+| Response header | On | Means |
+| --- | --- | --- |
+| `ETag` | State reads, descriptors | The answer's version as a strong tag (a state read's `"3-…"`), for `If-None-Match`, and for `If-Match` on a command ([Entity tags](./protocols#entity-tags)) |
+| `Cache-Control` | State reads, descriptors, their `304` too | `private, no-cache`: who may read the answer, and what it reads (the tenant and scope of a state read, the datasets a caller sees), is the caller's. A shared cache stores none of it; a private one keeps it and asks again with `If-None-Match` each time ([Entity tags](./protocols#entity-tags)) |
+| `Wow-Rebuilding` | Snapshot queries, descriptors | `true` while the aggregate type's snapshots are being rebuilt or backfilled: the answer may lack what the rebuild has not reached yet |
+| `Retry-After` | Problems | When a retry may get past the problem, in whole seconds |
+
+**Server-sent events.** A command with `Accept: text/event-stream` answers `200` once accepted, then one event per result as each hop its plan names is reached (a hop that several derived commands reach gives one each), its `id` the result's index, its name the hop's stage, its data the result, until the wait ends. A refusal before it is accepted is a problem with its own status instead: an admission refusal, a full node (`429 wow.command.busy`), an invalid plan, a command topic that did not take it. After the head, a rejection, a timeout or a failure is the stream's last result, a failure a FAILED result with its code (`wow.storage.unavailable`, `wow.command.unknown`), and so is a chain that ended before its plan did (`chainEnded`). After the last result, one more event, `end` with `{"reason":"complete","resumable":false}` and no `id`, says the stream is whole; it is no result, and has a streamed list's `end`'s shape. A stream that ends without it, however cleanly (a node that stopped, a connection cut), leaves the command's outcome unknown: send it again with the same `Wow-Request-Id`. A reader does not infer the end from the plan. A comment, `: keep-alive`, is written at once and every 15 seconds while the stream runs, so a gateway's idle timeout does not close the stream; a reader of server-sent events skips it. A streamed `list` answers one `row` event per record, its `id` the cursor of the row's position (none when the list's sort cannot be resumed), then an `end` event `{"reason", "resumable"}`: `complete` (`"resumable":false`) once every record was sent, `hold-expired` after `wow.query.stream.max-hold`, `node-stopping` when the node stops, or `permit-reclaimed` when the store had no query permit for the next chunk in time. In a resumable stream every reason but `complete` resumes with `Last-Event-ID`. A failure after the first row ends the stream with an `error` event holding the problem.
 
 ## Problems
 
@@ -174,9 +187,9 @@ Every error is `application/problem+json`:
 | `retry` | What a retry may do, on every problem: `none`, `same-request` (send again with the same `Wow-Request-Id`) or `new-request`; with `Retry-After` when it is not `none`, except on `wow.auth.unavailable`, whose headers are CoSec's (below) |
 | `result` | A command's whole result, when the command produced one |
 | `version` | The aggregate's version the problem answered: a rejection's, or the current one of a state read below its `minVersion` |
-| Any other member | A rejection's structured extensions, by name; one named like a member above, or `instance`, is left out |
+| Any other member | A rejection's or a service route refusal's structured extensions, by name. One named like a member above, or `instance`, is left out, even on a problem without that member. So is one named `requestId`, `traceId` or `errors`, names Wow keeps for members of its own: CoSec's refusals carry `requestId` and `traceId` ([CoSec's refusals](../operate/security#cosec-refusals)). The first time a service leaves a name out, it logs a warning naming it and the error code, never the value; a rejection's result still carries it |
 
-A domain code's status is its `@ErrorCode(status)`, 422 by default, overridable per code with `wow.http.errors.[<code>].status`. [Error Codes](./error-codes) lists the framework's codes. The application's own routes answer their failures as problems too (`wow.http.global-errors.enabled`, on by default).
+A domain code's status is its `@ErrorCode(status)`, 422 by default, overridable per code with `wow.http.errors.[<code>].status`. [Error Codes](./error-codes) lists the framework's codes. A code under `wow.` there that the framework does not answer refuses the start, naming the nearest framework codes; a code of the application's that neither the service's Manifest nor a peer contract on the class path declares starts with a warning, since it may still be right (a rejection's code no `@ErrorCode` declares, a `ProblemMapper`'s, a peer's). The application's own routes answer their failures as problems too (`wow.http.global-errors.enabled`, on by default).
 
 A request CoSec refuses is answered before any route, with CoSec's status, headers and problem (`https://cosec.ahoo.me/problems/<type>`, CoSec's `code`). With `wow.cosec.problems: wow` its body is Wow's problem: `wow.request.malformed`, `wow.auth.unauthenticated`, `wow.auth.forbidden`, `wow.request.rate-limited` or `wow.auth.unavailable`, and `about:blank` for CoSec's internal error, with CoSec's `type` and `code` in the member `cosec` ([CoSec's refusals](../operate/security#cosec-refusals)). Its headers stay CoSec's, so `wow.auth.unavailable` (503) has `retry: new-request` and no `Retry-After`: CoSec sets none on it. The catalog's wait for the code, one second, is what Wow's clients wait without the header ([Error Codes](./error-codes)), not a value a response carries. Only these refusals carry `wow.request.rate-limited` and `wow.auth.unavailable`.
 
@@ -206,7 +219,7 @@ A failure the framework does not know, such as a failed call to another system, 
 @Order(0)
 fun catalogProblems(): ProblemMapper = ProblemMapper { failure ->
     (failure as? WebClientResponseException)?.let {
-        WowProblemException("shop.catalog.unreachable", 502, Retry.SAME_REQUEST, null, "The catalog did not answer.")
+        WowProblemException("shop.catalog.unreachable", 502, RetryAdvice.SAME_REQUEST, null, "The catalog did not answer.")
     }
 }
 ```

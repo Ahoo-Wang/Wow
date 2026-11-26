@@ -38,7 +38,7 @@ import { ViewCommandError } from './write.js';
 /** What the engine's resources are read from: the host's options. */
 type ResourceHost = Pick<
   ViewEngineOptions,
-  'resources' | 'resolveOptions' | 'text' | 'onIssue'
+  'resources' | 'optionSource' | 'text' | 'onIssue'
 >;
 
 /**
@@ -235,9 +235,9 @@ export class Resources {
     return source;
   }
 
-  /** See `ViewEngine.resolveOptions`. */
-  resolveOptions(key: string): OptionSource {
-    const resolve = this.host.resolveOptions;
+  /** See `ViewEngine.optionSource`. */
+  optionSource(key: string): OptionSource {
+    const resolve = this.host.optionSource;
     if (!resolve)
       throw new ViewCommandError(
         issue('runtime.options.unresolved', [], { source: key }),

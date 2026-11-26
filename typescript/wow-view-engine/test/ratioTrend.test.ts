@@ -12,14 +12,13 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import {
-  fitChartSlots,
-  type AnalysisGroup,
-  type AnalysisMetric,
-  type AnalysisViewConfig,
-  type MetricCardData,
-  type MetricCardSpec,
-  type RecordData,
+import type {
+  AnalysisGroup,
+  AnalysisMetric,
+  AnalysisViewConfig,
+  MetricCardData,
+  MetricCardSpec,
+  RecordData,
 } from '../src/index.js';
 import { shapeChart } from '../src/analysis/chart.js';
 import { validateChart } from '../src/analysis/validateChart.js';
@@ -32,6 +31,7 @@ import {
   AggregationMetricType,
   DerivedExpressionType,
 } from '@ahoo-wang/wow-client/dsl';
+import { fitChartSlots } from '../src/analysis/chartSlots.js';
 
 /**
  * A metric card's trend over a ratio of sums (D38): 客单价 = GMV ÷ 订单数.

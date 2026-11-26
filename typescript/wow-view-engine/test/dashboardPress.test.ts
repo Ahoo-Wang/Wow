@@ -28,7 +28,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,
   ViewEngine,
-  type BoardValueSource,
+  type DashboardValueSource,
   type DashboardPanel,
   type DashboardViewConfig,
   type DataViewDefinition,
@@ -146,8 +146,8 @@ function view(
     kind: 'view',
     instanceId,
     bindings: [
-      { globalField: 'region', panelField: 'warehouse' },
-      { globalField: 'created', panelField: 'createdAt' },
+      { dashboardField: 'region', panelField: 'warehouse' },
+      { dashboardField: 'created', panelField: 'createdAt' },
     ],
     layout: { x, y: 0, w: 8, h: 4 },
     ...extra,
@@ -456,7 +456,7 @@ describe('a custom destination (D22 I)', () => {
 
 describe('a press that opens another board (D23 Q17)', () => {
   const toRegional = (
-    values: Record<string, BoardValueSource>,
+    values: Record<string, DashboardValueSource>,
   ): Partial<DashboardPanel> => ({
     click: { kind: 'dashboard', instanceId: 'regional', values },
   });
@@ -557,13 +557,13 @@ describe('a press that opens another board (D23 Q17)', () => {
       throw new Error('expected a dashboard');
     expect(get.mock.calls.map(([id]) => id)).not.toContain('regional');
 
-    const read = await runtime.destinationBoard('regional');
+    const read = await runtime.destinationDashboard('regional');
     expect(read?.title).toBe('Regional');
     expect(read?.config.columns).toBe(24);
     expect(get.mock.calls.filter(([id]) => id === 'regional')).toHaveLength(1);
     // Neither a view nor a board that is gone is a board to open.
-    expect(await runtime.destinationBoard('list')).toBeNull();
-    expect(await runtime.destinationBoard('nope')).toBeNull();
+    expect(await runtime.destinationDashboard('list')).toBeNull();
+    expect(await runtime.destinationDashboard('nope')).toBeNull();
   });
 
   it('falls back to the follow-up menu on a mapping gone stale, and warns from then on', async () => {
@@ -624,7 +624,7 @@ describe('a press that opens another board (D23 Q17)', () => {
 
 describe('a mapping from one of this board’s filters (D23 Q17, 2026-09-23)', () => {
   const fromOwn = (
-    values: Record<string, BoardValueSource>,
+    values: Record<string, DashboardValueSource>,
   ): Partial<DashboardPanel> => ({
     click: { kind: 'dashboard', instanceId: 'regional', values },
   });

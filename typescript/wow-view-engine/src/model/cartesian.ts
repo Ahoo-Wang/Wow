@@ -20,6 +20,7 @@
 
 import type { ValueFormat } from './chart.js';
 
+/** One series of a cartesian chart: the metric it plots and how. */
 export interface CartesianSeries {
   /** Metric alias. */
   metric: string;
@@ -41,6 +42,10 @@ export interface CartesianSeries {
   line?: 'smooth' | 'step';
 }
 
+/**
+ * A bar, line, area or combo chart's config: the group on the x axis, its
+ * series, axes and reference lines.
+ */
 export interface CartesianSpec {
   /** Group alias. */
   x: string;
@@ -116,6 +121,10 @@ export const DERIVED_KINDS = [
 /** The widest window a moving average takes: a year of days. */
 export const MAX_MOVING_WINDOW = 366;
 
+/**
+ * A line derived from a cartesian chart's series, such as a trend, a moving
+ * average or a cumulative share.
+ */
 export interface DerivedSeries {
   kind: DerivedKind;
   /** The metric alias of the drawn series it is computed from. */
@@ -133,6 +142,7 @@ export const CARTESIAN_MISSING = [
   'gap',
 ] as const satisfies readonly CartesianMissing[];
 
+/** One axis of a cartesian chart: its label, range, format and scale. */
 export interface AxisSpec {
   label?: string;
   min?: number;

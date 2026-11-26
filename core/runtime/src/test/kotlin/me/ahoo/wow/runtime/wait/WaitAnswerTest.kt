@@ -83,7 +83,7 @@ class WaitAnswerTest {
 
     private val log = InMemoryEventLog(partitions = 2)
     private val registry = WaitRegistry()
-    private val origin = Origin("node-1", "127.0.0.1:9090", "shop")
+    private val origin = Origin("shop", "node-1", "127.0.0.1:9090")
     private val signals = LocalSignalSender(origin.node, registry)
     private val sequence = AtomicInteger()
 

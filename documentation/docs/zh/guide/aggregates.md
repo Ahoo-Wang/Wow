@@ -130,7 +130,7 @@ data class ConfirmPayment(
 
 内部命令只由平台发送：本服务的 Saga 与定时器、进程内的 `CommandClient`，以及别的服务经内部端口的调用；后者与任何命令一样，受 [`wow.callers.<service>.commands`](../reference/configuration#wow-callers-service) 的许可约束（[调用其他服务](./calling-services)）。这份列表只收窄有条目的服务：没有条目的服务可以发送每一条领域命令，内部命令也不例外，所以挡住其他调用方的是内部端口外面的网络（[关闭内部端口](../operate/security#close-the-internal-port)）。Manifest 把它记为 `"internal": true`，路由与同类命令一样照写，内部端口按相同路径受理。公开端口不挂这些路由：在公开端口请求 `POST /eshop-payment/payment/{id}/confirm-payment` 答 `404`，与任何未知路径的 problem 相同，不透露这条命令存在。公开端口的 OpenAPI 文档与 `wow-generator` 生成的客户端都不含这条命令，也不含只有它用到的类型。内部端口受理的每次调用仍由命令授权器裁决。
 
-404 让探测分不清内部命令与未知路径；契约本身仍是公开的。公开端口的 `GET /wow/manifest` 与列出其他命令一样列出它，并标注 `"internal": true`：按名字调用服务的工具从那里读取契约，Saga 的 `derives` 与等待链也指向这条命令。不想公开契约的部署，用 [`wow.http.manifest.enabled: false`](../reference/configuration#wow-http-manifest) 关闭这个端点。
+404 让探测分不清内部命令与未知路径。Manifest 与列出其他命令一样列出它，并标注 `"internal": true`：内部端口把 Manifest 提供给集群中的服务，Saga 的 `derives` 与等待链也指向这条命令；公开端口只为公开其契约的部署在 `GET /wow/manifest` 上提供它，即设置 [`wow.http.manifest.enabled: true`](../reference/configuration#wow-http-manifest)（默认关闭）。
 
 eShop 的 `ConfirmPayment` 与 `FailPayment` 是内部命令：网关 Saga 用它们记录网关的答复；买家若能发送 `ConfirmPayment`，就能不付款而完成支付。把公开命令改为内部会删去它的公开路由，兼容检查把它报告为破坏；把内部命令改为公开则增加路由，是加法（[Manifest 与兼容性](./manifest#the-compatibility-check)）。系统命令（包括生命周期命令）从不是内部命令。
 
@@ -289,7 +289,7 @@ suspend fun onCommand(command: LendBook, queries: NodeQueryApi, scope: DecideSco
 | `reserve(namespace, key)` | 为这个聚合预留一个唯一键，例如用户名；被另一个聚合持有时返回 `false`。`ReservationTenancy` 参数扩大它的范围（[唯一键](./unique-keys#reserve-a-key)） |
 | `release(namespace, key)` | 在事件追加之后，释放这个聚合持有的一个键；使用预留它时的 `ReservationTenancy` |
 | `onAppendFailure { … }` | 在确定事件没有追加时，撤销一个外部动作（[见下文](#undo-an-outside-act)） |
-| `callId()` | 一个别的尝试与重试都不会用到的请求 ID，每次调用都是新的：本次尝试会撤销的外部动作的键（[见下文](#undo-an-outside-act)） |
+| `attemptKey()` | 只属于本次尝试的键，别的尝试与重试都不会用到，每次调用都是新的：本次尝试会撤销的外部动作的键，即 Wow 调用的请求 ID 或第三方的幂等键（[见下文](#undo-an-outside-act)） |
 | `afterAppend { … }` | 事件追加之后运行；失败只记日志，不抛出（[见下文](#undo-an-outside-act)） |
 | `schedule(key, rule, command, target)` | 定时一条命令，发往这个聚合，除非 `target` 指定了另一个。它与事件一起写入，要么都写入，要么都不写 |
 | `cancelSchedule(key)` | 取消这个聚合在 `key` 下保持的定时 |
@@ -312,14 +312,14 @@ fun onCommand(command: QuoteShipping, scope: DecideScope): ShippingQuoted {
 
 ## 撤销对外部的操作 {#undo-an-outside-act}
 
-决策可能在事件追加之前就对聚合之外做了事：预授权一张卡，在另一个系统里占一个座位，给另一个上下文发一条命令。`onAppendFailure` 登记怎样撤销这件事，内核在确知事件没有追加时执行它。会被撤销的动作以本次尝试为键，用 `callId()`：
+决策可能在事件追加之前就对聚合之外做了事：预授权一张卡，在另一个系统里占一个座位，给另一个上下文发一条命令。`onAppendFailure` 登记怎样撤销这件事，内核在确知事件没有追加时执行它。会被撤销的动作以本次尝试为键，用 `attemptKey()`：
 
 <!-- sample: fragment -->
 
 ```kotlin
 @OnCommand
 suspend fun onCommand(command: PayOrder, scope: DecideScope): Decision {
-    val authorization = payments.authorize(state.totalAmount, key = scope.callId())
+    val authorization = payments.authorize(state.totalAmount, key = scope.attemptKey())
     scope.onAppendFailure { payments.void(authorization) }
     return Decision.events(OrderPaid(authorization.id))
 }
@@ -327,8 +327,8 @@ suspend fun onCommand(command: PayOrder, scope: DecideScope): Decision {
 
 外部动作分两种，各有各的键：
 
-- **会被撤销的动作**用 `callId()`，即别的尝试与重试都不会用到的 ID，如上例；Wow 的调用把它作为请求 ID（`CommandRequest.requestId = scope.callId()`）。补偿执行之后，下一次尝试（版本冲突之后）或调用方对该请求的重试（被拒绝之后）会以新的键再做一次。若以命令为键，即命令的 `requestId` 或 Wow 客户端推导的 ID，下一次尝试就会重复刚被撤销的请求，而对重复的键回答第一次结果的系统，会把已撤销的东西（作废的预授权）交回来。
-- **保留下来的动作**不会被撤销，以命令为键。Wow 客户端默认如此：它从正在决定的命令的聚合类型和租户、它的请求 ID 和调用的顺序推导所发每条命令的请求 ID，所以下一次尝试发出的是同样的请求。其中不含聚合 ID：准入每次处理不带 ID 的创建命令时都会给它一个新 ID，调用方的重试、命令主题再次投递的副本或再次处理的 Saga 派生创建命令发出的也是同样的请求，目标把它们当作重复来回答（[拒绝](./rejections#remote-calls-in-a-decide-function)）。这样的调用在每次尝试中都必须是同一个调用。下一次尝试基于更新的状态决定，在同一位置发出了另一个目标、命令类型或命令体时，命令失败（`wow.command.failed`），并指出是哪个调用，而不是拿第一次调用的提交来回答。另一个节点在两次尝试之间提交，即调用方无法避免的竞争，于是让命令失败，而不是基于另一个调用的回答提交。可能变化的调用应当被撤销并使用 `callId()`，或者带上自己的业务请求 ID（`CommandRequest.requestId`）。
+- **会被撤销的动作**用 `attemptKey()`，即别的尝试与重试都不会用到的键，如上例；Wow 的调用把它作为请求 ID（`CommandRequest.requestId = scope.attemptKey()`）。补偿执行之后，下一次尝试（版本冲突之后）或调用方对该请求的重试（被拒绝之后）会以新的键再做一次。若以命令为键，即命令的 `requestId` 或 Wow 客户端推导的 ID，下一次尝试就会重复刚被撤销的请求，而对重复的键回答第一次结果的系统，会把已撤销的东西（作废的预授权）交回来。
+- **保留下来的动作**不会被撤销，以命令为键。Wow 客户端默认如此：它从正在决定的命令的聚合类型和租户、它的请求 ID 和调用的顺序推导所发每条命令的请求 ID，所以下一次尝试发出的是同样的请求。其中不含聚合 ID：准入每次处理不带 ID 的创建命令时都会给它一个新 ID，调用方的重试、命令主题再次投递的副本或再次处理的 Saga 派生创建命令发出的也是同样的请求，目标把它们当作重复来回答（[拒绝](./rejections#remote-calls-in-a-decide-function)）。这样的调用在每次尝试中都必须是同一个调用。下一次尝试基于更新的状态决定，在同一位置发出了另一个目标、命令类型或命令体时，命令失败（`wow.command.failed`），并指出是哪个调用，而不是拿第一次调用的提交来回答。另一个节点在两次尝试之间提交，即调用方无法避免的竞争，于是让命令失败，而不是基于另一个调用的回答提交。可能变化的调用应当被撤销并使用 `attemptKey()`，或者带上自己的业务请求 ID（`CommandRequest.requestId`）。
 
 以下情况会执行补偿：
 
@@ -338,11 +338,11 @@ suspend fun onCommand(command: PayOrder, scope: DecideScope): Decision {
 - 存储拒绝了追加，或者以确定没有写入的方式失败；
 - 追加时发现这个请求已经由另一次尝试提交。
 
-追加结果未知时不执行。内核会先读取这次追加本应占用的版本；只有仍然无法判断时，才回答 `wow.command.unknown`，此时事件可能已经提交。进程崩溃时也无法执行。所以，命令丢失后不能留下的外部操作，还需要自己的清理手段：外部系统里的过期机制，或者读取日志的对账。以 `callId()` 为键的动作，会在这样的命令被重试时以新的键再做一次，而第一次做的仍然留着，直到那次清理。
+追加结果未知时不执行。内核会先读取这次追加本应占用的版本；只有仍然无法判断时，才回答 `wow.command.unknown`，此时事件可能已经提交。进程崩溃时也无法执行。所以，命令丢失后不能留下的外部操作，还需要自己的清理手段：外部系统里的过期机制，或者读取日志的对账。以 `attemptKey()` 为键的动作，会在这样的命令被重试时以新的键再做一次，而第一次做的仍然留着，直到那次清理。
 
 - **顺序。** 补偿按登记的逆序逐个执行，每个都会等待完成，调用方已经离开时也一样。没有超时：卡住的补偿会挡住这个聚合的命令，所以要给它的调用设上限。
 - **失败。** 一个补偿失败不会阻止其余的补偿。失败会被记日志，或附加到它所撤销的那个失败上，命令的应答不变。
-- **两次。** 基于已落后于日志的缓存状态被拒绝、或未作改变的命令会重新决定，第一次尝试先被补偿。以 `callId()` 为键的动作于是做了、撤销、再做一次；保留下来的动作以同一个键再发一次，被当作重复来回答。
+- **两次。** 基于已落后于日志的缓存状态被拒绝、或未作改变的命令会重新决定，第一次尝试先被补偿。以 `attemptKey()` 为键的动作于是做了、撤销、再做一次；保留下来的动作以同一个键再发一次，被当作重复来回答。
 - **预留的键。** `reserve` 会登记自己的补偿：事件没有追加时，放弃这次尝试的持有，而这个聚合原本就持有的键继续持有。一次尝试预留和释放的键随它追加的事件一起记录，所以结果未知、或进程在追加之后崩溃时，内置的 `wow.reservation` 订阅按日志确认和释放它们。只有没有任何已追加条目记录的持有（进程在追加之前崩溃）才会过期，30 秒后由这个键的下一次预留取得。
 
 `afterAppend` 是另一面：事件追加之后、应答调用方之前，按登记顺序执行。重复请求不执行，任何没有追加的结果也不执行，拒绝也不执行，即使是提交了事件的拒绝：那时执行的是补偿。失败只记日志，事件仍然已提交。订阅可能在它结束之前就看到这次提交；进程在两者之间崩溃，它就被跳过。所以它适合可以丢失的工作，例如预热缓存。必须跟随每次提交的工作应放在反应器或 Saga 中，由它们读取已提交的事件。
@@ -468,7 +468,7 @@ style:
 
 ## 在每条命令之后运行代码 {#run-code-after-every-command}
 
-标注 `@AfterCommand` 或名为 `afterCommand` 的函数，在它适用的命令函数之后运行：`include` 里的命令函数，`include` 为空时是全部，再减去 `exclude` 里的。它看到的是命令函数看到的那个状态，返回事件，这些事件在同一条流里追加在命令自己的事件之后。命令被拒绝时它不运行，它也不能拒绝。它失败时整条命令失败，什么都不写。
+标注 `@AfterCommand` 或名为 `afterCommand` 的函数，在它适用的命令函数之后运行：`include` 里的命令函数，`include` 为空时是全部，再减去 `exclude` 里的。它看到的是命令函数看到的那个状态，返回事件，这些事件在同一条流里追加在命令自己的事件之后。命令被拒绝时它不运行。它自己也可以拒绝命令，与命令函数一样（`scope.reject(...)`，或抛出的拒绝）：命令随之被拒绝，它的事件一条都不写，本次尝试的 `onAppendFailure` 补偿照常运行。它失败时整条命令失败，什么都不写。
 
 ## 生命周期命令 {#lifecycle-commands}
 

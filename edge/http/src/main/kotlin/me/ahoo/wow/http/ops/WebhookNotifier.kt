@@ -91,23 +91,26 @@ class WebhookNotifier(
         Format.WECOM -> mapOf("msgtype" to "markdown", "markdown" to mapOf("content" to textOf(notice)))
     }
 
-    /** A Markdown summary of [notice]. */
+    /**
+     * A Markdown summary of [notice]. What a client can reach, the aggregate's ref and the parked reason (which may
+     * quote a rejection's message as it is), is written as text ([markdownText]): it writes no line, link or markup of
+     * its own into the alert.
+     */
     fun textOf(notice: ParkedNotice): String {
-        val entry = notice.entry
         val title = when (notice.kind) {
             ParkedNotice.Kind.PARKED -> "parked"
             ParkedNotice.Kind.EXHAUSTED -> "spent its retries"
         }
         val next = notice.nextRetryAt?.let { "next retry at ${Instant.ofEpochMilli(it)}" } ?: "no automatic retry left"
         return buildString {
-            append("**${notice.subscription} $title: ${entry.ref}**\n")
+            append("**${notice.context}.${notice.subscription} $title: ${markdownText(notice.ref.toString())}**\n")
             service?.let { append("> service: $it\n") }
             append("> group: ${notice.group}\n")
-            append("> from version: ${entry.fromVersion}")
-            entry.fromPosition?.let { append(", position $it") }
+            append("> from version: ${notice.fromVersion}")
+            notice.entry.fromPosition?.let { append(", position $it") }
             append('\n')
-            append("> reason: ${entry.reason.take(MAX_REASON)}\n")
-            append("> retries: ${entry.retries} of ${notice.spec.maxRetries}, $next\n")
+            append("> reason: ${markdownText(notice.reason.take(MAX_REASON))}\n")
+            append("> retries: ${notice.retries} of ${notice.maxRetries}, $next\n")
             append("> at: ${Instant.ofEpochMilli(notice.at)}")
         }
     }
@@ -133,5 +136,30 @@ class WebhookNotifier(
         private const val ERRCODE = "errcode"
         private const val MAX_ANSWER = 200
         private const val MAX_REASON = 1_000
+
+        /** What CommonMark reads as markup within a line: escapes, code, emphasis, links, autolinks and HTML. */
+        private const val INLINE_MARKUP = "\\`*_~[]<"
+
+        /**
+         * [value] as Markdown text on one line: each control character and line separator a space, so it starts no line
+         * of its own, and each character of [INLINE_MARKUP] escaped with a backslash, so it opens no code, emphasis,
+         * link or HTML of its own. A `<` is also followed by a zero-width space, so it opens no tag of a renderer that
+         * reads no backslash escape either: WeCom's, whose mentions (`<@userid>`, `<@all>`) and `<font color="…">`
+         * start with `<` and would otherwise reach the group as markup.
+         */
+        internal fun markdownText(value: String): String = buildString(value.length) {
+            value.forEach { char ->
+                when {
+                    char.isISOControl() || char == LINE_SEPARATOR || char == PARAGRAPH_SEPARATOR -> append(' ')
+                    char == '<' -> append('\\').append(char).append(ZERO_WIDTH_SPACE)
+                    char in INLINE_MARKUP -> append('\\').append(char)
+                    else -> append(char)
+                }
+            }
+        }
+
+        private const val LINE_SEPARATOR = '\u2028'
+        private const val PARAGRAPH_SEPARATOR = '\u2029'
+        private const val ZERO_WIDTH_SPACE = '\u200B'
     }
 }

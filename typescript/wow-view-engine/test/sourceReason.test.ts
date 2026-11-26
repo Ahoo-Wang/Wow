@@ -92,7 +92,7 @@ describe('sourceReason', () => {
         path: 'state.sku',
         message: 'The query failed admission.',
       },
-      errorCode: 'wow.query.invalid',
+      code: 'wow.query.invalid',
       status: 400,
     });
   });

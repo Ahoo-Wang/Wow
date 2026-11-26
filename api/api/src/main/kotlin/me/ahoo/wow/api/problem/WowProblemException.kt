@@ -27,7 +27,7 @@ import kotlin.time.Duration
 class WowProblemException @JvmOverloads constructor(
     val code: String,
     val status: Int,
-    val retry: Retry,
+    val retry: RetryAdvice,
     val retryAfter: Duration?,
     message: String,
     val result: CommandResult? = null,
@@ -38,8 +38,8 @@ class WowProblemException @JvmOverloads constructor(
      */
     val violations: List<Violation> = emptyList(),
 ) : RuntimeException(message, cause) {
-    /** Whether a retry may get past it ([Retry.NONE] is not). */
-    val retryable: Boolean get() = retry != Retry.NONE
+    /** Whether a retry may get past it ([RetryAdvice.NONE] is not). */
+    val retryable: Boolean get() = retry != RetryAdvice.NONE
 }
 
 /**
@@ -49,7 +49,7 @@ class WowProblemException @JvmOverloads constructor(
  *
  * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
-enum class Retry {
+enum class RetryAdvice {
     /** A retry fails alike: the request, or the state it meets, must change first. */
     NONE,
 

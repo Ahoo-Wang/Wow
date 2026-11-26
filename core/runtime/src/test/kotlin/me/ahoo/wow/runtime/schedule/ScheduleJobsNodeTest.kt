@@ -110,7 +110,7 @@ class ScheduleJobsNodeTest {
         backends,
         channel,
         options = fastNodeOptions().copyWith(
-            timers = TimerOptions(pollInterval = 20.milliseconds, lookahead = 2.seconds, claimTimeout = 1.seconds),
+            timers = TimerOptions(pollInterval = 20.milliseconds, lookahead = 2.seconds, claimTtl = 1.seconds),
             schedules = schedules,
             subscription = subscription,
         ),

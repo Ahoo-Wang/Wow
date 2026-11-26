@@ -13,7 +13,7 @@
 
 /**
  * `node scripts/case-folding.mjs` writes the core's case folding table,
- * `query/query/src/main/resources/me/ahoo/wow/query/case-folding.txt`: Unicode's simple case folding (the `C` and
+ * `api/query-api/src/main/resources/me/ahoo/wow/api/query/case-folding.txt`: Unicode's simple case folding (the `C` and
  * `S` entries of `CaseFolding.txt`) as classes of the characters that fold together, one class a line, its code
  * points in hex, ascending. An ignore-case match compares both texts after this folding, on every backend.
  *
@@ -32,7 +32,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
-const target = join(root, 'query/query/src/main/resources/me/ahoo/wow/query/case-folding.txt')
+const target = join(root, 'api/query-api/src/main/resources/me/ahoo/wow/api/query/case-folding.txt')
 
 const MAX_CODE_POINT = 0x10ffff
 const SURROGATES = [0xd800, 0xdfff]

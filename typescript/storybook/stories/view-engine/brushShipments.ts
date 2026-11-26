@@ -23,7 +23,6 @@
 
 import {
   emptyDashboardConfig,
-  fitChartSlots,
   type DashboardDefinition,
   type DashboardViewConfig,
   type ViewInstance,
@@ -42,6 +41,7 @@ import {
   AggregationGroupType,
   AggregationMetricType,
 } from '@ahoo-wang/wow-client/dsl';
+import { fitChartSlots } from '../../../wow-view-engine/src/analysis/chartSlots.js';
 
 /**
  * How many aggregations the month's source has answered: a play reads it
@@ -125,8 +125,11 @@ export const shipmentsBoardDefinition: DashboardDefinition = {
   kind: 'dashboard',
 };
 
-const DAY_BINDING = { globalField: 'day', panelField: 'createdAt' };
-const WAREHOUSE_BINDING = { globalField: 'warehouse', panelField: 'warehouse' };
+const DAY_BINDING = { dashboardField: 'day', panelField: 'createdAt' };
+const WAREHOUSE_BINDING = {
+  dashboardField: 'warehouse',
+  panelField: 'warehouse',
+};
 
 /**
  * 「日期」接三块面板，「发货仓」接按日的柱与漏斗；漏斗的点击设「发货仓」，

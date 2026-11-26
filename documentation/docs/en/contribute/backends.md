@@ -85,7 +85,7 @@ The host finds providers through Java's `ServiceLoader`, from the module's `META
 
 A topic transport and a Sink are found the same way as stores. A `TransportProvider` (`:spi`, `me.ahoo.wow.spi.transport`) opens the broker that carries published streams, commands to other contexts and their receipts: its `open` returns a `TopicTransport`, the `TopicProducer`, `PartitionedSource` and `TopicAdmin` the node takes, and may warn about the node's command topics once it is ready. A `SinkProvider` (`me.ahoo.wow.spi.sink`) opens the Sinks of one destination: `open` returns a `StreamSinks`, one `Sink` per published stream, whose subscriptions are named `<processor>.<aggregate>`. The host finds them through `ServiceLoader`, from `META-INF/services/me.ahoo.wow.spi.transport.TransportProvider` and `META-INF/services/me.ahoo.wow.spi.sink.SinkProvider`, and among the application's beans; it builds nothing of a broker's or a warehouse's own. Wow's Kafka transport (`kafka`) and ClickHouse Sink (`clickhouse`) are providers like any other.
 
-A provider of type `<type>` declares the options it reads (`options`, as a store provider does), and the host hands it the keys under `wow.<type>` that it declares, relative to that prefix (`bootstrap-servers`, `properties.linger.ms`); a key no provider declares fails the start. Its `available` says whether they configure it. A topic transport declares only its own options: the settings every topic transport has (`TopicTransportOptions`: `topics.prefix`, `command-intake.enabled`, `ddl`, `topics.partition-refresh`) are joined to them. A node runs at most one transport and every Sink that is configured. A setting a provider refuses with an `IllegalArgumentException` fails the startup naming the key. `TopicTransportSpec` and `SinkSpec` check that a provider reads only the options it declares.
+A provider of type `<type>` declares the options it reads (`options`, as a store provider does), and the host hands it the keys under `wow.<type>` that it declares, relative to that prefix (`bootstrap-servers`, `properties.linger.ms`); a key no provider declares fails the start. Its `available` says whether they configure it. A topic transport declares only its own options: the settings every topic transport has (`TopicTransportOptions`: `topics.prefix`, `command-intake.enabled`, `ddl`, `topics.partition-refresh-interval`) are joined to them. A node runs at most one transport and every Sink that is configured. A setting a provider refuses with an `IllegalArgumentException` fails the startup naming the key. `TopicTransportSpec` and `SinkSpec` check that a provider reads only the options it declares.
 
 A peer discovery (`PeerDiscovery`, `me.ahoo.wow.spi.peer`), which finds the internal ports of a peer service's nodes, follows the same rule under `wow.peer.<type>`: declared options only, each read through the config (`PeerDiscoveryConfig.settings.option(option)`). Wow's `dns` discovery declares `name-template`, `namespace` and the map `namespaces`.
 
@@ -131,9 +131,8 @@ A backend's correctness is the contract, not its own tests. The TCK holds one ab
        override val facets: List<Class<*>> = listOf(StoreQueries::class.java, StorePool::class.java)
 
        /** PostgreSQL's jsonb refuses a NUL character. */
-       override fun refused(stream: EventStreamRecord): EventStreamRecord = stream.copyWith(
-           events = listOf(EventRecord("x.aggregate.Named", 1, """{"name":"a\u0000b"}""")),
-       )
+       override fun refused(stream: EventStreamRecord): EventStreamRecord =
+           stream.withEvents(listOf(EventRecord.of("x.aggregate.Named", 1, """{"name":"a\u0000b"}""")))
    }
    ```
 
@@ -151,7 +150,7 @@ A backend's correctness is the contract, not its own tests. The TCK holds one ab
    }
    ```
 
-3. **Extend one spec per port.** Each spec is an abstract JUnit 5 class: implement its abstract members, which hand the spec a fresh store, and nothing else. Its tests are final, so a backend cannot change or switch off one of them. The ports are `@WowSpi`, an opt-in the compiler warns about, so the test class opts in with `@OptIn(WowSpi::class)` (or the test source set does) to keep the build free of warnings. The PostgreSQL log's test is the whole of what a log needs, with the four optional hooks: whether a second `createLog` of one context opens the same store (left `false`, the cases of two writers are skipped), the snapshot store its tails are read with, its one-round-trip read of them, and a stream it refuses:
+3. **Extend one spec per port.** Each spec is an abstract JUnit 5 class: implement its abstract members, which hand the spec a fresh store, and nothing else. Its tests are final, so a backend cannot change or switch off one of them. The specs are `@WowSpi` like the ports: a minor release may add a hook to one. The ports are `@WowSpi`, an opt-in the compiler warns about, so the test class opts in with `@OptIn(WowSpi::class)` (or the test source set does) to keep the build free of warnings. The PostgreSQL log's test is the whole of what a log needs, with the four optional hooks: whether a second `createLog` of one context opens the same store (left `false`, the cases of two writers are skipped), the snapshot store its tails are read with, its one-round-trip read of them, and a stream it refuses:
 
    <!-- sample: fragment -->
 
@@ -168,9 +167,8 @@ A backend's correctness is the contract, not its own tests. The TCK holds one ab
            (log as PostgresEventLog).snapshotTailsWith(snapshots as PostgresSnapshotStore)
 
        /** A `\u0000` in a payload string: PostgreSQL's `jsonb` does not take it. */
-       override fun refused(stream: EventStreamRecord): EventStreamRecord = stream.copyWith(
-           events = listOf(EventRecord("x.aggregate.Named", 1, """{"name":"a\u0000b"}""")),
-       )
+       override fun refused(stream: EventStreamRecord): EventStreamRecord =
+           stream.withEvents(listOf(EventRecord.of("x.aggregate.Named", 1, """{"name":"a\u0000b"}""")))
    }
    ```
 
@@ -204,7 +202,7 @@ Run `StoreTck` for every store type the backend provides, and the per-port specs
 A backend declares what it can do on the ports themselves, and the spec skips, through a JUnit assumption that names the reason, the tests of what it does not:
 
 - **What a store holds.** `Store.holdsLogs` and `Store.holdsSnapshots`, both `true` by default, say which ports it opens. `StoreTck` skips the log's specs and the control plane of a store without logs (`Skipped: the <type> store holds no log, so no control plane either.`) and the snapshot spec of one without snapshots, and checks instead that such a store refuses what it does not hold. The `facets` the test lists are asserted, never skipped.
-- **A store's optional capabilities.** The snapshot-tail tests read the snapshots `createSnapshots` returns with the log's tails: through `snapshotTailsOf` in `EventLogSpec`, or the store's `openSnapshotTails` under `StoreTck`, the one-round-trip read the node uses; without one, the spec reads the snapshot and the tail apart, as the node then does, and without `createSnapshots` it skips them. `EventLog.appendsAcrossPartitions` runs the test of one `appendAll` across partitions. A log that is an `AccessStamps` runs the stamp test, and one that is an `AccessWalks` the tests of the paged aggregates and the walk claims. `SnapshotStore.rebuilds` (a `SnapshotRebuildStore`) runs the rebuild tests.
+- **A store's optional capabilities.** The snapshot-tail tests read the snapshots `createSnapshots` returns with the log's tails: through `snapshotTailsOf` in `EventLogSpec`, or the store's `openSnapshotTails` under `StoreTck`, the one-round-trip read the node uses; without one, the spec reads the snapshot and the tail apart, as the node then does, and without `createSnapshots` it skips them. `EventLog.appendsAcrossPartitions` runs the test of one `appendAll` across partitions. A log that is an `AccessStamps` runs the stamp test, and one that is an `AccessWalks` the tests of the paged aggregates and the walk claims. In 10.0 both are `@InternalWowApi`, capabilities of Wow's own logs (the in-memory log, MongoDB's and PostgreSQL's; Elasticsearch's events sink stamps too), and these cases run for Wow's backends: a log written outside Wow has neither. An events query decides by these attributes, so a node refuses to start when a type's events model is served by a store that cannot keep them current, naming the type, the store and the capability: from the type's log, a log that is not both; from another store (an events index a Sink writes), a Sink that is not an `AccessStamps`, or a log that is not an `AccessWalks`, since the walk pages the log. A type whose events model no such store serves starts, and its history's attributes are then not kept current: nothing reads them. `SnapshotStore.rebuilds` (a `SnapshotRebuildStore`) runs the rebuild tests.
 - **A provider.** `provided()` in `SinkSpec` and `TopicTransportSpec` opens the Sink or the transport through its provider, from the options it declares, and runs the test that the provider reads only those; without it that test is skipped (`No provider opens this sink.`).
 - **What a store refuses.** `refused` returns a stream the backend's storage cannot hold, such as a NUL in a PostgreSQL `jsonb` string, and the spec expects its append to be rejected (`AppendOutcome.Rejected`) and, in an `appendAll`, to fail alone; without it the spec skips that test.
 - **A query backend's storage.** The binding's storage facts (`StorageSupport`) say which features the storage serves natively, partly or not at all, and the spec skips the tests of a feature it declares `NONE`, naming the fact and its value: `Skipped: the storage declares storage.paging.keyset = NONE (keyset pages).` The facts the specs read are keyset pages, unbounded streams, `having`, groups at the record's root over expanded elements, and distinct counts.

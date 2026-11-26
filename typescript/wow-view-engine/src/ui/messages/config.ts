@@ -25,4 +25,4 @@ export const configMessages = {
   'config.filterMode.not-simple':
     'These conditions need the advanced editor to be shown in full.',
   'config.invalid': 'This view could not be read.',
-} as const satisfies Record<string, string>;
+} satisfies Record<string, string>;

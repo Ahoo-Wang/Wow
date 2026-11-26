@@ -87,7 +87,7 @@ class QueryKeywordsTest {
         val timeout: Int,
         @field:QueryReference("member")
         val buyerId: String,
-        @field:QueryReference("product", contextName = "catalog")
+        @field:QueryReference("product", context = "catalog")
         val productIds: List<String>,
         @field:QueryAlias("state.customer", "state.client")
         @JsonProperty("buyer")

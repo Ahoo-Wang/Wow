@@ -60,8 +60,8 @@ export interface WowClientOptions {
    * no wait: its `wow.wait.default-timeout`, at most its
    * `wow.wait.max-timeout`. A command client bounds such a command's whole
    * answer by it and 5 seconds more, and rejects past it with
-   * `wow.command.unknown`; a command that states its wait (`timeout`, or its
-   * plan's) is bounded by that instead. A minute when absent, the default
+   * `wow.command.unknown`; a command with a plan (`wait` or `timeout`, or
+   * `send`'s acceptance) states its wait and is bounded by that instead. A minute when absent, the default
    * `wow.wait.max-timeout`: a deployment whose services wait longer by
    * default sets it, or has each command state its wait.
    */
@@ -108,7 +108,14 @@ export interface RequestOptions {
   readonly scope?: TargetScope;
   /** The space to act in (`Wow-Space`), among the caller's own. */
   readonly space?: string;
-  /** More headers: the request facts the service records, say. */
+  /**
+   * More headers: the request facts the service records, say. A header the
+   * client writes itself from a request's own fields (`Wow-Request-Id`,
+   * `Wow-Wait`, `Wow-Wait-Timeout`, `Wow-Scope`, `Wow-Space`, `If-Match`,
+   * `If-None-Match`, `Last-Event-ID`), in any case, is refused with a
+   * `TypeError` before anything is sent: set the field instead, so that what
+   * is sent is what the client reports (`requestIdOf`) and bounds.
+   */
   readonly headers?: Readonly<Record<string, string>>;
   /** Cancels the request. */
   readonly signal?: AbortSignal;
@@ -183,6 +190,47 @@ export class Answer {
 }
 
 /**
+ * The headers the client writes from a request's own fields, lower-cased,
+ * with the field that sets each (internal).
+ */
+const OWN_HEADERS: ReadonlyMap<string, string> = new Map([
+  [WowHeaders.REQUEST_ID.toLowerCase(), 'requestId'],
+  [WowHeaders.WAIT.toLowerCase(), 'wait'],
+  [WowHeaders.WAIT_TIMEOUT.toLowerCase(), 'timeout, or its plan within()'],
+  [
+    WowHeaders.SCOPE.toLowerCase(),
+    'scope, or a command targetTenant and targetScope',
+  ],
+  [WowHeaders.SPACE.toLowerCase(), 'space'],
+  [WowHeaders.IF_MATCH.toLowerCase(), 'expectedVersion'],
+  [
+    WowHeaders.IF_NONE_MATCH.toLowerCase(),
+    'ifNoneMatch, or the version describe() holds',
+  ],
+  [WowHeaders.LAST_EVENT_ID.toLowerCase(), 'resume.lastEventId'],
+]);
+
+/**
+ * Refuses `headers` that name a header the client writes itself
+ * ({@link OWN_HEADERS}): spread over the client's own, it would replace the
+ * request id or the wait the client reports and bounds.
+ *
+ * @throws TypeError naming the header and the field that sets it
+ */
+function checkHeaders(
+  headers: Readonly<Record<string, string>> | undefined,
+): void {
+  for (const name of Object.keys(headers ?? {})) {
+    const field = OWN_HEADERS.get(name.toLowerCase());
+    if (field !== undefined) {
+      throw new TypeError(
+        `The header ${name} is the client's own: set the request's ${field} instead of passing it in headers.`,
+      );
+    }
+  }
+}
+
+/**
  * Sends one request through the client's fetcher and answers its response;
  * a response that is not 2xx rejects with a {@link WowProblemError}.
  *
@@ -194,6 +242,7 @@ export async function send(
   call: Call,
 ): Promise<Answer> {
   const options = call.options ?? {};
+  checkHeaders(options.headers);
   const headers: Record<string, string> = {};
   for (const [name, value] of Object.entries({
     ...call.headers,

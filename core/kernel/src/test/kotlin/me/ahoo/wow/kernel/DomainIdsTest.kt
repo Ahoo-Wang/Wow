@@ -18,6 +18,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
+import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
@@ -43,7 +44,7 @@ import java.util.UUID
 class DomainIdsTest {
     data class PlaceOrder(val lines: List<String>)
     data class OrderPlaced(val lines: Map<String, String>, val invoice: String)
-    data class CreateShipment(val orderId: String)
+    data class CreateShipment(val orderId: String, val shipmentId: String)
 
     class Order(val id: String) {
         val lines = LinkedHashMap<String, String>()
@@ -120,18 +121,28 @@ class DomainIdsTest {
             }
         }
 
-    /** A saga that opens a shipment, an aggregate of a new id, for each order placed. */
+    /**
+     * A saga that opens a shipment for each order placed, the shipment's number drawn from its ids into the command's
+     * body: the creation names no aggregate id, which its target's admission gives.
+     */
     class ShipmentSaga {
         fun onPlaced(event: StateEvent<Order>, context: SagaContext): CommandRequest<CreateShipment>? {
             if (event.events.none { it is OrderPlaced }) return null
-            val shipment = SHIPMENT.ref(event.ref.tenantId, context.ids.next(SHIPMENT))
-            return CommandRequest.to(shipment, CreateShipment(event.ref.id))
+            return CommandRequest.of(CreateShipment(event.ref.id, context.ids.next(SHIPMENT)), type = SHIPMENT)
         }
 
         fun onCreateRejected(rejected: CommandReceipt.Rejected<CreateShipment>, context: SagaContext): CommandRequest<CreateShipment> =
+            CommandRequest.of(
+                CreateShipment(context.ids.next(), context.ids.next(SHIPMENT)),
+                type = SHIPMENT,
+                targetScope = TargetScope.of(rejected.ref.tenantId),
+            )
+
+        /** Names the shipment by a drawn id, which a redelivered commit would draw anew: refused. */
+        fun onPlacedNamingDrawn(event: StateEvent<Order>, context: SagaContext): CommandRequest<CreateShipment> =
             CommandRequest.to(
-                SHIPMENT.ref(rejected.ref.tenantId, context.ids.next(SHIPMENT)),
-                CreateShipment(context.ids.next()),
+                SHIPMENT.ref(event.ref.tenantId, context.ids.next(SHIPMENT)),
+                CreateShipment(event.ref.id, "s"),
             )
 
         companion object {
@@ -169,12 +180,30 @@ class DomainIdsTest {
         sagaSpec(shipmentSagaHandlers()) {
             val order = model.type.ref("tenant", "order-1")
             whenEvent(stateEvent(order, Order("order-1"), OrderPlaced(emptyMap(), "invoice-1"))) {
-                expectCommand(CreateShipment("order-1"), to = ShipmentSaga.SHIPMENT.ref("tenant", "shipment-1"))
-                // Handling it again draws shipment-2: a target named by a drawn id is another request each time.
+                expectCommand(CreateShipment("order-1", "shipment-1"), to = ShipmentSaga.SHIPMENT.unassigned("tenant"))
+                // Handling it again draws shipment-2 into the body: the spec compares whole commands, stricter than a node.
                 assertThrownBy<AssertionError> { expectDeterministic() }.hasMessageContaining("shipment-2")
                 whenRejected(commands.single(), code = "shop.shipment.exists") {
-                    expectCommand(CreateShipment("id-1"), to = ShipmentSaga.SHIPMENT.ref("tenant", "shipment-3"))
+                    expectCommand(CreateShipment("id-1", "shipment-3"), to = ShipmentSaga.SHIPMENT.unassigned("tenant"))
                 }
+            }
+        }
+
+    @Test
+    fun `a saga specification should refuse a target named by a drawn id on the first handling, as a node does`() =
+        sagaSpec(
+            listOf(
+                ProcessorBinding.saga(
+                    "ShipmentSaga",
+                    "onPlacedNamingDrawn",
+                    Order::class.java,
+                    derives = listOf(CreateShipment::class.java),
+                ) { e, c -> requestsOf(ShipmentSaga().onPlacedNamingDrawn(e, c)) },
+            ),
+        ) {
+            val order = model.type.ref("tenant", "order-1")
+            whenEvent(stateEvent(order, Order("order-1"), OrderPlaced(emptyMap(), "invoice-1"))) {
+                expectParked().message.assert().contains("SagaContext.ids", "@OnCommitted")
             }
         }
 
@@ -191,8 +220,8 @@ class DomainIdsTest {
             event,
             fixed
         ) as SagaContext
-        context.ids.assert().isSameAs(fixed)
-        ShipmentSaga().onPlaced(event, context)!!.id.assert().isEqualTo("a-shipment")
+        context.ids.next().assert().isEqualTo("g")
+        ShipmentSaga().onPlaced(event, context)!!.command.shipmentId.assert().isEqualTo("a-shipment")
         UUID.fromString(ExecutionSagaContext(execution, event).ids.next()).version().assert().isEqualTo(7)
         val handler = shipmentSagaHandlers().single().rejectionHandlerOf(CreateShipment::class.java)!!
         val rejected = CommandReceipt.Rejected<CreateShipment>(
@@ -203,8 +232,8 @@ class DomainIdsTest {
             causation = Causation("c-0", "c-1"),
             executionId = execution,
         )
-        rejectionContextOf(handler, rejected, fixed).ids.assert().isSameAs(fixed)
-        rejectionContextOf(handler, rejected).ids.assert().isSameAs(IdGenerators.DEFAULT)
+        rejectionContextOf(handler, rejected, fixed).ids.next(ShipmentSaga.SHIPMENT).assert().isEqualTo("a-shipment")
+        UUID.fromString(rejectionContextOf(handler, rejected).ids.next()).version().assert().isEqualTo(7)
     }
 
     @Test

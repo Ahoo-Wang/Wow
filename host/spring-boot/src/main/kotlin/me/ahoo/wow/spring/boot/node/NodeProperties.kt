@@ -18,6 +18,7 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.internal.HttpSignalSenderOptions
 import me.ahoo.wow.http.internal.InternalHttp
 import me.ahoo.wow.runtime.node.NodeSampler
+import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spring.boot.WowProperties.Companion.DEFAULT_INTERNAL_PORT
 import me.ahoo.wow.spring.boot.observability.DEFAULT_HEALTH
 import java.time.Duration
@@ -104,4 +105,16 @@ class ContextsProperties {
 class TenantProperties {
     /** The tenant of a caller that has none, such as the anonymous one. */
     var default: String = Caller.DEFAULT_TENANT
+
+    /** [default], refused, naming the key, when it is blank: no caller is in a blank tenant. */
+    @InternalWowApi
+    fun checkedDefault(): String = default.also {
+        configCheck(it.isNotBlank(), "wow.tenant.default", it, "Name a tenant, or leave it unset for $DEFAULT.") {
+            "wow.tenant.default is blank: a caller without a tenant would be in none."
+        }
+    }
+
+    private companion object {
+        const val DEFAULT = Caller.DEFAULT_TENANT
+    }
 }

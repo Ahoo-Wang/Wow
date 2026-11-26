@@ -36,6 +36,7 @@ import me.ahoo.wow.kernel.KernelOptions
 import me.ahoo.wow.kernel.StateCache
 import me.ahoo.wow.kernel.WritePolicies
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
+import me.ahoo.wow.spi.id.DerivedIds
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -58,10 +59,10 @@ class AggregateSpec<S : Any> private constructor(
     private val tree: TestTree?,
 ) {
     /**
-     * A specification of [model]'s aggregate [ref], its clock at [start]. It differs from the primary constructor in
-     * taking no fork origin, a private type, and no test tree, an internal one: a public constructor can take neither.
+     * A specification of [model]'s aggregate [ref], its clock at [start], without a fork origin or a test tree; a
+     * test builds one with `aggregateSpec`.
      */
-    constructor(model: AggregateModel<S>, ref: AggregateRef, start: Instant = DEFAULT_START) :
+    internal constructor(model: AggregateModel<S>, ref: AggregateRef, start: Instant) :
         this(model, ref, start, null, null)
 
     /**
@@ -378,6 +379,12 @@ class AggregateSpec<S : Any> private constructor(
         val target = scope?.let { TargetScope.of(ref.tenantId, it) }
         val origin = (sender ?: Caller.ANONYMOUS.takeIf { target != null })?.let { admitted(body, it, target) }
         val commandScope = origin?.scope ?: Scope.NONE
+        // As the gateway refuses it: a request id the framework gives its own commands, which no caller may claim.
+        require(!DerivedIds.isFrameworkRequestId(requestId)) {
+            "The gateway refuses ${body.javaClass.simpleName} as ${FrameworkCodes.COMMAND_MALFORMED}: a request id " +
+                "never starts with ${DerivedIds.PREFIX}, which the framework gives its own commands. A specification " +
+                "sends only what admission takes."
+        }
         // As the gateway refuses them before any store is read, the creation lookup by the request id included; the
         // aggregate's id was checked when the specification started.
         AggregateIds.oversized(requestId, null, ref.tenantId, commandScope, body)?.let { problem ->

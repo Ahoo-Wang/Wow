@@ -27,9 +27,9 @@ import me.ahoo.wow.spi.json.WowJson
  *
  * | Table | Paths |
  * | --- | --- |
- * | `_state_events` | `state.<path>`, each event's `events.payload.<path>` |
+ * | `_state_events` | `state.<path>`, each event's `events.body.<path>` |
  * | `_state` | `state.<path>` |
- * | `_events` | each event's `payload.<path>` |
+ * | `_events` | each event's `body.<path>` |
  * | `_state_flat` | the flat column of a top-level property |
  *
  * A path goes through an object's properties (`.name`), a map's values (`.{key}`) and an array's items (no segment,
@@ -66,7 +66,7 @@ internal object CatalogEntries {
             service = manifest.service?.name.orEmpty(),
             context = schema.type.context,
             aggregate = schema.type.name,
-            ownership = aggregate.ownership.name,
+            ownership = WireNames.of(aggregate.ownership),
             tenantColumn = TENANT_COLUMN,
             ownerColumn = if (aggregate.ownership == Ownership.OWNER) OWNER_COLUMN else "",
             spaceColumn = SPACE_COLUMN,
@@ -78,11 +78,11 @@ internal object CatalogEntries {
         )
         return buildList {
             if (schema.aggregate.history) {
-                add(entry(schema.stateEvents, STATE_EVENTS, state + withPrefix("events.payload")))
+                add(entry(schema.stateEvents, STATE_EVENTS, state + withPrefix("events.body")))
             }
             add(entry(schema.state, STATE, state))
             if (schema.aggregate.history) {
-                add(entry(schema.events, EVENTS, withPrefix("payload")))
+                add(entry(schema.events, EVENTS, withPrefix("body")))
             }
             add(entry(schema.stateFlat, STATE_FLAT, flat(state, schema.flatColumns)))
         }
@@ -146,11 +146,12 @@ internal class SchemaMarks(private val defs: Map<String, Any?>, private val cont
     }
 
     private fun mark(path: String, node: Map<*, *>, event: String, revision: Int): Mark? {
-        // The Manifest names a level by its wire name; the catalog's column keeps the level's own name.
-        val level = ((node[SENSITIVE] as? Map<*, *>)?.get("level") as? String)
-            ?.let { WireNames.entryOf<SensitivityLevel>(it)?.name }
+        // The Manifest names a level by its wire name, and the catalog's column keeps it as written, known to this
+        // version or not: a reader that does not know a level reads it as the strongest it enforces
+        // (SensitivityLevel), and a later one reads the level itself. Never dropped, which would read as no level.
+        val level = ((node[SENSITIVE] as? Map<*, *>)?.get("level") as? String)?.takeIf { it.isNotBlank() }
         val reference = node[REFERENCE] as? Map<*, *>
-        val aggregate = reference?.get("aggregateName") as? String
+        val aggregate = reference?.get("aggregate") as? String
         if (level == null && aggregate == null) {
             return null
         }
@@ -160,14 +161,18 @@ internal class SchemaMarks(private val defs: Map<String, Any?>, private val cont
             mask = (node[MASK] as? Map<*, *>)?.let { WowJson.mapper.writeValueAsString(it) }.orEmpty(),
             event = event,
             revision = revision,
-            referenceContext = aggregate?.let { reference["contextName"] as? String ?: context },
+            referenceContext = aggregate?.let { reference["context"] as? String ?: context },
             referenceAggregate = aggregate,
         )
     }
 
-    /** One mark per path: the highest level with its mask, and the first reference. */
+    /**
+     * One mark per path: the highest level with its mask, and the first reference. A level this version does not
+     * know ranks above every one it does, as its readers read it ([SensitivityLevel]).
+     */
     private fun merge(marks: List<Mark>): List<Mark> = marks.groupBy { it.path }.map { (_, same) ->
-        val sensitive = same.filter { it.level != null }.maxByOrNull { LEVELS.indexOf(it.level) }
+        val sensitive = same.filter { it.level != null }
+            .maxByOrNull { mark -> LEVELS.indexOf(mark.level).takeIf { it >= 0 } ?: LEVELS.size }
         val reference = same.firstOrNull { it.referenceAggregate != null }
         Mark(
             path = same.first().path,
@@ -190,7 +195,7 @@ internal class SchemaMarks(private val defs: Map<String, Any?>, private val cont
         const val REFERENCE = "x-wow-reference"
         val COMPOSITIONS = listOf("allOf", "anyOf", "oneOf")
 
-        /** The sensitivity levels as the catalog stores them, lowest first. */
-        val LEVELS = SensitivityLevel.entries.map { it.name }
+        /** The sensitivity levels as the catalog stores them, by their wire names, lowest first. */
+        val LEVELS = SensitivityLevel.entries.map(WireNames::of)
     }
 }

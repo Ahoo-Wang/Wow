@@ -165,6 +165,7 @@ function elementTitleView(
   };
 }
 
+/** One record on screen: its key and its values. */
 export interface RecordRow {
   /** Value of the definition's row key. */
   key: RecordKey;
@@ -259,6 +260,10 @@ export interface RecordLaneView {
   summaries: SummaryRow | null;
 }
 
+/**
+ * A page of records shaped for the screen: its columns, rows and paging, and
+ * the card and lanes when it is drawn so.
+ */
 export interface RecordProjection {
   columns: RecordColumnView[];
   /** The same result's card layout; both halves are saved side by side. */
@@ -520,6 +525,14 @@ export function restyleRecord(
   return { ...view, columns, card };
 }
 
+/** How `projectRecord` reads a page, beside the page itself. */
+export interface ProjectRecordOptions {
+  /** The page's 1-based index, for a paged source; 1 when left out. */
+  pageIndex?: number;
+  /** The runtime's limits, over `DEFAULT_RUNTIME_LIMITS`. */
+  limits?: Partial<RuntimeLimits>;
+}
+
 /**
  * Turns a page of rows into what a table or a card list renders. Both paging
  * modes arrive here, and the mode stays visible in the result so the UI knows
@@ -529,9 +542,10 @@ export function projectRecord(
   definition: DataViewDefinition,
   config: RecordViewConfig,
   page: PagedList<RecordData> | CursorPage<RecordData>,
-  pageIndex = 1,
-  limits: Pick<RuntimeLimits, 'maxPageWindow'> = DEFAULT_RUNTIME_LIMITS,
+  options: ProjectRecordOptions = {},
 ): RecordProjection {
+  const pageIndex = options.pageIndex ?? 1;
+  const limits = { ...DEFAULT_RUNTIME_LIMITS, ...options.limits };
   const { columns, card, rowKey } = drawnParts(definition, config);
   const rows = page.list.map(data => ({
     key: readPath(data, rowKey) as RecordKey,

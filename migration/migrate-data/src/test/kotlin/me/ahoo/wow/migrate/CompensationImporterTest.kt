@@ -103,7 +103,7 @@ class CompensationImporterTest {
                     "Conflict: stock reserved twice [9.x execution 0VYC0mp1nA0002]",
                     FAILED_AT + 181_000,
                     retries = 1,
-                    retryAt = FAILED_AT + 180_000,
+                    lastRetryAt = FAILED_AT + 180_000,
                     retrySpec = ParkedRetrySpec.of(5, 60.seconds, 30.seconds),
                     recoverable = Recoverable.RECOVERABLE,
                 ),
@@ -112,7 +112,7 @@ class CompensationImporterTest {
             ledger.parked(orderState, ref)!!.also {
                 it.fromVersion.assert().isEqualTo(3)
                 it.retries.assert().isEqualTo(1)
-                it.retryAt.assert().isEqualTo(FAILED_AT + 180_000)
+                it.lastRetryAt.assert().isEqualTo(FAILED_AT + 180_000)
                 it.recoverable.assert().isEqualTo(Recoverable.UNRECOVERABLE)
                 it.reason.assert().doesNotContain("\tat ")
             }

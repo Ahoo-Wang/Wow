@@ -31,7 +31,7 @@ afterEach(cleanup);
 /** The toolbar reads an export ceiling off it and nothing more. */
 const runtime = {
   id: 'r-1',
-  limits: { exportMax: 10000 },
+  limits: { maxExportRows: 10000 },
 } as unknown as RecordViewRuntime;
 
 const FIELDS: FieldDefinition[] = [

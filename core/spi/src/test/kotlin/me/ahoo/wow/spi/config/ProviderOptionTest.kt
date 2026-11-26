@@ -17,7 +17,12 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.spi.store.StoreConfig
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.microseconds
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.nanoseconds
 import kotlin.time.Duration.Companion.seconds
 
 class ProviderOptionTest {
@@ -28,7 +33,7 @@ class ProviderOptionTest {
 
     @Test
     fun `each factory should parse its type and keep its default and scope`() {
-        timeout.parse("1m 30s", "k").assert().isEqualTo(90.seconds)
+        timeout.parse("90s", "k").assert().isEqualTo(90.seconds)
         timeout.parse("PT2S", "k").assert().isEqualTo(2.seconds)
         timeout.parse("500", "k").assert().isEqualTo(500.milliseconds)
         size.parse(" 64 ", "k").assert().isEqualTo(64)
@@ -40,6 +45,28 @@ class ProviderOptionTest {
         client.key.assert().isEqualTo("client")
         timeout.toString().assert()
             .isEqualTo("ProviderOption(key=append-timeout, type=Duration, default=5s, scope=TYPE)")
+    }
+
+    /** D484 ②: a store's or a transport's duration reads as a Spring `Duration` property does, the host's keys' way. */
+    @Test
+    fun `a duration should read as a Spring Duration property reads one, and nothing else`() {
+        mapOf(
+            "5S" to 5.seconds,
+            "500MS" to 500.milliseconds,
+            "2m" to 2.minutes,
+            "1H" to 1.hours,
+            "1d" to 1.days,
+            "-3s" to (-3).seconds,
+            "pt30s" to 30.seconds,
+            "P1DT2H" to 26.hours,
+            "750ns" to 750.nanoseconds,
+            "20us" to 20.microseconds,
+            "250" to 250.milliseconds,
+        ).forEach { (text, duration) -> timeout.parse(text, "k").assert().describedAs(text).isEqualTo(duration) }
+        listOf("1m 30s", "1.5s", "5 s", "5sec", "5ks", "s", "").forEach { text ->
+            assertThrows<WowConfigurationException> { timeout.parse(text, "wow.mongo.append-timeout") }.key.assert()
+                .isEqualTo("wow.mongo.append-timeout")
+        }
     }
 
     private enum class Refresh { WAIT_FOR, IMMEDIATE }

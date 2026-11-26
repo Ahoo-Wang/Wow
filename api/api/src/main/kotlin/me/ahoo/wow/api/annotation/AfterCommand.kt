@@ -18,7 +18,9 @@ import kotlin.reflect.KClass
 /**
  * A function of an [AggregateRoot] that runs after its command functions: it sees the state the
  * command function saw, not yet evolved by its events, and returns events appended after them in the same stream. It
- * does not run when the command is rejected. A function named `afterCommand` needs no annotation.
+ * does not run when the command is rejected. It may reject the command itself, as a command function does
+ * (`DecideScope.reject`, or a thrown refusal): the command then commits none of its events. A function named
+ * `afterCommand` needs no annotation.
  *
  * Its parameters are a command function's: first the command, as its body (`Any`, or a command type) or as the
  * admitted `Command<X>`, then dependencies and the `DecideScope`; it may take no command. One taking a command type

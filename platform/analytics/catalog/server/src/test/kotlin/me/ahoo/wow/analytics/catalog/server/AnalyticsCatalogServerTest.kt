@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+@file:OptIn(WowSpi::class)
+
 package me.ahoo.wow.analytics.catalog.server
 
 import kotlinx.coroutines.runBlocking
@@ -29,6 +31,7 @@ import me.ahoo.wow.analytics.catalog.testing.MemoryWarehouse
 import me.ahoo.wow.analytics.catalog.testing.MemoryWarehouseConfiguration
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.wait
@@ -344,7 +347,7 @@ class AnalyticsCatalogServerTest {
                 columnsHash = CatalogTrust.columnsHash(STATE.columns),
                 writtenAt = writtenAt,
                 writer = "wow_sink",
-                access = "DEFAULT",
+                access = "default",
             )
     }
 }

@@ -59,18 +59,6 @@ class QueryProperties {
     var unboundedTimeout: Duration = QueryBudget.DEFAULT_TIMEOUT.toJavaDuration()
 
     /**
-     * Whether a query must say whether it comes over HTTP or in process; off, a query that does not say is taken as
-     * in-process.
-     */
-    var requireExplicitEntry: Boolean = false
-
-    /**
-     * Whether an HTTP query of a built-in model is refused unless the caller's authenticated scope pins its tenant;
-     * off, a declared scope, such as a tenant header, is trusted.
-     */
-    var requireAuthenticatedScope: Boolean = false
-
-    /**
      * Whether a caller that may act across scopes may query across tenants on the query routes
      * (`Wow-Scope: tenant=*` or `tenant=("t1" "t2")`); 403 `wow.auth.forbidden` while not. A type whose tenant is
      * fixed is still read in that tenant alone, and each such query is logged at INFO
@@ -132,8 +120,6 @@ class QueryProperties {
 
     /** The entry policy these settings give every gateway. */
     fun entryPolicy(): QueryEntryPolicy = QueryEntryPolicy(
-        requireExplicitEntry = requireExplicitEntry,
-        requireAuthenticatedScope = requireAuthenticatedScope,
         http = budgets.http.budget(),
         inProcess = budgets.inProcess.budget(),
         inProcessTimeout = unboundedTimeout.takeUnless { it.isZero }?.toKotlinDuration(),
@@ -305,7 +291,7 @@ class QueryProperties {
      */
     @InternalWowApi
     class Adaptive {
-        /** The lowest bound the adaptation halves down to. */
+        /** The lowest bound the adaptation halves down to; above a store's ceiling it refuses the start. */
         var floor: Int = AdaptiveLimitOptions.DEFAULT_FLOOR
 
         /**

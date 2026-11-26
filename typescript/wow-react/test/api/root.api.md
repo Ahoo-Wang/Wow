@@ -5,8 +5,8 @@
 ```ts
 
 import { AggregationQuery } from '@ahoo-wang/wow-client/dsl';
-import { CountQuery } from '@ahoo-wang/wow-client';
-import { CountResult } from '@ahoo-wang/wow-client';
+import { CountQuery } from '@ahoo-wang/wow-client/dsl';
+import { CountResult } from '@ahoo-wang/wow-client/dsl';
 import { CursorPage } from '@ahoo-wang/wow-client/dsl';
 import { CursorQuery } from '@ahoo-wang/wow-client/dsl';
 import { FilterListQuery } from '@ahoo-wang/wow-client/dsl';
@@ -14,9 +14,9 @@ import { FilterSingleQuery } from '@ahoo-wang/wow-client/dsl';
 import { PagedList } from '@ahoo-wang/wow-client/dsl';
 import { PagedQuery } from '@ahoo-wang/wow-client/dsl';
 import { Positioned } from '@ahoo-wang/wow-client';
+import { Problem } from '@ahoo-wang/wow-client';
 import { RequestOptions } from '@ahoo-wang/wow-client';
 import { StreamOptions } from '@ahoo-wang/wow-client';
-import { WowProblemError } from '@ahoo-wang/wow-client';
 
 // @public
 export type QueryExecutor<Q, R, O extends RequestOptions = RequestOptions> = (query: Q, options: O & {
@@ -41,7 +41,7 @@ export interface QueryHookReturn<Q, R> {
     execute: () => Promise<void>;
     getQuery: () => Q | undefined;
     loading: boolean;
-    problem: WowProblemError | undefined;
+    problem: Problem | undefined;
     reset: () => void;
     result: R | undefined;
     setQuery: (query: Q) => void;
@@ -52,7 +52,7 @@ export interface QueryHookReturn<Q, R> {
 export type QueryStatus = 'idle' | 'loading' | 'success' | 'error';
 
 // @public
-export type StreamExecutor<R, Q> = QueryExecutor<Q, ReadableStream<Positioned<R>>, StreamOptions>;
+export type StreamExecutor<Q, R> = QueryExecutor<Q, ReadableStream<Positioned<R>>, StreamOptions>;
 
 // @public
 export function useAggregateQuery<ROW, FIELDS extends string = string>(options: UseAggregateQueryOptions<ROW, FIELDS, AggregationQuery<FIELDS, string>>): UseAggregateQueryReturn<ROW, FIELDS, AggregationQuery<FIELDS, string>>;
@@ -152,7 +152,7 @@ export function useStreamQuery<R, FIELDS extends string = string, Q extends Filt
 
 // @public
 export interface UseStreamQueryOptions<R, FIELDS extends string = string, Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>> extends Omit<QueryHookOptions<Q, R[], StreamOptions>, 'execute'> {
-    execute: StreamExecutor<R, Q>;
+    execute: StreamExecutor<Q, R>;
 }
 
 // @public

@@ -44,7 +44,7 @@ export function ToShipCount() {
 |---|---|
 | `useCreateViewEngine(options)` | 为组件的生命周期建一个引擎，卸载时释放。选项只读一次：定义集合与存储不是渲染期的值 |
 | `useEngine(own?)` | 组件所画的引擎：给了 `own` 就用它，否则用上层 `ViewHost` 持有的那个；两者都没有时抛错。宿主自己放在 `ViewHost` 下的组件在这里读应用的引擎，而不必一层层传下来 |
-| `useOpenView(engine, instanceId, { scopeFilter?, opening? })` | 打开一个实例并拥有它产生的运行时：换 id 或卸载时释放前一个，打开的[异步状态](#async-state)是 `status` 与 `error`。被引擎释放的运行时（实例被删）不会交出，id 会再开一次。`scopeFilter` 从第一次查询起生效，开时读一次之后跟随，每次渲染传新对象也不会重开；定义拒绝的条件不生效，`scopeIssues` 说明哪个没生效。`opening` 给仪表盘说打开在哪个页签、筛选是什么 |
+| `useOpenView(engine, instanceId, { scopeFilter?, opening? })` | 打开一个实例并拥有它产生的运行时：换 id 或卸载时释放前一个，打开的[异步状态](#async-state)是 `status` 与 `error`。被引擎释放的运行时（实例被删）不会交出，id 会再开一次。`scopeFilter` 从第一次查询起生效，开时读一次之后跟随，每次渲染传新对象也不会重开；定义拒绝的条件不生效，`scopeFilterIssues` 说明哪个没生效。`opening` 给仪表盘说打开在哪个页签、筛选是什么 |
 | `useViewRuntime(runtime)` | 订阅一个运行时，返回快照。运行时先提交状态再通知，没变化时返回同一个对象——正是 `useSyncExternalStore` 对存储的要求 |
 
 `useOpenView` 的 `retry()` 再开同一个 id：给可能会过去的失败（存储不可达，或服务端答了自己的错误）一条回头路。
@@ -64,21 +64,21 @@ export interface OpenViewState {
   error: Issue | null;
   retry(): void;
   runtime: AnyViewRuntime | null;
-  scopeIssues: Issue[];
+  scopeFilterIssues: Issue[];
   status: QueryStatus;
 }
 ```
 
 ## 视图列表与管理 {#api-useViewList}
 
-`useViewList` 给出一份定义的列表、偏好与权限。它们各自加载、互不阻塞：列表失败不影响已打开的视图，偏好失败只是退回服务端顺序。列表的[异步状态](#async-state)是 `status` 与 `error`，偏好的是它自己的 `preferences.status` 与 `preferences.error`，读到的在 `preferences.value`；重新加载时偏好原地刷新，所以它只在第一次回答之前是 `'loading'`。`options.kinds` 在排序与解析缺省之前把列表收窄到这些种类——工作台只画它有部件的种类，否则侧栏会提供画不出来的视图。
+`useViewList` 给出一份定义的列表、偏好与权限。它们各自加载、互不阻塞：列表失败不影响已打开的视图，偏好失败只是退回服务端顺序。列表的[异步状态](#async-state)是 `status` 与 `error`，偏好的是它自己的 `preferences.status` 与 `preferences.error`，读到的在 `preferences.value`；重新加载时偏好原地刷新，所以它只在第一次回答之前是 `'loading'`。`options.viewKinds` 在排序与解析缺省之前把列表收窄到这些种类——工作台只画它有部件的种类，否则侧栏会提供画不出来的视图。
 
 `all` 是收窄前的同一批摘要：调整顺序存的是整份定义的一个顺序，收窄的工作台只提交它看得见的会把其他 id 从 `preferences.order` 里丢掉，所以写顺序的调用方从 `all` 读，只在其中移动它看得见的两个 id。
 
 `useViewManager` 管列表上的视图而不是打开着的那个：改名、换受众、删除、调整顺序、选缺省，以及没有运行时拥有的写入的恢复动作。落地的写入会重新加载列表，因为变的就是列表。
 
 ```ts
-export declare function useViewList(engine: ViewEngine, definitionId: string, options?: ViewListOptions): ViewListState;
+export declare function useViewList(engine: ViewEngine, definitionId: string, options?: UseViewListOptions): ViewListState;
 export declare function useViewManager(engine: ViewEngine, definitionId: string, input: ViewManagerOptions): ViewManagerController;
 
 export interface ViewListState {
@@ -89,7 +89,7 @@ export interface ViewListState {
   items: ViewInstanceSummary[];
   permissions: ViewPermissions;
   preferences: ViewListPreferences;
-  reload(options?: ViewListReloadOptions): void;
+  refresh(options?: ViewListRefreshOptions): void;
   status: QueryStatus;
 }
 
@@ -118,12 +118,12 @@ export interface WorkbenchOptions {
   guardUnload?: boolean;
   handOver?: ViewHandOver | null;
   instanceId?: string | null;
-  kinds: readonly ViewKind[];
   newView?: NewViewOptions;
   onDrilldown?(target: DrillTarget): void;
   onInstanceChange?(id: string | null): void;
   onNavigate?(to: ViewNavigation): void;
   opening?(instanceId: string): DashboardOpening | undefined;
+  viewKinds: readonly ViewKind[];
 }
 ```
 

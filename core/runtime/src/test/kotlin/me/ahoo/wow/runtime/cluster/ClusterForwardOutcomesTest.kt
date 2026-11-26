@@ -103,7 +103,7 @@ class ClusterForwardOutcomesTest : ClusterTestCase() {
                     gate.await()
                     ForwardReply.refused(Refusal.NOT_OWNER)
                 },
-                fastOptions(forwardTimeout = 5.seconds, maxInFlightPerPeer = 2),
+                fastOptions(forwardTimeout = 5.seconds, maxInFlightPerNode = 2),
                 observer,
             )
             val held = async(Dispatchers.Default) { router.routeOn(one, one.command(first), null) }
@@ -212,7 +212,7 @@ class ClusterForwardOutcomesTest : ClusterTestCase() {
             val command = one.command(id)
             val wait = WaitContext(
                 "w-1",
-                Origin("node-1", one.address, "bank"),
+                Origin("bank", "node-1", one.address),
                 listOf(Hop.committed(CONTEXT)),
                 now.get() + 500
             )
@@ -450,7 +450,7 @@ class ClusterForwardOutcomesTest : ClusterTestCase() {
     private fun TestNode.waitOf(within: Duration, now: Long = System.currentTimeMillis()): WaitContext =
         WaitContext(
             "w-${cluster.nextId()}",
-            Origin(name, address, "bank"),
+            Origin("bank", name, address),
             listOf(Hop.committed(CONTEXT)),
             now + within.inWholeMilliseconds
         )

@@ -56,9 +56,9 @@ class MongoTimerMergeTest {
         MongoTimerMerge.merged(timers, perPartition = null).map { it.id }.assert().containsExactly("a", "b", "c")
     }
 
-    private fun timer(id: String, partition: Int, dueAt: Long): Timer {
+    private fun timer(id: String, partition: Int, dueAt: Long): MongoTimerMerge.DueRow {
         val ref = AggregateType("ctx", "order").ref("t", id)
-        return Timer(
+        val timer = Timer(
             id = id,
             owner = ref,
             key = "k",
@@ -70,5 +70,6 @@ class MongoTimerMergeTest {
             commandType = "c.order.Cancel",
             body = "{}",
         )
+        return MongoTimerMerge.DueRow(partition, dueAt, id, timer)
     }
 }

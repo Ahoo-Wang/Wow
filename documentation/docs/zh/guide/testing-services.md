@@ -123,7 +123,7 @@ fun `a problem the server answered should be typed`() {
     rejected.code.assert().isEqualTo("bank.account.insufficient-balance")
     rejected.result!!.status.assert().isEqualTo(CommandResult.Status.REJECTED)
     rejected.version.assert().isEqualTo(1)
-    rejected.retry.assert().isEqualTo(Retry.NONE)
+    rejected.retry.assert().isEqualTo(RetryAdvice.NONE)
 }
 ```
 
@@ -195,6 +195,7 @@ runBlocking { reserve(inventory, "cup") }.assert().isEqualTo("try again later")
 - `call.rejected(code, message, ref, violations, extensions)` 会从 `send` 和 `wait` 作为真实客户端抛出的 `CommandRejectedException` 抛出。
 - `call.failed(code, message)` 会从 `send` 和 `wait` 作为一次失败调用的 `WowProblemException` 抛出，用同一个请求 ID 重试可能越过它。要给出别的状态或重试方式，lambda 自己抛出一个 `WowProblemException`。
 - `stream` 把每个答复作为结果发出，无论其状态如何，拒绝和失败的也一样，就像真实客户端的流发出每一种状态。
+- `call.requestId` 是调用发出时所用的请求 id。决策函数发出的、不带请求 id 的调用，取节点的客户端为它推导的 id：命令的每次尝试都相同，在之后的尝试中变了的调用会让命令失败，与节点上一样（[撤销对外部的操作](./aggregates#undo-an-outside-act)）。在别处发出的调用保留它自己的 id，或者没有。
 
 对着服务器测试时，`fakePeer` 经 HTTP 给出同样三种答复，与对端的路由一样，服务器的客户端再把它们读回来：
 

@@ -69,7 +69,7 @@ class RecurringTimerRunnerTest {
                 lookahead = lookahead,
                 retry = RetryPolicy(maxAttempts = 3, initialBackoff = 1.seconds, maxBackoff = 1.minutes),
                 expiresAfter = expiresAfter,
-                claimTimeout = 2.seconds,
+                claimTtl = 2.seconds,
             ),
             clock,
         ).also { loops += it }

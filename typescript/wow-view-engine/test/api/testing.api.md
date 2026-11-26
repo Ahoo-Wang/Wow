@@ -86,7 +86,7 @@ export function actionHarness(list: RecordActions, rows: readonly ActionRow[], i
 
 // @public (undocumented)
 export interface ActionHarnessOptions {
-    now?: Date;
+    now?: () => Date;
 }
 
 // @public
@@ -139,13 +139,13 @@ export interface AdmitOptions {
     text?(key: string): string | undefined;
 }
 
-// @public (undocumented)
+// @public
 type AggregationDatePartName = `${AggregationDatePart}`;
 
-// @public (undocumented)
+// @public
 type AggregationDateUnitName = `${AggregationDateUnit}`;
 
-// @public (undocumented)
+// @public
 type AggregationExpressionOperatorName = `${AggregationExpressionOperator}`;
 
 // @public
@@ -171,13 +171,13 @@ interface AggregationFieldCapability {
     steps?: boolean;
 }
 
-// @public (undocumented)
+// @public
 type AggregationFunctionName = `${AggregationFunction}`;
 
 // @public
 type AggregationGroupTypeName = `${AggregationGroupType}`;
 
-// @public (undocumented)
+// @public
 interface AnalysisCapability {
     approximate?: AnalysisMetric['type'][];
     // (undocumented)
@@ -292,10 +292,10 @@ type AnalysisGroup = AnalysisNamed & ({
 // @public
 type AnalysisHavingExpression = LiteralEnums<HavingExpression>;
 
-// @public (undocumented)
+// @public
 type AnalysisLayout = 'table' | 'chart';
 
-// @public (undocumented)
+// @public
 interface AnalysisLimits {
     // (undocumented)
     defaultLimit?: number;
@@ -355,7 +355,7 @@ interface AnalysisNamed {
     label?: string;
 }
 
-// @public (undocumented)
+// @public
 interface AnalysisSort {
     // (undocumented)
     alias: string;
@@ -378,7 +378,7 @@ interface AnalysisSpec {
     rootGroups?: boolean;
 }
 
-// @public (undocumented)
+// @public
 interface AnalysisTableSpec {
     columns: AnalysisColumn[];
     totals?: boolean;
@@ -425,7 +425,7 @@ interface AnalysisViewConfig extends DataViewConfigBase {
 // @public
 type Availability = true | string;
 
-// @public (undocumented)
+// @public
 interface AxisSpec {
     // (undocumented)
     format?: ValueFormat;
@@ -439,21 +439,6 @@ interface AxisSpec {
 }
 
 // @public
-interface BoardOrigin {
-    // (undocumented)
-    back: DashboardTarget;
-    // (undocumented)
-    title: string;
-}
-
-// @public
-type BoardValueSource = {
-    dimension: string;
-} | {
-    filter: string;
-};
-
-// @public
 interface BoxplotSpec {
     category: string;
     high: string;
@@ -463,7 +448,7 @@ interface BoxplotSpec {
     q3: string;
 }
 
-// @public (undocumented)
+// @public
 type BuiltinFieldKindId = 'string' | 'number' | 'boolean' | 'date' | 'datetime' | 'enum' | 'reference' | 'array' | 'elementMatch' | 'search' | MetadataFieldKindId;
 
 // @public
@@ -484,7 +469,7 @@ interface CandlestickSpec {
 // @public
 type CartesianMissing = 'zero' | 'gap';
 
-// @public (undocumented)
+// @public
 interface CartesianSeries {
     // (undocumented)
     axis?: 'left' | 'right';
@@ -494,7 +479,7 @@ interface CartesianSeries {
     type?: 'bar' | 'line' | 'area';
 }
 
-// @public (undocumented)
+// @public
 interface CartesianSpec {
     derived?: DerivedSeries[];
     extremes?: boolean;
@@ -563,7 +548,7 @@ interface ChartSpec {
     waterfall?: WaterfallSpec;
 }
 
-// @public (undocumented)
+// @public
 type ChartType = 'bar' | 'line' | 'area' | 'combo' | 'waterfall' | 'pie' | 'treemap' | 'heatmap' | 'scatter' | 'funnel' | 'metric' | 'gauge' | 'boxplot' | 'candlestick' | 'radar' | 'parallel' | 'sunburst' | 'tree' | 'sankey' | 'calendar' | 'themeRiver' | 'map';
 
 // @public
@@ -620,7 +605,7 @@ interface DashboardFilters {
     values: Record<string, FilterValue>;
 }
 
-// @public (undocumented)
+// @public
 interface DashboardLink {
     // (undocumented)
     description?: string;
@@ -630,10 +615,18 @@ interface DashboardLink {
     label: string;
 }
 
-// @public (undocumented)
+// @public
+interface DashboardOrigin {
+    // (undocumented)
+    back: DashboardTarget;
+    // (undocumented)
+    title: string;
+}
+
+// @public
 type DashboardPanel = DashboardViewPanel | DashboardContentPanel;
 
-// @public (undocumented)
+// @public
 interface DashboardPanelBase {
     // (undocumented)
     id: string;
@@ -672,7 +665,14 @@ interface DashboardTimeGrouping {
     units: AggregationDateUnitName[];
 }
 
-// @public (undocumented)
+// @public
+type DashboardValueSource = {
+    dimension: string;
+} | {
+    filter: string;
+};
+
+// @public
 interface DashboardViewConfig extends ViewConfigBase {
     columns: 24;
     fields: DashboardField[];
@@ -718,7 +718,7 @@ interface DataViewConfigBase extends ViewConfigBase {
     filterMode: FilterMode;
 }
 
-// @public (undocumented)
+// @public
 interface DataViewDefinition {
     // (undocumented)
     analysis?: AnalysisCapability;
@@ -740,10 +740,10 @@ interface DataViewDefinition {
     views?: SystemView[];
 }
 
-// @public (undocumented)
+// @public
 type DateDiffUnitName = `${DateDiffUnit}`;
 
-// @public (undocumented)
+// @public
 interface DateTemporal {
     // (undocumented)
     type: 'date';
@@ -752,7 +752,7 @@ interface DateTemporal {
 // @public
 type DateTimePreset = 'today' | 'yesterday' | 'dayBeforeYesterday' | 'tomorrow' | 'thisWeek' | 'lastWeek' | 'nextWeek' | 'thisMonth' | 'lastMonth' | 'nextMonth' | 'thisQuarter' | 'lastQuarter' | 'nextQuarter' | 'thisYear' | 'lastYear' | 'nextYear' | 'weekToDate' | 'lastWeekToDate' | 'monthToDate' | 'lastMonthToDate' | 'quarterToDate' | 'lastQuarterToDate' | 'yearToDate' | 'lastYearToDate';
 
-// @public (undocumented)
+// @public
 interface DecimalNumeric {
     scale: number;
     // (undocumented)
@@ -791,7 +791,7 @@ type DerivedFormat = {
 // @public
 type DerivedKind = 'trend' | 'moving-average' | 'cumulative' | 'cumulative-share' | 'previous' | 'previous-year';
 
-// @public (undocumented)
+// @public
 interface DerivedSeries {
     // (undocumented)
     kind: DerivedKind;
@@ -813,10 +813,10 @@ interface EditorDescriptor {
     withTime?: boolean;
 }
 
-// @public (undocumented)
+// @public
 type EditorInput = (typeof EDITOR_INPUTS)[number];
 
-// @public (undocumented)
+// @public
 interface EpochTemporal {
     timeUnit?: EpochTimeUnit;
     // (undocumented)
@@ -919,7 +919,7 @@ interface FieldKind {
     validate(context: FieldKindValidateContext): Issue[];
 }
 
-// @public (undocumented)
+// @public
 interface FieldKindBlankContext {
     // (undocumented)
     field: FieldDefinition;
@@ -930,7 +930,7 @@ interface FieldKindBlankContext {
     value: unknown;
 }
 
-// @public (undocumented)
+// @public
 interface FieldKindCompileContext {
     // (undocumented)
     field: FieldDefinition;
@@ -942,7 +942,7 @@ interface FieldKindCompileContext {
     timeZone: string;
 }
 
-// @public (undocumented)
+// @public
 interface FieldKindDescribeContext {
     // (undocumented)
     field: FieldDefinition;
@@ -969,7 +969,7 @@ type FieldKindId = BuiltinFieldKindId | (string & {});
 // @public
 type FieldKindRegistry = ReadonlyMap<FieldKindId, FieldKind>;
 
-// @public (undocumented)
+// @public
 interface FieldKindValidateContext {
     // (undocumented)
     field: FieldDefinition;
@@ -1005,7 +1005,7 @@ type FieldTemporal = EpochTemporal | DateTemporal;
 // @public
 type FieldTone = 'neutral' | 'success' | 'warning' | 'danger';
 
-// @public (undocumented)
+// @public
 interface FilterGroup {
     // (undocumented)
     children: FilterNode[];
@@ -1016,7 +1016,7 @@ interface FilterGroup {
 // @public
 type FilterGroupOperator = `${FilterOperator.AND | FilterOperator.OR | FilterOperator.NOR}`;
 
-// @public (undocumented)
+// @public
 interface FilterLeaf {
     field: string;
     // (undocumented)
@@ -1028,7 +1028,7 @@ interface FilterLeaf {
 // @public
 type FilterMode = 'simple' | 'advanced';
 
-// @public (undocumented)
+// @public
 type FilterNode = FilterGroup | FilterLeaf;
 
 // @public
@@ -1183,7 +1183,7 @@ type FilterTree = FilterGroup;
 // @public
 type FilterValue = JsonValue;
 
-// @public (undocumented)
+// @public
 interface FixedMoneyNumeric {
     currency: string;
     // (undocumented)
@@ -1201,7 +1201,7 @@ interface FunnelSpec {
     stages: FunnelStages;
 }
 
-// @public (undocumented)
+// @public
 type FunnelStages = {
     from: 'metrics';
     items: {
@@ -1235,7 +1235,7 @@ interface GroupNaming {
 // @public
 interface HandOver {
     filter: FilterTree | null;
-    from?: BoardOrigin;
+    from?: DashboardOrigin;
     scopeFilter: FilterTree | null;
 }
 
@@ -1275,7 +1275,7 @@ export interface HarnessState {
     reason: string | null;
 }
 
-// @public (undocumented)
+// @public
 interface HeatmapSpec {
     // (undocumented)
     scale?: 'linear' | 'log';
@@ -1344,10 +1344,10 @@ type MetadataFieldKindId = 'documentId' | 'aggregateId' | 'tenantId' | 'ownerId'
 /** Whether soft-deleted records are shown: Wow's `DELETION` filter (D17-2). */
 | 'deletion';
 
-// @public (undocumented)
+// @public
 type MetricAgainst = 'previous' | 'previous-year';
 
-// @public (undocumented)
+// @public
 interface MetricCardSpec {
     compare?: {
         metric: string;
@@ -1361,7 +1361,7 @@ interface MetricCardSpec {
     trend?: MetricTrend;
 }
 
-// @public (undocumented)
+// @public
 type MetricHeadline = 'last' | 'whole';
 
 // @public
@@ -1406,9 +1406,9 @@ interface OwnedView {
 // @public
 interface PanelBinding {
     auto?: true;
-    derived?: true;
     // (undocumented)
-    globalField: string;
+    dashboardField: string;
+    derived?: true;
     // (undocumented)
     panelField: string;
 }
@@ -1439,14 +1439,14 @@ type PanelClick =
 * as the author mapped them (D23 Q17, 「另一块仪表盘」): `values` is keyed
 * like the `DashboardFilters.values` it becomes — each of the target's
 * filters the press sets, by name — and says where each one's value comes
-* from (`BoardValueSource`). A filter not named is not carried and starts
+* from (`DashboardValueSource`). A filter not named is not carried and starts
 * at its default. Never matched by name: only what the author mapped goes
 * along.
 */
 | {
     kind: 'dashboard';
     instanceId: string;
-    values: Record<string, BoardValueSource>;
+    values: Record<string, DashboardValueSource>;
     tab?: string;
 }
 /**
@@ -1487,7 +1487,7 @@ interface ParallelSpec {
     metrics: string[];
 }
 
-// @public (undocumented)
+// @public
 interface PieSpec {
     category: string;
     // (undocumented)
@@ -1543,7 +1543,7 @@ interface RecordCapability {
     rowName?: string;
 }
 
-// @public (undocumented)
+// @public
 interface RecordCardSpec {
     fields: string[];
     // (undocumented)
@@ -1580,14 +1580,14 @@ type RecordLayout = 'table' | 'card' | 'kanban';
 // @public
 type RecordPagingMode = 'paged' | 'cursor';
 
-// @public (undocumented)
+// @public
 interface RecordRow {
     // (undocumented)
     data: RecordData;
     key: RecordKey;
 }
 
-// @public (undocumented)
+// @public
 interface RecordSort {
     // (undocumented)
     direction: SortDirectionName;
@@ -1595,15 +1595,14 @@ interface RecordSort {
     field: string;
 }
 
-// @public (undocumented)
+// @public
 interface RecordSummary {
     // (undocumented)
     field: string;
-    // (undocumented)
-    fn: SummaryFunction;
+    function: SummaryFunction;
 }
 
-// @public (undocumented)
+// @public
 interface RecordTableSpec {
     // (undocumented)
     columns: RecordColumn[];
@@ -1662,10 +1661,10 @@ interface RefreshConfig {
     interval: number | null;
 }
 
-// @public (undocumented)
+// @public
 type RelativeDateDirection = 'past' | 'future';
 
-// @public (undocumented)
+// @public
 type RelativeDateUnit = 'hour' | 'day' | 'week' | 'month' | 'quarter' | 'year';
 
 // @public
@@ -1676,7 +1675,7 @@ export function resolveNavigation(to: ViewNavigation, bindingOf: (definitionId: 
 // @public
 type RoutedTarget = SavedViewTarget | UnsavedViewTarget | DashboardTarget;
 
-// @public (undocumented)
+// @public
 interface RowMoneyNumeric {
     // (undocumented)
     currency?: undefined;
@@ -1692,15 +1691,15 @@ interface RuntimeLimits {
     defaultCardFields: number;
     defaultColumns: number;
     defaultPageSize: number;
-    exportMax: number;
     exportNeutralizeFormulas: boolean;
-    listedViews: number;
     maxAnalysisRows: number;
     maxConcurrentQueries: number;
     maxDashboardPanels: number;
+    maxExportRows: number;
     maxFilterDepth: number;
     maxFilterNodes: number;
     maxFilterValues: number;
+    maxListedViews: number;
     maxPageSize: number;
     maxPageWindow: number;
     maxQueryFilterNodes: number;
@@ -1730,7 +1729,7 @@ interface SavedViewTarget extends HandOver {
     kind: 'view';
 }
 
-// @public (undocumented)
+// @public
 interface ScatterSpec {
     category: string;
     // (undocumented)
@@ -1793,7 +1792,7 @@ interface UnsavedViewTarget {
     // (undocumented)
     definitionId: string;
     // (undocumented)
-    from?: BoardOrigin;
+    from?: DashboardOrigin;
     // (undocumented)
     kind: 'unsaved';
     named?: GroupNaming;
@@ -1803,7 +1802,7 @@ interface UnsavedViewTarget {
     title: string;
 }
 
-// @public (undocumented)
+// @public
 type ValueFormat = 'auto' | 'percent' | 'compact';
 
 // @public

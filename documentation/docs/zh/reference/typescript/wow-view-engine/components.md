@@ -33,7 +33,7 @@ description: 'DataWorkbench、DashboardWorkbench、EmbeddedView 与 EmbeddedDash
 | `definitionId` | 要画的定义 |
 | `instanceId`、`onInstanceChange` | 打开哪个视图，像输入框的 `value`：不传则工作台从有效缺省开始自己管；传了——字符串，或 `null` 表示缺省——就由宿主的路由做主，之后每次变化都打开它指的视图。它经过离开确认，所以推过来的视图不会不问就丢掉未保存的草稿。`onInstanceChange` 用同样的词汇报告，宿主可以直接放进路由 |
 | `viewKinds` | 列出并能画哪些种类，顺序即「新建视图」菜单的顺序。缺省两种都有；只写一种是真正的收窄——另一种既不列出也打不开 |
-| `record` | 宿主对记录视图说的话（[`RecordViewProps`](#api-RecordViewProps)）：业务操作、单元格读法、能否选行、空结果说什么。绑定（`bind` 的 `actions`、`slots`、`reading`）是各项的缺省，这里给的优先 |
+| `record` | 宿主对记录视图说的话（[`RecordViewOptions`](#api-RecordViewOptions)）：业务操作、单元格读法、能否选行、空结果说什么。绑定（`bind` 的 `actions`、`slots`、`reading`）是各项的缺省，这里给的优先 |
 | `features` | 工作台自己的哪些控件出现在屏幕上：`export`、`layouts`、`columns`、`sort`、`search`、`visualization`、`manage`。缺省全开；关掉的是不存在，不是禁用 |
 | `templates` | 新建各种视图时从什么开始，缺省是 `defaultRecordConfig` 与 `defaultAnalysisConfig`。视图仍然以未保存打开，首次保存时问名字和受众 |
 | `handOver` | 仪表盘或嵌入交给宿主路由的一个视图，按它来的样子在这里打开：保存的视图带着读者在仪表盘上设的条件（「已修改」，可逐个去掉，「还原」全部去掉），或没人保存过的视图。每个新对象经离开确认打开一次 |
@@ -64,7 +64,7 @@ export interface DataWorkbenchProps {
   onSidebarOpenChange?(open: boolean): void;
   optionsFor?(remote: string): FieldOption[] | undefined;
   preset?: ViewPreset;
-  record?: RecordViewProps;
+  record?: RecordViewOptions;
   templates?: { record?: RecordViewConfig; analysis?: AnalysisViewConfig };
   tokens?: ViewSurfaceProps['tokens'];
   viewKinds?: readonly DataViewKind[];
@@ -72,7 +72,7 @@ export interface DataWorkbenchProps {
 export declare function DataWorkbench(props: DataWorkbenchProps): import('react').JSX.Element;
 ```
 
-### RecordViewProps {#api-RecordViewProps}
+### RecordViewOptions {#api-RecordViewOptions}
 
 宿主对工作台所画记录视图说的话。它们是一个对象，因为没有一项对分析视图有意义（分析视图没有业务操作）。
 
@@ -86,7 +86,7 @@ export declare function DataWorkbench(props: DataWorkbenchProps): import('react'
 | `onExported` | 每次导出交给浏览器时告诉宿主：文件名、内容、哪个范围多少行。要审计什么离开了应用的宿主读它 |
 
 ```ts
-export interface RecordViewProps {
+export interface RecordViewOptions {
   actions?: RecordActions;
   detail?: RecordDetailOptions;
   emptyAction?: (() => void) | null;
@@ -106,8 +106,8 @@ export interface RecordViewProps {
 | 属性 | 作用 |
 |---|---|
 | `instanceId`、`onInstanceChange` | 同 `DataWorkbench` |
-| `initialTab`、`onTabChange` | 打开在哪个页签，按宿主路由给的；不写或仪表盘没有该页签时，打开在读者上次读它的地方 |
-| `initialFilters`、`onFiltersChange` | 筛选打开时的值，按宿主地址给的；不写时每个筛选从缺省开始，仪表盘不接受的部分被略过 |
+| `defaultTab`、`onTabChange` | 打开在哪个页签，按宿主路由给的；不写或仪表盘没有该页签时，打开在读者上次读它的地方 |
+| `defaultFilters`、`onFiltersChange` | 筛选打开时的值，按宿主地址给的；不写时每个筛选从缺省开始，仪表盘不接受的部分被略过 |
 | `onNavigate` | 离开仪表盘的每条路——面板上的「在工作台中打开」、分组上的追问菜单、面板的自定义目的地——都经过它。没有它这些都不存在：除非面板做交叉筛选，按一个分组什么也不发生 |
 | `features` | 只有 `manage`（视图管理器）与 `export`（记录面板的「导出数据…」）；数据不能离开页面的仪表盘关掉 `export` |
 | `template` | 新仪表盘从什么开始，缺省为空仪表盘 |
@@ -123,8 +123,8 @@ export interface DashboardWorkbenchProps {
   engine?: ViewEngine;
   expandable?: boolean;
   features?: Pick<WorkbenchFeatures, 'manage' | 'export'>;
-  initialFilters?: DashboardFilters | null;
-  initialTab?: string | null;
+  defaultFilters?: DashboardFilters | null;
+  defaultTab?: string | null;
   instanceId?: string | null;
   landmark?: WorkbenchLandmark;
   locale?: string;
@@ -228,8 +228,8 @@ export declare function EmbeddedView(given: EmbeddedViewProps): import('react').
 | `filterModes` | 每个筛选按名字怎样提供：`adjustable`（缺省，在条上，归读者）、`locked`（在条上显示它的值，固定）、`hidden`（不在条上，仍然收窄它接到的面板）。锁定或隐藏的筛选持有 `pageValues` 给的值，或它的缺省 |
 | `groupingMode` | 时间分组的模式，同上；缺省 `adjustable` |
 | `pageValues` | 页面持有的值：每个锁定或隐藏筛选的值，以及 `groupingMode` 锁定或隐藏时时间分组的单位。从第一次查询起生效，并随它变化——客户页翻到下一个客户。它属于页面，从不属于地址（读者能改地址） |
-| `initialFilters`、`onFiltersChange` | 读者的筛选打开时的值（来自宿主地址），以及变化时告诉宿主——只有可调的筛选，锁定或隐藏的值属于页面 |
-| `initialTab`、`onTabChange` | 打开在哪个页签，以及页签变化 |
+| `defaultFilters`、`onFiltersChange` | 读者的筛选打开时的值（来自宿主地址），以及变化时告诉宿主——只有可调的筛选，锁定或隐藏的值属于页面 |
+| `defaultTab`、`onTabChange` | 打开在哪个页签，以及页签变化 |
 | `withPanelTitles` | 是否画面板标题，缺省开 |
 | `withRefresh` | 第一行的「更新于 10:32」，交互档里旁边还有刷新按钮（缺省关）；不提供间隔，间隔归作者和 `autoRefresh` |
 | `withExport` | 面板「⋯」里的「导出数据…」（缺省关）；静态档无效 |
@@ -240,8 +240,8 @@ export interface EmbeddedDashboardProps extends EmbedBaseProps {
   caption?: import('react').ReactNode;
   filterModes?: Readonly<Record<string, DashboardFilterMode>>;
   groupingMode?: DashboardFilterMode;
-  initialFilters?: DashboardFilters | null;
-  initialTab?: string | null;
+  defaultFilters?: DashboardFilters | null;
+  defaultTab?: string | null;
   interaction?: EmbedInteraction;
   onFiltersChange?(filters: DashboardFilters): void;
   onTabChange?(tabId: string | null): void;

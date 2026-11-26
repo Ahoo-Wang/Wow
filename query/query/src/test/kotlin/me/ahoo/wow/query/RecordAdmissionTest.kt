@@ -33,11 +33,8 @@ import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.query.admission.QueryAdmission
-import me.ahoo.wow.query.error.QueryRequestException
-import me.ahoo.wow.query.error.QueryScopeRequiredException
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryType
-import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryValueSchema
@@ -49,7 +46,6 @@ import me.ahoo.wow.query.schema.scalarFixture
 import me.ahoo.wow.query.schema.snapshotFixture
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.node.ObjectNode
 import java.math.BigDecimal
 import java.math.BigInteger
@@ -213,16 +209,5 @@ class RecordAdmissionTest {
         val admission = QueryAdmission(aggregateType)
         val scope = QueryScope(declared = EqualFilter(QueryField("state.title"), "n"))
         admits(admission, record(), schema, scope = scope).assert().isTrue()
-    }
-
-    @Test
-    fun `a point read runs the entry gates of a query route`() {
-        val required = QueryAdmission(aggregateType, entryPolicy = QueryEntryPolicy(requireAuthenticatedScope = true))
-        assertThrows<QueryScopeRequiredException> { admits(required, record()) }
-        admits(required, record(), scope = QueryScope(authenticated = TenantIdFilter("t1"))).assert().isTrue()
-        val explicit = QueryAdmission(aggregateType, entryPolicy = QueryEntryPolicy(requireExplicitEntry = true))
-        assertThrows<QueryRequestException> {
-            runTest { explicit.admitRecord(IdFilter("a1"), record(), schema, QueryCaller.UNSPECIFIED) }
-        }
     }
 }

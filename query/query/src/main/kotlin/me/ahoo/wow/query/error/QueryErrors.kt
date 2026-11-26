@@ -14,7 +14,9 @@
 package me.ahoo.wow.query.error
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.manifest.FrameworkErrors
 
 /**
@@ -68,36 +70,24 @@ object QueryErrors {
     const val FORBIDDEN: String = FrameworkCodes.AUTH_FORBIDDEN
 }
 
-/** A query error as the edge answers it: its framework [errorCode], its text and the violations of the request. */
+/**
+ * A query error as the edge answers it: its framework [errorCode] (a `FrameworkCodes.QUERY_*` code, or the code a read
+ * authorizer refused with), its [message] and the [violations] of the request, each the rule a rejected request broke
+ * and where, as a problem's `violations` carry them.
+ */
+@WowSpi
 interface QueryError {
-    /** One of [QueryErrors]. */
+    /** The framework code the edge answers with. */
     val errorCode: String
 
     /** The text the caller is answered with: it names what failed without internal detail. */
-    val errorMsg: String
+    val message: String
 
-    /** Where and which rule a rejected request broke; empty for a server fault. */
-    val bindingErrors: List<QueryBindingError>
+    /**
+     * Where and which rule a rejected request broke: its [Violation.path] (a JSON path, the absolute logical field, `""`
+     * for the model, or `body`) and its [Violation.code] (`me.ahoo.wow.api.query.QueryErrorCodes`); empty for a server
+     * fault or a refusal of the caller.
+     */
+    val violations: List<Violation>
         get() = emptyList()
-}
-
-/**
- * One rule a request broke: [name] is where (a JSON path, the absolute logical field, `""` for the model or `body`),
- * [code] which rule, stable and machine-readable (`me.ahoo.wow.api.query.QueryErrorCodes`).
- */
-class QueryBindingError @InternalWowApi constructor(val name: String, val msg: String, val code: String) {
-    override fun equals(other: Any?): Boolean =
-        this === other || other is QueryBindingError && valueFields() == other.valueFields()
-
-    override fun hashCode(): Int = valueFields().hashCode()
-
-    override fun toString(): String = "QueryBindingError(name=$name, msg=$msg, code=$code)"
-
-    private fun valueFields(): List<Any?> = listOf(name, msg, code)
-
-    companion object {
-        /** A [QueryBindingError] of the given values. */
-        @JvmStatic
-        fun of(name: String, msg: String, code: String): QueryBindingError = QueryBindingError(name, msg, code)
-    }
 }

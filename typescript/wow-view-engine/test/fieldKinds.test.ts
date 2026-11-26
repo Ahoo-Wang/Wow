@@ -23,9 +23,8 @@ import {
 } from '../src/model/index.js';
 import {
   compileFilter,
-  isDateTimeFilterValue,
   validateFilter,
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   type FieldDefinition,
   type FieldKind,
   type FilterLeaf,
@@ -58,6 +57,7 @@ import { operatorsOf, readValue } from '../src/filter/fieldKind.js';
 import { referenceFieldKind } from '../src/filter/kinds/reference.js';
 import { stringFieldKind } from '../src/filter/kinds/string.js';
 import { isPlainObject } from '../src/filter/values.js';
+import { isDateTimeFilterValue } from '../src/filter/values.js';
 
 const now = new Date('2026-09-16T10:30:00.000Z');
 const timeZone = 'UTC';
@@ -74,7 +74,7 @@ function compile(kind: FieldKind, one: FilterLeaf, def = field()) {
   return kind.compile({
     leaf: one,
     field: def,
-    kinds: builtinFieldKinds,
+    kinds: builtinFieldKindRegistry,
     now,
     timeZone,
   });
@@ -91,7 +91,7 @@ function codes(
       value,
       operator,
       field: def,
-      kinds: builtinFieldKinds,
+      kinds: builtinFieldKindRegistry,
       path: [],
     })
     .map(i => i.code);
@@ -124,7 +124,7 @@ describe('presence operators', () => {
    */
   it('are asked of a list as questions of its entries', () => {
     for (const id of LIST_KINDS) {
-      const kind = builtinFieldKinds.get(id)!;
+      const kind = builtinFieldKindRegistry.get(id)!;
       expect(kind.operators, id).toEqual(
         expect.arrayContaining([
           FilterOperator.IS_EMPTY,
@@ -147,7 +147,7 @@ describe('presence operators', () => {
     // The rule is not "metadata": it is that `IS_NULL` carries a field name
     // and these kinds' names are handles for the editor. Search joined them
     // for the same reason, which is why the list says what it means.
-    const without = [...builtinFieldKinds.values()]
+    const without = [...builtinFieldKindRegistry.values()]
       .filter(kind => !kind.operators.includes(FilterOperator.IS_NULL))
       .map(kind => kind.id)
       .sort();
@@ -161,7 +161,7 @@ describe('presence operators', () => {
     // The id list cannot have heard of an application's own kind, and a
     // custom kind that compiles to `SEARCH` or a metadata filter is a root
     // filter too — Wow throws when one reaches an element predicate.
-    const flagged = [...builtinFieldKinds.values()]
+    const flagged = [...builtinFieldKindRegistry.values()]
       .filter(kind => kind.fieldless)
       .map(kind => kind.id)
       .sort();
@@ -172,7 +172,7 @@ describe('presence operators', () => {
   });
 
   it('are offered by every kind that names a document field', () => {
-    for (const kind of builtinFieldKinds.values()) {
+    for (const kind of builtinFieldKindRegistry.values()) {
       // The field-less kinds are the exception, and deliberately: `IS_NULL`
       // carries a field name while their own `name` is a label, so one leaf
       // would mean two different things depending on its operator.
@@ -184,7 +184,7 @@ describe('presence operators', () => {
           value: null,
           operator: FilterOperator.IS_NULL,
           field: field(),
-          kinds: builtinFieldKinds,
+          kinds: builtinFieldKindRegistry,
           path: [],
         }),
       ).toEqual([]);
@@ -195,7 +195,7 @@ describe('presence operators', () => {
         kind.describe({
           leaf: leaf(FilterOperator.IS_NULL, null),
           field: field(),
-          kinds: builtinFieldKinds,
+          kinds: builtinFieldKindRegistry,
         }).text,
       ).toContain('Value');
     }
@@ -265,14 +265,14 @@ describe('string kind', () => {
       kind.describe({
         leaf: leaf(FilterOperator.IN, ['A', 'B']),
         field: field(),
-        kinds: builtinFieldKinds,
+        kinds: builtinFieldKindRegistry,
       }).text,
     ).toBe('Value is any of A, B');
     expect(
       kind.describe({
         leaf: leaf(FilterOperator.EQ, 'A'),
         field: field(),
-        kinds: builtinFieldKinds,
+        kinds: builtinFieldKindRegistry,
       }).text,
     ).toBe('Value is A');
   });
@@ -343,21 +343,21 @@ describe('number kind', () => {
       kind.describe({
         leaf: leaf(FilterOperator.BETWEEN, [1, 2]),
         field: def,
-        kinds: builtinFieldKinds,
+        kinds: builtinFieldKindRegistry,
       }).text,
     ).toBe('Value 1 ~ 2');
     expect(
       kind.describe({
         leaf: leaf(FilterOperator.IN, [1, 2]),
         field: def,
-        kinds: builtinFieldKinds,
+        kinds: builtinFieldKindRegistry,
       }).text,
     ).toBe('Value is any of 1, 2');
     expect(
       kind.describe({
         leaf: leaf(FilterOperator.GT, 1),
         field: def,
-        kinds: builtinFieldKinds,
+        kinds: builtinFieldKindRegistry,
       }).text,
     ).toBe('Value more than 1');
   });
@@ -388,7 +388,7 @@ describe('boolean kind', () => {
       kind.describe({
         leaf: leaf(FilterOperator.EQ, true),
         field: def,
-        kinds: builtinFieldKinds,
+        kinds: builtinFieldKindRegistry,
       }).text,
     ).toBe('Value is true');
   });
@@ -440,7 +440,7 @@ describe('enum kind', () => {
       kind.describe({
         leaf: leaf(FilterOperator.IN, ['A', 2, 'Z']),
         field: def,
-        kinds: builtinFieldKinds,
+        kinds: builtinFieldKindRegistry,
       }).text,
     ).toBe('Value is any of Alpha, Two, Z');
   });
@@ -483,7 +483,7 @@ describe('reference kind', () => {
       kind.describe({
         leaf: leaf(FilterOperator.IN, value),
         field: def,
-        kinds: builtinFieldKinds,
+        kinds: builtinFieldKindRegistry,
       }).text,
     ).toBe('Value is any of ACME');
   });
@@ -676,14 +676,14 @@ describe('date kinds', () => {
       dateTimeFieldKind.describe({
         leaf: leaf(FilterOperator.BEFORE_NOW, null),
         field: def,
-        kinds: builtinFieldKinds,
+        kinds: builtinFieldKindRegistry,
       }),
     ).toEqual({ text: 'Value before now', value: { kind: 'none' } });
     expect(
       dateTimeFieldKind.describe({
         leaf: leaf(FilterOperator.AFTER_NOW, null),
         field: def,
-        kinds: builtinFieldKinds,
+        kinds: builtinFieldKindRegistry,
       }).text,
     ).toBe('Value after now');
   });
@@ -712,10 +712,12 @@ describe('date kinds', () => {
         },
       ],
     };
-    expect(validateFilter(fields, tree, builtinFieldKinds)).toEqual([]);
-    expect(isExecutableFilter(fields, tree, builtinFieldKinds)).toBe(true);
+    expect(validateFilter(fields, tree, builtinFieldKindRegistry)).toEqual([]);
+    expect(isExecutableFilter(fields, tree, builtinFieldKindRegistry)).toBe(
+      true,
+    );
     expect(
-      compileFilter(fields, tree, builtinFieldKinds, { now, timeZone }),
+      compileFilter(fields, tree, builtinFieldKindRegistry, { now, timeZone }),
     ).toEqual(
       wow.and([
         wow.eq('status', 'PREPARED'),
@@ -755,7 +757,7 @@ describe('date kinds', () => {
       dateTimeFieldKind.describe({
         leaf: leaf(FilterOperator.BETWEEN, value),
         field: def,
-        kinds: builtinFieldKinds,
+        kinds: builtinFieldKindRegistry,
       }).text;
     expect(describe_({ type: 'preset', preset: 'today' })).toBe('Value today');
     expect(describe_({ type: 'relative', amount: 7, unit: 'day' })).toBe(
@@ -772,7 +774,7 @@ describe('date kinds', () => {
       dateTimeFieldKind.describe({
         leaf: leaf(operator, value),
         field: def,
-        kinds: builtinFieldKinds,
+        kinds: builtinFieldKindRegistry,
       }).text;
     const last = { type: 'relative', amount: 7, unit: 'day' };
 
@@ -853,7 +855,7 @@ describe('registry helpers', () => {
   it('flags a malformed group operator', () => {
     const broken = { op: 'xor', children: [] } as unknown as FilterTree;
     expect(
-      validateFilter([], broken, builtinFieldKinds).map(i => i.code),
+      validateFilter([], broken, builtinFieldKindRegistry).map(i => i.code),
     ).toEqual(['filter.group.unknown-operator']);
   });
 
@@ -868,7 +870,7 @@ describe('registry helpers', () => {
             { field: 'value', operator: FilterOperator.EQ, value: 'A' },
           ],
         },
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       ),
     ).toBe(true);
     expect(
@@ -880,7 +882,7 @@ describe('registry helpers', () => {
             { field: 'gone', operator: FilterOperator.EQ, value: 'A' },
           ],
         },
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       ),
     ).toBe(false);
   });
@@ -909,7 +911,7 @@ describe('describing a value a kind cannot read', () => {
   ];
 
   it.each(cases)('falls back to the label for %s %s', (id, operator, value) => {
-    const kind = builtinFieldKinds.get(id)!;
+    const kind = builtinFieldKindRegistry.get(id)!;
 
     // The line is the label alone, and the parts say why: the value is
     // blank, so the bar names the field and says nothing after it.
@@ -917,7 +919,7 @@ describe('describing a value a kind cannot read', () => {
       kind.describe({
         leaf: leaf(operator, value),
         field: field({ kind: id }),
-        kinds: builtinFieldKinds,
+        kinds: builtinFieldKindRegistry,
       }),
     ).toEqual({ text: 'Value', value: { kind: 'blank' } });
   });

@@ -25,15 +25,15 @@
 
 import { expectTypeOf, it } from 'vitest';
 import type {
-  CountQuery,
-  CountResult,
   RequestOptions,
   Positioned,
+  Problem,
   StreamOptions,
-  WowProblemError,
 } from '@ahoo-wang/wow-client';
 import type {
   AggregationQuery,
+  CountQuery,
+  CountResult,
   CursorPage,
   CursorQuery,
   FilterListQuery,
@@ -112,10 +112,10 @@ it('hands every executor the query and the request options with a signal', () =>
   expectTypeOf<QueryExecutor<string, number>>().returns.toEqualTypeOf<
     Promise<number>
   >();
-  expectTypeOf<StreamExecutor<Item, string>>().toEqualTypeOf<
+  expectTypeOf<StreamExecutor<string, Item>>().toEqualTypeOf<
     QueryExecutor<string, ReadableStream<Positioned<Item>>, StreamOptions>
   >();
-  expectTypeOf<StreamExecutor<Item, string>>().parameters.toEqualTypeOf<
+  expectTypeOf<StreamExecutor<string, Item>>().parameters.toEqualTypeOf<
     [string, StreamOptions & { readonly signal: AbortSignal }]
   >();
 });
@@ -146,9 +146,7 @@ it('holds the members of the shared options and return', () => {
   expectTypeOf<Return['loading']>().toEqualTypeOf<boolean>();
   expectTypeOf<Return['result']>().toEqualTypeOf<number | undefined>();
   expectTypeOf<Return['error']>().toEqualTypeOf<Error | undefined>();
-  expectTypeOf<Return['problem']>().toEqualTypeOf<
-    WowProblemError | undefined
-  >();
+  expectTypeOf<Return['problem']>().toEqualTypeOf<Problem | undefined>();
   expectTypeOf<Return['execute']>().toEqualTypeOf<() => Promise<void>>();
   expectTypeOf<Return['abort']>().toEqualTypeOf<() => void>();
   expectTypeOf<Return['reset']>().toEqualTypeOf<() => void>();
@@ -195,7 +193,7 @@ it('streams records into items, position and done in place of result', () => {
 
   expectTypeOf<keyof Options>().toEqualTypeOf<OptionKeys>();
   expectTypeOf<Options['execute']>().toEqualTypeOf<
-    StreamExecutor<Item, FilterListQuery<Fields>>
+    StreamExecutor<FilterListQuery<Fields>, Item>
   >();
   expectTypeOf<Options['requestOptions']>().toEqualTypeOf<
     Omit<StreamOptions, 'signal'> | undefined
@@ -242,10 +240,10 @@ it("reports an Error, and a Wow service's answer as problem", () => {
     Error | undefined
   >();
   expectTypeOf<UseStreamQueryReturn<Item>['problem']>().toEqualTypeOf<
-    WowProblemError | undefined
+    Problem | undefined
   >();
   expectTypeOf<UseCursorQueryReturn<Item>['problem']>().toEqualTypeOf<
-    WowProblemError | undefined
+    Problem | undefined
   >();
   expectTypeOf<NonNullable<UseSingleQueryOptions<Item, Fields>['onError']>>()
     .parameter(0)

@@ -23,6 +23,7 @@ import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.client.PeerClients
 import me.ahoo.wow.client.RoutedQueryApi
 import me.ahoo.wow.http.query.HttpQueries
+import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.ContextQueries
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.query.admission.AdaptiveLimitOptions
@@ -48,7 +49,6 @@ import me.ahoo.wow.query.schema.MaskStrategyResolver
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.schema.QuerySchemaSource
-import me.ahoo.wow.query.store.EventQueries
 import me.ahoo.wow.query.store.QueryIndexReport
 import me.ahoo.wow.query.store.QueryStores
 import me.ahoo.wow.query.store.StoreQueries
@@ -63,6 +63,7 @@ import me.ahoo.wow.spring.boot.node.QueryStreamsLifecycle
 import me.ahoo.wow.spring.boot.node.WowModels
 import me.ahoo.wow.spring.boot.store.BeanStoreResources
 import me.ahoo.wow.spring.boot.store.HostBackends
+import me.ahoo.wow.spring.boot.transport.PortProviders.Companion.configured
 import me.ahoo.wow.spring.boot.transport.ProviderSettingsSource
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
@@ -79,7 +80,7 @@ import tools.jackson.databind.JsonNode
 import java.nio.file.Path
 
 /**
- * The query plane (–), active when wow-query is on the classpath (wow-http brings it)
+ * The query plane, active when wow-query is on the classpath (wow-http brings it)
  * and `wow.query.enabled` is not off. Over the node's Manifest it builds:
  *
  * - a [SnapshotQueryBackend] chosen by the classpath as the stores are: the application's own
@@ -114,7 +115,8 @@ class QueryAutoConfiguration {
         @Bean
         @ConditionalOnMissingBean
         @InternalWowApi
-        fun wowQueryEntryPolicy(properties: QueryProperties): QueryEntryPolicy = properties.entryPolicy()
+        fun wowQueryEntryPolicy(properties: QueryProperties): QueryEntryPolicy =
+            configured(QueryProperties.PREFIX) { properties.entryPolicy() }
 
         @Bean
         @ConditionalOnMissingBean
@@ -191,7 +193,7 @@ class QueryAutoConfiguration {
             }
             val storeOf = { type: AggregateType -> configured[type] ?: layout?.logStoreOf(type) }
             val indexed = { type: AggregateType ->
-                (storeOf(type)?.let(byStore::get) as? EventQueries)?.takeIf { it.managesIndexes }
+                storeOf(type)?.let(byStore::get)?.takeIf { it.managesIndexes }
             }
             val backend = EventQueryBackend(
                 store = { type -> storeOf(type)?.takeIf { byStore[it] != null } },
@@ -333,11 +335,20 @@ class QueryAutoConfiguration {
             val settings = wow.ifAvailable
             val backend by lazy { events.getObject() }
             // The bounds are wow-query's: the host maps its properties onto their settings.
-            return QueryStores.of(
-                properties.storeSettings(settings?.stores.orEmpty()),
-                backends.stores,
-                { name -> HostQueryBulkheads.pressureOf(node::started, name, backends.stores[name]) },
-            ) { type -> HostQueryBulkheads.unpinned(type, backend.storeOf(type), properties.events.unpinned, settings) }
+            return configured(QueryProperties.PREFIX) {
+                QueryStores.of(
+                    properties.storeSettings(settings?.stores.orEmpty()),
+                    backends.stores,
+                    { name -> HostQueryBulkheads.pressureOf(node::started, name, backends.stores[name]) },
+                ) { type ->
+                    HostQueryBulkheads.unpinned(
+                        type,
+                        backend.storeOf(type),
+                        properties.events.unpinned,
+                        settings
+                    )
+                }
+            }
         }
 
         /**
@@ -449,7 +460,7 @@ class QueryAutoConfiguration {
         @InternalWowApi
         fun wowQueryCountCache(node: ServiceNode, properties: QueryProperties): QueryCountCache = QueryCountCache(
             { type -> node.contexts[type.context]?.snapshotCheckpoint(type) },
-            properties.countCache.options(),
+            configured("${QueryProperties.PREFIX}.count-cache") { properties.countCache.options() },
         )
 
         /** The query models the public routes serve: the engine's, `wow.query.budgets.http.default-list-size`. */
@@ -457,13 +468,15 @@ class QueryAutoConfiguration {
         @ConditionalOnMissingBean
         @InternalWowApi
         fun wowHttpQueries(engine: QueryEngine, node: ServiceNode, properties: QueryProperties): HttpQueries =
-            HttpQueries.of(
-                engine,
-                properties.budgets.http.defaultListSize,
-                node.snapshotStatus,
-                properties.stream.streams(),
-                properties.sensitivity.displayShared,
-            )
+            configured(QueryProperties.PREFIX) {
+                HttpQueries.of(
+                    engine,
+                    properties.budgets.http.defaultListSize,
+                    node.snapshotStatus,
+                    properties.stream.streams(),
+                    properties.sensitivity.displayShared,
+                )
+            }
 
         /**
          * The node's typed [NodeQueryApi]: the [engine]'s gateways and read facade, each aggregate
@@ -482,23 +495,7 @@ class QueryAutoConfiguration {
             peers: PeerClients,
         ): NodeQueryApi {
             val models = node.contexts.values.flatMap { it.models }
-            val local = InProcessQueryApi(
-                engine,
-                ReadModels(
-                    models.map { model ->
-                        ReadModels.Model(model.type, model.stateType) { name -> model.findEventType(name)?.type }
-                    },
-                ),
-                latest = object : CommittedStates {
-                    override suspend fun committed(ref: AggregateRef): Snapshot<JsonNode>? =
-                        reads.ifAvailable?.latest(ref)
-
-                    override suspend fun committed(ref: AggregateRef, minVersion: Int): Snapshot<JsonNode>? =
-                        (reads.ifAvailable ?: StateReads.NONE).latest(ref, minVersion)
-                },
-                defaultListSize = properties.budgets.inProcess.defaultListSize,
-                chunkSize = properties.stream.chunkSize,
-            )
+            val local = configured(QueryProperties.PREFIX) { inProcessQueryApi(engine, models, reads, properties) }
             // The peer contexts of wow.peers are read over HTTP.
             return if (peers.contexts.isEmpty()) {
                 local
@@ -506,6 +503,30 @@ class QueryAutoConfiguration {
                 RoutedQueryApi(local, peers, models.mapTo(HashSet()) { it.stateType })
             }
         }
+
+        /** The node's own queries, bounded by [properties]' in-process list size and stream chunks. */
+        private fun inProcessQueryApi(
+            engine: QueryEngine,
+            models: List<AggregateModel<*>>,
+            reads: ObjectProvider<StateReads>,
+            properties: QueryProperties,
+        ): InProcessQueryApi = InProcessQueryApi(
+            engine,
+            ReadModels(
+                models.map { model ->
+                    ReadModels.Model(model.type, model.stateType) { name -> model.findEventType(name)?.type }
+                },
+            ),
+            latest = object : CommittedStates {
+                override suspend fun committed(ref: AggregateRef): Snapshot<JsonNode>? =
+                    reads.ifAvailable?.latest(ref)
+
+                override suspend fun committed(ref: AggregateRef, minVersion: Int): Snapshot<JsonNode>? =
+                    (reads.ifAvailable ?: StateReads.NONE).latest(ref, minVersion)
+            },
+            defaultListSize = properties.budgets.inProcess.defaultListSize,
+            chunkSize = properties.stream.chunkSize,
+        )
 
         /**
          * The queries of the subscription handlers ([ContextQueries.of]): the node's [NodeQueryApi] pinned to the tenant

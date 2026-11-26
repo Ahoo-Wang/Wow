@@ -318,6 +318,12 @@ class SubscriptionManifestTest {
                 @OnEvent
                 fun onOrder(event: StateEvent<Order>) = Unit
             }
+
+            @Projection
+            class Totals {
+                @OnEvent
+                fun onOrder(event: StateEvent<Order>) = Unit
+            }
             """.trimIndent(),
         )
         val (compilation, result) = compile(model, starts)
@@ -329,8 +335,15 @@ class SubscriptionManifestTest {
                 "Replaying.onOwnOrder" to SubscriptionStart.END,
                 "Replaying.onStock" to SubscriptionStart.END,
                 "Replaying.onStockAgain" to SubscriptionStart.JOIN,
+                "Totals.onOrder" to SubscriptionStart.BEGINNING,
             ),
         )
+        // A start left to the handler's kind and source is the Manifest's own default, by the same rule.
+        val declared = setOf("Recent.onOrder", "Replaying.onOrder", "Replaying.onStock")
+        fragment(compilation).contexts.single().subscriptions.filter { it.name !in declared }.forEach {
+            val peer = it.source.context.let { context -> context != null && context != "shop" }
+            it.start.assert().describedAs(it.name).isEqualTo(SubscriptionStart.defaultFor(it.kind, peer))
+        }
         val processors = provider(compilation, result).processors(Dependencies.NONE).associateBy { it.name }
         processors.mapValues { it.value.startIn("shop") }.assert().isEqualTo(
             mapOf(
@@ -340,6 +353,7 @@ class SubscriptionManifestTest {
                 "Replaying.onOwnOrder" to StartFrom.END,
                 "Replaying.onStock" to StartFrom.END,
                 "Replaying.onStockAgain" to StartFrom.JOIN,
+                "Totals.onOrder" to StartFrom.BEGINNING,
             ),
         )
         // Only a declared start is generated; the others are left to the runtime's default.

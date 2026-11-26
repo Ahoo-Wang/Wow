@@ -28,7 +28,6 @@ import me.ahoo.wow.query.error.QueryBusyException
 import me.ahoo.wow.query.error.QueryError
 import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.error.QueryExecutionException
-import me.ahoo.wow.query.error.QueryScopeRequiredException
 import me.ahoo.wow.query.error.QueryStorageUnavailableException
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.observe.QueryAudit
@@ -38,7 +37,6 @@ import me.ahoo.wow.query.observe.QueryObserver
 import me.ahoo.wow.query.observe.audits
 import me.ahoo.wow.query.observe.isolated
 import me.ahoo.wow.query.observe.redacted
-import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.state.InvalidStateReadException
@@ -140,15 +138,10 @@ class QueryObserversTest {
     fun `a missing scope rejection is logged below ERROR whatever rejects it`() {
         val forbidden = object : RuntimeException("principal tags required"), QueryError {
             override val errorCode: String = QueryErrors.FORBIDDEN
-            override val errorMsg: String = "principal tags required"
+            override val message: String = "principal tags required"
         }
         val errors = captureErrors {
             QueryLogObserver().onError(aggregate, QueryType.LIST, forbidden)
-            QueryLogObserver().onError(
-                aggregate,
-                QueryType.LIST,
-                QueryScopeRequiredException(QueryModel.SNAPSHOT, QueryField("tenantId")),
-            )
             QueryLogObserver().onError(aggregate, QueryType.LIST, QueryViolation.InvalidCursor.rejection())
             QueryLogObserver().onError(
                 aggregate,

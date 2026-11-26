@@ -45,8 +45,16 @@ describe("the service's Manifest a CommandClient reads", () => {
     );
     const commands = new CommandClient(client());
     const sends = [
-      commands.wait({ command: 'c.a.X', id: '1', requestId: 'write-a' }),
-      commands.wait({ command: 'c.a.X', id: '2', requestId: 'write-b' }),
+      commands.wait({
+        command: 'c.a.X',
+        aggregateId: '1',
+        requestId: 'write-a',
+      }),
+      commands.wait({
+        command: 'c.a.X',
+        aggregateId: '2',
+        requestId: 'write-b',
+      }),
     ].map(sending => sending.catch((error: unknown) => error));
     await vi.waitFor(() => expect(requests).toHaveLength(1));
     answer(
@@ -79,7 +87,7 @@ describe("the service's Manifest a CommandClient reads", () => {
     const failures = (await Promise.all(
       ['write-a', 'write-b'].map(requestId =>
         commands
-          .wait({ command: 'c.a.X', id: '1', requestId })
+          .wait({ command: 'c.a.X', aggregateId: '1', requestId })
           .catch((error: unknown) => error),
       ),
     )) as Failure[];
@@ -104,7 +112,7 @@ describe("the service's Manifest a CommandClient reads", () => {
       });
       const failures = ['write-a', 'write-b'].map(requestId =>
         commands
-          .wait({ command: 'c.a.X', id: '1', requestId })
+          .wait({ command: 'c.a.X', aggregateId: '1', requestId })
           .catch((error: unknown) => error as Failure),
       );
       await vi.advanceTimersByTimeAsync(1000);
@@ -123,7 +131,7 @@ describe("the service's Manifest a CommandClient reads", () => {
         { fetcher: new Fetcher({ baseURL: BASE_URL, timeout: 1000 }) },
         { manifest: TEST_MANIFEST },
       )
-        .wait({ command: 'c.a.X', id: '1' })
+        .wait({ command: 'c.a.X', aggregateId: '1' })
         .catch((error: unknown) => error as Failure);
       await vi.advanceTimersByTimeAsync(1000);
       const timedOut = (await own) as Failure;
@@ -147,11 +155,11 @@ describe("the service's Manifest a CommandClient reads", () => {
     const cancellation = new AbortController();
     const abandoned = commands.wait({
       command: 'c.a.X',
-      id: '1',
+      aggregateId: '1',
       requestId: 'cancelled',
       signal: cancellation.signal,
     });
-    const continuing = commands.wait({ command: 'c.a.X', id: '2' });
+    const continuing = commands.wait({ command: 'c.a.X', aggregateId: '2' });
     await vi.waitFor(() => expect(requests).toHaveLength(1));
     const reason = new DOMException('Left the page', 'AbortError');
     cancellation.abort(reason);
@@ -173,7 +181,7 @@ describe("the service's Manifest a CommandClient reads", () => {
     await expect(
       new CommandClient(client()).wait({
         command: 'c.a.X',
-        id: '1',
+        aggregateId: '1',
         signal: AbortSignal.abort(reason),
       }),
     ).rejects.toBe(reason);

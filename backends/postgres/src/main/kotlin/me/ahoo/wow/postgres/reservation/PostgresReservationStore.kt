@@ -18,7 +18,6 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.postgres.PostgresFormat
-import me.ahoo.wow.postgres.PostgresSchema
 import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.inTransaction
 import me.ahoo.wow.postgres.jdbc
@@ -73,9 +72,12 @@ class PostgresReservationStore(
     private fun tablesOf(type: AggregateType): PostgresReservationTables = created.get(type.toString()) {
         PostgresReservationTables(type.context, type.name).also { tables ->
             dataSource.autoCommitted { connection ->
-                PostgresFormat.schema(connection, ddl, listOf(tables.name to PostgresReservationTables.FORMAT)) {
-                    PostgresSchema.execute(connection, tables.ddl)
-                }
+                PostgresFormat.schema(
+                    connection,
+                    ddl,
+                    listOf(tables.name to PostgresReservationTables.FORMAT),
+                    tables.ddl
+                )
             }
         }
     }
@@ -200,7 +202,7 @@ class PostgresReservationStore(
             return Reservation(
                 scope = scope,
                 key = key,
-                owner = scope.type.ref(row.getString("owner_tenant_id"), row.getString("owner_id")),
+                owner = scope.type.ref(row.getString("aggregate_tenant_id"), row.getString("aggregate_id")),
                 expiresAt = row.getObject("expires_at") as Long?,
                 holds = holds.toSet(),
                 version = row.getInt("version"),

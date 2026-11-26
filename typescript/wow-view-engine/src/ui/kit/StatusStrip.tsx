@@ -27,6 +27,7 @@ import { useViewMessages } from './MessagesProvider.js';
 import { TEXT_UI } from './layout.js';
 import { useKindWord } from './kinds.js';
 
+/** Props of `StatusStrip`. */
 export interface StatusStripProps {
   /** How loud it is: the colour, the icon and the role come with it. */
   tone: AlertTone;

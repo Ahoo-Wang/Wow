@@ -64,6 +64,7 @@ export type NewViewPanel = {
   bindings?: PanelBinding[];
 } & ({ instanceId: string } | { owned: OwnedView });
 
+/** A panel to add to a board: a view panel or a content panel. */
 export type NewPanel = NewViewPanel | NewContentPanel;
 
 /** Where a new panel goes; every member has a default. */

@@ -32,7 +32,6 @@ import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ExistsFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.GreaterThanFilter
-import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.IsNullFilter
 import me.ahoo.wow.api.query.LessThanFilter
 import me.ahoo.wow.api.query.ListQuery
@@ -46,6 +45,7 @@ import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.TotalMode
+import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.query.admission.AdmittedQuery
 import me.ahoo.wow.query.admission.QueryAdmission
 import me.ahoo.wow.query.admission.QueryBudget
@@ -55,11 +55,9 @@ import me.ahoo.wow.query.backend.cursor
 import me.ahoo.wow.query.backend.list
 import me.ahoo.wow.query.backend.paged
 import me.ahoo.wow.query.backend.single
-import me.ahoo.wow.query.error.QueryBindingError
 import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.error.QueryRequestException
-import me.ahoo.wow.query.error.QueryScopeRequiredException
 import me.ahoo.wow.query.error.QueryTimeoutException
 import me.ahoo.wow.query.error.checkExecution
 import me.ahoo.wow.query.filter.QueryContext
@@ -151,7 +149,7 @@ class QueryAdmissionTest {
     private fun <Q : RewritableFilter<Q>> QueryAdmission.admitBlocking(
         operation: QueryOperation<Q>,
         query: Q,
-        caller: QueryCaller = QueryCaller.UNSPECIFIED,
+        caller: QueryCaller = QueryCaller.IN_PROCESS,
         schema: QueryModelSchema = snapshot,
         trail: QueryAuditTrail? = null,
     ): AdmittedQuery<Q> {
@@ -251,24 +249,6 @@ class QueryAdmissionTest {
     @Test
     fun `governed admission checks the entry budget before the schema loads`() {
         var loaded = false
-        val rejected = runCatching {
-            runTest {
-                QueryAdmission(aggregateType, entryPolicy = QueryEntryPolicy(requireExplicitEntry = true))
-                    .admit(
-                        QueryOperation.COUNT,
-                        CountQuery(MatchAllFilter) as CountQuery,
-                        QueryCaller.UNSPECIFIED,
-                        {
-                            loaded = true
-                            snapshot
-                        },
-                    )
-            }
-        }.exceptionOrNull() as QueryRequestException
-        rejected.code.assert().isEqualTo(QueryErrorCodes.EXPLICIT_ENTRY_REQUIRED)
-        rejected.bindingErrors.single().name.assert().isEqualTo(QueryRequestException.BODY)
-        loaded.assert().isFalse()
-
         val budgeted = runCatching {
             runTest {
                 QueryAdmission(aggregateType).admit(
@@ -283,6 +263,7 @@ class QueryAdmissionTest {
             }
         }.exceptionOrNull() as QueryRequestException
         budgeted.code.assert().isEqualTo(QueryErrorCodes.SIZE_OUT_OF_RANGE)
+        budgeted.violations.single().path.assert().isEqualTo("limit")
         loaded.assert().isFalse()
     }
 
@@ -291,14 +272,14 @@ class QueryAdmissionTest {
         QueryRequestException("Body is not JSON.", QueryErrorCodes.INVALID_JSON).run {
             errorCode.assert().isEqualTo(QueryErrors.MALFORMED)
             violation.assert().isNull()
-            bindingErrors.assert().containsExactly(
-                QueryBindingError(QueryRequestException.BODY, "Body is not JSON.", QueryErrorCodes.INVALID_JSON),
+            violations.assert().containsExactly(
+                Violation.of(QueryRequestException.BODY, QueryErrorCodes.INVALID_JSON, "Body is not JSON."),
             )
         }
         QueryExecutionException("Storage failed.").run {
             errorCode.assert().isEqualTo(QueryErrors.FAILED)
-            errorMsg.assert().isEqualTo("Storage failed.")
-            bindingErrors.assert().isEmpty()
+            message.assert().isEqualTo("Storage failed.")
+            violations.assert().isEmpty()
         }
         assertThrows<QueryExecutionException> { checkExecution(false) { "Broken row." } }
             .message.assert().isEqualTo("Broken row.")
@@ -306,17 +287,9 @@ class QueryAdmissionTest {
         QueryTimeoutException(Duration.ofMillis(1500)).run {
             errorCode.assert().isEqualTo(QueryErrors.TIMEOUT)
             timeout.assert().isEqualTo(Duration.ofMillis(1500))
-            errorMsg.assert().isEqualTo("Query exceeded its execution timeout of 1500 ms.")
+            message.assert().isEqualTo("Query exceeded its execution timeout of 1500 ms.")
         }
         QueryPolicy { _, _ -> MatchAllFilter }.order.assert().isEqualTo(0)
-    }
-
-    @Test
-    fun `an explicit entry passes the policy that requires one`() {
-        val policy = QueryEntryPolicy(requireExplicitEntry = true)
-        policy.admit(QueryEntry.HTTP).assert().isEqualTo(QueryEntry.HTTP)
-        policy.admit(QueryEntry.IN_PROCESS).assert().isEqualTo(QueryEntry.IN_PROCESS)
-        QueryEntryPolicy.DEFAULT.admit(QueryEntry.UNSPECIFIED).assert().isEqualTo(QueryEntry.UNSPECIFIED)
     }
 
     @Test
@@ -416,7 +389,7 @@ class QueryAdmissionTest {
             MatchAllFilter
         }
         val selection = EqualFilter(QueryField("aggregateId"), "a1")
-        val caller = QueryCaller.UNSPECIFIED.withScope(QueryScope(TenantIdFilter("t1"))).withSelection(selection)
+        val caller = QueryCaller.IN_PROCESS.withScope(QueryScope(TenantIdFilter("t1"))).withSelection(selection)
         val trail = QueryAuditTrail(aggregateType, QueryType.LIST, Unit, caller)
         val admitted = QueryAdmission(aggregateType, listOf(replacing), listOf(policy))
             .admitBlocking(QueryOperation.LIST, ListQuery(note, limit = 10) as ListQuery, caller, trail = trail)
@@ -460,7 +433,7 @@ class QueryAdmissionTest {
             .admitBlocking(
                 QueryOperation.COUNT,
                 CountQuery(MatchAllFilter) as CountQuery,
-                QueryCaller.UNSPECIFIED.withSelection(tracing),
+                QueryCaller.IN_PROCESS.withSelection(tracing),
             )
             .query.filter.assert().isEqualTo(tracing)
     }
@@ -499,7 +472,7 @@ class QueryAdmissionTest {
         ).admitBlocking(QueryOperation.COUNT, count, http).query.limit.assert().isNull()
         assertThrows<QueryRequestException> {
             admission.admitBlocking(QueryOperation.COUNT, CountQuery(count.filter, limit = 10_001) as CountQuery, http)
-        }.bindingErrors.single().name.assert().isEqualTo("limit")
+        }.violations.single().path.assert().isEqualTo("limit")
     }
 
     @Test
@@ -516,7 +489,7 @@ class QueryAdmissionTest {
         QueryAdmission(aggregateType, entryPolicy = custom).admitBlocking(QueryOperation.SINGLE, query, http).timeout
             .assert().isNull()
         QueryAdmission(aggregateType, entryPolicy = custom)
-            .admitBlocking(QueryOperation.SINGLE, query, QueryCaller.UNSPECIFIED).timeout
+            .admitBlocking(QueryOperation.SINGLE, query, QueryCaller.IN_PROCESS).timeout
             .assert().isEqualTo(Duration.ofSeconds(3))
         QueryAdmission(aggregateType, entryPolicy = QueryEntryPolicy(inProcessTimeout = null))
             .admitBlocking(QueryOperation.SINGLE, query, QueryCaller.IN_PROCESS).timeout
@@ -531,7 +504,7 @@ class QueryAdmissionTest {
         )
         policy.timeout(QueryEntry.HTTP).assert().isEqualTo(5.seconds)
         policy.timeout(QueryEntry.IN_PROCESS).assert().isEqualTo(7.seconds)
-        policy.timeout(QueryEntry.UNSPECIFIED).assert().isEqualTo(7.seconds)
+        policy.timeout(QueryEntry.UNBOUNDED).assert().isEqualTo(7.seconds)
         QueryEntryPolicy(http = QueryBudget(QueryBudget.HTTP_LABEL, timeout = kotlin.time.Duration.ZERO))
             .timeout(QueryEntry.HTTP).assert().isNull()
         QueryEntryPolicy(inProcess = QueryBudget("In-process", timeout = 2.seconds))
@@ -539,51 +512,9 @@ class QueryAdmissionTest {
         QueryEntryPolicy(inProcessTimeout = null).timeout(QueryEntry.IN_PROCESS).assert().isNull()
         QueryEntryPolicy.DEFAULT.timeout(QueryEntry.HTTP).assert().isEqualTo(QueryBudget.DEFAULT_TIMEOUT)
         QueryEntryPolicy.DEFAULT.budget(QueryEntry.HTTP).assert().isSameAs(QueryBudget.HTTP_DEFAULT)
-        QueryEntryPolicy.DEFAULT.budget(QueryEntry.UNSPECIFIED).assert().isNull()
+        QueryEntryPolicy.DEFAULT.budget(QueryEntry.IN_PROCESS).assert().isNull()
         assertThrows<IllegalArgumentException> { QueryEntryPolicy(inProcessTimeout = kotlin.time.Duration.ZERO) }
             .message.assert().isEqualTo("inProcessTimeout must be positive.")
         assertThrows<IllegalArgumentException> { QueryEntryPolicy(inProcessTimeout = (-1).seconds) }
-    }
-
-    @Test
-    fun `an HTTP query must pin the tenant in its authenticated scope when the policy requires it`() {
-        val admission = QueryAdmission(
-            aggregateType,
-            entryPolicy = QueryEntryPolicy(requireAuthenticatedScope = true),
-        )
-        val query = SingleQuery(note) as SingleQuery
-        fun admit(caller: QueryCaller, schema: QueryModelSchema = snapshot) =
-            admission.admitBlocking(QueryOperation.SINGLE, query, caller, schema)
-
-        listOf(
-            TenantIdFilter("t1"),
-            EqualFilter(QueryField("tenantId"), "t1"),
-            AndFilter(listOf(OwnerIdFilter("o1"), TenantIdFilter("t1"))),
-        ).forEach { authenticated -> admit(http.withScope(QueryScope(authenticated = authenticated))) }
-
-        listOf(
-            MatchAllFilter,
-            OwnerIdFilter("o1"),
-            IdFilter("a1"),
-            EqualFilter(QueryField("tenantId"), null),
-            EqualFilter(QueryField("ownerId"), "o1"),
-            IsNullFilter(QueryField("tenantId")),
-        ).forEach { authenticated ->
-            assertThrows<QueryScopeRequiredException> {
-                admit(http.withScope(QueryScope(authenticated = authenticated)))
-            }.run {
-                errorCode.assert().isEqualTo(QueryErrors.FORBIDDEN)
-                model.assert().isEqualTo(QueryModel.SNAPSHOT)
-                field.assert().isEqualTo(QueryField("tenantId"))
-                errorMsg.assert().isEqualTo("Query on [$model] requires an authenticated [tenantId] scope.")
-            }
-        }
-        // A declared tenant restricts the query but does not satisfy the requirement.
-        assertThrows<QueryScopeRequiredException> {
-            admit(http.withScope(QueryScope(declared = TenantIdFilter("t1"))))
-        }
-        // In-process callers and models without a profile are not checked.
-        admit(QueryCaller.IN_PROCESS)
-        admit(http, boundSchemaFixture(objectFixture("note" to scalarFixture()), model = QueryModel("custom")))
     }
 }

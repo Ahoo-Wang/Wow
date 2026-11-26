@@ -12,6 +12,10 @@
  */
 
 import type { TextNumbers } from './exactJson.js';
+import type { Hop } from './wait.js';
+import type { Violation } from './dsl/violation.js';
+
+export type { Violation } from './dsl/violation.js';
 
 /**
  * The wire model of a Wow service: what its routes answer, as the server
@@ -37,7 +41,7 @@ export interface AggregateTextNumbers {
   readonly state?: TextNumbers;
   /** Those of each event's body, by the event's name as the server sends it. */
   readonly events?: Readonly<Record<string, TextNumbers>>;
-  /** Those of each command's body, by the command's name. */
+  /** Those of each command's body, by the command's full name, as a request names it. */
   readonly commands?: Readonly<Record<string, TextNumbers>>;
   /**
    * Those of its access attributes, by name: the integer ones, which a record
@@ -95,24 +99,6 @@ export const Stage = {
 /** A {@link Stage} value. */
 export type Stage = (typeof Stage)[keyof typeof Stage];
 
-/**
- * One hop of a wait chain: a stage, in a context (the
- * command's own when absent), of a subscription when the stage is
- * `handled`. The snapshot is the subscription named `wow.snapshot`
- * (`SNAPSHOT_SUBSCRIPTION`), which a `Wow-Wait` header writes `snapshot`;
- * the store the snapshot queries read is `wow.queryable`
- * (`QUERYABLE_SUBSCRIPTION`), written `queryable`.
- */
-export interface Hop {
-  /**
-   * The stage; a server newer than this client may answer one it does not
-   * list.
-   */
-  readonly stage: Stage | (string & {});
-  readonly context?: string | null;
-  readonly subscription?: string | null;
-}
-
 /** The kind of function that produced a result. */
 export const FunctionKind = {
   /** The aggregate's command function. */
@@ -143,16 +129,6 @@ export interface FunctionInfo {
   readonly context: string;
   readonly processor: string;
   readonly name: string;
-}
-
-/** A field-level validation error. */
-export interface Violation {
-  /** The path of the field, or the query part, that broke the rule. */
-  readonly path: string;
-  /** The rule's code, such as `NotBlank` or `UNKNOWN_FIELD`. */
-  readonly code: string;
-  /** A human-readable message. */
-  readonly message: string;
 }
 
 /** Why a command was rejected or failed. */
@@ -525,7 +501,11 @@ export type EventStreamField =
 /** How an aggregate belongs to its callers. */
 export type Ownership = 'owner' | 'tenant';
 
-/** One dataset of `GET /wow/dataset`. */
+/**
+ * One dataset of `GET /wow/dataset`.
+ *
+ * @experimental
+ */
 export interface DatasetEntry {
   /** `{context}.{dataset}`. */
   readonly name: string;

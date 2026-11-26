@@ -42,5 +42,11 @@ class SortDsl internal constructor() : NestedFieldDsl() {
 
     fun QueryField<*>.desc() = path.desc()
 
+    /** The sorts of [block], their fields under this path: `"state".path { "price".desc() }` sorts `state.price`. */
+    fun String.path(block: SortDsl.() -> Unit) = under(QueryField(this), block)
+
+    /** The sorts of [block], their fields under this field's path. */
+    fun QueryField<*>.path(block: SortDsl.() -> Unit) = under(this, block)
+
     internal fun build(): List<Sort> = sorts.toList()
 }

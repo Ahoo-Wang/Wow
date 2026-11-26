@@ -10,8 +10,8 @@ import type { ProductCreated, ProductDelisted, ProductDiscontinued, ProductPrice
 export const ProductAggregate = {
   context: 'eshop-catalog',
   name: 'product',
-  path: '/eshop-catalog/product',
   ownership: 'tenant',
+  idSource: 'assigned',
   snapshot: true,
   textNumbers: {
     state: { price: true },
@@ -20,8 +20,8 @@ export const ProductAggregate = {
       'eshop-catalog.product.ProductPriceChanged': { previous: true, price: true },
     },
     commands: {
-      ChangeProductPrice: { price: true },
-      CreateProduct: { price: true },
+      'eshop-catalog.product.ChangeProductPrice': { price: true },
+      'eshop-catalog.product.CreateProduct': { price: true },
     },
   },
   Errors: {

@@ -38,8 +38,15 @@ class LogProperties {
      * refused at start otherwise.
      */
     var partitions: Int = DEFAULT_PARTITIONS
-        set(value) {
-            field = Partitioner.requirePartitions(value)
+        get() {
+            // Checked on every read, not where it is bound: a refusal names the key, no read takes a refused value.
+            configCheck(
+                Partitioner.isValidPartitions(field),
+                "wow.log.partitions",
+                field,
+                "Set a power of two that divides ${Partitioner.SLOTS}, such as $DEFAULT_PARTITIONS.",
+            ) { "Partitions are the hash slots modulo their count, so that they split online by doubling." }
+            return field
         }
 
     /** How often the tail of a PostgreSQL or MongoDB log polls while it finds entries. */
@@ -128,7 +135,10 @@ class StoreQueryProperties {
  */
 @InternalWowApi
 class StoreAdaptiveProperties {
-    /** The least the store's adaptive query bound goes down to, over `wow.query.adaptive.floor`. */
+    /**
+     * The least the store's adaptive query bound goes down to, over `wow.query.adaptive.floor`; above the store's
+     * ceiling it refuses the start.
+     */
     var floor: Int? = null
 
     /** The most the store's adaptive query bound goes up to, over `wow.query.adaptive.ceiling`. */
@@ -160,7 +170,7 @@ class SnapshotProperties {
     var store: String? = null
 
     /** How often the snapshot maintenance runs: state revision claims, in-place rebuilds and backfill checks. */
-    var maintenanceInterval: Duration = SnapshotOptions.DEFAULT_INTERVAL.toJavaDuration()
+    var maintenanceInterval: Duration = SnapshotOptions.DEFAULT_MAINTENANCE_INTERVAL.toJavaDuration()
 
     /** How an in-place rebuild rewrites the snapshots. */
     var rebuild: SnapshotRebuildProperties = SnapshotRebuildProperties()
@@ -211,10 +221,10 @@ class SnapshotProperties {
 @InternalWowApi
 class SnapshotRebuildProperties {
     /** How many snapshots a rebuild rewrites per page. */
-    var pageSize: Int = SnapshotOptions.DEFAULT_BATCH
+    var pageSize: Int = SnapshotOptions.DEFAULT_REBUILD_PAGE_SIZE
 
     /** The most pages a rebuild rewrites in one maintenance run. */
-    var maxPages: Int = SnapshotOptions.DEFAULT_PAGES
+    var maxPages: Int = SnapshotOptions.DEFAULT_REBUILD_MAX_PAGES
 }
 
 /** The in-memory provider's settings, `wow.memory.*`, as each provider has its group (`wow.kafka.*`, `wow.mongo.*`). */
@@ -227,9 +237,12 @@ class MemoryProperties {
      * bounded however long the node runs.
      */
     var topicRetention: Int = InMemoryTopics.DEFAULT_RETENTION
-        set(value) {
-            require(value >= 1) { "wow.memory.topic-retention keeps at least one message: $value." }
-            field = value
+        get() {
+            // Checked on every read, as the log's partitions are.
+            configCheck(field >= 1, "wow.memory.topic-retention", field, "Set 1 or more.") {
+                "A partition of the topics in the JVM keeps at least one message."
+            }
+            return field
         }
 }
 
@@ -241,7 +254,7 @@ class MemoryProperties {
 @InternalWowApi
 class AccessProperties {
     /** The most streams one stamp writes: a long history is stamped in statements of at most this many. */
-    var stampBatch: Int = AccessStampOptions.DEFAULT_BATCH
+    var stampBatch: Int = AccessStampOptions.DEFAULT_STAMP_BATCH
 
     /** The aggregates whose last stamped attributes the subscription remembers, sparing it a read of the stream before. */
     var capacity: Int = AccessStampOptions.DEFAULT_CAPACITY

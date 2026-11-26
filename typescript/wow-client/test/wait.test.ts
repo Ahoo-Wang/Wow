@@ -22,24 +22,24 @@ import {
   formatScope,
   formatWaitPlan,
   formatWaitTimeout,
-  type Hop,
+  Hop,
+  parseHop,
   parseWaitPlan,
   QUERYABLE_SUBSCRIPTION,
-  wait,
   WaitPlan,
 } from '../src/index.js';
 
 describe('wait plans', () => {
   it('spells every hop as Wow-Wait reads it, and reads it back', () => {
     const plan = WaitPlan.of(
-      wait.accepted(),
-      wait.committed(),
-      wait.snapshot(),
-      wait.handled('BasketCheckoutSaga.onBasketCheckedOut', 'eshop-basket'),
-      wait.committed('eshop-ordering'),
-      wait.snapshot('eshop-ordering'),
-      wait.handled('OrderProcessSaga.onOrderSubmitted'),
-      wait.accepted('eshop-inventory'),
+      Hop.accepted(),
+      Hop.committed(),
+      Hop.snapshot(),
+      Hop.handled('BasketCheckoutSaga.onBasketCheckedOut', 'eshop-basket'),
+      Hop.committed('eshop-ordering'),
+      Hop.snapshot('eshop-ordering'),
+      Hop.handled('OrderProcessSaga.onOrderSubmitted'),
+      Hop.accepted('eshop-inventory'),
     );
     const spelled =
       'accepted > committed > snapshot > handled(eshop-basket/BasketCheckoutSaga.onBasketCheckedOut) > committed(eshop-ordering) > snapshot(eshop-ordering) > handled(OrderProcessSaga.onOrderSubmitted) > accepted(eshop-inventory)';
@@ -49,16 +49,12 @@ describe('wait plans', () => {
       parseWaitPlan(
         ' committed(ctx) >handled( wow.snapshot ) > handled(snapshot)',
       ).hops,
-    ).toEqual([
-      wait.committed('ctx'),
-      wait.snapshot(),
-      wait.handled('snapshot'),
-    ]);
+    ).toEqual([Hop.committed('ctx'), Hop.snapshot(), Hop.handled('snapshot')]);
   });
 
   it('spells the queryable hop, the store the snapshot queries read, as Wow-Wait reads it', () => {
-    expect(formatHop(wait.queryable())).toBe('queryable');
-    expect(formatHop(wait.queryable('eshop-catalog'))).toBe(
+    expect(formatHop(Hop.queryable())).toBe('queryable');
+    expect(formatHop(Hop.queryable('eshop-catalog'))).toBe(
       'queryable(eshop-catalog)',
     );
     expect(
@@ -66,17 +62,17 @@ describe('wait plans', () => {
         'committed > queryable(eshop-catalog) > handled(wow.queryable)',
       ).hops,
     ).toEqual([
-      wait.committed(),
-      wait.queryable('eshop-catalog'),
-      wait.queryable(),
+      Hop.committed(),
+      Hop.queryable('eshop-catalog'),
+      Hop.queryable(),
     ]);
-    expect(wait.queryable().subscription).toBe(QUERYABLE_SUBSCRIPTION);
+    expect(Hop.queryable().subscription).toBe(QUERYABLE_SUBSCRIPTION);
   });
 
   it('holds Kotlin WaitPlan constants, a default timeout of 10 seconds, and within', () => {
     expect(WaitPlan.DEFAULT_TIMEOUT).toBe(10_000);
     expect(WaitPlan.DEFAULT).toMatchObject({
-      hops: [wait.snapshot()],
+      hops: [Hop.snapshot()],
       timeout: 10_000,
       isDefault: true,
     });
@@ -93,8 +89,8 @@ describe('wait plans', () => {
   it('refuses what the header cannot carry', () => {
     expect(() => WaitPlan.of()).toThrow(TypeError);
     expect(() => WaitPlan.COMMITTED.within(0)).toThrow(TypeError);
-    expect(() => wait.committed('a b')).toThrow(TypeError);
-    expect(() => wait.handled('x(y)')).toThrow(TypeError);
+    expect(() => Hop.committed('a b')).toThrow(TypeError);
+    expect(() => Hop.handled('x(y)')).toThrow(TypeError);
     expect(() =>
       formatWaitPlan(WaitPlan.of({ stage: 'handled' } as Hop)),
     ).toThrow(TypeError);
@@ -112,8 +108,35 @@ describe('wait plans', () => {
       'handled',
       'handled(a/b/c)',
       'committed(a b)',
+      'committed)',
     ])
       expect(() => parseWaitPlan(value), value).toThrow(TypeError);
+    expect(() => parseHop(' committed')).toThrow(TypeError);
+    expect(parseHop('committed (ctx)')).toEqual(Hop.committed('ctx'));
+  });
+
+  it('refuses what the service refuses before reading a hop: more than 4,096 characters or 32 hops', () => {
+    // WaitHeader.MAX_LENGTH and MAX_HOPS of `wow-api` (#6821).
+    expect(() => parseWaitPlan(`committed${' '.repeat(4_100)}`)).toThrow(
+      'A wait plan is at most 4096 characters; this one has 4109.',
+    );
+    const hops = (count: number) =>
+      Array.from({ length: count }, () => 'committed').join(' > ');
+    expect(parseWaitPlan(hops(32)).hops).toHaveLength(32);
+    expect(() => parseWaitPlan(hops(33))).toThrow(
+      'A wait plan has at most 32 hops; this one has 33.',
+    );
+  });
+
+  it('reads a hop left open with white space in time linear in its length, as the service does', () => {
+    // A pattern whose quantifiers share the white space of a hop left open
+    // backtracks over it (#6815); the hop is read in one pass instead.
+    const open = `accepted(${' '.repeat(2_000)}x`;
+    const started = performance.now();
+    expect(() => parseHop(open)).toThrow(TypeError);
+    expect(() => parseHop(`accepted${' '.repeat(2_000)}(x`)).toThrow(TypeError);
+    // The service's own test gives the same read a 1 s budget.
+    expect(performance.now() - started).toBeLessThan(1_000);
   });
 
   it('spells timeouts in seconds when whole, else milliseconds', () => {

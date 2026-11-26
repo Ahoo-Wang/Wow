@@ -74,7 +74,7 @@ class CommandMessagesTest {
     private val execution = ExecutionId(ORDER.context, "OrderSaga.onOrderPlaced", ORDER.ref(TENANT, "o-1"), 3)
     private val wait = WaitContext(
         "w-1",
-        Origin("sales-1", "sales-1:9090", SALES_SERVICE),
+        Origin(SALES_SERVICE, "sales-1", "sales-1:9090"),
         listOf(Hop.committed(STOCK)),
         99
     )

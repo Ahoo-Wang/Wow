@@ -45,6 +45,7 @@ import {
 
 export type { RecoveredWrite } from './writes.js';
 
+/** Which save commands the reader may use on the open view. */
 export interface SaveAbilities {
   save: boolean;
   /** True when a copy may be made in at least one scope. */
@@ -79,6 +80,10 @@ export interface SaveAbilities {
   local?: boolean;
 }
 
+/**
+ * Where the save commands stand: whether a write is in flight, its error, and
+ * whether the draft is dirty.
+ */
 export interface SaveCommandState {
   /** A write is in flight; a UI disables its buttons on this alone. */
   pending: boolean;
@@ -143,7 +148,7 @@ export interface SaveCommandState {
 }
 
 /** A board 「放进仪表盘…」 offers: its id, its title, and its definition's. */
-export interface BoardChoice {
+export interface DashboardChoice {
   id: string;
   title: string;
   definitionId: string;
@@ -151,6 +156,9 @@ export interface BoardChoice {
   definitionTitle: string;
 }
 
+/**
+ * The commands `useSaveCommands` offers: save, save as, rename and the rest.
+ */
 export interface SaveCommands {
   save(): Promise<ViewInstance | null>;
   saveAs(input: SaveAsInput): Promise<ViewInstance | null>;
@@ -166,13 +174,13 @@ export interface SaveCommands {
    * definition of the engine — where 「放进仪表盘…」 offers to put the open
    * view (R2-98). A definition whose list could not be read offers none.
    */
-  boards?(): Promise<readonly BoardChoice[]>;
+  dashboards?(): Promise<readonly DashboardChoice[]>;
   /**
    * 放进仪表盘: the open view as one more panel on the board `boardId`
    * (`engine.addToDashboard`) — the board as saved, or `null` where it did
    * not land, the reason then this view's `error`.
    */
-  addToDashboard?(boardId: string): Promise<ViewInstance | null>;
+  addToDashboard?(dashboardId: string): Promise<ViewInstance | null>;
   delete(): Promise<boolean>;
   /** Drops the edits and puts the saved config back in force. */
   revert(): void;
@@ -338,7 +346,7 @@ export function useSaveCommands(
     [engine, runtime, run],
   );
 
-  const { rename, changeAudience, remove, addToDashboard, boards } =
+  const { rename, changeAudience, remove, addToDashboard, dashboards } =
     useInstanceWrites(engine, instanceId, run);
 
   const retry = useCallback(() => {
@@ -436,7 +444,7 @@ export function useSaveCommands(
         (engine.permissions(one.id).createPersonal ||
           engine.permissions(one.id).createShared),
     )
-      ? { boards, addToDashboard }
+      ? { dashboards, addToDashboard }
       : {}),
     delete: remove,
     revert,
@@ -558,23 +566,23 @@ function useInstanceWrites(
     [engine, instanceId, run],
   );
   const addToDashboard = useCallback(
-    (boardId: string) =>
+    (dashboardId: string) =>
       instanceId
         ? run(
             'view.addToDashboard.failed',
-            () => engine.addToDashboard(boardId, instanceId),
+            () => engine.addToDashboard(dashboardId, instanceId),
             null,
           )
         : Promise.resolve(null),
     [engine, instanceId, run],
   );
-  const boards = useCallback(() => boardsOf(engine), [engine]);
-  return { rename, changeAudience, remove, addToDashboard, boards };
+  const dashboards = useCallback(() => boardsOf(engine), [engine]);
+  return { rename, changeAudience, remove, addToDashboard, dashboards };
 }
 
 /** Every saved board this reader may save in place, definition by definition. */
-async function boardsOf(engine: ViewEngine): Promise<BoardChoice[]> {
-  const found: BoardChoice[] = [];
+async function boardsOf(engine: ViewEngine): Promise<DashboardChoice[]> {
+  const found: DashboardChoice[] = [];
   for (const definition of engine.definitions.values()) {
     if (definition.kind !== 'dashboard') continue;
     const permissions = engine.permissions(definition.id);

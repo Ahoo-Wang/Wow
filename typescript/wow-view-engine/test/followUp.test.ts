@@ -13,7 +13,7 @@
 
 import { AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it, vi } from 'vitest';
-import { builtinFieldKinds } from '../src/filter/index.js';
+import { builtinFieldKindRegistry } from '../src/filter/index.js';
 import type {
   AnalysisViewConfig,
   FieldDefinition,
@@ -45,7 +45,7 @@ const runtime = {
     text: (remote: string, id: string | number) => `${remote}:${id}`,
   },
   fields: FIELDS,
-  kinds: builtinFieldKinds,
+  kinds: builtinFieldKindRegistry,
   definition: { title: 'Orders' },
 } as unknown as ViewRuntime<AnalysisViewConfig>;
 

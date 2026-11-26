@@ -86,7 +86,7 @@ The field names are typed from the generated `<Aggregate>StateField`, the system
 | `paged` | One page, `{ total, exact, list }` |
 | `cursor` | One page and the `nextCursor` of the next, or `null` after the last |
 | `count` | `{ count, exact }` |
-| `aggregate` | The rows of an aggregation: groups and metrics |
+| `aggregate` | The rows of an aggregation: groups and metrics. Experimental, with `aggregation.*` and `filter.expression` ([Experimental declarations](./compatibility#experimental-declarations)) |
 | `stream` | The records as server-sent events, one at a time |
 | `describe` | The query model's descriptor: the fields, the operators, sorts and aggregations each admits, and the limits |
 
@@ -148,7 +148,7 @@ for (;;) {
 }
 ```
 
-A failure the client cannot resume errors the stream with its `WowProblemError`. So does a resume answered with a `Retry-After` longer than the longest wait between retries (`resume.maxDelayMs`, 5 seconds by default), as the Kotlin client's resume does: it is not waited out. Cancelling the reader (`reader.cancel()`, or leaving a `for await` early) or aborting the `signal` stops the stream wherever it is: a wait to resume ends, a request asking again is aborted, and nothing more is sent.
+An event the client does not know, which a newer service may send, is skipped, whatever its data. A failure the client cannot resume errors the stream with its `WowProblemError`: a stream cut off, or whose connection is lost, past its resumes with `wow.peer.unavailable` (`retry` `new-request`), the network's error its `cause`, as the Kotlin client answers it. A stream the service ends without letting it resume (an `end` that is not resumable, or a resumable one after records without positions, which cannot be asked for again) errors with a `TypeError` naming why, as the Kotlin client's `IllegalStateException`. So does a resume answered with a `Retry-After` longer than the longest wait between retries (`resume.maxRetryAfterMs`, 5 seconds by default), as the Kotlin client's resume does: it is not waited out. Cancelling the reader (`reader.cancel()`, or leaving a `for await` early) or aborting the `signal` stops the stream wherever it is: a wait to resume ends, a request asking again is aborted, and nothing more is sent.
 
 ## Query event streams
 
@@ -176,7 +176,7 @@ An older event is answered at its current revision, upgraded the way the service
 
 ## Query datasets
 
-A dataset is a table a service publishes for analysis ([Publish Datasets](../guide/datasets)). Datasets are registered at run time, so they are not in the Manifest and have no generated client: `DatasetClient` lists those the caller sees and queries one by name:
+A dataset is a table a service publishes for analysis ([Publish Datasets](../guide/datasets)). Datasets are registered at run time, so they are not in the Manifest and have no generated client: `DatasetClient` lists those the caller sees and queries one by name. Dataset queries are experimental ([Experimental declarations](./compatibility#experimental-declarations)):
 
 ```ts
 import { Fetcher } from '@ahoo-wang/fetcher';

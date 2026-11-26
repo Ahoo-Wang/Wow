@@ -116,7 +116,7 @@ describe('popups carry the theme out of the root', () => {
     });
     const runtime = engine.create('orders', {
       title: 'T',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
     function Probe() {
@@ -190,7 +190,7 @@ describe('popups carry the theme out of the root', () => {
     });
     const runtime = engine.create('orders', {
       title: 'T',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
     function Probe() {

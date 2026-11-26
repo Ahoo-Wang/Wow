@@ -52,6 +52,7 @@ import me.ahoo.wow.spi.timer.TimerStore
 import me.ahoo.wow.spring.boot.WowProperties
 import me.ahoo.wow.spring.boot.query.MemoryQueries
 import me.ahoo.wow.spring.boot.transport.PortProviders
+import me.ahoo.wow.spring.boot.transport.PortProviders.Companion.configured
 import me.ahoo.wow.spring.boot.transport.ProviderSettingsSource
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
 import org.springframework.beans.factory.config.NamedBeanHolder
@@ -159,7 +160,7 @@ internal object StoreInstances {
         clock: Clock = Clock.systemUTC(),
         settings: ProviderSettingsSource,
     ): Map<String, Store> {
-        val polling = properties.log.tailPolling()
+        val polling = configured("wow.log") { properties.log.tailPolling() }
         fun open(name: String, type: String, store: StoreProperties?, key: String): Store {
             val provider = providers.of(type, key)
             val config = StoreConfig(

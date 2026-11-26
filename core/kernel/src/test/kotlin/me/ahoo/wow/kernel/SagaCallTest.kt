@@ -19,11 +19,12 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
+import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
@@ -32,11 +33,15 @@ import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
+import me.ahoo.wow.api.subscribe.call
+import me.ahoo.wow.api.subscribe.schedule
 import me.ahoo.wow.spi.id.IdGenerators
 import org.junit.jupiter.api.Test
+import kotlin.time.Duration.Companion.minutes
 
 /** Decision D193: a saga's synchronous call goes through the context's [CommandCalls], its failures typed. */
 class SagaCallTest {
@@ -100,6 +105,43 @@ class SagaCallTest {
     }
 
     @Test
+    fun `a call to a ref should go to the aggregate it names, as the request of that ref`(): Unit = runBlocking {
+        val called = mutableListOf<Command<*>>()
+        val context = contextOf(
+            FunctionKind.SAGA,
+            execution.context,
+            execution.subscription,
+            event,
+            calls = CommandCalls {
+                called += it
+                result(it, CommandResult.Status.SUCCEEDED)
+            },
+        ) as SagaContext
+        context.call("reserve", to = stock.ref("t", "mug")).version.assert().isEqualTo(2)
+        called.single().ref.assert().isEqualTo(stock.ref("t", "mug"))
+    }
+
+    data class Remind(val sku: String)
+
+    @Test
+    fun `a schedule naming a target scope should derive its command in that scope`() {
+        val context = ExecutionSagaContext(execution, event, IdGenerators.DEFAULT, CommandTypes.SIMPLE_NAMES)
+        context.schedule(
+            "remind",
+            ScheduleRule.after(5.minutes),
+            CommandRequest.builder(stock.ref("t", "mug"), Remind("mug"))
+                .targetScope(TargetScope.of("t", Scope("bob")))
+                .build(),
+        )
+        // A schedule of a creation names no id, in the commit's scope.
+        context.schedule("later", ScheduleRule.after(5.minutes), Remind("cup")) { type(stock) }
+        context.commandsOf(emptyList()).map { it.ref to it.scope }.assert().containsExactly(
+            stock.ref("t", "mug") to Scope("bob"),
+            stock.unassigned("t") to event.scope,
+        )
+    }
+
+    @Test
     fun `a call the target refused should be a typed rejection`(): Unit = runBlocking {
         val context = ExecutionSagaContext(
             execution,
@@ -131,7 +173,7 @@ class SagaCallTest {
         failed.code.assert().isEqualTo("inventory.stock.short")
         failed.status.assert().isEqualTo(CommandCalls.FAILED_STATUS)
         failed.retryable.assert().isTrue()
-        failed.retry.assert().isEqualTo(Retry.SAME_REQUEST)
+        failed.retry.assert().isEqualTo(RetryAdvice.SAME_REQUEST)
         // A newer target's status this node does not know is not known to have succeeded: a failure, retried.
         val newer = ExecutionSagaContext(
             execution,
@@ -145,7 +187,7 @@ class SagaCallTest {
         }
         unknown.result!!.status.assert().isEqualTo(CommandResult.Status.UNKNOWN)
         unknown.message!!.assert().contains("a status this node does not know")
-        unknown.retry.assert().isEqualTo(Retry.SAME_REQUEST)
+        unknown.retry.assert().isEqualTo(RetryAdvice.SAME_REQUEST)
         // Without a client, a call names the configuration it lacks.
         val unconfigured = ExecutionSagaContext(execution, event)
         val missing = thrown<WowProblemException> {

@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationMetric
@@ -64,6 +65,7 @@ import tools.jackson.databind.node.ObjectNode
  * constants on [DatasetQueryBackendSpec], never a member of the family it extends, so any order would run the same
  * cases.
  */
+@WowSpi
 abstract class DatasetQueryFixtures internal constructor() {
     internal lateinit var bindings: QueryBindings<QueryDataset>
         private set

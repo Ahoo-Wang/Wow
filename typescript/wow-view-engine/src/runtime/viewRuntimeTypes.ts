@@ -38,6 +38,7 @@ import type {
   ViewScope,
 } from '../model/index.js';
 import type { FieldKindRegistry } from '../filter/index.js';
+import type { ReadOptions } from '../store/ViewStore.js';
 import type { RuntimeEnvironment } from './environment.js';
 import type { RequestRunner } from './requestRunner.js';
 import type { OptionSource, ProjectedView, RecordSource } from './source.js';
@@ -77,7 +78,7 @@ export interface ViewRuntime<C extends ViewConfig = ViewConfig> {
   readonly limits: RuntimeLimits;
   /**
    * The remote candidates behind a `reference` field's `remote` key, or
-   * `null` when the host wired no `resolveOptions`. The editor asks here
+   * `null` when the host wired no `optionSource`. The editor asks here
    * rather than reaching for the engine: a runtime is what a workbench
    * holds, and a value editor two levels down has no engine to reach.
    */
@@ -190,7 +191,7 @@ export interface ViewRuntime<C extends ViewConfig = ViewConfig> {
    * in at construction as well, and a host that opened one through
    * `ViewEngine.open` has no return value to read it from.
    */
-  readonly refusedScope: Issue[];
+  readonly refusedScopeFilter: Issue[];
   /**
    * The outer condition in force, as it was last admitted, or `null` while
    * none is — including a scope that was asked for and refused.
@@ -239,7 +240,7 @@ export interface RecordViewRuntime<
    * It runs beside the view rather than through it: no scheduler slot, no
    * `apply`, and `state.result` is untouched, so the rows the user is reading
    * stay exactly as they are while a long export runs. Stopped by
-   * `options.signal`, capped at `limits.exportMax`.
+   * `options.signal`, capped at `limits.maxExportRows`.
    */
   exportRows(options?: ExportRowsOptions): Promise<ExportedRows>;
   /**
@@ -247,7 +248,10 @@ export interface RecordViewRuntime<
    * every field, within the injected scope and not the page's conditions.
    * `null` when it is no longer there.
    */
-  fetchRecord(key: RecordKey, signal?: AbortSignal): Promise<RecordData | null>;
+  fetchRecord(
+    key: RecordKey,
+    options?: ReadOptions,
+  ): Promise<RecordData | null>;
   /**
    * A kanban lane's next page, put after the cards it has (「加载更多」, D83):
    * asked quietly, so the board stays drawn, and only that lane moves. A
@@ -342,8 +346,10 @@ export type RuntimeFor<C extends ViewConfig> = [C] extends [RecordViewConfig]
       ? DashboardRuntime
       : AnyViewRuntime;
 
+/** Where a view's query stands. */
 export type QueryStatus = 'idle' | 'loading' | 'success' | 'error';
 
+/** Where a view's query stands, and its error when it failed. */
 export interface ViewQueryState {
   status: QueryStatus;
   error?: Issue;
@@ -360,6 +366,7 @@ export interface ViewQueryState {
   conditionsChanged?: true;
 }
 
+/** A view's result: the data, and the config that produced it. */
 export interface ViewResult<C> {
   /** The config that produced this data, scope filter included. */
   config: C;
@@ -388,6 +395,10 @@ export interface ViewResult<C> {
   elapsedMs: number;
 }
 
+/**
+ * A view runtime's state: the saved view, the draft, the applied config and its
+ * result.
+ */
 export interface ViewRuntimeState<C> {
   /** The saved baseline; `null` while the view has never been saved. */
   saved: ViewInstance | null;
@@ -520,7 +531,7 @@ export interface RuntimeCapabilities {
 export interface CreateInput<C extends ViewConfig> {
   title: string;
   /** A user creates for an audience; only a definition declares a system view. */
-  scope: ViewAudience;
+  audience: ViewAudience;
   config: C;
   /**
    * The host's injected condition, as `open` takes it: a view made from an

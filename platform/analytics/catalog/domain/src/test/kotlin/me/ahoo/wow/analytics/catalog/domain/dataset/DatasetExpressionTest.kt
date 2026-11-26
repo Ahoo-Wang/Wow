@@ -177,6 +177,10 @@ class DatasetExpressionTest {
             "o.a = ,|has , where a value should be",
             "lower(o.a|ends before )",
             "o.a between 1 or 2|between without and",
+            "containsIgnoreCase(o.a, o.b)|calls containsIgnoreCase with a second operand that is not a literal text",
+            "startsWithIgnoreCase(o.a, lower('x'))|calls startsWithIgnoreCase with a second operand that is not",
+            "endsWithIgnoreCase(o.a, 1)|calls endsWithIgnoreCase with a second operand that is not a literal text",
+            "containsIgnoreCase(o.a)|calls containsIgnoreCase with a second operand that is not a literal text",
         ],
     )
     fun `a malformed expression should say what is wrong with it`(text: String?, problem: String) {

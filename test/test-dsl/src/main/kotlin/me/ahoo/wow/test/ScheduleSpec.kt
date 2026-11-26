@@ -34,6 +34,7 @@ import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.schedule.JobState
 import me.ahoo.wow.kernel.schedule.ScheduleJob
 import me.ahoo.wow.kernel.schedule.ScheduleJobModel
+import me.ahoo.wow.kernel.schedule.jobStateOf
 import org.junit.jupiter.api.DynamicNode
 import java.time.Instant
 import java.util.stream.Stream
@@ -97,10 +98,10 @@ class ScheduleSpec internal constructor(
     private val tree: TestTree?,
 ) {
     /**
-     * A specification of [handlers]' jobs, its clock at [start], over [partitions]. It differs from the primary
-     * constructor in taking no test tree, which is an internal type a public constructor cannot take.
+     * A specification of [handlers]' jobs, its clock at [start], over [partitions], without a test tree; a test builds
+     * one with `scheduleSpec`.
      */
-    constructor(handlers: List<ProcessorBinding<*>>, start: Instant = DEFAULT_START, partitions: Int = 1) :
+    internal constructor(handlers: List<ProcessorBinding<*>>, start: Instant, partitions: Int) :
         this(handlers, start, partitions, null)
 
     private val jobs: Map<String, ScheduleJob> = handlers.mapNotNull { it.job }.associateBy { it.name }
@@ -220,14 +221,7 @@ class ScheduleSpec internal constructor(
     private fun tick(tick: ScheduleTick, expect: ProcessorExpectations.() -> Unit) {
         val job = requireNotNull(jobs[tick.job]) { "No handler runs the job ${tick.job}: the jobs are ${jobs.keys}." }
         val ref = refOf(job.name, tick.tenantId, tick.partition)
-        val state = JobState().apply {
-            this.job = job.name
-            rule = job.rule
-            enabled = true
-            partition = tick.partition
-            slot = tick.slot
-            due = tick.due
-        }
+        val state = jobStateOf(job.name, job.rule, enabled = true, tick.partition, tick.slot, tick.due)
         val event = stateEvent(
             ref,
             state,

@@ -45,6 +45,7 @@ import { recordValue, timeUnitOf, type RecordRow } from './project.js';
 import { summaryAlias } from './summaryAlias.js';
 import { summaryCurrency } from './summaryCurrency.js';
 
+/** One summary's value under a column. */
 export interface SummaryCell {
   field: string;
   label: string;
@@ -80,9 +81,13 @@ export interface SummaryCell {
   cell?: string;
 }
 
+/**
+ * A row of summaries under a record view: over the page, or over the whole
+ * result.
+ */
 export interface SummaryRow {
-  /** `page` is computed from the visible rows; `total` from its own query. */
-  scope: 'page' | 'total';
+  /** What it is over: `page`, the visible rows; `total`, its own query. */
+  over: 'page' | 'total';
   cells: SummaryCell[];
 }
 
@@ -201,13 +206,17 @@ export function projectSummaries(
 
   const cells = (config.summaries ?? []).map(summary => {
     const field = byName.get(summary.field);
-    const reading = summaryReading(field, summary.fn);
+    const reading = summaryReading(field, summary.function);
     const value =
       source.scope === 'page'
-        ? reduceRows(source.rows, summary.field, summary.fn, reading)
-        : readAggregated(row, summaryAlias(summary.field, summary.fn), reading);
+        ? reduceRows(source.rows, summary.field, summary.function, reading)
+        : readAggregated(
+            row,
+            summaryAlias(summary.field, summary.function),
+            reading,
+          );
     const currencyPath =
-      field && summary.fn !== AggregationMetricTypes.COUNT
+      field && summary.function !== AggregationMetricTypes.COUNT
         ? currencyPathOf(field)
         : undefined;
     const companion = summaryCurrency(definition, summary);
@@ -220,7 +229,7 @@ export function projectSummaries(
     return {
       field: summary.field,
       label: field?.label ?? summary.field,
-      fn: summary.fn,
+      fn: summary.function,
       // A total of unlike amounts is no amount (`CurrencyReading`).
       value: currency?.type === 'mixed' ? null : value,
       numberFormat: numberFormatOf(field),
@@ -232,7 +241,7 @@ export function projectSummaries(
     };
   });
 
-  return { scope: source.scope, cells };
+  return { over: source.scope, cells };
 }
 
 /** The currency of a column's amounts over these rows (`currencyOfRows`). */
@@ -289,7 +298,7 @@ export function pageSummaries(
 ): SummaryRow {
   const data = rows.map(row => row.data);
   return {
-    scope: 'page',
+    over: 'page',
     cells: cells.map(cell => {
       // The reading travels on the cell, so this scope reduces a date column
       // to a date exactly as the projection did — two scopes reading one

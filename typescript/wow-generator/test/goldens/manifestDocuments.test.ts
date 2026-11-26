@@ -111,7 +111,7 @@ const ordering = await import('./ordering/index.js');
 const payment = await import('./payment/index.js');
 const products = new catalog.ProductCommandClient({ fetcher });
 await products.createProduct({ name: 'n', price: 1 });
-await products.createProduct({ name: 'n', price: 1 }, { id: 'p-1', wait: WaitPlan.of(catalog.eshopCatalogWait.committed()) });
+await products.createProduct({ name: 'n', price: 1 }, { aggregateId: 'p-1', wait: WaitPlan.of(catalog.EshopCatalogContract.Wait.committed()) });
 await products.changeProductPrice('p-1', { price: 2 }, { requestId: 'r-1', expectedVersion: 1 });
 await products.publishProduct('p-1');
 await products.deleteAggregate('p-1');
@@ -120,7 +120,7 @@ await new catalog.ProductSnapshotQueryClient({ fetcher }).list({ filter: { op: '
 await new catalog.ProductStateClient({ fetcher }).get('p-1', { version: 1 });
 const orders = new ordering.EshopOrderingClient({ fetcher }).order.commands;
 await orders.cancelOrder('o-1', { reason: 'r' }, {
-  wait: WaitPlan.of(ordering.eshopOrderingWait.committed(), ordering.eshopOrderingWait.handled('OrderProcessSaga.onOrderCancelled')),
+  wait: WaitPlan.of(ordering.EshopOrderingContract.Wait.committed(), ordering.EshopOrderingContract.Wait.handled('OrderProcessSaga.onOrderCancelled')),
   timeout: 5000,
 });
 await new ordering.OrderEventQueryClient({ fetcher }).paged({ filter: { op: 'eq', field: 'aggregateId', value: 'o-1' } });
@@ -148,6 +148,8 @@ console.log(JSON.stringify(requests.map(({ url, method, headers, body }) => ({
         headers: {
           'wow-request-id': GENERATED,
           'wow-wait': 'committed(eshop-catalog)',
+          // Every plan states its timeout, 10 seconds without within().
+          'wow-wait-timeout': '10s',
         },
       },
       {

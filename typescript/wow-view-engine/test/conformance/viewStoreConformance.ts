@@ -159,11 +159,11 @@ export interface ViewStoreConformance {
   connect(): ConformanceStoreFactory | Promise<ConformanceStoreFactory>;
 }
 
-const ALICE: ConformanceContext = { owner: 'conformance-alice' };
+export const ALICE: ConformanceContext = { owner: 'conformance-alice' };
 const BOB: ConformanceContext = { owner: 'conformance-bob' };
 
 /** A config the port stores as it is; its semantics are the engine's. */
-function recordConfig(pageSize = 20): ViewConfig {
+export function recordConfig(pageSize = 20): ViewConfig {
   return {
     kind: 'record',
     filter: { op: 'and', children: [] },
@@ -227,16 +227,16 @@ function boardShowing(
   };
 }
 
-function write(): WriteOptions {
+export function write(): WriteOptions {
   return { requestId: `conformance-${crypto.randomUUID()}` };
 }
 
-function freshDefinition(): string {
+export function freshDefinition(): string {
   return `conformance-${crypto.randomUUID()}`;
 }
 
 /** What a promise rejected with, asserted to be the port's error with `code`. */
-async function refusal(
+export async function refusal(
   pending: Promise<unknown>,
   ...codes: ViewStoreErrorCode[]
 ): Promise<
@@ -267,7 +267,7 @@ async function refusal(
   return failure;
 }
 
-function ids(summaries: readonly ViewInstanceSummary[]): string[] {
+export function ids(summaries: readonly ViewInstanceSummary[]): string[] {
   return summaries.map(summary => summary.id);
 }
 
@@ -275,7 +275,7 @@ function ids(summaries: readonly ViewInstanceSummary[]): string[] {
  * A definition's whole list, as the engine reads it: page after page, each
  * asked for with the cursor the one before answered, until it answers none.
  */
-async function everyView(
+export async function everyView(
   store: ViewStore,
   definitionId: string,
 ): Promise<ViewInstanceSummary[]> {
@@ -1091,6 +1091,33 @@ export function describeViewStoreConformance(
           // Deleting it stays allowed: the panel alone breaks (9).
           await alice.delete(shown.id, shown.revision, write());
           await refusal(alice.get(shown.id), 'NOT_FOUND');
+        },
+      );
+
+      // D486 ④: a stored system board is every reader's, as a shared one is,
+      // so the view it shows made personal would be blank on it for all but
+      // one reader. A configured one is the deployment's, not checked.
+      it.skipIf(!personal || !capabilities.storedSystemViews)(
+        'keeps shared a view a stored system board shows, as a shared board does, and names the board',
+        async () => {
+          const { alice, definitionId, create } = await setup();
+          const shown = await create('Shown', 'shared');
+          const board = await alice.create(
+            {
+              definitionId: `${definitionId}-boards`,
+              title: 'Platform board',
+              scope: 'system',
+              config: boardShowing(shown.id),
+            },
+            write(),
+          );
+
+          const failure = await refusal(
+            change(alice, shown.id, 'personal', shown.revision),
+            'INVALID',
+          );
+          expect(failure.boards).toEqual([board.title]);
+          expect(await alice.get(shown.id)).toEqual(shown);
         },
       );
 

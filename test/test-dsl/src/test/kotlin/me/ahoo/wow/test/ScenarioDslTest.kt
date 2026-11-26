@@ -109,8 +109,8 @@ class ScenarioDslTest {
         ) {
             expectEventEnvelope<Reserved> {
                 body.assert().isEqualTo(Reserved("mug", 2))
-                aggregateId.assert().isEqualTo("aggregate-1")
-                tenantId.assert().isEqualTo(DEFAULT_TENANT)
+                ref.id.assert().isEqualTo("aggregate-1")
+                ref.tenantId.assert().isEqualTo(DEFAULT_TENANT)
                 version.assert().isEqualTo(2)
                 requestId.assert().isEqualTo("r-mug")
                 commandId.assert().startsWith("command-")
@@ -303,6 +303,17 @@ class ScenarioDslTest {
                 expectEventEnvelope<Reserved> { operator.assert().isEqualTo(Operator("admin", "ops", true)) }
             }
         }
+    }
+
+    /** #7064: as the gateway, a specification refuses a request id the framework gives its own commands. */
+    @Test
+    fun `a command whose request id the framework's prefix starts should be refused, as the gateway refuses it`() {
+        assertThrownBy<IllegalArgumentException> {
+            aggregateSpec(plenty) { whenCommand(Open("alice"), requestId = "wow:shop.cart/t/c-1#remind@1#1") { } }
+        }.hasMessage(
+            "The gateway refuses Open as ${FrameworkCodes.COMMAND_MALFORMED}: a request id never starts with wow:, " +
+                "which the framework gives its own commands. A specification sends only what admission takes.",
+        )
     }
 
     @Test

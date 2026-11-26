@@ -36,7 +36,7 @@ const month: AnalysisColumnView = {
   kind: 'datetime',
   dateUnit: AggregationDateUnit.MONTH,
   timeZone: 'UTC',
-  ongoing: september,
+  unfinished: september,
 };
 
 describe('a month still running, in a table cell', () => {
@@ -48,7 +48,7 @@ describe('a month still running, in a table cell', () => {
   });
 
   it('writes every month as it is where none is running', () => {
-    const ended: AnalysisColumnView = { ...month, ongoing: undefined };
+    const ended: AnalysisColumnView = { ...month, unfinished: undefined };
     expect(analysisCellText(september, ended, zh, ZH)).toBe('2026年9月');
   });
 });

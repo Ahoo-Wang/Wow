@@ -57,11 +57,11 @@ class Caller @InternalWowApi constructor(
 
     /**
      * The operator a command of this caller records: its [subject] as the id and its own [tenantId];
-     * [actingElsewhere] when the command acts in another tenant or scope than the caller's own, through `Wow-Scope`.
+     * [actedElsewhere] when the command acts in another tenant or scope than the caller's own, through `Wow-Scope`.
      * Null for an anonymous caller.
      */
-    fun toOperator(actingElsewhere: Boolean = false): Operator? =
-        subject?.let { Operator(it, tenantId, actingElsewhere) }
+    fun toOperator(actedElsewhere: Boolean = false): Operator? =
+        subject?.let { Operator(it, tenantId, actedElsewhere) }
 
     /**
      * The application the caller calls from: the first value of its [APP] attribute, which only its

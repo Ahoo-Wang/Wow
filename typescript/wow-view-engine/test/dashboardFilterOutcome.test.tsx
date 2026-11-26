@@ -56,7 +56,9 @@ function panel(id: string, x: number, wired: boolean): DashboardPanel {
     id,
     kind: 'view',
     instanceId: id,
-    bindings: wired ? [{ globalField: 'region', panelField: 'warehouse' }] : [],
+    bindings: wired
+      ? [{ dashboardField: 'region', panelField: 'warehouse' }]
+      : [],
     layout: { x, y: 0, w: 8, h: 4 },
     title: `Panel ${id}`,
   } as DashboardPanel;

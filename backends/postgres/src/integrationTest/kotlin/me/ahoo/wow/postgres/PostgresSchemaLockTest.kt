@@ -74,10 +74,9 @@ class PostgresSchemaLockTest {
                         connection,
                         Ddl.AUTO,
                         listOf(tables.base to PostgresSnapshotTables.FORMAT),
-                        wait
-                    ) {
-                        PostgresSchema.execute(connection, tables.ddl())
-                    }
+                        tables.ddl(),
+                        wait,
+                    )
                 }
             }
             started.elapsedNow().assert().isLessThan(5.seconds)
@@ -85,9 +84,12 @@ class PostgresSchemaLockTest {
         }
         // Once the holder is gone, the step makes the index.
         dataSource.connection.use { connection ->
-            PostgresFormat.schema(connection, Ddl.AUTO, listOf(tables.base to PostgresSnapshotTables.FORMAT)) {
-                PostgresSchema.execute(connection, tables.ddl())
-            }
+            PostgresFormat.schema(
+                connection,
+                Ddl.AUTO,
+                listOf(tables.base to PostgresSnapshotTables.FORMAT),
+                tables.ddl()
+            )
             PostgresSchema.exists(connection, "\"${tables.ownerIndex}\"").assert().isTrue()
         }
     }
@@ -142,9 +144,12 @@ class PostgresSchemaLockTest {
         held.await()
         val started = TimeSource.Monotonic.markNow()
         dataSource.connection.use { connection ->
-            PostgresFormat.schema(connection, Ddl.AUTO, listOf(tables.base to PostgresSnapshotTables.FORMAT)) {
-                PostgresSchema.execute(connection, tables.ddl())
-            }
+            PostgresFormat.schema(
+                connection,
+                Ddl.AUTO,
+                listOf(tables.base to PostgresSnapshotTables.FORMAT),
+                tables.ddl()
+            )
             started.elapsedNow().inWholeMilliseconds.assert().isGreaterThanOrEqualTo(HELD_MILLIS / 2)
             PostgresSchema.exists(connection, "\"${tables.ownerIndex}\"").assert().isTrue()
         }
@@ -164,10 +169,9 @@ class PostgresSchemaLockTest {
                             connection,
                             Ddl.AUTO,
                             listOf(tables.base to PostgresSnapshotTables.FORMAT),
-                            wait
-                        ) {
-                            PostgresSchema.execute(connection, tables.ddl())
-                        }
+                            tables.ddl(),
+                            wait,
+                        )
                     }
                 }
                 failure.message.assert().contains(tables.base, "pid ${holder.pid()}")

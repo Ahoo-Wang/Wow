@@ -22,7 +22,6 @@ import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.read.MinVersionNotReachedException
 import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.result.FrameworkCodes
-import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.http.EntityTags
 import me.ahoo.wow.http.HttpJson
 import me.ahoo.wow.http.WowPaths
@@ -30,6 +29,7 @@ import me.ahoo.wow.http.caller.Authenticator
 import me.ahoo.wow.http.command.CommandHandler
 import me.ahoo.wow.http.command.Negotiation
 import me.ahoo.wow.http.command.RequestHeaders
+import me.ahoo.wow.http.entityTag
 import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.http.problem.ProblemException
 import me.ahoo.wow.http.query.HttpQueries
@@ -146,9 +146,9 @@ internal class StateHandler(
         val notModified = request.headers().header(HttpHeaders.IF_NONE_MATCH)
             .mapNotNull(EntityTags::parse).any { EntityTags.matchesWeakly(it, tag) }
         if (notModified) {
-            return ServerResponse.status(NOT_MODIFIED).eTag(tag).buildAndAwait()
+            return ServerResponse.status(NOT_MODIFIED).entityTag(tag).buildAndAwait()
         }
-        return ServerResponse.ok().eTag(tag).contentType(MediaType.APPLICATION_JSON).bodyValueAndAwait(body)
+        return ServerResponse.ok().entityTag(tag).contentType(MediaType.APPLICATION_JSON).bodyValueAndAwait(body)
     }
 
     suspend fun trace(request: ServerRequest, type: AggregateType): ServerResponse {
@@ -187,7 +187,7 @@ internal class StateHandler(
         val caller = authenticator.authenticate(request)
         Negotiation.checkAcceptable(request, alsoEventStream = false)
         answering(type) { checkParameters(request, parameters) }
-        val target = headers.target(request, FrameworkCodes.QUERY_MALFORMED)
+        val target = headers.target(request)
         val queryCaller = answering(type) { targets.of(type, caller, target) }.revealedFor(request)
         val acting = checkNotNull(queryCaller.caller)
         // An aggregate's own access policy decides its owner and space, as its snapshot queries' policy does.
@@ -339,8 +339,8 @@ internal class StateHandler(
         throw problem(notFound.errorCode, notFound.message!!, type)
     } catch (refused: Exception) {
         if (refused !is QueryError) throw refused
-        val problem = statuses.problemOf(refused.errorCode, refused.errorMsg, type.context).copyWith(
-            violations = refused.bindingErrors.map { Violation(path = it.name, code = it.code, message = it.msg) },
+        val problem = statuses.problemOf(refused.errorCode, refused.message, type.context).copyWith(
+            violations = refused.violations,
         )
         throw ProblemException(problem)
     }

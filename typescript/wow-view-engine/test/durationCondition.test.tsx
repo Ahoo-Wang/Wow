@@ -38,7 +38,7 @@ import {
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   compileFilter,
   MemoryViewStore,
   validateFilter,
@@ -101,14 +101,16 @@ const tree = (...children: FilterTree['children']): FilterTree => ({
   children,
 });
 const codes = (tree: FilterTree, fields = FIELDS) =>
-  validateFilter(fields, tree, builtinFieldKinds).map(found => found.code);
+  validateFilter(fields, tree, builtinFieldKindRegistry).map(
+    found => found.code,
+  );
 
 describe('a time since another moment, in the kernel', () => {
   it('is a time kind’s condition, whole only once its earlier time is picked', () => {
-    expect(builtinFieldKinds.get('datetime')!.operators).toContain(
+    expect(builtinFieldKindRegistry.get('datetime')!.operators).toContain(
       FilterOperator.EXPRESSION,
     );
-    expect(builtinFieldKinds.get('date')!.operators).toContain(
+    expect(builtinFieldKindRegistry.get('date')!.operators).toContain(
       FilterOperator.EXPRESSION,
     );
     expect(isDurationFilterValue(LATE.value)).toBe(true);
@@ -124,11 +126,11 @@ describe('a time since another moment, in the kernel', () => {
           ...LATE,
           value: { from: '', comparison: ComparisonOperator.GT },
         }),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
         { now: new Date(0), timeZone: 'UTC' },
       ),
     ).toEqual(
-      compileFilter(FIELDS, tree(), builtinFieldKinds, {
+      compileFilter(FIELDS, tree(), builtinFieldKindRegistry, {
         now: new Date(0),
         timeZone: 'UTC',
       }),
@@ -187,7 +189,7 @@ describe('a time since another moment, in the kernel', () => {
 
   it('compiles to an EXPRESSION over the time between the two', () => {
     expect(
-      compileFilter(FIELDS, tree(LATE), builtinFieldKinds, {
+      compileFilter(FIELDS, tree(LATE), builtinFieldKindRegistry, {
         now: new Date(0),
         timeZone: 'UTC',
       }),
@@ -200,7 +202,7 @@ describe('a time since another moment, in the kernel', () => {
     );
     expect(
       (
-        compileFilter(FIELDS, tree(LATE), builtinFieldKinds, {
+        compileFilter(FIELDS, tree(LATE), builtinFieldKindRegistry, {
           now: new Date(0),
           timeZone: 'UTC',
         }) as { op: string }
@@ -209,7 +211,7 @@ describe('a time since another moment, in the kernel', () => {
   });
 
   it('reads out as the gap, naming both times by their labels', () => {
-    const [item] = describeFilter(FIELDS, tree(LATE), builtinFieldKinds);
+    const [item] = describeFilter(FIELDS, tree(LATE), builtinFieldKindRegistry);
     expect(item).toMatchObject({
       label: 'Shipped',
       value: {
@@ -283,7 +285,7 @@ describe('narrowing by the descriptor', () => {
     narrowDefinition(
       definition(),
       described(expressions),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     ).definition.fields.find(field => field.name === 'shippedAt')?.operators;
 
   it('keeps it where the entry lists EXPRESSION among its root operators', () => {

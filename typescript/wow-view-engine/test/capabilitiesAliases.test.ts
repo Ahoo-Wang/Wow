@@ -24,7 +24,7 @@ import {
   SearchMode,
 } from '@ahoo-wang/wow-client/dsl';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   defaultRecordConfig,
   MemoryViewStore,
   ViewEngine,
@@ -86,7 +86,7 @@ describe('a field the definition names by an alias', () => {
     const { definition, findings } = narrowDefinition(
       declared,
       renamedDescriptor(),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
 
     expect(definition.fields.map(field => field.name)).toEqual([
@@ -138,7 +138,7 @@ describe('a field the definition names by an alias', () => {
           ],
         },
         sort: [{ field: 'amount', direction: SortDirection.DESC }],
-        summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+        summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
         card: { title: 'id', fields: ['amount'], image: 'amount' },
       }),
       renamed,
@@ -154,7 +154,7 @@ describe('a field the definition names by an alias', () => {
         ],
       },
       sort: [{ field: 'total', direction: SortDirection.DESC }],
-      summaries: [{ field: 'total', fn: AggregationFunction.SUM }],
+      summaries: [{ field: 'total', function: AggregationFunction.SUM }],
       table: { columns: [{ field: 'id' }, { field: 'total' }] },
       card: { title: 'id', fields: ['total'], image: 'total' },
     });
@@ -352,7 +352,7 @@ describe('a field the definition names by an alias', () => {
     const { definition } = narrowDefinition(
       declared,
       descriptor,
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
 
     const items = definition.fields.find(field => field.name === 'items');
@@ -385,7 +385,7 @@ describe('a definition whose record defaults name a field by an alias', () => {
             ],
           },
           sort: [{ field: 'amount', direction: SortDirection.DESC }],
-          summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+          summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
           table: { columns: [{ field: 'id' }, { field: 'amount' }] },
           card: { title: 'id', fields: ['amount'] },
         },
@@ -394,7 +394,7 @@ describe('a definition whose record defaults name a field by an alias', () => {
     const { definition } = narrowDefinition(
       declared,
       renamedDescriptor(),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
 
     expect(definition.record?.defaults).toEqual({
@@ -403,7 +403,7 @@ describe('a definition whose record defaults name a field by an alias', () => {
         children: [{ field: 'total', operator: FilterOperator.GT, value: 0 }],
       },
       sort: [{ field: 'total', direction: SortDirection.DESC }],
-      summaries: [{ field: 'total', fn: AggregationFunction.SUM }],
+      summaries: [{ field: 'total', function: AggregationFunction.SUM }],
       table: { columns: [{ field: 'id' }, { field: 'total' }] },
       card: { title: 'id', fields: ['total'] },
     });
@@ -426,7 +426,7 @@ describe('a definition whose record defaults name a field by an alias', () => {
     const { definition } = narrowDefinition(
       declared,
       renamedDescriptor(),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(definition.record?.defaults).toBe(defaults);
   });
@@ -481,9 +481,9 @@ describe('a board that names a panel field by an alias', () => {
       instanceId: 'orders-list',
       layout: { x: 0, y: 0, w: 8, h: 4 },
       bindings: [
-        { globalField: 'min', panelField: 'amount' },
-        { globalField: 'region', panelField: 'warehouse', auto: true },
-        { globalField: 'broken' },
+        { dashboardField: 'min', panelField: 'amount' },
+        { dashboardField: 'region', panelField: 'warehouse', auto: true },
+        { dashboardField: 'broken' },
         'not a binding',
       ],
       click: {
@@ -491,7 +491,7 @@ describe('a board that names a panel field by an alias', () => {
         url: '/orders?amount={{ amount }}&w={{warehouse}}',
       },
     } as unknown as DashboardPanel;
-    const toBoard = {
+    const toDashboard = {
       ...panel,
       id: 'b',
       click: {
@@ -518,7 +518,7 @@ describe('a board that names a panel field by an alias', () => {
       layout: { x: 0, y: 4, w: 24, h: 1 },
     } as DashboardPanel;
     const config = dashboardConfig({
-      panels: [heading, panel, toBoard, owned],
+      panels: [heading, panel, toDashboard, owned],
     });
     const ownedView = vi.fn((view: ReturnType<typeof analysisConfig>) => ({
       ...view,
@@ -530,9 +530,9 @@ describe('a board that names a panel field by an alias', () => {
     expect(next.panels[0]).toBe(heading);
     expect(next.panels[1]).toMatchObject({
       bindings: [
-        { globalField: 'min', panelField: 'total' },
-        { globalField: 'region', panelField: 'warehouse', auto: true },
-        { globalField: 'broken' },
+        { dashboardField: 'min', panelField: 'total' },
+        { dashboardField: 'region', panelField: 'warehouse', auto: true },
+        { dashboardField: 'broken' },
         'not a binding',
       ],
       click: { url: '/orders?amount={{ total }}&w={{warehouse}}' },
@@ -551,7 +551,7 @@ describe('a board that names a panel field by an alias', () => {
       owned: { config: { title: 'renamed' } },
     });
     // The config itself back when nothing is renamed, or not known yet.
-    const plain = dashboardConfig({ panels: [heading, toBoard] });
+    const plain = dashboardConfig({ panels: [heading, toDashboard] });
     expect(withCanonicalPanelFields(plain, () => ({}), ownedView)).toBe(plain);
     expect(withCanonicalPanelFields(config, () => null, ownedView)).toBe(
       config,
@@ -573,7 +573,7 @@ describe('a board that names a panel field by an alias', () => {
           id: 'list',
           kind: 'view',
           instanceId: 'orders-list',
-          bindings: [{ globalField: 'min', panelField: 'amount' }],
+          bindings: [{ dashboardField: 'min', panelField: 'amount' }],
           layout: { x: 0, y: 0, w: 12, h: 4 },
         },
         {
@@ -595,7 +595,7 @@ describe('a board that names a panel field by an alias', () => {
               ],
             }),
           },
-          bindings: [{ globalField: 'min', panelField: 'amount' }],
+          bindings: [{ dashboardField: 'min', panelField: 'amount' }],
           layout: { x: 12, y: 0, w: 12, h: 4 },
         },
       ],
@@ -608,9 +608,9 @@ describe('a board that names a panel field by an alias', () => {
     for (const config of [state.draft, state.applied, state.saved?.config])
       expect(config).toMatchObject({
         panels: [
-          { bindings: [{ globalField: 'min', panelField: 'total' }] },
+          { bindings: [{ dashboardField: 'min', panelField: 'total' }] },
           {
-            bindings: [{ globalField: 'min', panelField: 'total' }],
+            bindings: [{ dashboardField: 'min', panelField: 'total' }],
             owned: {
               config: {
                 metrics: [
@@ -647,7 +647,7 @@ describe('a board that names a panel field by an alias', () => {
           id: 'owned',
           kind: 'view',
           owned: { definitionId: 'orders', config: broken },
-          bindings: [{ globalField: 'min', panelField: 'amount' }],
+          bindings: [{ dashboardField: 'min', panelField: 'amount' }],
           layout: { x: 0, y: 0, w: 12, h: 4 },
         },
       ],

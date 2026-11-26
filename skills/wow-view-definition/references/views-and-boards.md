@@ -41,7 +41,7 @@ function queue(
     sort: [{ field: 'state.paidAt', direction: 'desc' }],
     pageSize: 20,
     layout: 'table',
-    summaries: [{ field: 'state.paidAmount', fn: 'sum' }],
+    summaries: [{ field: 'state.paidAmount', function: 'sum' }],
     table: { columns: COLUMNS.map(field => ({ field })) },
     card: {
       title: 'state.orderNo',

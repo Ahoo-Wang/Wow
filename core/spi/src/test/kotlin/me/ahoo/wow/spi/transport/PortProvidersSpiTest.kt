@@ -91,7 +91,7 @@ class PortProvidersSpiTest {
         transport.settings.option(TopicTransportOptions.PARTITION_REFRESH).assert().isEqualTo(30.seconds)
         transport.settings.options(labels).assert().isEqualTo(mapOf("team" to "a", "cost" to "b"))
         transport.settings.read.assert()
-            .containsExactlyInAnyOrder("topics.prefix", "topics.partition-refresh", "labels")
+            .containsExactlyInAnyOrder("topics.prefix", "topics.partition-refresh-interval", "labels")
         assertThrows<WowConfigurationException> {
             TransportConfig.of("acme", "acme", mapOf("command-intake.enabled" to "maybe"))
                 .settings.option(TopicTransportOptions.COMMAND_INTAKE)

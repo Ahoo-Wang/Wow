@@ -23,7 +23,8 @@ package me.ahoo.wow.analytics.catalog.domain.dataset
  * - `+ - * / %`, `= != <> < <= > >=`, `and`, `or`, `not`, `in (…)`, `not in (…)`, `between … and …`,
  *   `is null`, `is not null`;
  * - calls of the functions of [FUNCTIONS] only, by their ClickHouse names, and the text tests of the query protocol,
- *   `contains`, `startsWith` and `endsWith`, each with an `…IgnoreCase` form.
+ *   `contains`, `startsWith` and `endsWith`, each with an `…IgnoreCase` form, whose second operand is a literal text
+ *   folded by the core's table, as the query protocol's case-insensitive tests are.
  *
  * Where it says what a filter of the query protocol says (`FilterExpression`), it says it alike, so an analyst reads
  * a definition as a query: `=` is `EQ` (`= null` is `IS_NULL`), `!=` is `NE` (`!= null` is `IS_NOT_NULL`), `> >= < <=`
@@ -77,6 +78,9 @@ internal sealed interface DatasetExpression {
 
         /** How deeply an expression may nest. */
         const val MAX_DEPTH: Int = 32
+
+        /** The suffix of a text test's case-insensitive form, whose second operand is a literal text. */
+        const val IGNORE_CASE: String = "IgnoreCase"
 
         /** The query protocol's text tests (`CONTAINS`, `STARTS_WITH`, `ENDS_WITH`), with their case-insensitive forms. */
         val TEXT_TESTS: Set<String> = setOf(
@@ -216,7 +220,7 @@ private class DatasetExpressionParser(private val text: String) {
             if (token.text !in DatasetExpression.FUNCTIONS) {
                 throw problem("calls ${token.text}, which a dataset may not")
             }
-            return DatasetExpression.Call(token.text, list(empty = true))
+            return DatasetExpression.Call(token.text, list(empty = true)).also(::ignoringCase)
         }
         val parts = mutableListOf(token)
         while (peek()?.kind == Kind.DOT) {
@@ -287,6 +291,22 @@ private class DatasetExpressionParser(private val text: String) {
     private fun next(): Token? = tokens.getOrNull(position)?.also { position++ }
 
     private fun problem(problem: String) = DatasetExpressionException("The expression [$text] $problem.")
+
+    /**
+     * An `…IgnoreCase` text test compares a value with a literal text: its match is built from that text, folded by
+     * the core's table (`CaseFolding.pattern`), as the query protocol's is, so no store's own case functions decide it
+     * (#7071). A second operand that is not a literal text is refused, naming it.
+     */
+    private fun ignoringCase(call: DatasetExpression.Call) {
+        if (!call.function.endsWith(DatasetExpression.IGNORE_CASE)) return
+        val text = call.arguments.getOrNull(1) as? DatasetExpression.Literal
+        if (call.arguments.size != 2 || text?.kind != DatasetExpression.Literal.Kind.STRING) {
+            throw problem(
+                "calls ${call.function} with a second operand that is not a literal text: an ignore-case test " +
+                    "compares a value with a text written in quotes, ${call.function}(<value>, '<text>')",
+            )
+        }
+    }
 
     @Suppress("CyclomaticComplexMethod", "LongMethod") // One branch per kind of token.
     private fun tokenize(): List<Token> {

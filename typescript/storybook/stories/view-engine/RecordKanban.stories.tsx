@@ -173,7 +173,7 @@ const pipeline: ViewInstance = {
     layout: 'kanban',
     pageSize: 3,
     sort: [{ field: 'amount', direction: SortDirection.DESC }],
-    summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+    summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
     table: {
       columns: [
         { field: 'id', pinned: true },

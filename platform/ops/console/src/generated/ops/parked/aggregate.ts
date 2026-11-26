@@ -10,24 +10,24 @@ import type { ActionRefused, ApplyRetrySpecRequested, MarkRecoverableRequested, 
 export const ParkedAggregate = {
   context: 'ops',
   name: 'parked',
-  path: '/ops/parked',
   ownership: 'tenant',
+  idSource: 'assigned',
   snapshot: true,
   textNumbers: {
-    state: { failedAt: true, fromPosition: true, nextRetryAt: true, recordedAt: true, resolvedAt: true, retryAt: true },
+    state: { failedAt: true, fromPosition: true, lastRetryAt: true, nextRetryAt: true, recordedAt: true, resolvedAt: true },
     events: {
       'ops.parked.ApplyRetrySpecRequested': { failedAt: true },
       'ops.parked.MarkRecoverableRequested': { failedAt: true },
-      'ops.parked.ParkedRecorded': { entry: { failedAt: true, fromPosition: true, nextRetryAt: true, recordedAt: true, retryAt: true } },
+      'ops.parked.ParkedRecorded': { entry: { failedAt: true, fromPosition: true, lastRetryAt: true, nextRetryAt: true, recordedAt: true } },
       'ops.parked.ParkedResolved': { failedAt: true, resolvedAt: true },
       'ops.parked.RetryRequested': { failedAt: true },
       'ops.parked.SkipRequested': { failedAt: true },
     },
     commands: {
-      ApplyRetrySpec: { failedAt: true },
-      MarkRecoverable: { failedAt: true },
-      Retry: { failedAt: true },
-      Skip: { failedAt: true },
+      'ops.parked.ApplyRetrySpec': { failedAt: true },
+      'ops.parked.MarkRecoverable': { failedAt: true },
+      'ops.parked.Retry': { failedAt: true },
+      'ops.parked.Skip': { failedAt: true },
     },
   },
   Errors: {
@@ -43,7 +43,7 @@ export const ParkedAggregate = {
 } as const;
 
 /** The `state.*` paths of `parked`'s snapshots a query filters, sorts and projects on. */
-export type ParkedStateField = 'state.aggregate' | 'state.aggregate.context' | 'state.aggregate.id' | 'state.aggregate.name' | 'state.aggregate.tenantId' | 'state.context' | 'state.errorType' | 'state.failedAt' | 'state.fromPosition' | 'state.fromVersion' | 'state.nextRetryAt' | 'state.outcome' | 'state.reason' | 'state.recordedAt' | 'state.recoverable' | 'state.refusalCode' | 'state.refusalReason' | 'state.refusedAction' | 'state.request' | 'state.requested' | 'state.resolved' | 'state.resolvedAt' | 'state.retries' | 'state.retryAt' | 'state.retrySpec' | 'state.retrySpec.applied' | 'state.retrySpec.claimTtl' | 'state.retrySpec.initialBackoff' | 'state.retrySpec.maxRetries' | 'state.service' | 'state.skipOnly' | 'state.status' | 'state.subscription';
+export type ParkedStateField = 'state.aggregate' | 'state.aggregate.context' | 'state.aggregate.id' | 'state.aggregate.name' | 'state.aggregate.tenantId' | 'state.context' | 'state.errorType' | 'state.failedAt' | 'state.fromPosition' | 'state.fromVersion' | 'state.lastRetryAt' | 'state.nextRetryAt' | 'state.outcome' | 'state.reason' | 'state.recordedAt' | 'state.recoverable' | 'state.refusalCode' | 'state.refusalReason' | 'state.refusedAction' | 'state.request' | 'state.requested' | 'state.resolved' | 'state.resolvedAt' | 'state.retries' | 'state.retrySpec' | 'state.retrySpec.applied' | 'state.retrySpec.claimTtl' | 'state.retrySpec.initialBackoff' | 'state.retrySpec.maxRetries' | 'state.service' | 'state.skipOnly' | 'state.status' | 'state.subscription';
 
 /** The access attributes of `ops.parked`: it declares none. */
 export type ParkedAccess = NoAccess;

@@ -84,13 +84,13 @@ export type {
 export type { PanelGrouping } from './dashboard/grouping.js';
 export type {
   CrossFilterOutcome,
-  DestinationBoard,
+  DestinationDashboard,
   PressDestination,
 } from './dashboard/press.js';
 
 // Where a way off a board or an embed goes, for the host's route.
 export type {
-  BoardOrigin,
+  DashboardOrigin,
   DashboardTarget,
   GroupNaming,
   HandOver,
@@ -144,6 +144,7 @@ export type {
 } from './source.js';
 export {
   ReferenceLabelTimeoutError,
+  isReferenceLabelTimeoutError,
   type ReferenceId,
   type ReferenceLabel,
   type ReferenceLabelReader,

@@ -113,17 +113,26 @@ class OpenApiPathsTest {
     fun `a command should answer its result as JSON or as server-sent events, and every error as a problem`() {
         val responses = responses(operation("post", "/shop/cart/{id}/put-item"))
         responses.keys.assert().containsExactly(
-            "200", "202", "400", "401", "403", "404", "406", "409", "410", "412", "413", "415", "422", "429", "500",
-            "503", "504",
+            "200", "202", "400", "401", "403", "404", "406", "409", "410", "412", "413", "414", "415", "422", "429",
+            "431", "500", "503", "504",
         )
         val ok = response("wow.command.200")
         content(ok).keys.assert().containsExactly("application/json", "text/event-stream")
         content(ok)["text/event-stream"].assert().isEqualTo(
             mapOf(
                 "schema" to mapOf("type" to "string", "description" to "Server-sent events."),
+                // The stages, each a result, then `end`, which every stream ends with (#7051), a list's end's shape.
                 "x-wow-events" to mapOf(
-                    "event" to listOf("accepted", "committed", "handled"),
+                    "event" to listOf("accepted", "committed", "handled", "end"),
                     "data" to ref("schemas", WowSchemas.COMMAND_RESULT),
+                    "end" to mapOf(
+                        "type" to "object",
+                        "required" to listOf("reason", "resumable"),
+                        "properties" to mapOf(
+                            "reason" to mapOf("type" to "string", "enum" to WowHttpContract.END_REASONS),
+                            "resumable" to mapOf("type" to "boolean"),
+                        ),
+                    ),
                 ),
             ),
         )
@@ -254,10 +263,13 @@ class OpenApiPathsTest {
                 "properties" to mapOf("state" to ref("schemas", "sample.Cart_State")),
             ),
         )
-        ok["headers"].assert().isEqualTo(mapOf("ETag" to ref("headers", "ETag")))
+        ok["headers"].assert().isEqualTo(
+            mapOf("ETag" to ref("headers", "ETag"), "Cache-Control" to ref("headers", "Cache-Control")),
+        )
         responses(
             state
-        ).keys.assert().containsExactly("200", "304", "400", "401", "403", "404", "406", "409", "429", "503")
+        ).keys.assert()
+            .containsExactly("200", "304", "400", "401", "403", "404", "406", "409", "414", "429", "431", "503")
         val trace = operation("get", "/shop/cart/{id}/state/trace")
         parameters(trace).assert().containsExactly("id", "from", "to", "limit", "Wow-Scope", "Wow-Space")
         // A read takes no body: neither 413 nor 415.
@@ -342,7 +354,9 @@ class OpenApiPathsTest {
         paths().containsKey("/shop/cart/custom/query").assert().isFalse()
         // 429 is the store's query bulkhead (review R3.4-2), `wow.query.busy`.
         responses(events).keys.assert()
-            .containsExactly("200", "400", "401", "403", "404", "406", "413", "415", "429", "500", "503", "504")
+            .containsExactly(
+                "200", "400", "401", "403", "404", "406", "413", "414", "415", "429", "431", "500", "503", "504",
+            )
     }
 
     @Test
@@ -407,13 +421,16 @@ class OpenApiPathsTest {
         val query = operation("post", "/shop/cart/snapshot/query")
         headers(query, "200").assert().isEqualTo(rebuilding)
         val describe = operation("get", "/shop/cart/snapshot/query")
-        headers(describe, "200").assert().isEqualTo(mapOf("ETag" to ref("headers", "ETag")) + rebuilding)
-        headers(describe, "304").assert().isEqualTo(mapOf("ETag" to ref("headers", "ETag")) + rebuilding)
-        // A 304 carries the tag it was answered for, as the 200 does.
-        headers(operation("get", "/shop/cart/{id}/state"), "304").keys.assert().containsExactly("ETag")
+        val tagged = mapOf("ETag" to ref("headers", "ETag"), "Cache-Control" to ref("headers", "Cache-Control"))
+        headers(describe, "200").assert().isEqualTo(tagged + rebuilding)
+        headers(describe, "304").assert().isEqualTo(tagged + rebuilding)
+        // A 304 carries the tag it was answered for, and its Cache-Control, as the 200 does.
+        val tags = listOf("ETag", "Cache-Control")
+        headers(operation("get", "/shop/cart/{id}/state"), "304").keys.assert().containsExactlyElementsOf(tags)
         headers(operation("post", "/shop/order/events/query"), "200").assert().isEmpty()
-        headers(operation("get", "/shop/order/events/query"), "200").keys.assert().containsExactly("ETag")
-        headers(operation("get", "/wow/dataset/{context}/{dataset}/query"), "200").keys.assert().containsExactly("ETag")
+        headers(operation("get", "/shop/order/events/query"), "200").keys.assert().containsExactlyElementsOf(tags)
+        headers(operation("get", "/wow/dataset/{context}/{dataset}/query"), "200").keys.assert()
+            .containsExactlyElementsOf(tags)
         (document.components("headers")["Wow-Rebuilding"] as Map<*, *>)["schema"].assert()
             .isEqualTo(mapOf("type" to "string", "enum" to listOf("true")))
     }
@@ -429,7 +446,9 @@ class OpenApiPathsTest {
     fun `a wait plan should be bounded as the edge bounds it`() {
         val wait = document.components("parameters")["Wow-Wait"] as Map<*, *>
         wait["schema"].assert().isEqualTo(mapOf("type" to "string", "maxLength" to WaitHeader.MAX_LENGTH))
-        wait["description"].toString().assert().contains("4096 characters", "32 hops", "`wow.wait.invalid`")
+        // The node's own bound, not only the grammar's (#7063): a plan of 17 to 32 hops is refused by default.
+        wait["description"].toString().assert()
+            .contains("4096 characters", "`wow.wait.max-hops` (16 by default, 32 at most)", "`wow.wait.invalid`")
     }
 
     @Test

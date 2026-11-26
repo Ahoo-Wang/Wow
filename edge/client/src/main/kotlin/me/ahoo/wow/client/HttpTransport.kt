@@ -24,7 +24,7 @@ import kotlinx.coroutines.future.await
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.checkUse
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.CallWire
 import me.ahoo.wow.api.wire.WowHeaders
@@ -332,7 +332,7 @@ internal class HttpTransport(
      * retry with the same request id may get past is an answer about the request, and ends it as it is.
      */
     private fun <T> endOf(answer: Answer<T>, unanswered: Answer.Problem?): Answer<T> = when {
-        unanswered == null || unanswered.problem.retry != Retry.SAME_REQUEST -> answer
+        unanswered == null || unanswered.problem.retry != RetryAdvice.SAME_REQUEST -> answer
         answer is Answer.Problem && answer.problem.notTaken -> unanswered
         else -> answer
     }

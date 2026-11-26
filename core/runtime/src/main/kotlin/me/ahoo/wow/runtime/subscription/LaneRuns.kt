@@ -50,12 +50,16 @@ internal interface LaneOps<I, L> {
 
     /**
      * One monitor section: remembers the entries of [done] it does not skip when [handled], completes every one, and
-     * puts [rest] back in [lane], in order, behind the operator's actions queued there.
+     * puts [rest] back in [lane], in order, behind the operator's actions queued there; false when it puts nothing
+     * back because a stop abandoned the worker, which forgot its lanes: [rest] is then dropped, not handled.
      */
-    fun settle(done: List<Taken<I>>, handled: Boolean, lane: L, rest: List<Taken<I>>)
+    fun settle(done: List<Taken<I>>, handled: Boolean, lane: L, rest: List<Taken<I>>): Boolean
 
     /** Handles [item] alone, as an entry of a lane that runs each alone is. */
     suspend fun handleAlone(item: I)
+
+    /** Whether [item] is an entry the source did not deliver an earlier version before: it parks, alone. */
+    fun isGap(item: I): Boolean
 
     /** Parks [entry]'s aggregate from it, as a failure of its handling does. */
     suspend fun park(entry: SourcedEntry, failure: Throwable)
@@ -87,6 +91,10 @@ internal class LaneRuns<I, L>(
 ) {
     /** Runs [first], live in [lane], with the live entries queued behind it. */
     suspend fun live(first: I, lane: L) {
+        if (ops.isGap(first)) {
+            ops.handleAlone(first)
+            return
+        }
         val runHandler = subscription.runHandler
         if (runHandler == null) coalesced(first, lane) else run(first, lane, runHandler)
     }
@@ -120,9 +128,10 @@ internal class LaneRuns<I, L>(
      *
      * Each entry's handling is observed once ([observed]): the entry the run ended at is handled alone in the
      * observation the run started for it, as a retry of it, and each entry after it goes on in its own when its lane
-     * takes it again. An entry the lane skips is not handled: the observation a run before started for it ends
-     * plainly, since a skip has no outcome of its own ([me.ahoo.wow.spi.observation.ObservedOutcome]), before it
-     * completes.
+     * takes it again. An entry the lane skips is not handled: the observation a run before started for it ends as
+     * skipped ([me.ahoo.wow.spi.observation.ObservedOutcome.SKIPPED]) before it completes. When a stop abandoned the
+     * worker while the run went on, the entries after the one it ended at are dropped, not put back: their
+     * observations end with the stop's cancellation, as those of the entries the stop found queued do.
      */
     private suspend fun run(first: I, lane: L, runHandler: RunHandler) {
         if (handling.paused) {
@@ -137,8 +146,11 @@ internal class LaneRuns<I, L>(
         val failing = handed.getOrNull(done)
         val at = failing?.let { taken.indexOf(it) } ?: taken.size
         val settled = taken.subList(0, at)
-        settled.forEach { if (it.skipped) ops.held(it.item)?.end() }
-        ops.settle(settled, true, lane, taken.subList(minOf(at + 1, taken.size), taken.size))
+        settled.forEach { if (it.skipped) ops.held(it.item)?.skipped() }
+        val rest = taken.subList(minOf(at + 1, taken.size), taken.size)
+        if (!ops.settle(settled, true, lane, rest)) {
+            rest.forEach { ops.held(it.item)?.abandoned() }
+        }
         settled.forEach {
             hops.signal(it.entry, Result.success(HandledEntry.NOTHING), it.skipped && it.parked)
         }

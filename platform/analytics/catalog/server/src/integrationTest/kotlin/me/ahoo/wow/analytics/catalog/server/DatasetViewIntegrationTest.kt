@@ -167,7 +167,7 @@ class DatasetViewIntegrationTest {
                         "f",
                         "w",
                         "t",
-                        access = "DEFAULT",
+                        access = "default",
                     ),
                     tenantColumn = "tenant_id",
                     ownerColumn = "owner_id",

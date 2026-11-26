@@ -48,7 +48,7 @@ class CallerFactsPathsTest {
     private val forged = mapOf(RequestFacts.APP_ID to "forged")
 
     private fun inProcess(): Map<String, String> = runBlocking {
-        InProcessCommandClient(node.gateway).of(caller).wait(CommandRequest.of(AddItem("apple"), id = "c-1"))
+        InProcessCommandClient(node.gateway).of(caller).wait(CommandRequest.of(AddItem("apple"), aggregateId = "c-1"))
         node.commands.last().headers
     }
 
@@ -70,8 +70,12 @@ class CallerFactsPathsTest {
         val facts = mapOf(RequestFacts.APP_ID to "app-a")
         runBlocking {
             node.gateway.execute(
-                ServerCommandRequest.builder(AddItem("apple"), cartModel.type.ref(TENANT, "c-4")).caller(caller)
-                    .headers(forged).build(),
+                ServerCommandRequest.of(
+                    AddItem("apple"),
+                    cartModel.type.ref(TENANT, "c-4"),
+                    caller = caller,
+                    headers = forged,
+                ),
             )
         }.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         node.commands.last().headers.assert().isEqualTo(facts)

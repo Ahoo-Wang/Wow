@@ -181,7 +181,7 @@ export interface ProductUpdated {
  * Publish a product
  * - key: `me.ahoo.wow.example.eshop.catalog.api.product.PublishProduct`
  */
-export type PublishProduct = Record<string, unknown>;
+export type PublishProduct = Record<string, never>;
 
 /**
  * Rename a brand
@@ -198,15 +198,6 @@ export interface RenameBrand {
  */
 export interface RenameCategory {
   name: string;
-}
-
-
-/**
- * Moves the aggregate to the space spaceId.
- * - key: `wow.lifecycle.TransferSpace`
- */
-export interface TransferSpace {
-  spaceId: string;
 }
 
 

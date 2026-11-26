@@ -22,7 +22,7 @@ import { DownloadIcon } from 'lucide-react';
 import type { FilterSummaryItem } from '../../filter/index.js';
 import type {
   RecordExportController,
-  RecordExportScope,
+  RecordExportExtent,
 } from '../../react/index.js';
 import { Button } from '../components/button.js';
 import {
@@ -79,18 +79,21 @@ export interface ExportOffer {
   holds?: { rows: string; done: string };
 }
 
-export interface ExportWindowProps extends ExportOffer {
+/**
+ * Props of the export window: the offer, and the columns the file will hold.
+ */
+export interface ExportWindowOptions extends ExportOffer {
   /**
    * The columns the file will hold, in the order the table draws them —
    * the very list the serialiser writes into the header row. Only what each
    * is called is read.
    */
   columns: readonly { label: string }[];
-  /** The ceiling one export carries — `limits.exportMax`. */
+  /** The ceiling one export carries — `limits.maxExportRows`. */
   max: number;
 }
 
-export interface ExportDialogProps extends ExportWindowProps {
+export interface ExportDialogProps extends ExportWindowOptions {
   /**
    * Whether the window is open. Whatever offers the export opens it — the
    * toolbar's own button (`ExportButton`), or 「导出数据…」 in a dashboard
@@ -127,7 +130,7 @@ export interface ExportDialogProps extends ExportWindowProps {
 export function ExportButton({
   detached,
   ...props
-}: ExportWindowProps & {
+}: ExportWindowOptions & {
   /**
    * Draws one half of it, joined to the other by a handle: the button
    * inside a toolbar, the window beside it (`DetachedDialog`). Left out,
@@ -253,7 +256,7 @@ function ExportJourney({
   primary,
   onClose,
   ...props
-}: ExportWindowProps & {
+}: ExportWindowOptions & {
   phase: ExportPhase;
   primary: RefObject<HTMLButtonElement | null>;
   onClose(): void;
@@ -263,7 +266,7 @@ function ExportJourney({
   // Which scope was picked, and `null` for "not picked yet" — the default
   // depends on whether anything is selected, and that can change under an
   // open window as well as between two openings.
-  const [scope, setScope] = useState<RecordExportScope | null>(null);
+  const [scope, setScope] = useState<RecordExportExtent | null>(null);
   const picked =
     control.scopes.selected === undefined ? 'all' : (scope ?? 'selected');
   // The name the file will carry, fixed as this opening begins and used by

@@ -15,7 +15,7 @@ package me.ahoo.wow.client
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.client.CommandRejectedException
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FrameworkCodes
@@ -47,7 +47,7 @@ class PeerProblem(
     val code: String?,
     val detail: String?,
     val result: CommandResult?,
-    val retry: Retry,
+    val retry: RetryAdvice,
     val retryAfter: Duration?,
     val version: Int? = null,
     val cause: Throwable? = null,
@@ -65,7 +65,7 @@ class PeerProblem(
      * decides, not the client.
      */
     val retriesCommand: Boolean
-        get() = retry == Retry.SAME_REQUEST && status != GATEWAY_TIMEOUT && !fromGateway
+        get() = retry == RetryAdvice.SAME_REQUEST && status != GATEWAY_TIMEOUT && !fromGateway
 
     /**
      * Whether this is a gateway's own 502 or 504 (an ingress's, a load balancer's), a body that is no Wow problem: it
@@ -86,7 +86,7 @@ class PeerProblem(
      * node that refused it before handling ([refusedBeforeHandling]), or a problem whose retry is a new request, which
      * says nothing was done (`wow.auth.unavailable`, `wow.request.rate-limited`, `wow.peer.unavailable`).
      */
-    internal val notTaken: Boolean get() = refusedBeforeHandling || retry == Retry.NEW_REQUEST
+    internal val notTaken: Boolean get() = refusedBeforeHandling || retry == RetryAdvice.NEW_REQUEST
 
     /**
      * Whether a query answered so is run again: a retry may get past it, a query repeating nothing; but a state read
@@ -95,7 +95,7 @@ class PeerProblem(
      * a query that outran the gateway would run as long again.
      */
     val retriesQuery: Boolean
-        get() = retry != Retry.NONE && code != FrameworkCodes.QUERY_MIN_VERSION_NOT_REACHED && !fromGateway
+        get() = retry != RetryAdvice.NONE && code != FrameworkCodes.QUERY_MIN_VERSION_NOT_REACHED && !fromGateway
 
     /**
      * The exception of this problem for [what] was asked: a [CommandRejectedException] for a command's rejection,
@@ -144,7 +144,7 @@ class PeerProblem(
  * a 503 or a 429, which nothing behind it handled, or a 502 or a 504: the gateway does not say whether the node behind
  * it took the request and committed it (a 502's node may have failed mid-answer, a 504's may still be running it), and
  * the same request id is safe either way, a command that did commit answered as the duplicate it is (#6810). Any other
- * status of such a body is [Retry.NONE].
+ * status of such a body is [RetryAdvice.NONE].
  */
 @InternalWowApi
 object Problems {
@@ -159,10 +159,10 @@ object Problems {
         }
         val result = node?.get("result")?.takeUnless { it.isNull }?.let(::resultOf)
         val code = node?.text("code")
-        val retry = node?.text(RETRY)?.let { WireNames.entryOf<Retry>(it) }
+        val retry = node?.text(RETRY)?.let { WireNames.entryOf<RetryAdvice>(it) }
             ?: code?.let { FrameworkErrors.BY_CODE[it]?.retry }
-            ?: Retry.SAME_REQUEST.takeIf { code == null && status in BARE_SAME_REQUEST }
-            ?: Retry.NONE
+            ?: RetryAdvice.SAME_REQUEST.takeIf { code == null && status in BARE_SAME_REQUEST }
+            ?: RetryAdvice.NONE
         val retryAfter = headers.firstValue("Retry-After").orElse(null)?.let(::retryAfterOf)
             ?: code?.let { FrameworkErrors.BY_CODE[it]?.retryAfter?.seconds }
         return PeerProblem(
@@ -176,7 +176,7 @@ object Problems {
             },
             result = result,
             retry = retry,
-            retryAfter = retryAfter.takeIf { retry != Retry.NONE },
+            retryAfter = retryAfter.takeIf { retry != RetryAdvice.NONE },
             version = node?.get("version")?.takeIf { it.isInt }?.asInt(),
             title = node?.text("title"),
             violations = node?.get("violations")?.takeIf { it.isArray }?.values()?.map(::violationOf).orEmpty(),

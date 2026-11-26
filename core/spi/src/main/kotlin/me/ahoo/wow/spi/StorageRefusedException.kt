@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.spi
 
+import me.ahoo.wow.api.annotation.WowSpi
+
 /**
  * A store refused a value as it is, for good: a value it cannot store (a `\u0000` PostgreSQL's `jsonb` does not
  * take, a number out of range), a document beyond its size limit, a document Elasticsearch cannot parse. Writing it
@@ -21,4 +23,5 @@ package me.ahoo.wow.spi
  * A backend throws it, with the driver's exception as [cause]. It is an [IllegalArgumentException], the failure of a
  * value an argument carries.
  */
+@WowSpi
 class StorageRefusedException(message: String, cause: Throwable? = null) : IllegalArgumentException(message, cause)

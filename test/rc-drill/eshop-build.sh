@@ -16,29 +16,50 @@
 # a user's service is built: drill.sh build calls it with the source (a worktree of the release's tag) and its version.
 #
 #   eshop-build.sh <source> <version>
+#   eshop-build.sh <source> <commit>
 #
 # The release's own build, with published-wow.init.gradle.kts: the eShop's me.ahoo.wow dependencies resolve to the
 # published modules, everything else is the release's. It runs each server's installDist, which deploy/'s Dockerfiles
 # copy, and generateWowHelmValues, which writes build/wow/helm/values.yaml. Then it proves where Wow came from: every
 # wow-*-<version>.jar in each distribution must have the SHA-1 Maven Central publishes for it. The root build's
 # repositories put mavenLocal() first, so a local copy that differs from Central's fails here.
+#
+# A commit nothing published (its full SHA) is built as the repository builds it: the eShop's Wow is the source's own
+# modules, which the root build substitutes for their coordinates, and no init script. The source must be at that
+# commit, with nothing changed, and every Wow jar in each distribution must be the one its module built in the source
+# (build/libs), at the version the source's gradle.properties names; no jar of another version may be there.
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
-src=$(cd "${1:?usage: eshop-build.sh <source> <version>}" && pwd)
-version=${2:?usage: eshop-build.sh <source> <version>}
+src=$(cd "${1:?usage: eshop-build.sh <source> <version>|<commit>}" && pwd)
+version=${2:?usage: eshop-build.sh <source> <version>|<commit>}
 central=https://repo1.maven.org/maven2/me/ahoo/wow
 
 log() { echo "[eshop-build] $*" >&2; }
+
+commit=""
+if [[ $version =~ ^[0-9a-f]{40}$ ]]; then
+  commit=$version
+  head=$(git -C "$src" rev-parse HEAD)
+  [ "$head" = "$commit" ] || { log "$src is at $head, not $commit"; exit 1; }
+  [ -z "$(git -C "$src" status --porcelain --untracked-files=no)" ] || { log "$src has changes of its own"; exit 1; }
+  version=$(sed -n 's/^version=//p' "$src/gradle.properties")
+  [ -n "$version" ] || { log "no version in $src/gradle.properties"; exit 1; }
+fi
 
 servers=(eshop-catalog-server eshop-basket-server eshop-ordering-server eshop-inventory-server eshop-payment-server)
 tasks=()
 for server in "${servers[@]}"; do
   tasks+=(":$server:installDist" ":$server:generateWowHelmValues")
 done
-log "building ${servers[*]} of $src against Wow $version from Maven Central"
-"$src/gradlew" -p "$src" --console=plain -I "$here/published-wow.init.gradle.kts" "-Prc-drill.wow-version=$version" \
-  "${tasks[@]}"
+if [ -n "$commit" ]; then
+  log "building ${servers[*]} of $src at $commit against its own Wow ($version)"
+  "$src/gradlew" -p "$src" --console=plain "${tasks[@]}"
+else
+  log "building ${servers[*]} of $src against Wow $version from Maven Central"
+  "$src/gradlew" -p "$src" --console=plain -I "$here/published-wow.init.gradle.kts" "-Prc-drill.wow-version=$version" \
+    "${tasks[@]}"
+fi
 
 checked=0
 for server in "${servers[@]}"; do
@@ -51,21 +72,40 @@ for server in "${servers[@]}"; do
   for jar in "$lib"/wow-*-"$version".jar; do
     [ -e "$jar" ] || continue
     artifact=$(basename "$jar" "-$version.jar")
-    expected=$(curl -fsS "$central/$artifact/$version/$artifact-$version.jar.sha1" | awk '{print $1}')
     actual=$(shasum -a 1 "$jar" | awk '{print $1}')
-    if [ "$expected" != "$actual" ]; then
-      log "$server: $artifact-$version.jar is not Maven Central's ($actual, Central has $expected)"
-      exit 1
+    if [ -n "$commit" ]; then
+      # The module that publishes the artifact built it in the source: its build/libs holds the same bytes.
+      built=$(find "$src" -path "*/build/libs/$artifact-$version.jar" -not -path '*/build/install/*' | head -1)
+      [ -n "$built" ] || { log "$server: no module of $src built $artifact-$version.jar"; exit 1; }
+      expected=$(shasum -a 1 "$built" | awk '{print $1}')
+      if [ "$expected" != "$actual" ]; then
+        log "$server: $artifact-$version.jar is not the one ${built#"$src"/} holds ($actual, the module has $expected)"
+        exit 1
+      fi
+    else
+      expected=$(curl -fsS "$central/$artifact/$version/$artifact-$version.jar.sha1" | awk '{print $1}')
+      if [ "$expected" != "$actual" ]; then
+        log "$server: $artifact-$version.jar is not Maven Central's ($actual, Central has $expected)"
+        exit 1
+      fi
     fi
     jars=$((jars + 1))
   done
-  [ "$jars" -gt 0 ] || { log "$server has no wow-*-$version.jar: Wow did not come from the release"; exit 1; }
+  [ "$jars" -gt 0 ] || { log "$server has no wow-*-$version.jar: Wow did not come from ${commit:-the release}"; exit 1; }
   # A jar of Wow's built from the source carries no version of the release's, or another one: none may be there.
   if find "$lib" -name 'wow-*.jar' ! -name "wow-*-$version.jar" | grep -q .; then
     log "$server: Wow jars of another version: $(find "$lib" -name 'wow-*.jar' ! -name "wow-*-$version.jar" | xargs -n1 basename)"
     exit 1
   fi
-  log "$server: $jars Wow jars, each Maven Central's"
+  if [ -n "$commit" ]; then
+    log "$server: $jars Wow jars, each the one its module built at $commit"
+  else
+    log "$server: $jars Wow jars, each Maven Central's"
+  fi
   checked=$((checked + jars))
 done
-log "done: $checked Wow jars across ${#servers[@]} servers, all from Maven Central's $version"
+if [ -n "$commit" ]; then
+  log "done: $checked Wow jars across ${#servers[@]} servers, all built from $commit ($version)"
+else
+  log "done: $checked Wow jars across ${#servers[@]} servers, all from Maven Central's $version"
+fi

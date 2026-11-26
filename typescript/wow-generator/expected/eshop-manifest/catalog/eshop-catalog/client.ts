@@ -42,9 +42,9 @@ export class EshopCatalogClient {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     this.commands = new CommandClient(options, {
-      manifest: EshopCatalogManifest, bodyNumbers: {
-        'eshop-catalog.product.ChangeProductPrice': ProductAggregate.textNumbers.commands.ChangeProductPrice,
-        'eshop-catalog.product.CreateProduct': ProductAggregate.textNumbers.commands.CreateProduct,
+      manifest: EshopCatalogManifest, textNumbers: {
+        'eshop-catalog.product.ChangeProductPrice': ProductAggregate.textNumbers.commands['eshop-catalog.product.ChangeProductPrice'],
+        'eshop-catalog.product.CreateProduct': ProductAggregate.textNumbers.commands['eshop-catalog.product.CreateProduct'],
       }
     });
     this.brand = {

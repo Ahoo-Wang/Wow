@@ -179,13 +179,13 @@ class MongoReads(private val kube: Kube, private val user: String? = null) : Sto
 
     override fun parked(context: String): List<Map<String, Any?>> = eval(
         context,
-        "return db.wow_failure_ledger.find({}, { _id: 0, subscription: 1, context: 1, aggregate_name: 1, aggregate_id: 1, " +
+        "return db.wow_failure_ledger.find({}, { _id: 0, subscription: 1, context: 1, aggregate: 1, aggregate_id: 1, " +
             "from_version: 1, reason: 1 }).toArray()",
     ).values().map { entry ->
         linkedMapOf<String, Any?>(
             "database" to context,
             "subscription" to entry["subscription"]?.asString(),
-            "aggregate" to "${entry["context"]?.asString()}.${entry["aggregate_name"]?.asString()}",
+            "aggregate" to "${entry["context"]?.asString()}.${entry["aggregate"]?.asString()}",
             "aggregateId" to entry["aggregate_id"]?.asString(),
             "fromVersion" to entry["from_version"]?.asInt(),
             "reason" to entry["reason"]?.asString()?.take(ERROR),

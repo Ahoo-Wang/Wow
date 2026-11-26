@@ -24,7 +24,6 @@ import { CurrencyStrip } from '../analysis/CurrencyStrip.js';
 import { resultIssues } from '../../runtime/source.js';
 import {
   useAnalysisEditor,
-  useSearchBox,
   useAnalysisResult,
   type WorkbenchController,
 } from '../../react/index.js';
@@ -64,6 +63,7 @@ import { cn } from 'cn';
 import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 import { NO_PARTS, type RenderParts } from './parts.js';
 import { SearchBox } from './SearchBox.js';
+import { useSearchBox } from '../../react/useSearchBox.js';
 
 /**
  * What the analysis parts read of the workbench around them: the data

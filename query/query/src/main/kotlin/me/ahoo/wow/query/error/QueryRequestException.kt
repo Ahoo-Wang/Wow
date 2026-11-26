@@ -13,24 +13,27 @@
 
 package me.ahoo.wow.query.error
 
+import me.ahoo.wow.api.annotation.WowSpi
+import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.query.schema.QueryViolation
 
 /**
- * A query request the client got wrong: `IllegalArgument` with the human [errorMsg] and one binding error naming where
+ * A query request the client got wrong: `IllegalArgument` with the human [message] and one violation naming where
  * ([name], a JSON path or `body`) and which rule ([code], stable and machine-readable). [violation] is the catalog
  * entry it renders, when the rule is one ([QueryViolation.Kind.REQUEST]): the request is then
  * [invalid][QueryErrors.INVALID]. Decoding errors state only a code: the request is
  * [malformed][QueryErrors.MALFORMED].
  */
+@WowSpi
 class QueryRequestException(
-    override val errorMsg: String,
+    override val message: String,
     val code: String,
     name: String = BODY,
     cause: Throwable? = null,
     val violation: QueryViolation? = null,
     /** The problem the request answers when it is not the generic one of its kind. */
     problem: String? = null,
-) : IllegalArgumentException(errorMsg, cause), QueryError {
+) : IllegalArgumentException(message, cause), QueryError {
     /** The request that breaks [violation]: its message, code and location are the violation's. */
     constructor(violation: QueryViolation, problem: String? = null) : this(
         violation.message,
@@ -43,7 +46,7 @@ class QueryRequestException(
     override val errorCode: String =
         problem ?: if (violation == null) QueryErrors.MALFORMED else QueryErrors.INVALID
 
-    override val bindingErrors: List<QueryBindingError> = listOf(QueryBindingError(name, errorMsg, code))
+    override val violations: List<Violation> = listOf(Violation.of(name, code, message))
 
     companion object {
         const val BODY = "body"

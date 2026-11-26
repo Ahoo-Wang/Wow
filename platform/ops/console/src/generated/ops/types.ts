@@ -81,13 +81,13 @@ export interface ParkedEntry {
   failedAt: string;
   fromPosition?: string | null;
   fromVersion: number;
+  lastRetryAt?: string | null;
   nextRetryAt?: string | null;
   reason: string;
   recordedAt: string;
   recoverable?: string;
   request?: string | null;
   retries?: number;
-  retryAt?: string | null;
   retrySpec: EntryRetrySpec;
   service: string;
   skipOnly?: boolean;
@@ -124,6 +124,7 @@ export interface ParkedState {
   failedAt: string;
   fromPosition?: string | null;
   fromVersion: number;
+  lastRetryAt?: string | null;
   nextRetryAt?: string | null;
   outcome?: string | null;
   reason: string;
@@ -137,7 +138,6 @@ export interface ParkedState {
   readonly resolved: boolean;
   resolvedAt?: string | null;
   retries: number;
-  retryAt?: string | null;
   retrySpec: EntryRetrySpec;
   service: string;
   skipOnly: boolean;

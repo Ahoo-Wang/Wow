@@ -105,7 +105,7 @@ function validateSystemConfig(
       'system',
       EMPTY_REFERENCES,
       kinds,
-      { limits, definitions: lookup && panelDefinitions(lookup) },
+      { limits, lookup: lookup && panelDefinitions(lookup) },
     ).filter(found => found.code !== 'dashboard.panel.unavailable');
     return [
       ...under(path, board),

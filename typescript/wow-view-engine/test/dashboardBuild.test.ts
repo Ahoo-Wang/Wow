@@ -20,7 +20,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   emptyDashboardConfig,
   validateDashboard,
   type DashboardPanel,
@@ -107,8 +107,8 @@ function validate(
     config,
     'personal',
     new Map([['pending', panelReference()]]),
-    builtinFieldKinds,
-    definitions ? { definitions } : {},
+    builtinFieldKindRegistry,
+    definitions ? { lookup: definitions } : {},
   );
 }
 
@@ -367,7 +367,7 @@ describe('panels the board owns', () => {
       panels: [
         {
           ...owned('own'),
-          bindings: [{ globalField: 'region', panelField: 'nowhere' }],
+          bindings: [{ dashboardField: 'region', panelField: 'nowhere' }],
         } as DashboardPanel,
       ],
     });

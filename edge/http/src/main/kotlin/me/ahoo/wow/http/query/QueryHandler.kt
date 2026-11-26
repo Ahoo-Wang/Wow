@@ -34,15 +34,16 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.result.FrameworkCodes
-import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.wire.ScopeHeader
 import me.ahoo.wow.api.wire.WowHeaders
+import me.ahoo.wow.http.EntityTags
 import me.ahoo.wow.http.HttpJson
 import me.ahoo.wow.http.WowPaths
 import me.ahoo.wow.http.awaitBytesOrNull
 import me.ahoo.wow.http.caller.Authenticator
 import me.ahoo.wow.http.command.Negotiation
 import me.ahoo.wow.http.command.RequestHeaders
+import me.ahoo.wow.http.entityTag
 import me.ahoo.wow.http.handingOver
 import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.http.problem.FailureProblems
@@ -216,8 +217,9 @@ internal class QueryHandler(
     }
 
     /**
-     * [descriptor] of [version], with the version as its `ETag`; 304 when `If-None-Match` names it. A descriptor of
-     * snapshots being [rebuilding] says so ([WowHeaders.REBUILDING]).
+     * [descriptor] of [version], with the version as its `ETag` and the `Cache-Control` of a tagged answer
+     * ([EntityTags.CACHE_CONTROL]); 304 when `If-None-Match` names it. A descriptor of snapshots being [rebuilding]
+     * says so ([WowHeaders.REBUILDING]).
      */
     private suspend fun tagged(
         request: ServerRequest,
@@ -227,9 +229,9 @@ internal class QueryHandler(
     ): ServerResponse {
         val tag = "\"$version\""
         if (request.headers().header(HttpHeaders.IF_NONE_MATCH).any { matches(it, tag) }) {
-            return ServerResponse.status(NOT_MODIFIED).eTag(tag).rebuilding(rebuilding).buildAndAwait()
+            return ServerResponse.status(NOT_MODIFIED).entityTag(tag).rebuilding(rebuilding).buildAndAwait()
         }
-        return ServerResponse.ok().eTag(tag).rebuilding(rebuilding).contentType(MediaType.APPLICATION_JSON)
+        return ServerResponse.ok().entityTag(tag).rebuilding(rebuilding).contentType(MediaType.APPLICATION_JSON)
             .bodyValueAndAwait(descriptor)
     }
 
@@ -444,16 +446,16 @@ internal class QueryHandler(
             }
         }
         if (failure.errorCode == FrameworkCodes.QUERY_FAILED) {
-            logger.error(failure) { "A query failed: ${failure.errorMsg}" }
+            logger.error(failure) { "A query failed: ${failure.message}" }
         }
-        return statuses.problemOf(failure.errorCode, failure.errorMsg, context).copyWith(
-            violations = failure.bindingErrors.map { Violation(path = it.name, code = it.code, message = it.msg) },
+        return statuses.problemOf(failure.errorCode, failure.message, context).copyWith(
+            violations = failure.violations,
         )
     }
 
     /** What `Wow-Scope` names for the query of [request], or null without it; [targets] decide whether it may. */
     private fun named(request: ServerRequest): ScopeHeader.QueryTarget? =
-        headers.queryTarget(request, FrameworkCodes.QUERY_MALFORMED)
+        headers.queryTarget(request)
 
     /** [caller]'s query caller of the dataset [type] in what it [named], or null when the dataset's tenant is fixed. */
     private fun queryCaller(type: AggregateType, caller: Caller, named: ScopeHeader.QueryTarget?): QueryCaller? = try {

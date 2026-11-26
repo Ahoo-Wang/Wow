@@ -19,7 +19,7 @@
  * @packageDocumentation
  */
 
-import { FrameworkErrorCodes } from './frameworkErrors.js';
+import { FrameworkErrorCodes, RAISED_PROBLEMS } from './frameworkErrors.js';
 import {
   PROBLEM_TYPE_PREFIX,
   rememberRequestId,
@@ -120,8 +120,7 @@ export function unknownOutcome(
   const error = new WowProblemError(
     {
       type: `${PROBLEM_TYPE_PREFIX}${code}`,
-      title: 'Command outcome unknown',
-      status: 503,
+      ...RAISED_PROBLEMS[code],
       code,
       detail,
     },

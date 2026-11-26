@@ -58,8 +58,8 @@ internal object OpenApiParameters {
                 "store the aggregate's snapshot queries read holds the commit) or `handled(subscription)`, with an " +
                 "optional `(context)`, such as " +
                 "`handled(order/payment-saga) > committed(inventory)`. Without it the command waits for its snapshot. " +
-                "A plan longer than ${WaitHeader.MAX_LENGTH} characters, or of more than ${WaitHeader.MAX_HOPS} " +
-                "hops, is 400 `wow.wait.invalid`.",
+                "A plan longer than ${WaitHeader.MAX_LENGTH} characters, or of more hops than the node's " +
+                "`wow.wait.max-hops` (16 by default, ${WaitHeader.MAX_HOPS} at most), is 400 `wow.wait.invalid`.",
             obj("type" to "string", "maxLength" to WaitHeader.MAX_LENGTH),
         ),
         Http.WAIT_TIMEOUT_HEADER to header(
@@ -117,6 +117,12 @@ internal object OpenApiParameters {
         Http.ETAG_HEADER to obj(
             "description" to "The entity tag of the representation, which If-None-Match names to be answered 304.",
             "schema" to type("string"),
+        ),
+        Http.CACHE_CONTROL_HEADER to obj(
+            "description" to "`${Http.CACHE_CONTROL}` on every tagged answer, its 304 included: who may read it, and " +
+                "what it reads, is the caller's, so a shared cache stores none of it, and a private one asks again " +
+                "with If-None-Match each time.",
+            "schema" to obj("type" to "string", "enum" to listOf(Http.CACHE_CONTROL)),
         ),
         Http.RETRY_AFTER_HEADER to obj(
             "description" to "The seconds after which the request may be retried.",

@@ -45,9 +45,7 @@ class PostgresCheckpointStore(
     /** Claims the table's format ([PostgresFormat]) and creates it when missing. */
     fun createSchema() {
         dataSource.autoCommitted { connection ->
-            PostgresFormat.schema(connection, ddl, listOf(TABLE to FORMAT)) {
-                PostgresSchema.execute(connection, listOf(DDL))
-            }
+            PostgresFormat.schema(connection, ddl, listOf(TABLE to FORMAT), listOf(DDL))
         }
     }
 

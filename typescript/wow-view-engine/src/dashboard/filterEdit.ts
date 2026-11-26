@@ -244,9 +244,7 @@ export function setTimeGrouping(
  * tree left in its place, so the member stays. A board whose fixed scope is
  * empty already comes back as it was.
  */
-export function removeFixedScope(
-  config: DashboardViewConfig,
-): DashboardViewConfig {
+export function removeFixed(config: DashboardViewConfig): DashboardViewConfig {
   const { fixed } = config;
   const empty =
     isPlainObject(fixed) &&

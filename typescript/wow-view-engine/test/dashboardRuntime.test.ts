@@ -18,7 +18,7 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it, vi } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
   ViewEngine,
@@ -104,7 +104,9 @@ function boundConfig(
     fields: [REGION_FIELD],
     fixed: REGION_FILTER,
     panels: [
-      panel({ bindings: [{ globalField: 'region', panelField: 'warehouse' }] }),
+      panel({
+        bindings: [{ dashboardField: 'region', panelField: 'warehouse' }],
+      }),
     ],
     ...overrides,
   });
@@ -410,7 +412,7 @@ describe('DashboardViewRuntime unavailable references', () => {
         },
         overviewDefinition(),
       ],
-      kinds: withFieldKinds(builtinFieldKinds, [rounded]),
+      kinds: withFieldKinds(builtinFieldKindRegistry, [rounded]),
     });
     const runtime = await board.open(
       dashboardConfig({
@@ -423,7 +425,7 @@ describe('DashboardViewRuntime unavailable references', () => {
         },
         panels: [
           panel({
-            bindings: [{ globalField: 'weight', panelField: 'weight' }],
+            bindings: [{ dashboardField: 'weight', panelField: 'weight' }],
           }),
         ],
       }),
@@ -497,7 +499,7 @@ describe('DashboardViewRuntime unavailable references', () => {
       config: dashboardConfig({ panels: [panel()] }),
       title: 'Overview',
       scope: 'personal',
-      kinds: builtinFieldKinds,
+      kinds: builtinFieldKindRegistry,
       limits: DEFAULT_RUNTIME_LIMITS,
       environment: clock.environment,
       labels: testLabels(),
@@ -513,7 +515,7 @@ describe('DashboardViewRuntime unavailable references', () => {
           title: found.title,
           scope: found.scope,
           saved: found.instance,
-          kinds: builtinFieldKinds,
+          kinds: builtinFieldKindRegistry,
           limits: DEFAULT_RUNTIME_LIMITS,
           environment: clock.environment,
           source: recordSource(source),
@@ -548,7 +550,9 @@ describe('DashboardViewRuntime unavailable references', () => {
     const runtime = await board.open(
       dashboardConfig({
         panels: [
-          panel({ bindings: [{ globalField: 'ghost', panelField: 'status' }] }),
+          panel({
+            bindings: [{ dashboardField: 'ghost', panelField: 'status' }],
+          }),
         ],
       }),
     );
@@ -598,7 +602,7 @@ describe('DashboardViewRuntime child results', () => {
       instances: [
         pending({
           config: recordConfig({
-            summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+            summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
           }),
         }),
       ],
@@ -762,20 +766,6 @@ describe('DashboardViewRuntime admission', () => {
     expect(board.source.paged).not.toHaveBeenCalled();
   });
 
-  it('opens a config whose panels are not a list as a view to be fixed', async () => {
-    const board = await harness();
-    const runtime = await board.open({
-      ...dashboardConfig(),
-      panels: 'x' as never,
-    });
-
-    expect(runtime.getSnapshot().issues).toMatchObject([
-      { code: 'dashboard.shape.invalid', path: ['panels'] },
-    ]);
-    expect(runtime.getSnapshot().panels).toEqual([]);
-    expect(() => runtime.edit({ refresh: { interval: null } })).not.toThrow();
-  });
-
   it('hands an editor only the fields that are fields', async () => {
     const board = await harness();
     const runtime = await board.open(
@@ -801,21 +791,6 @@ describe('DashboardViewRuntime admission', () => {
 
     expect(listener).toHaveBeenCalledTimes(1);
     expect(runtime.disposed).toBe(true);
-  });
-
-  it('opens a config with an entry that is no panel, and runs the rest', async () => {
-    const board = await harness();
-    const runtime = await board.open(
-      dashboardConfig({ panels: [null as never, panel()] }),
-    );
-
-    expect(runtime.getSnapshot().issues).toMatchObject([
-      { code: 'dashboard.shape.invalid', path: ['panels', 0] },
-    ]);
-    // The entry has no id to stand under; the panel beside it still runs.
-    expect(runtime.getSnapshot().panels).toHaveLength(1);
-    expect(runtime.getSnapshot().panels[0].runtime).not.toBeNull();
-    expect(board.source.paged).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -1039,7 +1014,7 @@ describe('DashboardViewRuntime saving', () => {
     const board = harness();
     const runtime = board.engine.create('overview', {
       title: 'Scratch',
-      scope: 'personal',
+      audience: 'personal',
       config: boundConfig(),
     });
 
@@ -1106,10 +1081,12 @@ function withMisbound(
 ): DashboardViewConfig {
   return boundConfig({
     panels: [
-      panel({ bindings: [{ globalField: 'region', panelField: 'warehouse' }] }),
+      panel({
+        bindings: [{ dashboardField: 'region', panelField: 'warehouse' }],
+      }),
       panel({
         id: 'misbound',
-        bindings: [{ globalField: 'region', panelField: 'nope' }],
+        bindings: [{ dashboardField: 'region', panelField: 'nope' }],
         layout: { x: 6, y: 0, w: 6, h: 4 },
       }),
     ],

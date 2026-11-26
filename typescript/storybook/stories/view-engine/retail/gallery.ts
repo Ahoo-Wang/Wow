@@ -210,7 +210,7 @@ const galleryChannels: ViewInstance = {
   }),
 };
 
-const bindWarehouse = [{ globalField: 'warehouse', panelField: WAREHOUSE }];
+const bindWarehouse = [{ dashboardField: 'warehouse', panelField: WAREHOUSE }];
 
 const galleryBoard: ViewInstance = {
   id: GALLERY_BOARD,

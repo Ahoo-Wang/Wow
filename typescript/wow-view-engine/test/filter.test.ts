@@ -31,7 +31,7 @@ import {
   type FilterOperatorName,
 } from '../src/model/index.js';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   compileFilter,
   createFieldKindRegistry,
   validateFilter,
@@ -73,7 +73,9 @@ describe('validateFilter', () => {
       ],
     });
     for (const op of ['and', 'or', 'nor'] as const)
-      expect(validateFilter(fields, twice(op), builtinFieldKinds)).toEqual([
+      expect(
+        validateFilter(fields, twice(op), builtinFieldKindRegistry),
+      ).toEqual([
         expect.objectContaining({
           code: 'filter.field.duplicate-in-group',
           path: ['children', 2],
@@ -111,7 +113,9 @@ describe('validateFilter', () => {
         },
       ],
     };
-    expect(validateFilter(withItems, twiceBlank, builtinFieldKinds)).toEqual([
+    expect(
+      validateFilter(withItems, twiceBlank, builtinFieldKindRegistry),
+    ).toEqual([
       expect.objectContaining({
         code: 'filter.field.duplicate-in-group',
         path: ['children', 0, 'children', 1],
@@ -130,7 +134,9 @@ describe('validateFilter', () => {
         },
       ],
     };
-    expect(validateFilter(fields, nested, builtinFieldKinds)).toEqual([]);
+    expect(validateFilter(fields, nested, builtinFieldKindRegistry)).toEqual(
+      [],
+    );
   });
 
   /**
@@ -154,7 +160,7 @@ describe('validateFilter', () => {
       ...children: FilterTree['children']
     ): FilterTree => ({ op, children });
     const codes = (filter: FilterTree) =>
-      validateFilter(fields, filter, builtinFieldKinds).map(
+      validateFilter(fields, filter, builtinFieldKindRegistry).map(
         found => `${found.code}@${found.path.join('.')}`,
       );
 
@@ -174,9 +180,9 @@ describe('validateFilter', () => {
   });
 
   it('admits an empty tree', () => {
-    expect(validateFilter(fields, emptyFilter(), builtinFieldKinds)).toEqual(
-      [],
-    );
+    expect(
+      validateFilter(fields, emptyFilter(), builtinFieldKindRegistry),
+    ).toEqual([]);
   });
 
   it('reports an unknown field and an unsupported operator', () => {
@@ -186,7 +192,7 @@ describe('validateFilter', () => {
         { field: 'missing', operator: FilterOperator.EQ, value: 'x' },
         { field: 'amount', operator: FilterOperator.CONTAINS, value: 'x' },
       ),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(errors(issues)).toEqual([
       'filter.field.unknown',
@@ -201,7 +207,7 @@ describe('validateFilter', () => {
     const issues = validateFilter(
       custom,
       tree({ field: 'colour', operator: FilterOperator.EQ, value: 'red' }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(errors(issues)).toEqual(['filter.kind.unregistered']);
   });
@@ -211,7 +217,7 @@ describe('validateFilter', () => {
       { name: 'grade', label: 'Grade', kind: 'brittle' },
     ];
     const brittle: FieldKind = {
-      ...builtinFieldKinds.get('string')!,
+      ...builtinFieldKindRegistry.get('string')!,
       id: 'brittle',
       validate: () => {
         throw new Error('brittle is broken');
@@ -220,7 +226,7 @@ describe('validateFilter', () => {
     const issues = validateFilter(
       custom,
       tree({ field: 'grade', operator: FilterOperator.EQ, value: 'A' }),
-      withFieldKinds(builtinFieldKinds, [brittle]),
+      withFieldKinds(builtinFieldKindRegistry, [brittle]),
     );
     expect(issues).toEqual([
       {
@@ -251,7 +257,7 @@ describe('validateFilter', () => {
         validateFilter(
           narrowed,
           tree({ field: 'id', operator: FilterOperator.CONTAINS, value: 'A' }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['filter.operator.unsupported']);
@@ -274,7 +280,7 @@ describe('validateFilter', () => {
           value: { type: 'nope' },
         },
       ),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(errors(issues)).toEqual([
       'filter.value.inverted-range',
@@ -292,7 +298,7 @@ describe('validateFilter', () => {
     });
     for (let depth = 0; depth < 20; depth += 1) deep = tree(deep);
 
-    const issues = validateFilter(fields, deep, builtinFieldKinds);
+    const issues = validateFilter(fields, deep, builtinFieldKindRegistry);
     expect(errors(issues)).toEqual(['filter.tree.too-deep']);
 
     const wide = tree(
@@ -302,9 +308,9 @@ describe('validateFilter', () => {
         value: 'A',
       })),
     );
-    expect(errors(validateFilter(fields, wide, builtinFieldKinds))).toEqual([
-      'filter.tree.too-many-nodes',
-    ]);
+    expect(
+      errors(validateFilter(fields, wide, builtinFieldKindRegistry)),
+    ).toEqual(['filter.tree.too-many-nodes']);
   });
 
   it('honours limits supplied by the caller', () => {
@@ -313,7 +319,7 @@ describe('validateFilter', () => {
     );
     expect(
       errors(
-        validateFilter(fields, nested, builtinFieldKinds, {
+        validateFilter(fields, nested, builtinFieldKindRegistry, {
           limits: { maxFilterDepth: 2, maxFilterNodes: 100 },
         }),
       ),
@@ -324,7 +330,7 @@ describe('validateFilter', () => {
 describe('compileFilter', () => {
   it('compiles an empty tree to MATCH_ALL', () => {
     expect(
-      compileFilter(fields, emptyFilter(), builtinFieldKinds, context),
+      compileFilter(fields, emptyFilter(), builtinFieldKindRegistry, context),
     ).toEqual({ op: FilterOperator.MATCH_ALL });
   });
 
@@ -332,7 +338,7 @@ describe('compileFilter', () => {
     const single = compileFilter(
       fields,
       tree({ field: 'id', operator: FilterOperator.EQ, value: 'A1' }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
       context,
     );
     expect(single).toMatchObject({ op: FilterOperator.EQ, field: 'id' });
@@ -346,7 +352,7 @@ describe('compileFilter', () => {
           { field: 'amount', operator: FilterOperator.GT, value: 10 },
         ],
       },
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
       context,
     );
     expect(pair).toMatchObject({ op: FilterOperator.OR });
@@ -356,7 +362,7 @@ describe('compileFilter', () => {
     const compiled = compileFilter(
       fields,
       tree(tree(), { field: 'id', operator: FilterOperator.EQ, value: 'A1' }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
       context,
     );
     expect(compiled).toMatchObject({ op: FilterOperator.EQ });
@@ -375,7 +381,7 @@ describe('compileFilter', () => {
         },
         { field: 'id', operator: FilterOperator.IS_NULL, value: null },
       ),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
       context,
     );
     expect(compiled).toMatchObject({
@@ -394,7 +400,7 @@ describe('compileFilter', () => {
       compileFilter(
         fields,
         tree({ field: 'missing', operator: FilterOperator.EQ, value: 'A' }),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
         context,
       ),
     ).toThrow(/undeclared field/);
@@ -416,7 +422,7 @@ describe('text comparison', () => {
         operator: `${FilterOperator.CONTAINS}`,
         value: 'cn',
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
       context,
     );
 
@@ -451,7 +457,7 @@ describe('text comparison', () => {
       compileFilter(
         fields,
         tree({ field: 'id', operator, value: 'cn' }),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
         context,
       ),
     ).toMatchObject({ stringComparison: StringComparison.CASE_INSENSITIVE });
@@ -479,7 +485,11 @@ describe('unfinished conditions', () => {
   ])('admits %s left unfilled', (field, operator, value) => {
     expect(
       errors(
-        validateFilter(fields, leaf(field, operator, value), builtinFieldKinds),
+        validateFilter(
+          fields,
+          leaf(field, operator, value),
+          builtinFieldKindRegistry,
+        ),
       ),
     ).toEqual([]);
   });
@@ -490,7 +500,7 @@ describe('unfinished conditions', () => {
       compileFilter(
         fields,
         leaf('amount', `${FilterOperator.EQ}`, null),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
         context,
       ),
     ).toEqual({ op: FilterOperator.MATCH_ALL });
@@ -507,7 +517,7 @@ describe('unfinished conditions', () => {
     );
 
     expect(
-      compileFilter(fields, mixed, builtinFieldKinds, context),
+      compileFilter(fields, mixed, builtinFieldKindRegistry, context),
     ).toMatchObject({
       op: FilterOperator.EQ,
       field: 'id',
@@ -526,7 +536,9 @@ describe('unfinished conditions', () => {
     );
 
     expect(
-      describeFilter(fields, mixed, builtinFieldKinds).map(item => item.field),
+      describeFilter(fields, mixed, builtinFieldKindRegistry).map(
+        item => item.field,
+      ),
     ).toEqual(['id']);
   });
 
@@ -537,7 +549,7 @@ describe('unfinished conditions', () => {
         validateFilter(
           fields,
           leaf('id', `${FilterOperator.EQ}`, 7),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['filter.value.expected-string']);
@@ -548,11 +560,11 @@ describe('unfinished conditions', () => {
     // delete what the user asked for.
     const presence = leaf('id', `${FilterOperator.IS_NULL}`, null);
 
-    expect(errors(validateFilter(fields, presence, builtinFieldKinds))).toEqual(
-      [],
-    );
     expect(
-      compileFilter(fields, presence, builtinFieldKinds, context),
+      errors(validateFilter(fields, presence, builtinFieldKindRegistry)),
+    ).toEqual([]);
+    expect(
+      compileFilter(fields, presence, builtinFieldKindRegistry, context),
     ).toMatchObject({
       op: FilterOperator.IS_NULL,
       field: 'id',
@@ -579,7 +591,9 @@ describe('nor groups', () => {
 
   it('is admitted like the other two', () => {
     expect(
-      errors(validateFilter(fields, norTree(order('o-1')), builtinFieldKinds)),
+      errors(
+        validateFilter(fields, norTree(order('o-1')), builtinFieldKindRegistry),
+      ),
     ).toEqual([]);
   });
 
@@ -588,7 +602,7 @@ describe('nor groups', () => {
       compileFilter(
         fields,
         norTree(order('o-1'), order('o-2')),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
         context,
       ),
     ).toMatchObject({
@@ -604,7 +618,12 @@ describe('nor groups', () => {
     // An `and` or an `or` of one is that one condition, but a `nor` of one is
     // its negation: collapsing it would compile to exactly what it excludes.
     expect(
-      compileFilter(fields, norTree(order('o-1')), builtinFieldKinds, context),
+      compileFilter(
+        fields,
+        norTree(order('o-1')),
+        builtinFieldKindRegistry,
+        context,
+      ),
     ).toMatchObject({
       op: FilterOperator.NOR,
       operands: [{ op: FilterOperator.EQ, field: 'id', value: 'o-1' }],
@@ -613,7 +632,7 @@ describe('nor groups', () => {
 
   it('carries no condition when it is empty', () => {
     expect(
-      compileFilter(fields, norTree(), builtinFieldKinds, context),
+      compileFilter(fields, norTree(), builtinFieldKindRegistry, context),
     ).toEqual({ op: FilterOperator.MATCH_ALL });
   });
 
@@ -628,7 +647,7 @@ describe('nor groups', () => {
         validateFilter(
           fields,
           { op: 'xor' as never, children: [order('o-1')] },
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['filter.group.unknown-operator']);
@@ -691,7 +710,7 @@ describe('fieldGroups', () => {
 
 describe('the field kind registry', () => {
   it('ships the document-field kinds and the metadata kinds', () => {
-    expect([...builtinFieldKinds.keys()].sort()).toEqual(
+    expect([...builtinFieldKindRegistry.keys()].sort()).toEqual(
       [
         'boolean',
         'date',
@@ -730,7 +749,7 @@ describe('the field kind registry', () => {
       }),
     };
 
-    const kinds = withFieldKinds(builtinFieldKinds, [colour]);
+    const kinds = withFieldKinds(builtinFieldKindRegistry, [colour]);
     const custom: FieldDefinition[] = [
       { name: 'colour', label: 'Colour', kind: 'colour' },
     ];
@@ -755,7 +774,7 @@ describe('the field kind registry', () => {
       ),
     ).toEqual(['colour.invalid']);
     // The built-in registry is untouched.
-    expect(builtinFieldKinds.has('colour')).toBe(false);
+    expect(builtinFieldKindRegistry.has('colour')).toBe(false);
   });
 
   it('builds a registry from scratch', () => {
@@ -791,7 +810,11 @@ describe('malformed trees', () => {
     ['a leaf without an operator', { field: 'id', value: 'x' }],
   ])('reports %s at its path instead of throwing', (_name, child) => {
     expect(
-      validateFilter(fields, malformed(order('o-1'), child), builtinFieldKinds),
+      validateFilter(
+        fields,
+        malformed(order('o-1'), child),
+        builtinFieldKindRegistry,
+      ),
     ).toEqual([
       { code: 'filter.node.invalid', severity: 'error', path: ['children', 1] },
     ]);
@@ -799,16 +822,16 @@ describe('malformed trees', () => {
 
   it('reports a root that is not a group', () => {
     for (const root of [null, undefined, 5, order('o-1'), { op: 'and' }])
-      expect(validateFilter(fields, root as never, builtinFieldKinds)).toEqual([
-        { code: 'filter.node.invalid', severity: 'error', path: [] },
-      ]);
+      expect(
+        validateFilter(fields, root as never, builtinFieldKindRegistry),
+      ).toEqual([{ code: 'filter.node.invalid', severity: 'error', path: [] }]);
   });
 
   it('finds every malformed entry, at any depth, in one round', () => {
     const found = validateFilter(
       fields,
       malformed(null, { op: 'or', children: [order('o-1'), 'x'] }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(found.map(i => i.path)).toEqual([
       ['children', 0],
@@ -819,7 +842,9 @@ describe('malformed trees', () => {
   it('charges a malformed entry to the node budget', () => {
     const nulls = Array.from({ length: 300 }, () => null);
     expect(
-      errors(validateFilter(fields, malformed(...nulls), builtinFieldKinds)),
+      errors(
+        validateFilter(fields, malformed(...nulls), builtinFieldKindRegistry),
+      ),
     ).toEqual(['filter.tree.too-many-nodes']);
   });
 
@@ -827,14 +852,25 @@ describe('malformed trees', () => {
     const damaged = malformed(null, order('o-1'), 5);
 
     expect(
-      describeFilter(fields, damaged, builtinFieldKinds).map(i => i.field),
+      describeFilter(fields, damaged, builtinFieldKindRegistry).map(
+        i => i.field,
+      ),
     ).toEqual(['id']);
-    expect(compileFilter(fields, damaged, builtinFieldKinds, context)).toEqual(
-      compileFilter(fields, tree(order('o-1')), builtinFieldKinds, context),
+    expect(
+      compileFilter(fields, damaged, builtinFieldKindRegistry, context),
+    ).toEqual(
+      compileFilter(
+        fields,
+        tree(order('o-1')),
+        builtinFieldKindRegistry,
+        context,
+      ),
     );
     expect(
-      compileFilter(fields, null as never, builtinFieldKinds, context),
-    ).toEqual(compileFilter(fields, emptyFilter(), builtinFieldKinds, context));
+      compileFilter(fields, null as never, builtinFieldKindRegistry, context),
+    ).toEqual(
+      compileFilter(fields, emptyFilter(), builtinFieldKindRegistry, context),
+    );
   });
 
   it('is never a simple tree and never a node the editor can address', () => {
@@ -862,7 +898,7 @@ describe('validateDataConfigBase', () => {
         refresh: { interval: null },
         ...overrides,
       } as unknown as DataViewConfigBase,
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
 
   it('reports a filter that is not a group', () => {
@@ -897,7 +933,11 @@ describe('validateDataConfigBase', () => {
   it('reports a config that is not an object at all', () => {
     for (const config of [null, undefined, 5, 'x', []])
       expect(
-        validateDataConfigBase(fields, config as never, builtinFieldKinds),
+        validateDataConfigBase(
+          fields,
+          config as never,
+          builtinFieldKindRegistry,
+        ),
       ).toEqual([{ code: 'config.invalid', severity: 'error', path: [] }]);
   });
 });

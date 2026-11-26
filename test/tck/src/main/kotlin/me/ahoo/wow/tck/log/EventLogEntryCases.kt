@@ -21,6 +21,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.Hop
@@ -44,6 +45,7 @@ import org.junit.jupiter.api.assertThrows
  * transport, and how a tail reads the entries back in sequence. They read only [EventLogFixtures]' fixtures, hooks and
  * constants; see [EventLogFixtures] for the chain of families this class is part of.
  */
+@WowSpi
 abstract class EventLogEntryCases internal constructor() : EventLogAccessCases() {
     @Test
     fun `transport is given back by tail and readEntries only`(): Unit = runBlocking {
@@ -51,7 +53,7 @@ abstract class EventLogEntryCases internal constructor() : EventLogAccessCases()
         val transport = Transport(
             wait = WaitContext(
                 waitId = "w-1",
-                origin = Origin("node-1", "10.0.0.7:8081", "order-service"),
+                origin = Origin("order-service", "node-1", "10.0.0.7:8081"),
                 remaining = listOf(
                     Hop.handled("payment-saga", "payment"),
                     Hop.committed("inventory"),
@@ -70,7 +72,7 @@ abstract class EventLogEntryCases internal constructor() : EventLogAccessCases()
         log.append(carried, TransportCodec.encode(transport))
         log.append(stream("a", 2))
         log.append(stream("a", 3), TransportCodec.encode(Transport(trace = mapOf("traceparent" to "t"))))
-        val entries = withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(3).toList() }
+        val entries = withTimeout(tailTimeout) { log.tail(0).take(3).toList() }
         entries[0].decodedTransport.assert().isEqualTo(transport)
         entries[0].stream.assertSameAs(carried)
         entries[1].transport.assert().isNull()
@@ -97,7 +99,7 @@ abstract class EventLogEntryCases internal constructor() : EventLogAccessCases()
         val ref = stream("a", 1).ref
         log.append(stream("a", 1), future)
         log.appendAll(listOf(Append.of(stream("a", 2), future)))
-        val tailed = withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(2).toList() }
+        val tailed = withTimeout(tailTimeout) { log.tail(0).take(2).toList() }
         tailed.forEach { entry ->
             entry.transport.assert().isEqualTo(future)
             entry.decodedTransport.assert().isEqualTo(Transport(trace = mapOf("traceparent" to "t")))
@@ -147,7 +149,7 @@ abstract class EventLogEntryCases internal constructor() : EventLogAccessCases()
             listOf(Append.of(stream(first, 1), TransportCodec.encode(transport)), Append.of(stream(second, 1)))
         )
             .forEach { it.assert().isInstanceOf(AppendOutcome.Committed::class.java) }
-        val entries = withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(2).toList() }
+        val entries = withTimeout(tailTimeout) { log.tail(0).take(2).toList() }
         entries.associate { it.stream.ref.id to it.decodedTransport }
             .assert().isEqualTo(mapOf(first to transport, second to null))
     }
@@ -163,7 +165,7 @@ abstract class EventLogEntryCases internal constructor() : EventLogAccessCases()
         val transport = Transport(
             wait = WaitContext(
                 waitId = "w-1",
-                origin = Origin("node-1", "10.0.0.7:8081", "order-service"),
+                origin = Origin("order-service", "node-1", "10.0.0.7:8081"),
                 remaining = listOf(Hop.snapshot()),
                 deadline = 1_700_000_010_000L,
             ),
@@ -187,7 +189,7 @@ abstract class EventLogEntryCases internal constructor() : EventLogAccessCases()
         }.map { (appended, outcome) ->
             Triple((outcome as AppendOutcome.Committed).position, appended.stream, appended.transport)
         }
-        val read = withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(3).toList() }
+        val read = withTimeout(tailTimeout) { log.tail(0).take(3).toList() }
         read.map { it.position }.assert().isEqualTo(handed.map { it.first })
         read.map { it.decodedTransport }.assert().isEqualTo(handed.map { it.third?.let(TransportCodec::decode) })
         read.zip(handed).forEach { (entry, expected) -> entry.stream.assertSameAs(expected.second) }
@@ -275,7 +277,7 @@ abstract class EventLogEntryCases internal constructor() : EventLogAccessCases()
     fun `tail never skips a committed entry, however appends interleave`(): Unit = runBlocking {
         val log = createLog(partitions = 1)
         val total = 200
-        val tailed = async { withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(total).toList() } }
+        val tailed = async { withTimeout(tailTimeout) { log.tail(0).take(total).toList() } }
         coroutineScope {
             (1..10).forEach { writer ->
                 launch { (1..total / 10).forEach { log.append(stream("w$writer", it)) } }
@@ -293,8 +295,8 @@ abstract class EventLogEntryCases internal constructor() : EventLogAccessCases()
     fun `tail resumes after a position with the same entries`(): Unit = runBlocking {
         val log = createLog(partitions = 1)
         (1..10).forEach { log.append(stream("a", it)) }
-        val first = withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(10).toList() }
-        val resumed = withTimeout(TAIL_TIMEOUT_MS) { log.tail(0, after = 4).take(6).toList() }
+        val first = withTimeout(tailTimeout) { log.tail(0).take(10).toList() }
+        val resumed = withTimeout(tailTimeout) { log.tail(0, after = 4).take(6).toList() }
         resumed.assert().isEqualTo(first.drop(4))
     }
 
@@ -305,7 +307,7 @@ abstract class EventLogEntryCases internal constructor() : EventLogAccessCases()
             val perWriter = 10
             val writers = (1..4).flatMap { listOf(type to "w$it", other to "w$it") }
             val total = writers.size * perWriter
-            val tailed = async { withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(total).toList() } }
+            val tailed = async { withTimeout(tailTimeout) { log.tail(0).take(total).toList() } }
             coroutineScope {
                 writers.forEach { (aggregate, id) ->
                     launch {
@@ -324,7 +326,7 @@ abstract class EventLogEntryCases internal constructor() : EventLogAccessCases()
             }
             log.head(0).assert().isEqualTo(entries.last().position.sequence)
             val after = entries[6].position.sequence
-            val resumed = withTimeout(TAIL_TIMEOUT_MS) { log.tail(0, after = after).take(total - 7).toList() }
+            val resumed = withTimeout(tailTimeout) { log.tail(0, after = after).take(total - 7).toList() }
             resumed.assert().isEqualTo(entries.drop(7))
             log.read(other.ref("tenant", "w1")).toList().map { it.ref.type }.distinct().assert().containsExactly(other)
             log.readEntries(type.ref("tenant", "w1")).toList().map { it.position }

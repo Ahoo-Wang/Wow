@@ -90,6 +90,11 @@ export function checkManifest<M extends RoutingManifest>(manifest: M): M {
 /**
  * The service's Manifest, `GET /wow/manifest`, authorized as any API.
  *
+ * A service whose public port serves no Manifest (its
+ * `wow.http.manifest.enabled` is off, the default there) answers `404`, and
+ * the error says how a client routes without it: the routing Manifest a
+ * generated client carries, or the service serving its own.
+ *
  * @param client - How the service is reached
  * @param options - Headers and cancellation
  */
@@ -97,13 +102,35 @@ export async function fetchManifest(
   client: WowClientOptions = {},
   options?: RequestOptions,
 ): Promise<Manifest> {
-  const answer = await send(client, {
-    method: 'GET',
-    path: '/wow/manifest',
-    numbers: {},
-    options,
-  });
+  let answer: Awaited<ReturnType<typeof send>>;
+  try {
+    answer = await send(client, {
+      method: 'GET',
+      path: '/wow/manifest',
+      numbers: {},
+      options,
+    });
+  } catch (error) {
+    throw unserved(error);
+  }
   return checkManifest(await answer.json<Manifest>());
+}
+
+/** What a client given no Manifest does when the service serves none. */
+const MANIFEST_NOT_SERVED =
+  'The service serves no Manifest (GET /wow/manifest answered 404): give the client the routing Manifest a generated client carries (its `manifest` option), or have the service serve its own (`wow.http.manifest.enabled: true`).';
+
+/**
+ * The error of a Manifest read that failed with `error`: a `404` says what
+ * to do instead (D485 ③), the problem's status and code kept and the
+ * service's own answer as its cause; any other is the read's as it came.
+ */
+function unserved(error: unknown): unknown {
+  if (!(error instanceof WowProblemError) || error.status !== 404) return error;
+  return new WowProblemError(
+    { ...error.problem, detail: MANIFEST_NOT_SERVED },
+    { cause: error },
+  );
 }
 
 /**

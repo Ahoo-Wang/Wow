@@ -14,6 +14,7 @@
 package me.ahoo.wow.spi.state
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.JsonNode
 
@@ -30,6 +31,7 @@ import tools.jackson.databind.JsonNode
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
+@WowSpi
 class PublishedState private constructor(
     val version: Int,
     val schemaFingerprint: String,

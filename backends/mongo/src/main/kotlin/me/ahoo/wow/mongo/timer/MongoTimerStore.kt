@@ -32,6 +32,8 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Causation
+import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.mongo.MongoDatabases
 import me.ahoo.wow.mongo.MongoFailures
 import me.ahoo.wow.mongo.MongoFormat
@@ -41,9 +43,11 @@ import me.ahoo.wow.mongo.MongoRules
 import me.ahoo.wow.mongo.MongoSharding
 import me.ahoo.wow.mongo.MongoShards
 import me.ahoo.wow.mongo.MongoTimeouts
+import me.ahoo.wow.mongo.UnknownStoredValues
 import me.ahoo.wow.mongo.conditionalUpsert
 import me.ahoo.wow.mongo.isDuplicateKey
 import me.ahoo.wow.mongo.mongo
+import me.ahoo.wow.mongo.timer.MongoTimerMerge.DueRow
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.log.Partitioner
@@ -54,6 +58,9 @@ import me.ahoo.wow.spi.timer.TimerStatus
 import me.ahoo.wow.spi.timer.TimerStore
 import org.bson.Document
 import org.bson.conversions.Bson
+import tools.jackson.core.JacksonException
+import tools.jackson.databind.exc.InvalidFormatException
+import tools.jackson.databind.exc.InvalidTypeIdException
 import kotlin.time.Duration
 
 /**
@@ -77,7 +84,10 @@ import kotlin.time.Duration
  * `(partition, due_at, timer_id)` of the PENDING and FIRING (claimed) timers, merged by due time. Its unions, one a
  * partition and collection, go in aggregations of at most [UNIONS] each, below MongoDB's 1,000 stages, whose timers
  * are merged as one aggregation would have merged them ([MongoTimerMerge]). A count other than the collections read
- * tells the store to read the registry again, so a collection another node created is read at once. The body is kept
+ * tells the store to read the registry again, so a collection another node created is read at once. A timer whose
+ * rule this version cannot read (a later version's) is skipped and warned of once per value; only a partition whose
+ * page came back full and held such a timer is read on past it, from the last document read, so those documents never
+ * starve the timers behind them. The body is kept
  * as the command's JSON text, the rule as a subdocument (`{type, ...}`, as Wow's JSON writes it). The layout is one
  * collection per aggregate type; the timers are a view rebuilt from the log.
  *
@@ -161,7 +171,8 @@ class MongoTimerStore(
         MongoFormat.index(
             timers,
             Indexes.ascending(TARGET_CONTEXT, TARGET_AGGREGATE, TARGET_TENANT_ID, TARGET_ID),
-            IndexOptions().name(PARKED_INDEX).partialFilterExpression(Filters.eq(STATUS, TimerStatus.PARKED.name)),
+            IndexOptions().name(PARKED_INDEX)
+                .partialFilterExpression(Filters.eq(STATUS, WireNames.of(TimerStatus.PARKED))),
             ddl,
         )
         if (sharded) {
@@ -176,30 +187,46 @@ class MongoTimerStore(
      * and the due read reads the collections it lists, dropping one this store knows that the registry's count leaves
      * out, so a collection that exists without one (a database restored without the registry's documents, collections
      * made by hand) would never come due. A collection that does not exist yet is recorded too: MongoDB reads a missing
-     * collection as empty, and under `ddl: none` the first timer creates it. A record this store cannot write is
-     * refused, naming the document to insert; a failure of the store's connection is thrown as it is.
+     * collection as empty, and under `ddl: none` the first timer creates it.
+     *
+     * The record is read first and written only when missing, as on PostgreSQL: MongoDB checks an account's privilege
+     * before the key, so an insert of a record already there by an account that may only read the registry is refused
+     * as unauthorized, not answered as a duplicate (#7069). A record this store cannot write is refused, naming the
+     * document to insert; a failure of the store's connection is thrown as it is.
      */
     private fun record(collection: TimerCollection, aggregate: String) {
+        val holder = holderOf(collection) ?: run {
+            insert(collection, aggregate)
+            // Read on the primary (MongoDatabases), which holds the record the duplicate key met: another node's
+            // insert. The driver's duplicate key says no more than that the record is there now, not that a majority
+            // holds it, which a failover of the primary may still undo.
+            holderOf(collection)!!
+        }
+        check(holder.getString(CONTEXT) == context && holder.getString(AGGREGATE) == aggregate) {
+            "The aggregate $aggregate of $context takes the timer collection ${collection.name}, " +
+                "which the aggregate ${holder.getString(AGGREGATE)} of ${holder.getString(CONTEXT)} has."
+        }
+    }
+
+    private fun holderOf(collection: TimerCollection): Document? =
+        registry.find(Filters.eq(REGISTRY_ID, collection.name)).first()
+
+    /** Inserts the record of [collection], [aggregate]'s; another node's insert of it first is no failure. */
+    private fun insert(collection: TimerCollection, aggregate: String) {
         try {
             registry.insertOne(
                 Document(REGISTRY_ID, collection.name).append(CONTEXT, context).append(AGGREGATE, aggregate),
             )
         } catch (failure: MongoException) {
-            if (!failure.isDuplicateKey()) {
-                if (MongoFailures.isTransient(failure)) throw failure
-                throw IllegalStateException(
-                    "The registry $REGISTRY has no record of the timer collection ${collection.name}, and this store " +
-                        "could not write it (${failure.message}): its timers would never be due. Let the store's " +
-                        "account insert into $REGISTRY, or insert {_id: \"${collection.name}\", context: " +
-                        "\"$context\", aggregate: \"$aggregate\"} into it.",
-                    failure,
-                )
-            }
-        }
-        val holder = registry.find(Filters.eq(REGISTRY_ID, collection.name)).first()!!
-        check(holder.getString(CONTEXT) == context && holder.getString(AGGREGATE) == aggregate) {
-            "The aggregate $aggregate of $context takes the timer collection ${collection.name}, " +
-                "which the aggregate ${holder.getString(AGGREGATE)} of ${holder.getString(CONTEXT)} has."
+            if (failure.isDuplicateKey()) return
+            if (MongoFailures.isTransient(failure)) throw failure
+            throw IllegalStateException(
+                "The registry $REGISTRY has no record of the timer collection ${collection.name}, and this store " +
+                    "could not write it (${failure.message}): its timers would never be due. Let the store's " +
+                    "account insert into $REGISTRY, or insert {_id: \"${collection.name}\", context: " +
+                    "\"$context\", aggregate: \"$aggregate\"} into it.",
+                failure,
+            )
         }
     }
 
@@ -241,12 +268,13 @@ class MongoTimerStore(
             Updates.set(CORRELATION_ID, timer.causation?.correlationId),
             Updates.set(CAUSATION_ID, timer.causation?.causationId),
             Updates.set(HEADERS, Document(timer.headers)),
-            Updates.set(STATUS, TimerStatus.PENDING.name),
+            Updates.set(STATUS, WireNames.of(TimerStatus.PENDING)),
             Updates.set(ATTEMPTS, 0),
             Updates.set(OUTCOME, null),
-            Updates.set(OPERATOR, MongoOperators.document(timer.operator)),
-            Updates.set(OWNER_ID, timer.scope.ownerId),
-            Updates.set(SPACE_ID, timer.scope.spaceId),
+            // A null is left out, as everywhere in Wow's documents.
+            setOrUnset(OPERATOR, MongoOperators.document(timer.operator)),
+            setOrUnset(OWNER_ID, timer.scope.ownerId),
+            setOrUnset(SPACE_ID, timer.scope.spaceId),
         )
         conditionalUpsert { upsert ->
             val result = timers.updateOne(replaceable, write, UpdateOptions().upsert(upsert))
@@ -269,7 +297,7 @@ class MongoTimerStore(
 
     override suspend fun find(owner: AggregateRef, key: String): Timer? = dispatcher.mongo {
         collectionOf(owner.type).timers.find(keyFilter(owner, key)).first()
-            ?.let { timerOf(it, owner.type.name) }
+            ?.let { refusedTimerOf(it, owner.type.name) }
     }
 
     override suspend fun due(partitions: Set<Int>, until: Long, perPartition: Int): List<Timer> {
@@ -278,8 +306,60 @@ class MongoTimerStore(
             return emptyList()
         }
         val branches = dueBranches(partitions, until, perPartition)
-        return dispatcher.mongo { unioned(branches, perPartition) }
+        return dispatcher.mongo {
+            val rows = unioned(branches, perPartition)
+            val timers = rows.mapNotNull { it.timer }
+            // A partition whose page came back full and held documents whose rule this version cannot read: those
+            // stay at the head of its due order, so the store reads on past them for the readable timers behind them.
+            val skipping = rows.groupBy { it.partition }
+                .filterValues { page -> page.size == perPartition && page.any { it.timer == null } }
+            if (skipping.isEmpty()) {
+                timers
+            } else {
+                val behind = skipping.flatMap { (partition, page) ->
+                    val wanted = perPartition - page.count { it.timer != null }
+                    readOn(partition, until, perPartition, wanted, page.last())
+                }
+                (timers + behind).sortedWith(MongoTimerMerge.TIMERS)
+            }
+        }
     }
+
+    /**
+     * Up to [wanted] readable due timers of [partition] after [last], read [page] documents at a time in due order
+     * until there are [wanted] or the due documents end: the due read's continuation past documents it skipped, run
+     * in that case alone.
+     */
+    private fun readOn(partition: Int, until: Long, page: Int, wanted: Int, last: DueRow): List<Timer> = buildList {
+        var after = last
+        while (size < wanted) {
+            val rows = unioned(afterBranches(partition, until, after, page), perPartition = null).take(page)
+            rows.forEach { row -> if (row.timer != null && size < wanted) add(row.timer) }
+            if (rows.size < page) {
+                break
+            }
+            after = rows.last()
+        }
+    }
+
+    /** Each collection's share of the read on past [after]: [partition]'s next [limit] due timers, in due order. */
+    private fun afterBranches(partition: Int, until: Long, after: DueRow, limit: Int): List<List<Bson>> = listOf(
+        listOf(
+            Aggregates.match(
+                Filters.and(
+                    Filters.eq(PARTITION, partition),
+                    Filters.`in`(STATUS, DUE_STATUSES),
+                    Filters.lte(DUE_AT, until),
+                    Filters.or(
+                        Filters.gt(DUE_AT, after.dueAt),
+                        Filters.and(Filters.eq(DUE_AT, after.dueAt), Filters.gt(TIMER_ID, after.id)),
+                    ),
+                ),
+            ),
+            Aggregates.sort(DUE_ORDER),
+            Aggregates.limit(limit),
+        ),
+    )
 
     /**
      * Each collection's share of the due read: for each of [partitions], its first [limit] timers due by [until],
@@ -348,11 +428,11 @@ class MongoTimerStore(
      * what they read ([MongoTimerMerge]); when the registry holds other collections than those read, reads the registry
      * and runs them once more.
      */
-    private fun unioned(branches: List<List<Bson>>, perPartition: Int?): List<Timer> {
+    private fun unioned(branches: List<List<Bson>>, perPartition: Int?): List<DueRow> {
         var known = known()
         while (true) {
             val counts = ArrayList<Int>()
-            val timers = buildList {
+            val rows = buildList {
                 pipelines(known, branches, perPartition).forEach { pipeline ->
                     // No count when the registry lists none of the context's collections.
                     var count = 0
@@ -361,18 +441,20 @@ class MongoTimerStore(
                         if (branchIndex == null) {
                             count = document.getInteger(REGISTERED)
                         } else {
-                            add(timerOf(document, known[branchIndex].aggregate))
+                            val timer = readableTimerOf(document, known[branchIndex].aggregate)
+                            val dueAt = document.getLong(DUE_AT)
+                            add(DueRow(document.getInteger(PARTITION), dueAt, document.getString(TIMER_ID), timer))
                         }
                     }
                     counts += count
                 }
             }
             if (counts.all { it == known.size }) {
-                return MongoTimerMerge.merged(timers, perPartition)
+                return MongoTimerMerge.merged(rows, perPartition)
             }
             val read = register()
             if (read.map { it.name }.toSet() == known.map { it.name }.toSet()) {
-                return MongoTimerMerge.merged(timers, perPartition)
+                return MongoTimerMerge.merged(rows, perPartition)
             }
             known = read
         }
@@ -413,14 +495,14 @@ class MongoTimerStore(
             Filters.and(
                 keyFilter(loaded.owner, loaded.key),
                 Filters.eq(TIMER_ID, loaded.id),
-                Filters.eq(STATUS, loaded.status.name),
+                Filters.eq(STATUS, WireNames.of(loaded.status)),
                 Filters.eq(SLOT, loaded.slot),
                 Filters.eq(SLOT_DUE_AT, loaded.slotDueAt),
                 Filters.eq(ATTEMPTS, loaded.attempts),
                 Filters.eq(DUE_AT, loaded.dueAt),
             ),
             Updates.combine(
-                Updates.set(STATUS, next.status.name),
+                Updates.set(STATUS, WireNames.of(next.status)),
                 Updates.set(SLOT, next.slot),
                 Updates.set(SLOT_DUE_AT, next.slotDueAt),
                 Updates.set(SKIPPED, next.skipped),
@@ -439,7 +521,8 @@ class MongoTimerStore(
      */
     private fun landed(collection: TimerCollection, batch: List<TimerChange>, matched: Int): List<Boolean> {
         val held = collection.timers.find(Filters.or(batch.map { keyFilter(it.loaded.owner, it.loaded.key) }))
-            .map { timerOf(it, collection.aggregate) }
+            // A document a later version replaced with a rule this one cannot read holds no change of this one's.
+            .mapNotNull { readableTimerOf(it, collection.aggregate) }
             .associateBy { it.owner to it.key }
         val holds = batch.map { change -> held[change.next.owner to change.next.key]?.holds(change.next) == true }
         return if (holds.count { it } == matched) holds else batch.map { false }
@@ -456,9 +539,9 @@ class MongoTimerStore(
             Filters.eq(TARGET_AGGREGATE, target.type.name),
             Filters.eq(TARGET_TENANT_ID, target.tenantId),
             Filters.eq(TARGET_ID, target.id),
-            Filters.eq(STATUS, TimerStatus.PARKED.name),
+            Filters.eq(STATUS, WireNames.of(TimerStatus.PARKED)),
         )
-        unioned(listOf(listOf(Aggregates.match(filter))), perPartition = null)
+        unioned(listOf(listOf(Aggregates.match(filter))), perPartition = null).mapNotNull { it.timer }
     }
 
     private fun partitionOf(owner: AggregateRef): Int = Partitioner.partitionOf(owner, partitions)
@@ -476,14 +559,43 @@ class MongoTimerStore(
     )
 
     private fun cancellable(version: Int): Bson = Filters.and(
-        Filters.`in`(STATUS, TimerStatus.PENDING.name, TimerStatus.FIRING.name, TimerStatus.PARKED.name),
+        Filters.`in`(STATUS, listOf(TimerStatus.PENDING, TimerStatus.FIRING, TimerStatus.PARKED).map(WireNames::of)),
         Filters.lte(VERSION, version),
     )
 
     private fun cancelled(version: Int): Bson =
-        Updates.combine(Updates.set(STATUS, TimerStatus.CANCELLED.name), Updates.max(VERSION, version))
+        Updates.combine(Updates.set(STATUS, WireNames.of(TimerStatus.CANCELLED)), Updates.max(VERSION, version))
 
-    private fun timerOf(document: Document, aggregate: String) = Timer(
+    /**
+     * The timer of [document], or null for one whose rule this version cannot read (a later version's), which a read of
+     * many timers skips, leaving it for a node that can, and warns of once per value. The rule is decoded once.
+     */
+    private fun readableTimerOf(document: Document, aggregate: String): Timer? {
+        val stored = document.get(RULE, Document::class.java)
+        val rule = try {
+            MongoRules.of(stored)
+        } catch (failure: JacksonException) {
+            val (field, value) = unreadable(failure, stored)
+            unknown.warn(field, value)
+            return null
+        }
+        return timerOf(document, aggregate, rule)
+    }
+
+    /** The timer of [document], read alone: one whose rule this version cannot read is refused, naming the value. */
+    private fun refusedTimerOf(document: Document, aggregate: String): Timer {
+        val stored = document.get(RULE, Document::class.java)
+        val rule = try {
+            MongoRules.of(stored)
+        } catch (failure: JacksonException) {
+            val (field, value) = unreadable(failure, stored)
+            val message = "A timer's $field is $value, which this version of Wow does not read: ${stored.toJson()}."
+            throw IllegalStateException(message, failure)
+        }
+        return timerOf(document, aggregate, rule)
+    }
+
+    private fun timerOf(document: Document, aggregate: String, rule: ScheduleRule) = Timer(
         id = document.getString(TIMER_ID),
         owner = document.get(OWNER, Document::class.java).let { owner ->
             AggregateType(context, aggregate).ref(owner.getString(TENANT_ID), owner.getString(ID))
@@ -491,7 +603,7 @@ class MongoTimerStore(
         key = document.getString(KEY),
         version = document.getInteger(VERSION),
         partition = document.getInteger(PARTITION),
-        rule = MongoRules.of(document.get(RULE, Document::class.java)),
+        rule = rule,
         slot = document.getLong(SLOT),
         dueAt = document.getLong(DUE_AT),
         target = AggregateType(document.getString(TARGET_CONTEXT), document.getString(TARGET_AGGREGATE))
@@ -502,7 +614,11 @@ class MongoTimerStore(
         headers = document.get(HEADERS, Document::class.java).let { headers ->
             headers.keys.associateWith { headers.getString(it) }
         },
-        status = TimerStatus.valueOf(document.getString(STATUS)),
+        // By its wire name; a status this node does not know cannot be stored, as every node reads a new one before one
+        // writes it (TimerStatus).
+        status = checkNotNull(WireNames.entryOf<TimerStatus>(document.getString(STATUS))) {
+            "A timer's status ${document.getString(STATUS)} is not one this version of Wow reads."
+        },
         attempts = document.getInteger(ATTEMPTS),
         outcome = document.getString(OUTCOME),
         operator = MongoOperators.of(document.get(OPERATOR, Document::class.java)),
@@ -516,9 +632,28 @@ class MongoTimerStore(
         val name: String get() = timers.namespace.collectionName
     }
 
-    private companion object {
+    /** Sets [field] to [value], or leaves it out of the document when it is null. */
+    private fun setOrUnset(field: String, value: Any?): Bson =
+        value?.let { Updates.set(field, it) } ?: Updates.unset(field)
+
+    internal companion object {
         /** The version of this layout. */
         const val FORMAT = 1
+
+        /** The rule values of a later version this JVM's timer stores read, each warned of once. */
+        internal val unknown = UnknownStoredValues("the timers")
+
+        /**
+         * The field and the value of [rule], a stored rule, that [failure] says this version cannot read: a later
+         * version's rule type (`rule.type`), or a value of an enumeration (`rule.misfire`); the rule itself otherwise.
+         */
+        fun unreadable(failure: JacksonException, rule: Document): Pair<String, String> = when (failure) {
+            is InvalidTypeIdException -> "$RULE.type" to failure.typeId.toString()
+            is InvalidFormatException ->
+                failure.path.joinToString(".", prefix = "$RULE.") { it.propertyName ?: "${it.index}" } to
+                    "${failure.value}"
+            else -> RULE to rule.toJson()
+        }
         const val PREFIX = "wow_timer"
 
         /** The registry of timer collections, shared by every context. */
@@ -533,8 +668,10 @@ class MongoTimerStore(
         const val TIMER_KEY = "timer_key"
         const val DUE_INDEX = "timer_due"
         const val PARKED_INDEX = "timer_parked"
-        val DUE_STATUSES = listOf(TimerStatus.PENDING.name, TimerStatus.FIRING.name)
-        const val OWNER = "owner"
+        val DUE_STATUSES = listOf(TimerStatus.PENDING, TimerStatus.FIRING).map(WireNames::of)
+
+        /** The aggregate a timer belongs to, `{tenant_id, id}`. */
+        const val OWNER = "aggregate"
         const val AGGREGATE = "aggregate"
         const val TENANT_ID = "tenant_id"
         const val ID = "id"

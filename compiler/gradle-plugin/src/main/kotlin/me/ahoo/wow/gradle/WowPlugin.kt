@@ -75,38 +75,38 @@ class WowPlugin : Plugin<Project> {
         internal const val KOTLIN_JVM = "org.jetbrains.kotlin.jvm"
 
         /** The test suite of the container-backed tests the service plugin registers ([WowServicePlugin]). */
-        const val INTEGRATION_TEST: String = "integrationTest"
+        internal const val INTEGRATION_TEST: String = "integrationTest"
 
-        const val EXTENSION = "wow"
-        const val GENERATE_FRAGMENT_TASK = "generateWowManifestFragment"
-        const val MERGE_TASK = "mergeWowManifest"
-        const val OPENAPI_TASK = "generateWowOpenApi"
+        internal const val EXTENSION = "wow"
+        internal const val GENERATE_FRAGMENT_TASK = "generateWowManifestFragment"
+        internal const val MERGE_TASK = "mergeWowManifest"
+        internal const val OPENAPI_TASK = "generateWowOpenApi"
 
         /** The service module's task that writes the values of the `wow-service` Helm chart ([GenerateHelmValues]). */
-        const val HELM_VALUES_TASK = "generateWowHelmValues"
+        internal const val HELM_VALUES_TASK = "generateWowHelmValues"
 
-        /** The service module's task that renders its Kubernetes manifests from the chart ([GenerateManifests]). */
-        const val MANIFESTS_TASK = "generateWowManifests"
-        const val TOOLS_CONFIGURATION = "wowTools"
-        const val GENERATE_CONTRACT_TASK = "generateWowContract"
-        const val CONTRACT_ELEMENTS = "wowContractElements"
-        const val ASSEMBLE_CONTRACT_TASK = "assembleWowContract"
+        /** The service module's task that renders its Kubernetes manifests from the chart ([GenerateKubernetes]). */
+        internal const val KUBERNETES_TASK = "generateWowKubernetes"
+        internal const val TOOLS_CONFIGURATION = "wowTools"
+        internal const val GENERATE_CONTRACT_TASK = "generateWowContract"
+        internal const val CONTRACT_ELEMENTS = "wowContractElements"
+        internal const val ASSEMBLE_CONTRACT_TASK = "assembleWowContract"
 
         /** The api module's declarable configuration of its domain modules: `wowContract(project(":shop-domain"))`. */
-        const val CONTRACT_CONFIGURATION = "wowContract"
+        internal const val CONTRACT_CONFIGURATION = "wowContract"
 
         /** The resolvable configuration of the contracts of [CONTRACT_CONFIGURATION]'s domain modules. */
-        const val CONTRACTS_CONFIGURATION = "wowContracts"
-        const val GENERATE_CONTRACT_SOURCES_TASK = "generateWowContractSources"
-        const val CONTRACT_SOURCE_SET = "wowContract"
+        internal const val CONTRACTS_CONFIGURATION = "wowContracts"
+        internal const val GENERATE_CONTRACT_SOURCES_TASK = "generateWowContractSources"
+        internal const val CONTRACT_SOURCE_SET = "wowContract"
 
         /** The api module's jar of its contract and the code generated from it ([ContractRole]). */
-        const val CONTRACT_JAR_TASK = "wowContractJar"
-        const val CHECK_TASK = "checkWowManifest"
+        internal const val CONTRACT_JAR_TASK = "wowContractJar"
+        internal const val CHECK_TASK = "checkWowManifest"
 
         /** The Jackson gate of a domain or service module, part of `check` ([CheckJackson]). */
-        const val JACKSON_CHECK_TASK = "checkWowJackson"
-        const val UPDATE_BASELINE_TASK = "updateWowManifestBaseline"
+        internal const val JACKSON_CHECK_TASK = "checkWowJackson"
+        internal const val UPDATE_BASELINE_TASK = "updateWowManifestBaseline"
 
         /**
          * The attribute of an api module's own variants, the types, naming the feature that holds its contract
@@ -120,13 +120,13 @@ class WowPlugin : Plugin<Project> {
          * The Gradle property that lets [UPDATE_BASELINE_TASK] record a breaking change within the baseline's
          * compatibility line: `-Pwow.manifest.allowBreaking`, for pre-releases.
          */
-        const val ALLOW_BREAKING_PROPERTY = "wow.manifest.allowBreaking"
+        internal const val ALLOW_BREAKING_PROPERTY = "wow.manifest.allowBreaking"
 
         /** Where the Manifest baseline lives in the project by default. */
-        const val BASELINE_FILE = "manifest/baseline.json"
+        internal const val BASELINE_FILE = "manifest/baseline.json"
 
         /** The docs type of the peer contract's variant. */
-        const val CONTRACT_DOCS_TYPE = "wow-contract"
+        internal const val CONTRACT_DOCS_TYPE = "wow-contract"
 
         /** The oldest Gradle the plugin runs on: the first whose Kotlin DSL reads the plugin's Kotlin 2 metadata. */
         internal val MIN_GRADLE: GradleVersion = GradleVersion.version("9.0")

@@ -47,12 +47,16 @@ import type { DashboardEditing, DashboardFilterEditing } from './editing.js';
 import type { DashboardPanelState } from './panels.js';
 import type {
   CrossFilterOutcome,
-  DestinationBoard,
+  DestinationDashboard,
   PressDestination,
 } from './press.js';
 import type { PanelResolver } from './references.js';
 import type { ValueCandidateSources } from '../valueCandidates.js';
 
+/**
+ * A board's runtime state: the saved and draft config, and each panel's own
+ * state.
+ */
 export interface DashboardRuntimeState extends ViewRuntimeState<DashboardViewConfig> {
   /**
    * The applied panels. Loading, errors and data are each panel's own: a
@@ -254,7 +258,9 @@ export interface DashboardRuntime
    * so a mapping gone stale warns on the panel from then on. Never read
    * when this board opens. `null` for one gone, unreadable or not a board.
    */
-  destinationBoard(instanceId: string): Promise<DestinationBoard | null>;
+  destinationDashboard(
+    instanceId: string,
+  ): Promise<DestinationDashboard | null>;
   /**
    * What one data panel's view takes with it off the board (D26 Q30), in
    * its own field names: the board's fixed scope and the filters the page

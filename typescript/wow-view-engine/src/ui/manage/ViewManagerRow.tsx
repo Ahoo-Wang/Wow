@@ -523,7 +523,7 @@ export function ViewManagerOutcome({
             : undefined,
           reload: () => {
             void manager.resolveConflict(outcomeKey, 'reload');
-            list.reload();
+            list.refresh();
           },
           overwrite: () => {
             if (target) setReconfirming(true);

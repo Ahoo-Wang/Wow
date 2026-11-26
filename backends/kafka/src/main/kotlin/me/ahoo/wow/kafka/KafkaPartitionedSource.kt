@@ -23,6 +23,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.transport.PartitionOffsets
@@ -30,7 +31,6 @@ import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.SourceMessage
 import org.apache.kafka.clients.consumer.CloseOptions
 import org.apache.kafka.clients.consumer.Consumer
-import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.consumer.ConsumerRecords
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.consumer.OffsetOutOfRangeException
@@ -186,14 +186,7 @@ class KafkaPartitionedSource(
                     }
                     if (record.offset() >= next) {
                         next = record.offset() + 1
-                        emit(
-                            SourceMessage.of(
-                                record.offset(),
-                                record.key(),
-                                KafkaHeaders.of(record.headers()),
-                                record.value()
-                            )
-                        )
+                        emit(sourceMessageOf(record))
                     }
                 }
             }
@@ -250,7 +243,7 @@ class KafkaPartitionedSource(
                     try {
                         for (record in consumer.poll(timeout).records(target)) {
                             if (wanted.remove(record.offset())) {
-                                found[record.offset()] = message(record)
+                                found[record.offset()] = sourceMessageOf(record)
                             }
                         }
                         consumer.position(target)
@@ -266,9 +259,6 @@ class KafkaPartitionedSource(
         }
         return found
     }
-
-    private fun message(record: ConsumerRecord<String, ByteArray>): SourceMessage =
-        SourceMessage.of(record.offset(), record.key(), KafkaHeaders.of(record.headers()), record.value())
 
     /** Seeks [consumer] to [from] in [target], or where [offsetGap] says when the partition does not hold it. */
     private fun place(consumer: Consumer<String, ByteArray>, target: TopicPartition, from: Long): Long {
@@ -314,12 +304,14 @@ class KafkaPartitionedSource(
         private fun named(role: String) = "$role-${made.incrementAndGet()}"
 
         /** A source whose consumers have [options]' configuration ([KafkaOptions.consumerConfig]). */
+        @InternalWowApi
         fun create(options: KafkaOptions): KafkaPartitionedSource = create(options, OffsetGapPolicy.FAIL)
 
         /**
          * A source whose consumers have [options]' configuration, its reads meeting an offset gap as [offsetGap] says
          * and telling [observer] of it.
          */
+        @InternalWowApi
         fun create(
             options: KafkaOptions,
             offsetGap: OffsetGapPolicy,

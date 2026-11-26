@@ -19,9 +19,11 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.subscription.Member
+import me.ahoo.wow.spi.subscription.WowVersion
 import me.ahoo.wow.tck.MutableClock
 import org.junit.jupiter.api.Test
 import java.time.Clock
@@ -33,6 +35,7 @@ import kotlin.time.Duration.Companion.seconds
  * passes. A backend's test extends it and supplies a store whose time comes from [clock]; each test uses its own
  * group, so the tests may share one table.
  */
+@WowSpi
 abstract class LeaseStoreSpec {
     protected abstract fun createStore(clock: Clock): LeaseStore
 
@@ -165,8 +168,11 @@ abstract class LeaseStoreSpec {
     @Test
     fun `members are the nodes whose heartbeat is live`(): Unit = runBlocking {
         val other = group + "_other"
-        store.heartbeat(group, "node-b", address("node-b"), TTL)
-            .assert().isEqualTo(Member(group, "node-b", address("node-b"), clock.millis() + TTL.inWholeMilliseconds))
+        val written = store.heartbeat(group, "node-b", address("node-b"), TTL)
+        val expiresAt = clock.millis() + TTL.inWholeMilliseconds
+        written.assert().isEqualTo(
+            Member(group, "node-b", address("node-b"), expiresAt, wowVersion = written.wowVersion),
+        )
         store.heartbeat(group, "node-a", address("node-a"), TTL)
         store.heartbeat(other, "node-c", address("node-c"), TTL)
         store.members(group).map { it.node }.assert().containsExactly("node-a", "node-b")
@@ -197,8 +203,19 @@ abstract class LeaseStoreSpec {
             .assert().containsExactly("node-a" to "10.0.0.1:7070", "node-b" to "10.0.0.2:7070")
         clock.advance(1.seconds)
         val moved = store.heartbeat(group, "node-a", "10.0.0.9:7071", TTL)
-        moved.assert().isEqualTo(Member(group, "node-a", "10.0.0.9:7071", clock.millis() + TTL.inWholeMilliseconds))
+        val expiresAt = clock.millis() + TTL.inWholeMilliseconds
+        moved.assert().isEqualTo(
+            Member(group, "node-a", "10.0.0.9:7071", expiresAt, wowVersion = moved.wowVersion),
+        )
         store.members(group).first().assert().isEqualTo(moved)
+    }
+
+    /** A member record carries the node's version of Wow ([WowVersion.CURRENT]), or none, read back as written. */
+    @Test
+    fun `a member records the node's version of Wow, or none`(): Unit = runBlocking {
+        val written = store.heartbeat(group, "node-a", address("node-a"), TTL)
+        written.wowVersion.assert().isIn(null, WowVersion.CURRENT)
+        store.members(group).single().wowVersion.assert().isEqualTo(written.wowVersion)
     }
 
     /**
@@ -261,8 +278,8 @@ abstract class LeaseStoreSpec {
     }
 
     protected companion object {
-        const val GROUP_SUFFIX = 12
-        const val CONTENDERS = 16
+        internal const val GROUP_SUFFIX = 12
+        private const val CONTENDERS = 16
         val TTL = 10.seconds
 
         /** The internal address the tests give [node]. */

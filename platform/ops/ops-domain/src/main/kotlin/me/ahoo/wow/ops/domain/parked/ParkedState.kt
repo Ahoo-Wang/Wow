@@ -73,7 +73,7 @@ class ParkedState {
         private set
 
     @field:QueryTemporal
-    var retryAt: Long? = null
+    var lastRetryAt: Long? = null
         private set
 
     var retrySpec: EntryRetrySpec = EntryRetrySpec(0, "PT0S", "PT0S")
@@ -121,7 +121,7 @@ class ParkedState {
     /** Whether [record] says what this state holds already, whenever it was published. */
     fun holds(record: ParkedEntry): Boolean = !resolved && heldFields(record) == listOf(
         service, context, subscription, aggregate, fromVersion, fromPosition, skipOnly, reason, failedAt, retries,
-        retryAt, retrySpec, recoverable, request, status, nextRetryAt,
+        lastRetryAt, retrySpec, recoverable, request, status, nextRetryAt,
     )
 
     /** Whether [record] is of the entry this state records: its service, subscription and aggregate. */
@@ -133,7 +133,7 @@ class ParkedState {
     private fun heldFields(record: ParkedEntry): List<Any?> = with(record) {
         listOf(
             service, context, subscription, aggregate, fromVersion, fromPosition, skipOnly, reason, failedAt, retries,
-            retryAt, retrySpec, recoverable, request, status, nextRetryAt,
+            lastRetryAt, retrySpec, recoverable, request, status, nextRetryAt,
         )
     }
 
@@ -150,7 +150,7 @@ class ParkedState {
         errorType = if (entry.skipOnly) SKIP_ONLY else errorTypeOf(entry.reason)
         failedAt = entry.failedAt
         retries = entry.retries
-        retryAt = entry.retryAt
+        lastRetryAt = entry.lastRetryAt
         retrySpec = entry.retrySpec
         recoverable = entry.recoverable
         request = entry.request

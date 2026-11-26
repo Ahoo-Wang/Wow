@@ -39,7 +39,9 @@ import kotlin.time.Duration
 
 /**
  * Reads the Wow headers of a request; a header that does not parse is answered as a problem
- * before the command has a ref: `wow.wait.invalid` for the wait, `wow.command.malformed` for the others.
+ * before the command has a ref: `wow.wait.invalid` for the wait, `wow.request.malformed` for `Wow-Scope` and
+ * `If-Match`, headers of the request's on any route, and `wow.command.malformed` for `Wow-Call`, a header of the
+ * command's (as admission refuses its request id, blank or under `wow:`).
  *
  * [publicPort] is whether the requests come to the public port, the one port whose commands carry the client's address
  * and `User-Agent` ([facts]), unless [clientFacts] is off: on the internal port the peer is a service
@@ -70,24 +72,24 @@ internal class RequestHeaders(
 
     /**
      * The target scope of `Wow-Scope`, or null without it; one that does not parse, or names several tenants (a query
-     * route's alone, [queryTarget]), is a problem with [malformed].
+     * route's alone, [queryTarget]), is [FrameworkCodes.REQUEST_MALFORMED], on every route: a header of the request's,
+     * not of its command, query or call.
      */
-    fun target(request: ServerRequest, malformed: String = FrameworkCodes.COMMAND_MALFORMED): TargetScope? =
-        scope(request, malformed, ScopeHeader::parse)
+    fun target(request: ServerRequest): TargetScope? = scope(request, ScopeHeader::parse)
 
     /**
      * What `Wow-Scope` names on a query route, or null without it: a target scope, or the tenants of a
-     * cross-tenant query; one that does not parse is a problem with [malformed].
+     * cross-tenant query; one that does not parse is [FrameworkCodes.REQUEST_MALFORMED].
      */
-    fun queryTarget(request: ServerRequest, malformed: String): ScopeHeader.QueryTarget? =
-        scope(request, malformed, ScopeHeader::parseQuery)
+    fun queryTarget(request: ServerRequest): ScopeHeader.QueryTarget? = scope(request, ScopeHeader::parseQuery)
 
-    private fun <T> scope(request: ServerRequest, malformed: String, parse: (String) -> T): T? =
+    private fun <T> scope(request: ServerRequest, parse: (String) -> T): T? =
         request.lines(WowHeaders.SCOPE)?.let {
             try {
                 parse(it)
             } catch (invalid: IllegalArgumentException) {
-                throw problem(malformed, invalid.message ?: "Wow-Scope does not parse.")
+                // ScopeHeader names what does not parse in every refusal of its own.
+                throw problem(FrameworkCodes.REQUEST_MALFORMED, invalid.message!!)
             }
         }
 

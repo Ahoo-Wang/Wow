@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.spi.id.AggregateIdGenerator
 import me.ahoo.wow.spi.log.Append
 import me.ahoo.wow.spi.log.AppendOutcome
@@ -36,6 +37,7 @@ import org.junit.jupiter.api.Test
  * The cases come in families, each a parent class of this one ([EventLogFixtures] lists them); this class holds
  * the uniqueness and concurrency cases.
  */
+@WowSpi
 abstract class EventLogSpec : EventLogBatchCases() {
     @Test
     fun `a request id reused by another command type finds the stream committed for it`(): Unit = runBlocking {

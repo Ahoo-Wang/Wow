@@ -99,7 +99,7 @@ function harness(
     ),
     store: options.store?.(store) ?? store,
     environment: testEnvironment().environment,
-    newId: () => `req-${(sequence += 1)}`,
+    newRequestId: () => `req-${(sequence += 1)}`,
     onIssue: () => undefined,
   });
   engine.subscribe(change => changes.push(change));

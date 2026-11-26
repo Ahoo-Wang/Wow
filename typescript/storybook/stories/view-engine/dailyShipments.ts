@@ -30,17 +30,17 @@ import {
   AggregationMetricType,
   AggregationExpressionType,
 } from '@ahoo-wang/wow-client/dsl';
-import {
-  fitChartSlots,
-  type AnalysisViewConfig,
-  type ChartType,
-  type DataViewDefinition,
-  type RecordData,
-  type ViewInstance,
-  type ViewSource,
+import type {
+  AnalysisViewConfig,
+  ChartType,
+  DataViewDefinition,
+  RecordData,
+  ViewInstance,
+  ViewSource,
 } from '@ahoo-wang/wow-view-engine';
 import { analysisConfig } from './fixtures.js';
 import { rowSource } from './rowSource.js';
+import { fitChartSlots } from '../../../wow-view-engine/src/analysis/chartSlots.js';
 
 const DAY_MS = 86_400_000;
 

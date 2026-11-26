@@ -51,9 +51,9 @@ function part(value: object): string {
 }
 
 /**
- * A CoSec access token of `sub` with `roles`, in CoSec's default tenant, as
- * the enterprise's CoSec issues it for an app: HS256-signed, valid for an
- * hour, for the console's app, unless `options` says otherwise.
+ * A CoSec access token of the person `sub` with `roles`, in CoSec's default
+ * tenant, as the enterprise's CoSec issues it for an app: HS256-signed, valid
+ * for an hour, for the console's app, unless `options` says otherwise.
  */
 export function accessToken(
   sub: string,
@@ -66,6 +66,7 @@ export function accessToken(
     sub,
     tenantId: "(0)",
     roles,
+    "cosec.kind": "person",
     ...(app === null ? {} : { aud: app }),
     iat: now,
     exp: now + validFor,

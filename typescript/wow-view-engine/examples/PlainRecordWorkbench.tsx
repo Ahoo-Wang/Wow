@@ -44,7 +44,7 @@ export function PlainRecordWorkbench({
 }) {
   const [title, setTitle] = useState('Pending shipments');
   const workbench = useWorkbench(engine, definitionId, {
-    kinds: ['record'],
+    viewKinds: ['record'],
     instanceId,
     onInstanceChange,
     // The name a new view opens under is wording, so the host supplies it;

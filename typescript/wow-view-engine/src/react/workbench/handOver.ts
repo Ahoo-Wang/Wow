@@ -76,13 +76,20 @@ export function useHandOver(
   context: {
     engine: ViewEngine;
     definitionId: string;
-    kinds: readonly ViewKind[];
+    viewKinds: readonly ViewKind[];
     request(proceed: () => void): void;
     hold(view: HeldView): void;
     open(target: SavedViewTarget): void;
   },
 ): void {
-  const { engine, definitionId, kinds, request, hold, open } = context;
+  const {
+    engine,
+    definitionId,
+    viewKinds: kinds,
+    request,
+    hold,
+    open,
+  } = context;
   const seen = useRef<ViewHandOver | null>(null);
   useEffect(
     () => () => {
@@ -108,7 +115,7 @@ export function useHandOver(
     request(() => {
       const made = engine.create(definitionId, {
         title: handOver.title,
-        scope: 'personal',
+        audience: 'personal',
         config: handOver.config,
         scopeFilter: handOver.scopeFilter,
       });
@@ -119,7 +126,7 @@ export function useHandOver(
         from: null,
         handed: true,
         ...(handOver.named ? { named: handOver.named } : {}),
-        ...(handOver.from ? { board: handOver.from } : {}),
+        ...(handOver.from ? { dashboardOrigin: handOver.from } : {}),
       });
     });
   }, [handOver, kinds, request, engine, definitionId, hold, open]);

@@ -222,7 +222,7 @@ describe('RecordKanban in the workbench', () => {
       ...dealsKanban,
       config: kanbanConfig({
         pageSize: 2,
-        summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+        summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
       }),
     });
     const lead = await lane('Lead, 3 records');

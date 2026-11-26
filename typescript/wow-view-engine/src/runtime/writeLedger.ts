@@ -37,6 +37,10 @@ import {
 /** What a write command is addressed to: an open view, or a handle. */
 export type WriteTarget = ViewRuntime | WriteHandle;
 
+/**
+ * What the reader chose when a save met a newer version: reload it, or
+ * overwrite it.
+ */
 export type ConflictChoice = 'reload' | 'overwrite';
 
 /** Everything a write can hand back, by action. */
@@ -53,8 +57,8 @@ export type WriteResult = ViewInstance | ViewPreferences | void;
 export interface WriteLedgerHost {
   /** The port every write goes to. */
   readonly store: ViewStore;
-  /** Idempotency keys; overridden in tests to keep them readable. */
-  newId?(): string;
+  /** Makes a write's request id; overridden in tests to keep them readable. */
+  newRequestId?(): string;
   /** Remembers the summary of an instance the store has just confirmed. */
   noteInstance(instance: ViewInstance): void;
   /** Forgets a deleted instance and closes every open view of it, `owner` first. */
@@ -99,11 +103,11 @@ export class WriteLedger {
    * `requestId`, so a retry and an overwrite complete the same operation.
    */
   private readonly targets = new Map<string, ManagedViewRuntime>();
-  private readonly newId: () => string;
+  private readonly nextRequestId: () => string;
 
   constructor(host: WriteLedgerHost) {
     this.host = host;
-    this.newId = host.newId ?? newRequestId;
+    this.nextRequestId = host.newRequestId ?? newRequestId;
   }
 
   /** Writes still waiting for a decision, by handle id. */
@@ -133,7 +137,7 @@ export class WriteLedger {
           : null;
     if (into?.scope)
       await requireSystemPanels(into.config, this.host.referenceOf, into.scope);
-    return this.replay(payload, this.newId(), runtime, target);
+    return this.replay(payload, this.nextRequestId(), runtime, target);
   }
 
   /** Replays the original intent under its original `requestId`. */

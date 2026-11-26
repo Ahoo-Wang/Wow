@@ -62,18 +62,18 @@ describe('the members a Manifest names', () => {
     expect(client).toContain("command: 'probe.thing.StartStream'");
   });
 
-  it("names a command after the client's own members apart from them: Client and Constructor", async () => {
+  it("names a command after the client's own members apart from them: Commands and Constructor", async () => {
     const { read } = await generateCompiling(
       manifest(
-        { commands: [command('Client'), command('Constructor')] },
+        { commands: [command('Commands'), command('Constructor')] },
         EMPTY,
       ),
       `import { ThingCommandClient } from './out/index.js';
-       const commands = new ThingCommandClient();
-       void [commands.clientCommand('t1'), commands.constructorCommand('t1'), commands.client.wait];`,
+       const things = new ThingCommandClient();
+       void [things.commandsCommand('t1'), things.constructorCommand('t1'), things.commands.wait];`,
     );
     const client = read('probe/thing/commandClient.ts');
-    expect(client).toContain("command: 'probe.thing.Client'");
+    expect(client).toContain("command: 'probe.thing.Commands'");
     expect(client).toContain("command: 'probe.thing.Constructor'");
   });
 
@@ -264,9 +264,9 @@ describe("the constants of a Manifest's error codes, as the Kotlin contract name
     });
     await generateCompiling(
       document,
-      `import { ProbeContract, probeWait } from './out/index.js';
+      `import { ProbeContract } from './out/index.js';
        const name: 'wait' = ProbeContract.WaitAggregate.name;
-       void [name, probeWait.committed(), ProbeContract.Thing.name];`,
+       void [name, ProbeContract.Wait.committed(), ProbeContract.Thing.name];`,
     );
   });
 });

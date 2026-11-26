@@ -16,6 +16,7 @@ package me.ahoo.wow.client
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.takeWhile
@@ -34,14 +35,16 @@ import me.ahoo.wow.api.decide.Misuse
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.decide.checkUse
 import me.ahoo.wow.api.decide.requireUse
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.wire.CallWire
 import me.ahoo.wow.api.wire.ScopeHeader
 import me.ahoo.wow.api.wire.WaitHeader
+import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.manifest.CommandIndex
 import me.ahoo.wow.manifest.CommandRoutes
@@ -63,8 +66,8 @@ import kotlin.time.Duration.Companion.seconds
  * one whose contract lists the class when the request leaves it out), on the port [transport]'s mode calls, as
  * [caller]:
  *
- * - in service mode, on the internal port with `Wow-Call`: the caller's tenant (or the target's of
- *   [CommandRequest.targetTenant]), scope (or [CommandRequest.targetScope]), operator and application as the root
+ * - in service mode, on the internal port with `Wow-Call`: the caller's tenant (or the tenant of
+ *   [CommandRequest.targetScope]), scope (or its scope, when it names one), operator and application as the root
  *   context, a new command id its own root; the peer answers once the command is committed, so [send], [wait] and
  *   [stream] answer that one result, whatever the request's wait plan;
  * - in user mode, on the public routes with the forwarded credential: the wait plan as `Wow-Wait` ([send] waits for
@@ -88,7 +91,7 @@ import kotlin.time.Duration.Companion.seconds
  * A peer described by its Manifest alone ([WowClient.Builder.manifestPeers]) takes [NamedCommand]s, named by their
  * type and checked against its Manifest before any request; a command object to it is a configuration error.
  */
-class HttpCommandClient internal constructor(
+internal class HttpCommandClient(
     private val transport: HttpTransport,
     private val names: CommandIndex,
     private val ids: GlobalIdGenerator,
@@ -116,16 +119,26 @@ class HttpCommandClient internal constructor(
         }
         when (val answer = transport.stream(peer.http, Exchange.COMMAND)) {
             is Answer.Ok -> {
-                // Whether the stream said it is whole: its `end` event, after its last result.
-                var whole = false
+                // The stream's `end` event, after its last result, and its reason: `complete` says it is whole.
+                var ended = false
+                var reason: String? = null
                 answer.value.serverSentEvents()
-                    .takeWhile { event -> (event.event != END_EVENT).also { whole = !it } }
+                    .takeWhile { event ->
+                        (event.event != END_EVENT).also { going -> if (!going) reason = reasonOf(event.data) }
+                            .also { going -> ended = !going }
+                    }
+                    // A result is a stage's event, or a whole answer's; one a newer server added is skipped, never
+                    // read as a result.
+                    .filter { event -> event.event in RESULTS }
                     .map { event -> decode(peer.what, event.data.toByteArray()) }
                     // Upstream of the collector: only the connection's failures, its bound's included.
                     .catch { lost -> throw if (lost is IOException) unknown(peer, lost).exception(peer.what) else lost }
                     .collect { emit(it) }
-                if (!whole) {
-                    throw unknown(peer, IOException("The stream ended without its end event.")).exception(peer.what)
+                when {
+                    !ended -> throw unknown(peer, IOException("The stream ended without its end event."))
+                        .exception(peer.what)
+
+                    reason != COMPLETE -> throw endedFor(peer, reason).exception(peer.what)
                 }
             }
             is Answer.Problem -> emit(answer.problem.result ?: throw answer.problem.exception(peer.what))
@@ -142,6 +155,18 @@ class HttpCommandClient internal constructor(
         "The stream of results of the command sent to ${peer.http.context} was lost (${lost.javaClass.name}): " +
             "whether it committed is unknown.",
         lost,
+    )
+
+    /**
+     * The problem of a command whose stream ended for a [reason] other than `complete`, one a newer server added:
+     * whether it committed is unknown, as for a stream lost after its head (`wow.command.unknown`, a retry with its
+     * request id is safe).
+     */
+    private fun endedFor(peer: Sent, reason: String?): PeerProblem = PeerProblem.of(
+        FrameworkCodes.COMMAND_UNKNOWN,
+        "The stream of results of the command sent to ${peer.http.context} ended for a reason this client does not " +
+            "know (${reason ?: "none"}): whether it committed is unknown.",
+        IOException("The stream ended for the reason ${reason ?: "none"}."),
     )
 
     /** The result [answer] holds, of whatever status, or the exception of a problem that holds none. */
@@ -162,7 +187,7 @@ class HttpCommandClient internal constructor(
                 CommandResult.Status.UNKNOWN -> throw WowProblemException(
                     FrameworkCodes.COMMAND_FAILED,
                     NEWER_PEER_STATUS,
-                    Retry.NONE,
+                    RetryAdvice.NONE,
                     null,
                     "${peer.what} was answered with a status this client does not know: the peer is newer than " +
                         "this client, so upgrade it.",
@@ -181,13 +206,17 @@ class HttpCommandClient internal constructor(
         val command = request.command
         val type = aggregateTypeOf(request)
         val targetTenant = targetTenantOf(request, caller.tenantId)
-        val targeted = targetTenant != null || request.targetScope != null
+        val targeted = targetTenant != null || request.targetScope?.scope != null
         val root = if (transport.mode is ClientMode.Service) {
-            rootOf(targetTenant ?: caller.tenantId, request.targetScope ?: caller.scope, targeted)
+            rootOf(
+                targetTenant ?: caller.tenantId,
+                request.targetScope?.scopeFor(caller.scope) ?: caller.scope,
+                targeted
+            )
         } else {
             null
         }
-        val id = request.id
+        val id = request.aggregateId
         val declared = declaredOf(command, type, root)
         // A command whose body names its aggregate goes to its route without an id, the body naming the request's.
         val byId = id != null && declared.idProperty == null
@@ -230,7 +259,7 @@ class HttpCommandClient internal constructor(
             if (targeted) {
                 put(
                     WowHeaders.SCOPE,
-                    ScopeHeader.format(TargetScope(targetTenant, request.targetScope ?: caller.scope))
+                    ScopeHeader.format(TargetScope(targetTenant, request.targetScope?.scope), caller.scope)
                 )
             }
         }
@@ -325,7 +354,7 @@ class HttpCommandClient internal constructor(
      * The root context a service-mode command asserts: a command of its own, in [tenantId] (the caller's, or the
      * target's) and [scope] (the caller's, or the target's), sent by the caller's operator from its application.
      */
-    private fun rootOf(tenantId: String, scope: Scope, actingElsewhere: Boolean): CallWire {
+    private fun rootOf(tenantId: String, scope: Scope, actedElsewhere: Boolean): CallWire {
         val commandId = ids.next()
         return CallWire(
             commandId = commandId,
@@ -333,7 +362,7 @@ class HttpCommandClient internal constructor(
             ownerId = scope.ownerId,
             spaceId = scope.spaceId,
             causation = Causation(commandId, commandId),
-            operator = caller.toOperator(actingElsewhere = actingElsewhere),
+            operator = caller.toOperator(actedElsewhere = actedElsewhere),
             facts = caller.app?.let { mapOf(RequestFacts.APP_ID to it) }.orEmpty(),
         )
     }
@@ -341,6 +370,20 @@ class HttpCommandClient internal constructor(
     private companion object {
         /** The event a command's stream ends with once whole, after its last result; never a result. */
         const val END_EVENT = "end"
+
+        /** The `end` event's reason that says the stream is whole. */
+        const val COMPLETE = "complete"
+
+        /**
+         * The names of a command's result events: its stages' wire names, and the unnamed event (`message`, the type
+         * server-sent events give an event that names none) of an answer the server sent whole, as JSON, which the
+         * transport reads as one ([HttpTransport]). Any other event is skipped.
+         */
+        val RESULTS: Set<String> = Stage.entries.mapTo(HashSet()) { WireNames.of(it) } + "message"
+
+        /** The `reason` of an `end` event's [data], null when it names none or does not read. */
+        fun reasonOf(data: String): String? =
+            runCatching { ClientJson.mapper.readTree(data)["reason"]?.asString() }.getOrNull()
 
         /** How long [send] waits for the peer to accept a command whose request names no timeout. */
         val ACCEPT_TIMEOUT = 10.seconds

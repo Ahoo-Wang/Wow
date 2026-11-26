@@ -23,7 +23,6 @@ import { drawnResultIssues } from '../runtime/execute.js';
 import {
   useAnalysisEditor,
   useOpenView,
-  useUnavailable,
   useViewRuntime,
 } from '../react/index.js';
 import { Button } from './components/button.js';
@@ -41,6 +40,7 @@ import {
   useRoutedNavigate,
 } from './workbench/ViewEngineProvider.js';
 import { ErrorStrip, StatusStrip, WarningStrip } from './kit/StatusStrip.js';
+import { useUnavailable } from '../react/useUnavailable.js';
 
 export type {
   EmbedBaseProps,
@@ -189,7 +189,7 @@ function EmbeddedData({
   const data = runtime as ViewRuntime<DataViewConfig>;
   const state = useViewRuntime(data);
   const messages = useViewMessages();
-  const reading = useBindings()(data.definition.id)?.reading;
+  const reading = useBindings()(data.definition.id)?.detail;
   const interactive = interaction === 'interactive';
   // A finding names its dimensions, metrics and fields as the screen does —
   // columns as they are headed (`analysisIssueNamer`); over a record view

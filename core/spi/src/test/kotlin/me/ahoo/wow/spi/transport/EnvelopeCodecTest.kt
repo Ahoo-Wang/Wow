@@ -20,6 +20,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.reservation.ReservationKey
@@ -39,7 +40,7 @@ class EnvelopeCodecTest {
     private val ref = AggregateType("shop", "order").ref("t1", "o-1")
     private val wait = WaitContext(
         "w-1",
-        Origin("node-1", "10.0.0.1:9090", "shop-service"),
+        Origin("shop-service", "node-1", "10.0.0.1:9090"),
         listOf(Hop.handled("OrderView.onEvent", "shop")),
         1_000L,
     )
@@ -98,7 +99,7 @@ class EnvelopeCodecTest {
             "deleted", "access", "accessVersion", "causation", "headers", "operator",
         )
         payload["operator"].properties().map { it.key }.assert().containsExactly("id", "tenantId", "actedElsewhere")
-        payload["events"][0]["payload"]["amount"].isNumber.assert().isTrue()
+        payload["events"][0]["body"]["amount"].isNumber.assert().isTrue()
         payload["state"]["schemaFingerprint"].stringValue().assert().isEqualTo("f1")
         payload["state"]["state"].isObject.assert().isTrue()
         value["transport"].properties().map { it.key }.assert().containsExactly("wait", "trace")
@@ -241,6 +242,18 @@ class EnvelopeCodecTest {
     }
 
     @Test
+    fun `a reader should read a hop's stage a newer writer added as UNKNOWN`() {
+        val json = """{"format":1,"kind":"command","id":"c-1","type":"shop.order.Place","payload":{},
+            |"transport":{"wait":{"waitId":"w-1","origin":{"node":"n-1","address":"10.0.0.1:9090","service":"s"},
+            |"remaining":[{"stage":"delivered","context":"shop","subscription":"OrderView.onEvent"},
+            |{"stage":"committed","context":"shop"}],"deadline":1000}}}
+        """.trimMargin()
+        val hops = checkNotNull(checkNotNull(EnvelopeCodec.decode(json.toByteArray()).transport).wait).remaining
+        hops.map { it.stage }.assert().containsExactly(Stage.UNKNOWN, Stage.COMMITTED)
+        hops.first().subscription.assert().isEqualTo("OrderView.onEvent")
+    }
+
+    @Test
     fun `a reader should refuse another format and an unknown kind`() {
         assertThrows<IllegalArgumentException> {
             EnvelopeCodec.decode("""{"format":2,"kind":"command","id":"c","type":"t","payload":{}}""".toByteArray())
@@ -262,9 +275,17 @@ class EnvelopeCodecTest {
     }
 
     @Test
+    fun `a record of a commit whose events were all retired should hold none, and read back so`() {
+        val retired = record().copyWith(events = emptyList())
+        val read = EnvelopeCodec.stateEventOf(EnvelopeCodec.encode(EnvelopeCodec.stateEvent(retired)))
+        // The transport's reservations stay in the context: the envelope carries the rest of it.
+        read.copyWith(transport = retired.transport).assert().isEqualTo(retired)
+        tree(String(EnvelopeCodec.message(retired).value))["payload"]["events"].size().assert().isZero()
+    }
+
+    @Test
     fun `a record should hold a consistent commit`() {
         assertThrows<IllegalArgumentException> { record(state = PublishedState(3, "f1", tree("{}"))) }
-        assertThrows<IllegalArgumentException> { record().copyWith(events = emptyList()) }
         assertThrows<IllegalArgumentException> { record().copyWith(version = 0) }
         assertThrows<IllegalArgumentException> { record().copyWith(commandId = " ") }
         assertThrows<IllegalArgumentException> { record().copyWith(commandType = "") }

@@ -101,10 +101,10 @@ class DatasetPublicationIntegrationTest {
             "INSERT INTO $DATABASE.wow_catalog (format, `database`, `table`, table_uuid, role, service, context, " +
                 "aggregate, ownership, tenant_column, owner_column, space_column, sensitive, `references`, " +
                 "event_revisions, fingerprint, columns_hash, access) VALUES (1, '$DATABASE', 'shop_order_state', " +
-                "'$uuid', 'state', 'shop-service', 'shop', 'order', 'OWNER', 'tenant_id', 'owner_id', '', " +
-                "[('state.phone', 'DISPLAY', '{\"keepPrefix\":3,\"keepSuffix\":4}', '', 0)], [], {}, 'f-1', " +
+                "'$uuid', 'state', 'shop-service', 'shop', 'order', 'owner', 'tenant_id', 'owner_id', '', " +
+                "[('state.phone', 'display', '{\"keepPrefix\":3,\"keepSuffix\":4}', '', 0)], [], {}, 'f-1', " +
                 // No access policy of the orders: the default rule reads their rows, which the catalog's datasets may.
-                "'${CatalogTrust.columnsHash(columns)}', 'DEFAULT')",
+                "'${CatalogTrust.columnsHash(columns)}', 'default')",
         )
     }
 

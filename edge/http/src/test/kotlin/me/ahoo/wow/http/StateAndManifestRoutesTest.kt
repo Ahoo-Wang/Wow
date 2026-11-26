@@ -66,6 +66,18 @@ class StateAndManifestRoutesTest {
     }
 
     @Test
+    fun `a state read should be cached by its caller alone, revalidated each time, its 304 too`() {
+        twoItems()
+        // Who reads it, and in which tenant and scope, is the caller's: a shared cache must not answer another caller.
+        val answer = node.get("/shop/cart/c-1/state")
+        answer.headers.cacheControl.assert().isEqualTo("private, no-cache")
+        val unchanged = node.get("/shop/cart/c-1/state", headers = mapOf("If-None-Match" to answer.headers.eTag!!))
+        unchanged.status.assert().isEqualTo(304)
+        unchanged.headers.cacheControl.assert().isEqualTo("private, no-cache")
+        node.get("/shop/cart/c-1/state?version=1").headers.cacheControl.assert().isEqualTo("private, no-cache")
+    }
+
+    @Test
     fun `a state replayed before its first snapshot tells its first and last commits`() {
         twoItems(snapshot = false)
         val view = node.get("/shop/cart/c-1/state").body!!

@@ -23,7 +23,7 @@ import {
 } from '../model/index.js';
 import type {
   AnyViewRuntime,
-  BoardOrigin,
+  DashboardOrigin,
   SavedViewTarget,
   ViewEngine,
   ViewHandOver,
@@ -75,7 +75,7 @@ export interface WorkbenchOptions {
    * as unopenable. A data workbench draws record and analysis views in one
    * list (D20); a host narrows it to one kind by naming only that one (D9).
    */
-  kinds: readonly ViewKind[];
+  viewKinds: readonly ViewKind[];
   /**
    * Which view is open, as `value` is on an input: leaving it out is the
    * uncontrolled form and the workbench owns the open view from the effective
@@ -140,7 +140,7 @@ export interface WorkbenchOptions {
   handOver?: ViewHandOver | null;
   /**
    * The host's route, which the way back to the board a view was handed
-   * from goes by (`board`, D26 Q33). Without it there is no way back drawn.
+   * from goes by (`dashboardOrigin`, D26 Q33). Without it there is no way back drawn.
    */
   onNavigate?(to: ViewNavigation): void;
 }
@@ -158,7 +158,7 @@ export interface WorkbenchOptions {
  */
 export interface WorkbenchController {
   /** The kinds this workbench draws, as it was given them. */
-  kinds: readonly ViewKind[];
+  viewKinds: readonly ViewKind[];
   /**
    * 「改了就跑」 (D20): whether an analysis runs again on its own as its
    * question is edited — the user's preference for this definition, on
@@ -175,7 +175,7 @@ export interface WorkbenchController {
   /** Opens another view, through the leave guard. */
   choose(id: string | null): void;
   /**
-   * The kinds a new view may be made of here, in the order of `kinds`: the
+   * The kinds a new view may be made of here, in the order of `viewKinds`: the
    * definition has the kind, the user may create in some audience, and
    * `newView` gave it a name. Every "new view" control exists on this and
    * on nothing else (D4) — one kind is a button, several are a menu, none is
@@ -251,9 +251,9 @@ export interface WorkbenchController {
    * it. `null` under a view opened out of another here, whose own way back
    * (`back`) is the one on screen.
    */
-  board: BoardOrigin | null;
-  /** Goes back to `board` through the host's route, past the leave guard. */
-  toBoard(): void;
+  dashboardOrigin: DashboardOrigin | null;
+  /** Goes back to `dashboardOrigin` through the host's route, past the leave guard. */
+  toDashboard(): void;
   /**
    * Whether the view on screen is one a board or an embed handed over
    * (`handOver`, D26 Q30), saved or not: the press that sent it took the
@@ -358,11 +358,11 @@ export function useWorkbench(
   } = options;
   // Held by what they say: a host writes the array inline, so the object is
   // new every render while the kinds in it are not.
-  const kindsKey = options.kinds.join(' ');
+  const kindsKey = options.viewKinds.join(' ');
   const kinds = useMemo(() => kindsKey.split(' ') as ViewKind[], [kindsKey]);
   // Only the views this page can open: the sidebar offers no view the body
   // cannot render, and the effective default is resolved among those alone.
-  const list = useViewList(engine, definitionId, { kinds });
+  const list = useViewList(engine, definitionId, { viewKinds: kinds });
   const [chosen, setChosen] = useState<string | null>(instanceId ?? null);
   const openId = chosen ?? list.defaultInstanceId;
 
@@ -396,7 +396,7 @@ export function useWorkbench(
         runtime: held.runtime,
         status: 'success',
         error: null,
-        scopeIssues: [],
+        scopeFilterIssues: [],
         // Never offered: a view held here was made, and did not fail to open.
         retry: byId.retry,
       }
@@ -485,7 +485,7 @@ export function useWorkbench(
   useHandOver(options.handOver, {
     engine,
     definitionId,
-    kinds,
+    viewKinds: kinds,
     request,
     hold,
     open: openHanded,
@@ -507,7 +507,7 @@ export function useWorkbench(
   const heldCommands = useHeldCommands({
     engine,
     definitionId,
-    kinds,
+    viewKinds: kinds,
     definition,
     newView,
     onDrilldown,
@@ -521,7 +521,7 @@ export function useWorkbench(
     handedHere,
   });
 
-  const reload = list.reload;
+  const reload = list.refresh;
   const open = useCallback(
     (instance: ViewInstance) => {
       // What the store took is what the screen shows from here, opened by
@@ -535,7 +535,7 @@ export function useWorkbench(
   );
 
   return {
-    kinds,
+    viewKinds: kinds,
     autoRun,
     setAutoRun: useCallback(
       async (on: boolean) => {

@@ -82,7 +82,7 @@ class Account(private val state: AccountState) {
   - For a read no policy should restrict: a `NodeQueryApi` and `trusted()`. **It reads every tenant**: filter by `tenantId(scope.command.ref.tenantId)` yourself in a service of several tenants.
   - A read that fails, one the read side refuses, or one the code gets wrong (a state class no aggregate has) fails the command, `wow.command.failed` (500), not `wow.command.invalid`. In an aggregate spec, pass `memoryQueries { snapshots(...) }` (`wow-test-query`) to the model factory as the `QueryApi`.
 - **Decide never mutates state**; the test DSL fails a spec that does. A decide function is deterministic given the command, the state and its services' answers.
-- `@AfterCommand(include, exclude)` or `afterCommand`: returns extra events in the same stream; it cannot reject.
+- `@AfterCommand(include, exclude)` or `afterCommand`: returns extra events in the same stream; it may reject the command as a command function does (`scope.reject`), and then none of the command's events is written.
 
 ## Rejections and error codes
 
@@ -93,7 +93,7 @@ class Account(private val state: AccountState) {
 
 ## DecideScope
 
-`DecideScope` is the decide function's view of the request: `command`, `now` (epoch ms on the node's clock, the commit time of its events: compute a deadline from it, never from the system clock; the test DSL's time drives it), `ids` (deterministic ids), `reject(code, message, …)`, `putResult`, `reserve(namespace, key[, tenancy])` (`suspend`) and `release(...)` for unique keys, `onAppendFailure` (an act it undoes is keyed with `callId()`, an id no other attempt or retry takes, never with the command's request id, which a Wow call takes by default and repeats in every attempt), `callId()`, `afterAppend`, `schedule(key, rule, command, target)` and `cancelSchedule(key)`.
+`DecideScope` is the decide function's view of the request: `command`, `now` (epoch ms on the node's clock, the commit time of its events: compute a deadline from it, never from the system clock; the test DSL's time drives it), `ids` (deterministic ids), `reject(code, message, …)`, `putResult`, `reserve(namespace, key[, tenancy])` (`suspend`) and `release(...)` for unique keys, `onAppendFailure` (an act it undoes is keyed with `attemptKey()`, an id no other attempt or retry takes, never with the command's request id, which a Wow call takes by default and repeats in every attempt), `attemptKey()`, `afterAppend`, `schedule(key, rule, command, target)` and `cancelSchedule(key)`.
 
 - **Unique keys** (a user name, an order number): `reserve` in decide; the reservation commits with the events and is released if the append fails. `tenancy` is `TENANT` (the default: unique within the tenant) or `SYSTEM` (unique across tenants). Every unique key includes the tenant unless it is meant to be global.
 - **Scheduled commands**: `schedule` / `cancelSchedule` in decide (`@OnCommand(schedules = [Command::class])` declares them); at least once, never early; a rejection when due is the normal guard.

@@ -18,9 +18,10 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Which of the [accounts] seeded accounts a request targets: `uniform`, `zipf` (rank `k` drawn with a
- * probability proportional to `1 / k^s`, `s` = 1.1 by default) or `hot` (a share [hotFraction] of the requests to the
- * first [hotKeys] accounts, the rest uniform over all). Draws come from a seeded generator, so a run's sequence of keys
- * is the same on both versions.
+ * probability proportional to `1 / k^s`, `s` = 1.1 by default), `hot` (a share [hotFraction] of the requests to the
+ * first [hotKeys] accounts, the rest uniform over all) or `single` (every request to the first account: the load of one
+ * aggregate, whose published stream is one partition's, #7109). Draws come from a seeded generator, so a run's sequence
+ * of keys is the same on both versions.
  */
 class KeyChooser(
     val distribution: String,
@@ -38,18 +39,27 @@ class KeyChooser(
         require(accounts > 0) { "At least one account." }
         require(distribution in DISTRIBUTIONS) { "Unknown distribution '$distribution': one of $DISTRIBUTIONS." }
         require(hotKeys in 1..accounts) { "The hot keys are 1 to $accounts." }
+        require(hotFraction in 0.0..1.0) { "The hot fraction is 0 to 1, not $hotFraction." }
     }
+
+    /** Whether [next] draws a single account only, so a transfer's target is drawn among the others instead. */
+    private val single = distribution == SINGLE || (distribution == HOT && hotFraction == 1.0 && hotKeys == 1)
 
     /** The next account's index, 0 to [accounts] - 1. Not thread-safe: the scheduler draws on its own thread. */
     fun next(): Int = when (distribution) {
         UNIFORM -> random.nextInt(accounts)
         ZIPF -> zipfIndex(random.nextDouble())
+        SINGLE -> 0
         else -> if (random.nextDouble() < hotFraction) random.nextInt(hotKeys) else random.nextInt(accounts)
     }
 
-    /** An account other than [index], drawn the same way: a transfer's target. */
+    /**
+     * An account other than [index], drawn the same way: a transfer's target. A distribution of one account draws it
+     * uniformly among the others, as no draw of its own would ever give one.
+     */
     fun nextOtherThan(index: Int): Int {
         if (accounts == 1) return index
+        if (single) return random.nextInt(accounts - 1).let { if (it >= index) it + 1 else it }
         var other = next()
         while (other == index) other = next()
         return other
@@ -81,7 +91,8 @@ class KeyChooser(
         const val UNIFORM = "uniform"
         const val ZIPF = "zipf"
         const val HOT = "hot"
-        val DISTRIBUTIONS = setOf(UNIFORM, ZIPF, HOT)
+        const val SINGLE = "single"
+        val DISTRIBUTIONS = setOf(UNIFORM, ZIPF, HOT, SINGLE)
         const val DEFAULT_ZIPF_EXPONENT = 1.1
         const val DEFAULT_HOT_FRACTION = 0.5
 

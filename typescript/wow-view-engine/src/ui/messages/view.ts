@@ -23,7 +23,7 @@ export const viewMessages = {
   'label.kind.dashboard': 'Dashboard',
   'label.view.list': 'Views',
   'label.view.list-failed': 'The list could not be loaded.',
-  // The engine reads at most so many (`RuntimeLimits.listedViews`).
+  // The engine reads at most so many (`RuntimeLimits.maxListedViews`).
   'label.view.list-cut':
     'Only the first {limit} views are listed; a link to another still opens it.',
   'label.view.none-hint': 'Make one to start looking at the data.',
@@ -219,8 +219,6 @@ export const viewMessages = {
     'This summary has too many groups for the service to filter or sort by a metric; narrow the data first.',
   [wireKey('runtime.query.failed', QueryErrorCodes.TOO_MANY_GROUPS)]:
     'This summary has more groups than it may show and no order to choose them by; sort it, or raise its limit.',
-  [wireKey('runtime.query.failed', QueryErrorCodes.EXPLICIT_ENTRY_REQUIRED)]:
-    'The query named no entry to run against: {reason}',
   [wireKey('runtime.query.failed', QueryErrorCodes.REPLAY_TOO_LONG)]:
     'That state is too many changes away to rebuild: {reason}',
   [wireKey(
@@ -378,4 +376,4 @@ export const viewMessages = {
     'This view could not be loaded: this server has no view store.',
   'view.list.failed.unsupported':
     'The list of views could not be loaded: this server has no view store.',
-} as const satisfies Record<string, string>;
+} satisfies Record<string, string>;

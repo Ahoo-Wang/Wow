@@ -164,7 +164,7 @@ describe('SaveActions, the split button group', () => {
     const { engine, store } = setup();
     const runtime = engine.create('orders', {
       title: 'New view',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
     render(<Harness engine={engine} runtime={runtime} />);

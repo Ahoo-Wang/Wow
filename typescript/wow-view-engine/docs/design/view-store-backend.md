@@ -118,7 +118,7 @@ data class ViewState(
 
 - `config` 只做形状与大小的检查（是对象、`kind` 为记录／分析／仪表盘之一、不超过 240 KB——低于 WebFlux 默认缓冲的 256 KB 请求体；有 `panels` 时是对象数组，其中的引用 `instanceId`、`opens`、`click.instanceId` 是不超过 256 字的字符串——按类型建映射的存储（Elasticsearch）索引这几条路径，别的类型会让整条快照写不进去）；`definitionId` 不超过 256 字；语义由引擎打开时准入。
 - 所有者不符由 Wow 自己拒绝（命令里的所有者与状态不符）；应用不符由领域拒绝为不存在，不暴露它在别的应用里存在。
-- 「被共享看板引用」由领域内一个快照查询回答：同租户、同应用、所有者为 `(shared)` 的仪表盘里，面板引用了这个 id 的。
+- 「被共享看板引用」由领域内一个快照查询回答：同租户、同应用、所有者为 `(shared)` 的仪表盘里，面板引用了这个 id 的；同应用的存储的系统仪表盘（租户 `(platform)`、所有者 `(system)`）也算，每个租户的读者都看得到它（#7022、D486 ④）。配置的系统视图不在快照里，不查。
 
 ### 5.2 视图偏好（**ViewPreferences**）
 
@@ -228,8 +228,8 @@ export class WowViewStore implements ViewStore {
 
 - **不生成客户端**：路由只有十来条，路径变量要留给拦截器填、重放要分辨 `204`、错误要按错误码读，生成的装饰器客户端这几样都帮不上，还要多一份与服务端逐字节核对的生成代码；所以请求在 **WowViewStore** 里手写，查询体用 wow-client 的 DSL。依赖不因此变：wow-client 本来就以 `fetcher-decorator` 与 `fetcher-eventstream` 为对等依赖，宿主随它一并安装（README 的「Use」列出）。
 - **路径参数**：`{tenantId}` 与个人视图的 `{ownerId}` 留空，由 fetcher 的拦截器填——fetcher-cosec 按令牌的 `tenantId` 与 `sub`；不登录的宿主（如补偿控制台）插入自己的拦截器注入缺省值。共享视图显式填 `(shared)`（拦截器只填没给的参数）。**WowViewStore** 不收租户、用户这类选项。
-- **列表**：一页一页地答（D353 V14）。第一页是服务的系统视图（整组），之后是共享、个人，各用快照模型的游标查询（只投影摘要的字段，`kind` 取 `state.config.kind`，按 `firstEventTime` 升序、服务端补上唯一键，每页 100 个，即服务端经 HTTP 的游标页上限）；某种受众读完就转到下一种。页的游标是不透明的 base64url JSON，写明正在读的受众与它自己的游标，畸形的游标按 `INVALID` 拒绝。顺序跨页不变：系统、共享、个人。引擎按页依次读到底，至多读 `RuntimeLimits.listedViews`（缺省 1000）个：到了上限，`engine.list` 带上 `cut`，侧栏的视图列表与「管理视图」写明「只列出前 N 个视图；其余的凭链接仍能打开」（R2-26）。截断之外的视图仍可按 id 读，地址里点名而列表里没有的视图，工作台先按 id 问一次再判断归属；宿主视图多到超过上限，就调高 `listedViews`。conformance 有分页的用例：各页依次拼起来是端口的顺序，每个 `nextCursor` 通向下一页，视图少的存储一页答完、`nextCursor` 为 `null`。`MemoryViewStore` 的游标写的是上一页最后一个视图在顺序里的位置（受众与它被建或被种下的先后，`places`），不是下标：两页之间删掉一个视图（本页，或共用快照的另一个标签页）不会让还在的视图漏掉，撤回的删除也不把视图挪到最后（#6913，test/store.test.ts）。
-- **错误的来处**：`ViewStoreError` 带 `cause`（请求本身的失败）与 `detail.code`（服务端的 `errorCode`），宿主据此分辨同为 `INVALID` 的 `ViewAppRequired` 与 `ViewInvalid`。服务端自己的错误码常量在客户端叫 `WowViewStoreErrorCodes`，与引擎的 `ViewStoreErrorCode`（端口的码）分开。
+- **列表**：一页一页地答（D353 V14）。第一页是服务的系统视图（整组），之后是共享、个人，各用快照模型的游标查询（只投影摘要的字段，`kind` 取 `state.config.kind`，按 `firstEventTime` 升序、服务端补上唯一键，每页 100 个，即服务端经 HTTP 的游标页上限）；某种受众读完就转到下一种。页的游标是不透明的 base64url JSON，写明正在读的受众与它自己的游标，畸形的游标按 `INVALID` 拒绝。顺序跨页不变：系统、共享、个人。引擎按页依次读到底，至多读 `RuntimeLimits.maxListedViews`（缺省 1000）个：到了上限，`engine.list` 带上 `cut`，侧栏的视图列表与「管理视图」写明「只列出前 N 个视图；其余的凭链接仍能打开」（R2-26）。截断之外的视图仍可按 id 读，地址里点名而列表里没有的视图，工作台先按 id 问一次再判断归属；宿主视图多到超过上限，就调高 `maxListedViews`。conformance 有分页的用例：各页依次拼起来是端口的顺序，每个 `nextCursor` 通向下一页，视图少的存储一页答完、`nextCursor` 为 `null`。`MemoryViewStore` 的游标写的是上一页最后一个视图在顺序里的位置（受众与它被建或被种下的先后，`places`），不是下标：两页之间删掉一个视图（本页，或共用快照的另一个标签页）不会让还在的视图漏掉，撤回的删除也不把视图挪到最后（#6913，test/store.test.ts）。
+- **错误的来处**：`ViewStoreError` 带 `cause`（请求本身的失败）与 `detail.code`（服务端问题的 `code`），宿主据此分辨同为 `INVALID` 的 `view-store.app-required` 与 `view-store.invalid`。服务端自己的错误码常量在客户端叫 `WowViewStoreErrorCodes`，与引擎的 `ViewStoreErrorCode`（端口的码）分开。
 - **按 id 读写要知道是个人还是共享**：端口只给 id。客户端记住列表、读取、创建时得到的「id → 受众」；没见过的 id 依次按个人、共享、服务端系统视图去读。系统视图的 id 由系统视图接口给出，客户端认得。
 - 写入：显式带 `Command-Request-Id` 与期望版本，等到 `SNAPSHOT`，成功后按 id 读回实例作答；读回的版本已被别人推过时，按 `requestId` 重放读回这次写入留下的那一版。`share` 与删除发 `{}`，`claim` 不带请求体。
 - **挪了地方的视图**：记着在个人路径上的视图被别的标签页设为了共享（或反过来），写入在旧路径上被拒（所有者不符或找不到）；客户端重新找到它，把同一个写入（同一个 `requestId`）再发一次到它现在的路径。
@@ -285,13 +285,12 @@ V10 的视图存储服务在 `platform/view-store`（7.2a，#4474；配置的系
 
 | 导出                                              | 是什么                                                                                                                                                        |
 | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `WowViewStore`、`WowViewStoreOptions`             | 端口在 V10 上的实现；选项 `{ fetcher, permissions?, pageSize? }`                                                                                              |
-| `WowDatasetWordings`、`WowDatasetWordingsOptions` | 租户的数据集措辞（D86、D91）                                                                                                                                  |
+| `WowViewStore`、`WowViewStoreOptions`             | 端口在 V10 上的实现；选项是 wow-client 的 `WowClientOptions`（`fetcher` 必填，`basePath`、`defaultWaitMs`），加 `permissions?`、`pageSize?`                   |
+| `WowDatasetWordings`、`WowDatasetWordingsOptions` | 租户的数据集措辞（D86、D91）；选项同为 `WowClientOptions`，`fetcher` 必填                                                                                     |
 | `WowViewStoreErrorCodes`、`WowViewStoreErrorCode` | 视图存储自己的 problem 码（`view-store.*`），从 Manifest 生成                                                                                                 |
-| `SHARED_SCOPE`、`SYSTEM_SCOPE`                    | 两个保留所有者的 `Wow-Scope`                                                                                                                                  |
 | `datasetCatalogOf`                                | `GET /wow/dataset` 作 `DatasetCatalog` 的 `list`／`source`；任意 `QueryModelClient`（生成的 `…SnapshotQueryClient`、数据集的）本身就是 `ViewSource`，无需适配 |
 
-宿主用 `new WowViewStore({ fetcher })`，数据源直接用查询客户端。`ViewSource` 就是 wow-client 的形状（D353 V15）：`paged(query, { signal })` 答 `PagedList`（`total` 可为 `null`、带 `exact`），`describe` 答 `DescriptorResult`，行是 `object`，所以任意 `QueryModelClient` 不经适配就是数据源（`test/architecture.test.ts` 钉住生成的快照客户端与数据集客户端两种）；引擎在登记处把行当作记录读，只转这一次。这些类型在 wow-client 的 DSL 入口（`PagedQuery`、`PagedList`、`TotalMode`、`DescriptorResult`），引擎的架构规则（只从 DSL 入口按名导入）不必开口子。
+宿主用 `new WowViewStore({ fetcher })`，数据源直接用查询客户端。保留所有者的 id 与 `Wow-Scope` 留在包内，不导出（#7022 行 15）。`ViewSource` 就是 wow-client 的形状（D353 V15）：`paged(query, { signal })` 答 `PagedList`（`total` 可为 `null`、带 `exact`），`describe` 答 `DescriptorResult`，行是 `object`，所以任意 `QueryModelClient` 不经适配就是数据源（`test/architecture.test.ts` 钉住生成的快照客户端与数据集客户端两种）；引擎在登记处把行当作记录读，只转这一次。这些类型在 wow-client 的 DSL 入口（`PagedQuery`、`PagedList`、`TotalMode`、`DescriptorResult`），引擎的架构规则（只从 DSL 入口按名导入）不必开口子。
 
 ### 10.2 生成的客户端
 

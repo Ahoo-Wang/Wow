@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.tck
 
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.BetweenFilter
 import me.ahoo.wow.api.query.ContainsAllFilter
 import me.ahoo.wow.api.query.ContainsFilter
@@ -46,6 +47,7 @@ import me.ahoo.wow.query.spec.ValueRule
  *
  * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
+@WowSpi
 enum class SemanticShape {
     /** A single-valued string field. */
     STRING,
@@ -61,6 +63,7 @@ enum class SemanticShape {
  * One stored value of a [SemanticShape], as the JSON text of the state property: [json] is `null` when the field is
  * absent from the stored record, and `"null"` when the record stores an explicit `null`.
  */
+@WowSpi
 class SemanticProbe private constructor(
     val shape: SemanticShape,
     val name: String,
@@ -162,6 +165,7 @@ class SemanticProbe private constructor(
  * One cell of the semantic matrix: [filter], applied to a field of [shape], matches exactly the probes named in
  * [matches]. [id] is stable and unique, so a backend's test can name the cells it is known to diverge on.
  */
+@WowSpi
 class SemanticCase(
     val id: String,
     val shape: SemanticShape,
@@ -188,6 +192,7 @@ class SemanticCase(
  *
  * Operators with no case here are listed in [UNCOVERED] with the reason; a test keeps the two lists exhaustive.
  */
+@WowSpi
 object FilterSemantics {
     private const val MISSING = SemanticProbe.MISSING
     private const val NULL = SemanticProbe.NULL

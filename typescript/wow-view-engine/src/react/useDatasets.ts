@@ -43,7 +43,7 @@ export interface DatasetsState {
 }
 
 /** When `useDatasets` reads the directories. */
-export interface DatasetsReading {
+export interface UseDatasetsOptions {
   /**
    * What the datasets served depend on, such as the caller in force, since
    * another caller sees other datasets: a change of it reads them again.
@@ -65,7 +65,7 @@ export interface DatasetsReading {
  */
 export function useDatasets(
   resources: Pick<DatasetResources, 'refresh'>,
-  { key = '', paused = false }: DatasetsReading = {},
+  { key = '', paused = false }: UseDatasetsOptions = {},
 ): DatasetsState {
   const [round, setRound] = useState(0);
   // Each time `paused` clears, the read it starts is a new one, though the

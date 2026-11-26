@@ -21,6 +21,8 @@ import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.InFlightLimit
+import me.ahoo.wow.runtime.access.AccessCapabilities
+import me.ahoo.wow.runtime.access.EventsSources
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.ModelRegistry
 import me.ahoo.wow.runtime.cluster.ClusterChannel
@@ -70,7 +72,7 @@ import java.time.Clock
  * sagas' commands: one [TopicSubscriptions] each, which [TopicAssembly] builds; a node with such subscriptions and no
  * [topics] is not built.
  *
- * **Commands across contexts** (–), when [topics] has a producer: a saga's command to an
+ * **Commands across contexts**, when [topics] has a producer: a saga's command to an
  * aggregate of another context is sent to that context's command topic ([ContextNode.sender]); the receipts of those
  * rejected, and of those committed that the saga asked about, come back on the saga's context's receipts topic, read
  * in the lease group of that topic for the contexts whose sagas have `@OnRejected` or `@OnCommitted` handlers
@@ -175,6 +177,12 @@ class ServiceNode @InternalWowApi constructor(
      * exceptions are recorded by their class names.
      */
     failureDescribers: List<FailureDescriber> = emptyList(),
+    /**
+     * Where each type's `events` model is served from, as the host's query plane binds it; none by default. A type
+     * whose model is served from a store that cannot keep its history's access attributes current refuses the start
+     * ([AccessCapabilities]).
+     */
+    eventsSources: EventsSources = EventsSources.NONE,
 ) {
     private val assembly = NodeAssembly(
         service,
@@ -200,6 +208,7 @@ class ServiceNode @InternalWowApi constructor(
         replayGate,
         deadlines,
         failureDescribers,
+        eventsSources,
     )
 
     /** This node's internal address: the cluster channel and the signals reach it there. Known once [hasAddress]. */
@@ -338,6 +347,7 @@ class ServiceNode @InternalWowApi constructor(
      * Gives the node built without an internal address the [address] its host's internal port was bound at, such as
      * one whose port the system chose: before [start], once.
      */
+    @InternalWowApi
     fun bind(address: String) {
         require(address.isNotBlank()) { "A node has an internal address." }
         check(state == State.NEW) { "Node $node is $state; its address is bound before it starts." }

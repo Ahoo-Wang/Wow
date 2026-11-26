@@ -22,7 +22,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   MemoryViewStore,
   validateRecord,
   ViewEngine,
@@ -83,7 +83,9 @@ const CASES: {
   },
   {
     code: 'record.summary.unsupported',
-    config: { summaries: [{ field: 'amount', fn: AggregationFunction.AVG }] },
+    config: {
+      summaries: [{ field: 'amount', function: AggregationFunction.AVG }],
+    },
     en: 'Amount',
     zh: '「Amount」不提供平均汇总。',
     keys: ['amount', AggregationFunction.AVG],
@@ -102,7 +104,7 @@ describe('a record finding says what the screen shows', () => {
     const raised = validateRecord(
       definition,
       recordConfig(config),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     ).filter(found => found.code === code);
     expect(raised).not.toEqual([]);
 

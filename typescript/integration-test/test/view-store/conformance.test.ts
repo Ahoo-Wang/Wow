@@ -26,7 +26,11 @@
  */
 
 import { WowViewStore } from '@ahoo-wang/wow-view-store';
-import { describeViewStoreConformance } from '../../../wow-view-engine/test/conformance/viewStoreConformance.js';
+import {
+  describeViewStoreConformance,
+  type ViewStoreConformance,
+} from '../../../wow-view-engine/test/conformance/viewStoreConformance.js';
+import { describeViewStoreServiceRules } from '../../../wow-view-engine/test/conformance/viewStoreServiceRules.js';
 import {
   actingAs,
   SHARED_WRITER,
@@ -39,7 +43,7 @@ const tenantId = `conformance-${Date.now()}`;
 /** The views one list page answers: small, so a few views cross pages. */
 const PAGE = 3;
 
-describeViewStoreConformance({
+const SERVICE: ViewStoreConformance = {
   name: 'WowViewStore on the view store service',
   capabilities: {
     owners: true,
@@ -64,4 +68,7 @@ describeViewStoreConformance({
         }),
         pageSize: PAGE,
       }),
-});
+};
+
+describeViewStoreConformance(SERVICE);
+describeViewStoreServiceRules(SERVICE);

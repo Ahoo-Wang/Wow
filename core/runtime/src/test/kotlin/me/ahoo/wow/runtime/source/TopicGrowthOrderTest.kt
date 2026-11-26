@@ -70,7 +70,7 @@ class TopicGrowthOrderTest : TopicSubscriptionsFixtures() {
                 subscriptions = listOf(slow),
                 options = testOptions(),
                 cluster = fastOptions(),
-                partitionRefresh = 20.milliseconds,
+                partitionRefreshInterval = 20.milliseconds,
             ).also {
                 started += it
                 it.start()

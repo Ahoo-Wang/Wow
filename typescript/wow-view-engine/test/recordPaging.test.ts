@@ -234,7 +234,7 @@ describe('projectRecord paging', () => {
       definition,
       recordConfig({ pageSize: 2 }),
       { list: [{ id: 'o-1' }, { id: 'o-2' }], total: 6, exact: true },
-      2,
+      { pageIndex: 2 },
     );
 
     expect(view.paging).toEqual({
@@ -255,7 +255,7 @@ describe('projectRecord paging', () => {
       ordersDefinition(),
       recordConfig({ pageSize: 20 }),
       { list: [{ id: 'o-1' }], total: 624_100, exact: true },
-      1,
+      { pageIndex: 1 },
     );
     expect(view.paging).toMatchObject({ pages: 500, reachable: 10_000 });
     // A declared window below it wins; a host that raised the guard raises

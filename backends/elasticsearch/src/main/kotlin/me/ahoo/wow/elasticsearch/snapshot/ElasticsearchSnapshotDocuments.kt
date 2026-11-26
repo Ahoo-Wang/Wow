@@ -126,16 +126,18 @@ internal object ElasticsearchSnapshotDocuments {
                     WowJson.mapper.treeToValue(rules.path(key), ScheduleRule::class.java)
                 }
             },
-            stateRevision = document.path(STATE_REVISION).takeIf { it.isNumber }?.intValue() ?: 1,
+            stateRevision = stateRevisionOf(document),
         )
     }
 
     /** The version of the snapshot [document] holds. */
     fun versionOf(document: ObjectNode): Int = document.path(VERSION).intValue()
 
-    /** The state revision of the snapshot [document] holds: 1 when it has none. */
+    /** The state revision of the snapshot [document] holds, which every snapshot document of the format names. */
     fun stateRevisionOf(document: ObjectNode): Int =
-        document.path(STATE_REVISION).takeIf { it.isNumber }?.intValue() ?: 1
+        checkNotNull(document.get(STATE_REVISION)?.takeIf { it.isNumber }) {
+            "A snapshot document names its $STATE_REVISION; this one does not: ${document.path(AGGREGATE_ID)}."
+        }.intValue()
 
     /** The version [document] is marked stale at, or null when it is not marked. */
     fun staleVersionOf(document: ObjectNode): Int? = document.path(STALE_VERSION).takeIf { it.isNumber }?.intValue()

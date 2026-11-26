@@ -4,13 +4,12 @@ import {
   CATALOG,
   type FrameworkErrorsCatalog,
   frameworkErrors,
+  frameworkTitles,
   OUTPUT,
+  TITLES_OUTPUT,
 } from '../scripts/framework-errors.mjs';
-import {
-  DEFAULT_RETRY,
-  FRAMEWORK_RETRIES,
-  FrameworkErrorCodes,
-} from '../src/index.js';
+import { DEFAULT_RETRY } from '../src/frameworkErrors.js';
+import { FRAMEWORK_RETRIES, FrameworkErrorCodes } from '../src/index.js';
 
 /**
  * The client's codes, what a retry of each may do and its default retry
@@ -26,6 +25,9 @@ describe('the framework errors', () => {
 
   it('should be what the error catalog generates', async () => {
     expect(readFileSync(OUTPUT, 'utf8')).toBe(await frameworkErrors(catalog));
+    expect(readFileSync(TITLES_OUTPUT, 'utf8')).toBe(
+      await frameworkTitles(catalog),
+    );
   });
 
   it('should name every code of the catalog, with its status and retry', () => {
@@ -38,6 +40,6 @@ describe('the framework errors', () => {
     });
     // A query that ran out of time would run as long again: no retry.
     expect(FRAMEWORK_RETRIES.has('wow.query.timeout')).toBe(false);
-    expect(DEFAULT_RETRY.attempts).toBe(catalog.retry.attempts);
+    expect(DEFAULT_RETRY.maxAttempts).toBe(catalog.retry.attempts);
   });
 });

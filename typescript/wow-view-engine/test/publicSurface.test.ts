@@ -85,7 +85,14 @@ describe('the public surface of each entry', () => {
     const values = [...entryExports('@ahoo-wang/wow-view-engine')].filter(
       ([, kind]) => kind === 'value',
     );
-    expect(values).toHaveLength(58);
+    // 54: `isActionInputError`, the guard of the one error a host builds
+    // and throws into the engine, read by its shape as every other (#7073);
+    // `isReferenceLabelTimeoutError` beside the error `onError` reports
+    // (D486 ⑥, rule 3). Six values only the package and its stories read
+    // left the root then: `CHART_TYPES`, `DEFAULT_MISSING_KEY`,
+    // `fitChartSlots`, `isAnalysisRuntime`, `isDateTimeFilterValue`,
+    // `resolveDateTimeRange`.
+    expect(values).toHaveLength(54);
   });
 
   /**

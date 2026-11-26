@@ -1,13 +1,13 @@
 # Generate the clients from the Manifest
 
-A Wow V10 service publishes its contract as a Manifest: its bounded context, aggregates, commands, events, state, error codes and subscriptions (`GET /wow/manifest`, or the `manifest/baseline.json` the service commits). `@ahoo-wang/wow-generator` turns it into typed clients on `@ahoo-wang/wow-client`. Generated code is the contract on the TypeScript side: a changed command shows as a type error, not as a 400 in production.
+A Wow V10 service publishes its contract as a Manifest: its bounded context, aggregates, commands, events, state, error codes and subscriptions (`GET /wow/manifest`, which the public port serves only with `wow.http.manifest.enabled: true`, or the `manifest/baseline.json` the service commits). `@ahoo-wang/wow-generator` turns it into typed clients on `@ahoo-wang/wow-client`. Generated code is the contract on the TypeScript side: a changed command shows as a type error, not as a 400 in production.
 
 ## Run it
 
 ```bash
 pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
 pnpm add -D @ahoo-wang/wow-generator typescript
-pnpm exec wow-generator generate --input ./manifest.json --output ./src/generated --ts-config-file-path ./tsconfig.json
+pnpm exec wow-generator generate --input ./manifest.json --output ./src/generated
 ```
 
 - `--input` takes a file or an http(s) URL (`-H 'Authorization: Bearer …'` for a protected one, with the token from the environment); prefer the Manifest the service commits, so a build does not depend on a running service.
@@ -16,9 +16,9 @@ pnpm exec wow-generator generate --input ./manifest.json --output ./src/generate
 
 ## What it writes
 
-Per bounded context: `types.ts` (command, event and state types from the Manifest's schemas), `contract.ts` (`<Context>Contract`: the context's `NAME`, its context-level `Errors` and each aggregate's constant, whose `Errors` hold its domain error codes; the `<Context>ErrorCode` union, `<Context>Subscription` and the `<context>Wait` hops), `manifest.ts` (`<Context>Manifest`: the routes of the context's commands, and the `idProperty` of a command whose body names its aggregate, which its command clients send by, so they fetch no Manifest) and `client.ts` (`<Context>Client`: `.commands`, a `CommandClient`, and per aggregate `.<aggregate>.commands`, `.snapshots`, `.events` and `.state`). Per aggregate, in `<context>/<aggregate>/`:
+Per bounded context: `types.ts` (command, event and state types from the Manifest's schemas), `contract.ts` (`<Context>Contract`: the context's `NAME`, its context-level `Errors` and each aggregate's constant, whose `Errors` hold its domain error codes; its wait hops, `Wait`; the `<Context>ErrorCode` union and `<Context>Subscription`), `manifest.ts` (`<Context>Manifest`: the routes of the context's commands, and the `idProperty` of a command whose body names its aggregate, which its command clients send by, so they fetch no Manifest) and `client.ts` (`<Context>Client`: `.commands`, a `CommandClient`, and per aggregate `.<aggregate>.commands`, `.snapshots`, `.events` and `.state`). Per aggregate, in `<context>/<aggregate>/`:
 
-- `aggregate.ts`: `<Aggregate>Aggregate` (context, name, path, ownership, `textNumbers`), `<Aggregate>StateField` (the `state.*` paths a query names) and the `<Aggregate>Event` union, named as the server sends them (`<context>.<aggregate>.<Event>`).
+- `aggregate.ts`: `<Aggregate>Aggregate` (context, name, ownership, idSource, snapshot, `textNumbers`), `<Aggregate>StateField` (the `state.*` paths a query names) and the `<Aggregate>Event` union, named as the server sends them (`<context>.<aggregate>.<Event>`).
 - `commandClient.ts`: `<Aggregate>CommandClient`, one method per command (kebab route, camelCase method) and a `…Stream` twin per command, plus the lifecycle commands the aggregate lists. A command whose body names its aggregate (`idProperty`) takes no id, `x(body, options?)`; when its id is computed (`readOnly` in the schema), the body type leaves it out, `Omit<Body, '<idProperty>'>`.
 - `queryClient.ts`: `<Aggregate>SnapshotQueryClient`, `<Aggregate>EventQueryClient`, `<Aggregate>StateClient`.
 

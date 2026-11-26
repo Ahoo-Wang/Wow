@@ -30,9 +30,11 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.ledger.LedgerRequest
 import me.ahoo.wow.api.ledger.Recoverable
+import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.mongo.MongoDatabases
 import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.MongoTimeouts
+import me.ahoo.wow.mongo.UnknownStoredValues
 import me.ahoo.wow.mongo.conditionalUpsert
 import me.ahoo.wow.mongo.mongo
 import me.ahoo.wow.spi.Ddl
@@ -145,11 +147,14 @@ class MongoFailureLedger(
             .append(FROM_POSITION, literal(entry.fromPosition))
             .append(SKIP_ONLY, literal(entry.skipOnly))
             .append(RETRIES, kept(RETRIES, entry.retries))
-            .append(RETRY_AT, kept(RETRY_AT, entry.retryAt))
+            .append(LAST_RETRY_AT, kept(LAST_RETRY_AT, entry.lastRetryAt))
             .append(RETRY_SPEC, kept(RETRY_SPEC, specOf(entry.retrySpec)))
-            .append(RECOVERABLE, kept(RECOVERABLE, entry.recoverable.name))
+            .append(RECOVERABLE, kept(RECOVERABLE, WireNames.of(entry.recoverable)))
             // A request belongs to the parking it was made for: kept while the failure time is.
-            .append(REQUEST, either(literal(entry.request?.name), sameParking(entry.failedAt, "\$$REQUEST")))
+            .append(
+                REQUEST,
+                either(literal(entry.request?.let(WireNames::of)), sameParking(entry.failedAt, "\$$REQUEST")),
+            )
             .append(NEXT_ATTEMPT_AT, either(literal(entry.nextAttemptAt), null))
             .append(REVISION, either(0L, Document("\$add", listOf(STORED_REVISION, 1L))))
         conditionalUpsert { upsert ->
@@ -260,22 +265,23 @@ class MongoFailureLedger(
         val key = keyFilter(subscription, ref)
         val (filter, update) = when (amendment) {
             is ParkedAmendment.ClaimRetry -> at(key, amendment.revision) to
-                Updates.combine(Updates.inc(RETRIES, 1), Updates.set(RETRY_AT, amendment.at), UNSCHEDULED)
+                Updates.combine(Updates.inc(RETRIES, 1), Updates.set(LAST_RETRY_AT, amendment.at), UNSCHEDULED)
 
             is ParkedAmendment.MarkRecoverable -> ofParking(key, amendment.failedAt) to
-                Updates.combine(Updates.set(RECOVERABLE, amendment.recoverable.name), UNSCHEDULED)
+                Updates.combine(Updates.set(RECOVERABLE, WireNames.of(amendment.recoverable)), UNSCHEDULED)
 
             is ParkedAmendment.Request -> ofParking(key, amendment.failedAt) to
-                Updates.combine(Updates.set(REQUEST, amendment.request.name), UNSCHEDULED)
+                Updates.combine(Updates.set(REQUEST, WireNames.of(amendment.request)), UNSCHEDULED)
             is ParkedAmendment.Schedule -> at(key, amendment.revision) to Updates.set(NEXT_ATTEMPT_AT, amendment.at)
             is ParkedAmendment.TakeRequest -> at(key, amendment.revision) to Updates.set(REQUEST, null)
+            // The caller's statement of the entry's new state: its mark written as given, as a MarkRecoverable's.
             is ParkedAmendment.Restate -> at(key, amendment.revision) to Updates.combine(
                 Updates.set(REASON, amendment.reason),
                 Updates.set(FAILED_AT, amendment.failedAt),
                 Updates.set(RETRIES, amendment.retries),
-                Updates.set(RETRY_AT, amendment.retryAt),
+                Updates.set(LAST_RETRY_AT, amendment.lastRetryAt),
                 Updates.set(RETRY_SPEC, specOf(amendment.retrySpec)),
-                Updates.set(RECOVERABLE, amendment.recoverable.name),
+                Updates.set(RECOVERABLE, WireNames.of(amendment.recoverable)),
                 UNSCHEDULED,
             )
             // An operator's retry spec, sent for one entry at a time, and any amendment a later version adds.
@@ -290,24 +296,28 @@ class MongoFailureLedger(
         }
     }
 
-    /** Stores [amended] whole while the stored entry is at [revision]: the generic path's write. */
+    /**
+     * Stores [amended] whole while the stored entry is at [revision]: the generic path's write. One pipeline update, so
+     * that a `recoverable` or a `request` a later version stored, which this one read as `unknown` or as none, is kept
+     * ([keptRecoverable], [keptRequest]).
+     */
     private suspend fun replace(amended: ParkedAggregate, revision: Long): Boolean = dispatcher.mongo {
-        val update = Updates.combine(
-            Updates.set(PARTITION, amended.partition),
-            Updates.set(FROM_VERSION, amended.fromVersion),
-            Updates.set(REASON, amended.reason),
-            Updates.set(FAILED_AT, amended.failedAt),
-            Updates.set(FROM_POSITION, amended.fromPosition),
-            Updates.set(SKIP_ONLY, amended.skipOnly),
-            Updates.set(RETRIES, amended.retries),
-            Updates.set(RETRY_AT, amended.retryAt),
-            Updates.set(RETRY_SPEC, specOf(amended.retrySpec)),
-            Updates.set(RECOVERABLE, amended.recoverable.name),
-            Updates.set(REQUEST, amended.request?.name),
-            Updates.set(NEXT_ATTEMPT_AT, amended.nextAttemptAt),
-            Updates.set(REVISION, amended.revision),
-        )
-        ledger.updateOne(at(keyFilter(amended.subscription, amended.ref), revision), update).matchedCount > 0
+        val replaced = Document()
+            .append(PARTITION, literal(amended.partition))
+            .append(FROM_VERSION, literal(amended.fromVersion))
+            .append(REASON, literal(amended.reason))
+            .append(FAILED_AT, literal(amended.failedAt))
+            .append(FROM_POSITION, literal(amended.fromPosition))
+            .append(SKIP_ONLY, literal(amended.skipOnly))
+            .append(RETRIES, literal(amended.retries))
+            .append(LAST_RETRY_AT, literal(amended.lastRetryAt))
+            .append(RETRY_SPEC, literal(specOf(amended.retrySpec)))
+            .append(RECOVERABLE, keptRecoverable(WireNames.of(amended.recoverable)))
+            .append(REQUEST, keptRequest(amended.request?.let(WireNames::of)))
+            .append(NEXT_ATTEMPT_AT, literal(amended.nextAttemptAt))
+            .append(REVISION, literal(amended.revision))
+        val filter = at(keyFilter(amended.subscription, amended.ref), revision)
+        ledger.updateOne(filter, listOf(Document("\$set", replaced))).matchedCount > 0
     }
 
     /** [key] at [revision]. */
@@ -356,7 +366,7 @@ class MongoFailureLedger(
         fromPosition = document.getLong(FROM_POSITION),
         skipOnly = document.getBoolean(SKIP_ONLY),
         retries = document.getInteger(RETRIES),
-        retryAt = document.getLong(RETRY_AT),
+        lastRetryAt = document.getLong(LAST_RETRY_AT),
         retrySpec = document.get(RETRY_SPEC, Document::class.java)?.let { spec ->
             ParkedRetrySpec(
                 maxRetries = spec.getInteger(MAX_RETRIES),
@@ -364,8 +374,15 @@ class MongoFailureLedger(
                 claimTtl = spec.getLong(CLAIM_TTL).milliseconds,
             )
         },
-        recoverable = Recoverable.valueOf(document.getString(RECOVERABLE)),
-        request = document.getString(REQUEST)?.let { LedgerRequest.valueOf(it) },
+        // By their wire names; one this node does not know (a later version's) keeps the entry, read as nobody said
+        // and as no request, kept as it is by the write of the whole entry that writes back what was read (replace:
+        // keptRecoverable, keptRequest), and warned of once.
+        recoverable = document.getString(RECOVERABLE).let { stored ->
+            WireNames.entryOf<Recoverable>(stored) ?: Recoverable.UNKNOWN.also { unknown.warn(RECOVERABLE, stored) }
+        },
+        request = document.getString(REQUEST)?.let { stored ->
+            WireNames.entryOf<LedgerRequest>(stored).also { if (it == null) unknown.warn(REQUEST, stored) }
+        },
         nextAttemptAt = document.getLong(NEXT_ATTEMPT_AT),
         revision = document.getLong(REVISION),
     )
@@ -377,8 +394,11 @@ class MongoFailureLedger(
             .append(CLAIM_TTL, it.claimTtl.inWholeMilliseconds)
     }
 
-    private companion object {
+    internal companion object {
         const val DEFAULT_COLLECTION = "wow_failure_ledger"
+
+        /** The values of a later version this JVM's ledgers read, each warned of once. */
+        internal val unknown = UnknownStoredValues("the failure ledger")
 
         /** The service of a ledger built without one: a database of one service. */
         const val DEFAULT_SERVICE = ""
@@ -396,7 +416,7 @@ class MongoFailureLedger(
         const val SUBSCRIPTION_CONTEXT = "subscription_context"
         const val SUBSCRIPTION = "subscription"
         const val CONTEXT = "context"
-        const val AGGREGATE_NAME = "aggregate_name"
+        const val AGGREGATE_NAME = "aggregate"
         const val TENANT_ID = "tenant_id"
         const val AGGREGATE_ID = "aggregate_id"
         const val FROM_VERSION = "from_version"
@@ -407,7 +427,7 @@ class MongoFailureLedger(
         /** Whether the source no longer holds what the entry is parked from, a boolean every document has. */
         const val SKIP_ONLY = "skip_only"
         const val RETRIES = "retries"
-        const val RETRY_AT = "retry_at"
+        const val LAST_RETRY_AT = "last_retry_at"
         const val RETRY_SPEC = "retry_spec"
         const val MAX_RETRIES = "max_retries"
         const val INITIAL_BACKOFF = "initial_backoff_millis"
@@ -435,6 +455,35 @@ class MongoFailureLedger(
         /** In a pipeline update, [stored] while the entry stored fails at [failedAt], else null. */
         fun sameParking(failedAt: Long, stored: String): Document =
             Document("\$cond", listOf(Document("\$eq", listOf("\$$FAILED_AT", failedAt)), stored, null))
+
+        /**
+         * In a pipeline update, [value] in place of the stored `recoverable` only when this version knows the stored
+         * one: a later version's, which this one reads as `unknown`, is kept rather than written back as `unknown`.
+         */
+        fun keptRecoverable(value: String): Document = Document(
+            "\$cond",
+            listOf(
+                Document("\$in", listOf("\$$RECOVERABLE", WireNames.namesOf<Recoverable>())),
+                literal(value),
+                "\$$RECOVERABLE",
+            ),
+        )
+
+        /**
+         * In a pipeline update, [value] in place of the stored `request` only when there is none or this version
+         * knows it: a later version's, which this one reads as none, is kept rather than written back as none.
+         */
+        fun keptRequest(value: String?): Document = Document(
+            "\$cond",
+            listOf(
+                Document(
+                    "\$in",
+                    listOf(Document("\$ifNull", listOf("\$$REQUEST", null)), WireNames.namesOf<LedgerRequest>() + null),
+                ),
+                literal(value),
+                "\$$REQUEST",
+            ),
+        )
 
         /** [key], narrowed to the parking an operator's amendment names by its failure time; any parking for null. */
         fun ofParking(key: Bson, failedAt: Long?): Bson =

@@ -29,6 +29,20 @@ tests:
     asserts:
       - failedTemplate:
           errorPattern: "settings.server.port is set by the chart itself, from ports.http"
+  - it: refuses a config key spelled otherwise than the chart's, as Spring's relaxed binding reads it
+    set:
+      config:
+        WOW_WAIT_MAX_TIMEOUT: "300s"
+    asserts:
+      - failedTemplate:
+          errorPattern: "config.WOW_WAIT_MAX_TIMEOUT is set by the chart itself: set shutdown.waitMaxTimeoutSeconds instead"
+  - it: refuses the HTTP port as a config key in lower case
+    set:
+      config:
+        server_port: "9000"
+    asserts:
+      - failedTemplate:
+          errorPattern: "config.server_port is set by the chart itself, from ports.http"
   - it: refuses the HTTP port in env
     set:
       env:

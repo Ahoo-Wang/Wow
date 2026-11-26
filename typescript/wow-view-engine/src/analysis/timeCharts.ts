@@ -37,6 +37,7 @@ export interface CalendarDay {
   value: number;
 }
 
+/** What a calendar heatmap draws: one value per day, a block per year. */
 export interface CalendarData {
   type: 'calendar';
   /** The measured days, earliest first; a day no row holds is no cell. */
@@ -94,6 +95,7 @@ export interface RiverStream {
   other?: true;
 }
 
+/** What a theme river draws: each stream's values over time. */
 export interface ThemeRiverData {
   type: 'themeRiver';
   /** The time axis, earliest first and without holes. */

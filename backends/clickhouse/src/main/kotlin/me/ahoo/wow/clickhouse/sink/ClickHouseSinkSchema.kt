@@ -21,10 +21,17 @@ import java.security.MessageDigest
 
 /**
  * A column as `system.columns` reads it: its [name] and its [type]; for a column ClickHouse computes on insert
- * (`MATERIALIZED`), [computed] is its comment, null for a stored one.
+ * (`MATERIALIZED`), [computed] is its comment, null for a stored one. A stored column the Sink expects that Wow added
+ * within the format has its [added] default, which `ddl: auto` adds it with to a table that lacks it
+ * ([ClickHouseObject.lacking]); null for a column every table of the format has.
  */
 @InternalWowApi
-data class ClickHouseColumn(val name: String, val type: String, val computed: String? = null)
+data class ClickHouseColumn(
+    val name: String,
+    val type: String,
+    val computed: String? = null,
+    val added: String? = null,
+)
 
 /**
  * A table or view of the Sink: its [name], the stored [columns] it has, or null when only its existence is checked,
@@ -40,23 +47,35 @@ data class ClickHouseObject(
     val all: List<ClickHouseColumn> get() = columns.orEmpty() + computed.map { ClickHouseColumn(it.name, it.type) }
 
     /**
-     * Why the [actual] columns are not these, or null when they are: other stored columns (a stored one of a computed
-     * one's name among them), or a computed column of
-     * another definition (its type or expression changed, which ClickHouse cannot change without rewriting every
-     * row). A computed column it does not expect, another writer's, is no reason; one it lacks is [missing].
+     * Why the [actual] columns are not these, or null when they are: a stored column it expects missing, unless Wow
+     * added it within the format ([lacking]), or of another type, or computed; or a computed column of another
+     * definition (its type or expression changed, which ClickHouse cannot change without rewriting every row), or
+     * stored. Other columns, in any order, are no reason: an operator's own, or a later version's within the format. A
+     * computed column it lacks is [missing].
      */
     fun mismatch(actual: List<ClickHouseColumn>): String? {
-        val stored = if (computed.isEmpty()) actual else actual.filter { it.computed == null }
-        if (stored != columns) {
-            return "$name has the columns ${textOf(stored)}, not ${textOf(columns.orEmpty())}"
+        val byName = actual.associateBy { it.name }
+        val stored = columns.orEmpty().mapNotNull { column ->
+            val found = byName[column.name]
+            when {
+                found == null -> if (column.added == null) "no ${column.name} ${column.type}" else null
+                found.computed != null -> "${column.name} computed (${found.computed}), where it is a stored column"
+                found.type != column.type -> "${column.name} ${found.type}, not ${column.type}"
+                else -> null
+            }
+        }
+        if (stored.isNotEmpty()) {
+            val format = ClickHouseSinkSchema.FORMAT
+            return "$name has ${stored.joinToString("; ")}: not the columns of the Sink's format $format"
         }
         val changed = computed.mapNotNull { column ->
-            val found = actual.firstOrNull { it.name == column.name }
-            if (found == null || found.computed == column.comment) {
-                null
-            } else {
-                "${column.name} ${found.type} (${found.computed}), which this version computes as " +
-                    "${column.type} (${column.comment})"
+            val found = byName[column.name] ?: return@mapNotNull null
+            when (found.computed) {
+                column.comment -> null
+                null -> "${column.name} ${found.type}, a stored column, which this version computes as ${column.type}"
+                else ->
+                    "${column.name} ${found.type} (${found.computed}), which this version computes as " +
+                        "${column.type} (${column.comment})"
             }
         }
         return changed.takeIf { it.isNotEmpty() }?.let {
@@ -65,9 +84,9 @@ data class ClickHouseObject(
         }
     }
 
-    private fun textOf(columns: List<ClickHouseColumn>): String = columns.joinToString(", ", "[", "]") {
-        "${it.name} ${it.type}"
-    }
+    /** The stored columns Wow added within the format ([ClickHouseColumn.added]) that the [actual] columns lack. */
+    fun lacking(actual: List<ClickHouseColumn>): List<ClickHouseColumn> =
+        columns.orEmpty().filter { column -> column.added != null && actual.none { it.name == column.name } }
 
     /** The computed columns the [actual] columns lack, in order. */
     fun missing(actual: List<ClickHouseColumn>): List<ComputedColumn> =
@@ -209,6 +228,17 @@ class ClickHouseSinkSchema(
     }
 
     /**
+     * The statements that add the stored columns [lacking], which Wow added within the format, to [table], each with
+     * its default ([ClickHouseColumn.added]): metadata only, a part written before reads the default until it is
+     * merged.
+     */
+    fun addStoredColumns(table: String, lacking: List<ClickHouseColumn>): List<String> = lacking.map { column ->
+        val definition = "${identifier(column.name)} ${column.type} DEFAULT ${checkNotNull(column.added)}" +
+            CODECS[column.name]?.let { " CODEC($it)" }.orEmpty()
+        "ALTER TABLE ${qualified(table)} ADD COLUMN IF NOT EXISTS $definition"
+    }
+
+    /**
      * What [Ddl.VALIDATE] checks: every table and view with its columns, the materialized views by name; each of them
      * with the format in its comment ([hasFormat]).
      */
@@ -293,7 +323,7 @@ class ClickHouseSinkSchema(
             ClickHouseColumn("operator_id", "String"),
             ClickHouseColumn("operator_tenant_id", "String"),
             ClickHouseColumn("operator_acted_elsewhere", "Bool"),
-            ClickHouseColumn("events", "Array(Tuple(name LowCardinality(String), revision UInt32, payload String))"),
+            ClickHouseColumn("events", "Array(Tuple(name LowCardinality(String), revision UInt32, body String))"),
             ClickHouseColumn("state", "String"),
             ClickHouseColumn("state_fingerprint", "String"),
             ClickHouseColumn("state_numbers", "Map(String, String)"),
@@ -309,7 +339,7 @@ class ClickHouseSinkSchema(
             listOf(
                 "id", "tenant_id", "command_id", "request_id", "owner_id", "space_id", "access", "correlation_id",
                 "causation_id", "headers", "operator_id", "operator_tenant_id", "state_fingerprint", "state_numbers",
-                "state", "events", "payload",
+                "state", "events", "body",
             ).forEach { put(it, "ZSTD(1)") }
             listOf("version", "commit_time").forEach { put(it, "Delta, ZSTD(1)") }
         }
@@ -336,7 +366,7 @@ class ClickHouseSinkSchema(
             ClickHouseColumn("sequence", "UInt32"),
             ClickHouseColumn("event_name", "LowCardinality(String)"),
             ClickHouseColumn("event_revision", "UInt32"),
-            ClickHouseColumn("payload", "String"),
+            ClickHouseColumn("body", "String"),
             ClickHouseColumn("command_id", "String"),
             ClickHouseColumn("request_id", "String"),
             ClickHouseColumn("command_type", "LowCardinality(String)"),
@@ -360,7 +390,7 @@ class ClickHouseSinkSchema(
                 "sequence" -> "toUInt32(sequence) AS sequence"
                 "event_name" -> "event.name AS event_name"
                 "event_revision" -> "event.revision AS event_revision"
-                "payload" -> "event.payload AS payload"
+                "body" -> "event.body AS body"
                 else -> it.name
             }
         }

@@ -77,7 +77,7 @@ describe('useCreateViewEngine', () => {
 
     const runtime = engine.create('orders', {
       title: 'New',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
     unmount();
@@ -90,7 +90,7 @@ describe('useCreateViewEngine', () => {
     expect(() =>
       engine.create('orders', {
         title: 'Again',
-        scope: 'personal',
+        audience: 'personal',
         config: recordConfig(),
       }),
     ).not.toThrow();
@@ -206,7 +206,7 @@ describe('useViewRuntime', () => {
     const { engine } = engineWith();
     const runtime = engine.create('orders', {
       title: 'New',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
 
@@ -283,7 +283,7 @@ describe('useOpenView', () => {
       runtime: null,
       status: 'idle',
       error: null,
-      scopeIssues: [],
+      scopeFilterIssues: [],
       retry: expect.any(Function),
     });
   });
@@ -307,13 +307,15 @@ describe('useOpenView', () => {
       { initialProps: { scope: null as FilterTree | null } },
     );
     await waitFor(() => expect(result.current.runtime).not.toBeNull());
-    expect(result.current.scopeIssues).toEqual([]);
+    expect(result.current.scopeFilterIssues).toEqual([]);
 
     rerender({ scope: refused });
 
     await waitFor(() =>
       expect(
-        result.current.scopeIssues.some(found => found.severity === 'error'),
+        result.current.scopeFilterIssues.some(
+          found => found.severity === 'error',
+        ),
       ).toBe(true),
     );
   });
@@ -339,9 +341,9 @@ describe('useOpenView', () => {
     );
 
     await waitFor(() =>
-      expect(result.current.scopeIssues.map(found => found.code)).toEqual([
-        'filter.field.unknown',
-      ]),
+      expect(result.current.scopeFilterIssues.map(found => found.code)).toEqual(
+        ['filter.field.unknown'],
+      ),
     );
     expect(result.current.runtime?.getSnapshot().issues).toEqual([]);
     await waitFor(() => expect(source.paged).toHaveBeenCalledTimes(1));
@@ -400,7 +402,7 @@ describe('useOpenView', () => {
           ),
       ).toBe(true),
     );
-    expect(result.current.scopeIssues).toEqual([]);
+    expect(result.current.scopeFilterIssues).toEqual([]);
     // The warning is still the runtime's to show.
     expect(
       result.current.runtime?.getSnapshot().issues.map(found => found.code),

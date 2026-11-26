@@ -5,7 +5,7 @@ description: 'Generator 参考 — @ahoo-wang/wow-generator'
 
 # wow-generator 参考
 
-从 Wow Manifest（`GET /wow/manifest`）生成基于 `@ahoo-wang/wow-client` 的类型化客户端，或从 OpenAPI 3 文档生成它的模型与装饰器 API 客户端。包根导出 CodeGenerator、默认配置路径、日志器、错误类型与选项类型，见[符号索引](./symbols.md)。
+从 Wow Manifest（服务提交的 `manifest/baseline.json`，或它的 `GET /wow/manifest`，服务只有设置了 `wow.http.manifest.enabled: true` 才提供）生成基于 `@ahoo-wang/wow-client` 的类型化客户端，或从 OpenAPI 3 文档生成它的模型与装饰器 API 客户端。包根导出 CodeGenerator、默认配置路径、日志器、错误类型与选项类型，见[符号索引](./symbols.md)。
 
 ## 安装
 
@@ -20,7 +20,7 @@ pnpm add -D @ahoo-wang/wow-generator @ahoo-wang/fetcher @ahoo-wang/fetcher-event
 ## 最小示例
 
 ```bash
-pnpm exec wow-generator generate -i ./openapi.json -o ./src/generated -t ./tsconfig.json
+pnpm exec wow-generator generate -i ./openapi.json -o ./src/generated
 ```
 
 ## 选择入口

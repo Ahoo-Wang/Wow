@@ -143,7 +143,7 @@ class StreamCancellationTest {
                     cancelled.complete(cancellation)
                     throw cancellation
                 }
-                return CommandTarget(this.input, input.aggregateId, input.body)
+                return CommandTarget(this.input, input.body, input.aggregateId)
             }
         }
         val node = HttpNode(transformers = listOf(slow))
@@ -222,7 +222,7 @@ class StreamCancellationTest {
 
             override suspend fun transform(input: CommandInput): CommandTarget {
                 transformed.complete(Unit)
-                return CommandTarget(this.input, input.aggregateId, input.body)
+                return CommandTarget(this.input, input.body, input.aggregateId)
             }
         }
         val node = HttpNode(transformers = listOf(transformer), callers = held)

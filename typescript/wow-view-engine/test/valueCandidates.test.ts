@@ -21,7 +21,7 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it, vi } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   compileAnalysis,
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
@@ -49,7 +49,7 @@ import {
   resourcesOf,
 } from './fixtures.js';
 
-const kinds = builtinFieldKinds;
+const kinds = builtinFieldKindRegistry;
 const CONTEXT = { now: NOW, timeZone: 'UTC' };
 
 function fieldOf(definition: DataViewDefinition, name: string) {
@@ -128,7 +128,10 @@ describe('value candidates in the analysis kernel', () => {
     );
     expect(validateAnalysis(definition, config, kinds)).toEqual([]);
 
-    const query = compileAnalysis(definition, config, kinds, CONTEXT);
+    const query = compileAnalysis(definition, config, {
+      kinds,
+      context: CONTEXT,
+    });
     expect(query).toEqual({
       filter: { op: FilterOperator.MATCH_ALL },
       groupBy: [
@@ -161,7 +164,9 @@ describe('value candidates in the analysis kernel', () => {
     );
     expect(config.limit).toBe(20);
     // On the ceiling there is no row left to probe with.
-    expect(compileAnalysis(definition, config, kinds, CONTEXT).limit).toBe(20);
+    expect(
+      compileAnalysis(definition, config, { kinds, context: CONTEXT }).limit,
+    ).toBe(20);
     expect(
       valueCandidatesConfig(
         definition,
@@ -180,8 +185,7 @@ describe('value candidates in the analysis kernel', () => {
       compileAnalysis(
         definition,
         valueCandidatesConfig(definition, field, kinds, query),
-        kinds,
-        CONTEXT,
+        { kinds, context: CONTEXT },
       ).filter;
 
     expect(narrowed(warehouse, '  ber ')).toEqual({
@@ -298,7 +302,7 @@ function openOn(source: ViewSource, definition = ordersDefinition()) {
   });
   return engine.create('orders', {
     title: 'Scratch',
-    scope: 'personal',
+    audience: 'personal',
     config: recordConfig(),
   });
 }
@@ -432,7 +436,7 @@ describe('a view runtime offers value candidates', () => {
     const runtime = openOn(source);
     const warehouse = runtime.valueCandidates('warehouse')!;
     const controller = new AbortController();
-    const asked = warehouse.search('', controller.signal);
+    const asked = warehouse.search('', { signal: controller.signal });
     controller.abort();
     await expect(asked).rejects.toThrow();
     await warehouse.search('');
@@ -457,7 +461,7 @@ describe('a view runtime offers value candidates', () => {
     });
     const starved = engine.create('orders', {
       title: 'Scratch',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
     await expect(

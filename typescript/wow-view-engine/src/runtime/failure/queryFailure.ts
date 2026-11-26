@@ -70,7 +70,7 @@ export function failedQuery(
  *
  * A source that refused the reader rather than the query — HTTP 403, or one
  * of Wow's `…forbidden` codes (`isForbiddenFailure`) — is
- * `runtime.query.forbidden`, with `reason` and the service's `errorCode`:
+ * `runtime.query.forbidden`, with `reason` and the service's problem `code`:
  * the permission state, which a retry does not change.
  *
  * A request that never reached the service (`unreachable`: fetch's own
@@ -108,7 +108,7 @@ export function queryFailureIssue(
   if (isForbiddenFailure(failure))
     return issue('runtime.query.forbidden', [], {
       reason,
-      ...(failure.errorCode ? { errorCode: failure.errorCode } : {}),
+      ...(failure.code ? { code: failure.code } : {}),
     });
   if (failure.unreachable)
     return issue('runtime.query.unreachable', [], { reason });

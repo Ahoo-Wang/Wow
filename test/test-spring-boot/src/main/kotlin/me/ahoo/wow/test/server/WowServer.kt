@@ -345,7 +345,7 @@ class Answer(val status: Int, val headers: Map<String, List<String>>, val text: 
             violations = read.violations,
             result = read.result,
             extensions = read.extensions,
-            retryAfter = read.retryAfter?.inWholeSeconds,
+            retryAfter = read.retryAfter,
             version = read.version,
             retry = read.retry,
         )

@@ -126,7 +126,6 @@ async function measure(spec) {
     const generator = new CodeGenerator({
       inputPath: spec,
       outputDir: join(dir, 'src', 'generated'),
-      tsConfigFilePath,
       logger,
     });
     marks.unshift(['setup', start]);

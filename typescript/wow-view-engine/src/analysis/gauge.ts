@@ -14,6 +14,7 @@
 import type { GaugeSpec, RecordData } from '../model/index.js';
 import { num } from './chartRows.js';
 
+/** What a gauge draws: one value against its range. */
 export interface GaugeData {
   type: 'gauge';
   /** The one number, `null` when the row has none. */

@@ -103,7 +103,7 @@ class DeclaredServiceRoutesTest {
     fun `a sender names its service to its own nodes and to another service's`(): Unit = runBlocking {
         HttpSignalSender(client, service = OTHER).use { sender ->
             sender.send(
-                Origin("node-1", server.address, SERVICE),
+                Origin(SERVICE, "node-1", server.address),
                 WaitSignal(waitId = "w-x", result = committed("c-1")),
                 deadline(),
             )
@@ -112,7 +112,7 @@ class DeclaredServiceRoutesTest {
         // A sender that names no service is refused, and drops the signal.
         HttpSignalSender(client).use { sender ->
             sender.send(
-                Origin("node-1", server.address, SERVICE),
+                Origin(SERVICE, "node-1", server.address),
                 WaitSignal(waitId = "w-y", result = committed("c-2")),
                 deadline(),
             )

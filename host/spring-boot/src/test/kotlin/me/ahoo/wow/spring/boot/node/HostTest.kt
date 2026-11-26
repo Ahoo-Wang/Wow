@@ -66,7 +66,7 @@ class HostTest {
         "wow.executor.max-in-flight" to 512,
         "wow.state-cache.capacity" to 0,
         "wow.wait.max-hops" to 3,
-        "wow.wait.unknown-contexts" to "reject",
+        "wow.wait.unknown-contexts" to "refuse",
         "wow.subscription.max-in-flight" to 64,
         "wow.subscription.retry.max-attempts" to 2,
         "wow.timers.poll-interval" to "250ms",
@@ -76,6 +76,7 @@ class HostTest {
         "wow.timers.max-early-wait" to "2s",
         "wow.http.errors.[bank.account.frozen].status" to 409,
         "wow.http.request-facts" to "X-Device",
+        "wow.http.manifest.enabled" to true,
         "spring.lifecycle.timeout-per-shutdown-phase" to "1s",
     )
 
@@ -116,7 +117,7 @@ class HostTest {
         options.cluster.reconcileInterval.assert().isEqualTo(200.milliseconds)
         options.wait.maxTimeout.assert().isEqualTo(15.seconds)
         options.wait.maxHops.assert().isEqualTo(3)
-        options.wait.unknownContexts.assert().isEqualTo(UnknownContexts.REJECT)
+        options.wait.unknownContexts.assert().isEqualTo(UnknownContexts.REFUSE)
         options.executor.laneCapacity.assert().isEqualTo(32)
         options.executor.maxInFlight.assert().isEqualTo(512)
         options.stateCache.capacity.assert().isEqualTo(0)
@@ -206,7 +207,7 @@ class HostTest {
     }
 
     @Test
-    fun `the Manifest should be served at wow-manifest`() {
+    fun `the Manifest should be served at wow-manifest once wow-http-manifest-enabled turns it on`() {
         val answer = host.get("/wow/manifest")
         answer.status.assert().isEqualTo(200)
         answer.body!!["service"]["name"].asString().assert().isEqualTo("bank-service")

@@ -87,9 +87,9 @@ fun interface CommandRouter {
  *   route never reads.
  * - A forward the owner surely did not receive degrades to running locally, without retrying it: no
  *   known owner, the peer unreachable or not connected by the wait's deadline ([ClusterChannelException.unsent]), or
- *   a refusal before the forward's deadline ([Refusal.NOT_OWNER], [Refusal.EXPIRED], or a type the peer does not
- *   know): the peer did not run it.
- * - A forward to a peer that has [ClusterOptions.maxInFlightPerPeer] forwards from this node in flight is answered
+ *   a refusal before the forward's deadline ([Refusal.NOT_OWNER], [Refusal.EXPIRED], a type the peer does not
+ *   know, a forward it could not read or of a format it does not read): the peer did not run it.
+ * - A forward to a peer that has [ClusterOptions.maxInFlightPerNode] forwards from this node in flight is answered
  *   busy ([ResultCodes.BUSY]), as the node's own admission bound answers, and runs nowhere. The bound keeps one slow
  *   peer from taking the node's whole budget of commands in flight; running the command here instead, without the
  *   lease, would make the owner reload the aggregate's state and stall its tail, adding to the load of the peer that
@@ -174,7 +174,7 @@ class PartitionedRouter(
         wait: WaitContext?,
     ): Settlement? {
         val permits = inFlight.computeIfAbsent(peer.address) { AtomicInteger() }
-        if (permits.incrementAndGet() > options.maxInFlightPerPeer) {
+        if (permits.incrementAndGet() > options.maxInFlightPerNode) {
             permits.decrementAndGet()
             return busy(model, command, peer)
         }
@@ -271,13 +271,13 @@ class PartitionedRouter(
     }
 
     /**
-     * [peer] has [ClusterOptions.maxInFlightPerPeer] forwards from this node in flight: [command] is refused busy
+     * [peer] has [ClusterOptions.maxInFlightPerNode] forwards from this node in flight: [command] is refused busy
      * ([ResultCodes.BUSY]), as the node's own admission bound refuses one. It committed nothing and runs nowhere, and a
      * retry with the same request id runs it.
      */
     private fun busy(model: AggregateModel<*>, command: Command<*>, peer: Member): Settlement {
         logger.debug {
-            "${peer.node} has ${options.maxInFlightPerPeer} forwards in flight; ${command.id} is refused busy."
+            "${peer.node} has ${options.maxInFlightPerNode} forwards in flight; ${command.id} is refused busy."
         }
         observer.observed(ObservedEvent.ForwardFailed(command.ref.type, ObservedEvent.ForwardFailed.Outcome.BUSY))
         observer.observed(ObservedEvent.Refused(command.ref.type, ResultCodes.BUSY))
@@ -288,7 +288,7 @@ class PartitionedRouter(
             clock.millis(),
         )
         // Not the peer or its address: the client is told the conclusion, the node's log the rest.
-        val message = "The owner of ${command.ref} already has ${options.maxInFlightPerPeer} commands in flight from " +
+        val message = "The owner of ${command.ref} already has ${options.maxInFlightPerNode} commands in flight from " +
             "this node; retry later."
         return Settlement(committed.failed(ResultCodes.BUSY, message))
     }

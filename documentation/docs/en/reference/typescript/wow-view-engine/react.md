@@ -44,7 +44,7 @@ Guides: [View Engine Core Concepts](../../../typescript/view-engine/index.md) (t
 |---|---|
 | `useCreateViewEngine(options)` | Makes one engine for the lifetime of the component and disposes it on unmount. Options are read once: a definition set and a store are not render-time values |
 | `useEngine(own?)` | The engine a component draws: `own` when given, else the one the `ViewHost` above holds; it throws when there is neither. A host's own component under a `ViewHost` reads the application's engine here rather than having it passed down |
-| `useOpenView(engine, instanceId, { scopeFilter?, opening? })` | Opens an instance and owns the runtime it produced: changing the id or unmounting disposes the previous one, and the open's [async state](#async-state) is `status` and `error`. A runtime the engine disposed under it (its instance deleted) is not handed out; the id is opened again. `scopeFilter` is in force from the opening query, read when the view opens and then followed, so a fresh object every render reopens nothing; a condition the definition refuses is not in force, and `scopeIssues` says which. `opening` tells a dashboard which tab and filter values it opens with |
+| `useOpenView(engine, instanceId, { scopeFilter?, opening? })` | Opens an instance and owns the runtime it produced: changing the id or unmounting disposes the previous one, and the open's [async state](#async-state) is `status` and `error`. A runtime the engine disposed under it (its instance deleted) is not handed out; the id is opened again. `scopeFilter` is in force from the opening query, read when the view opens and then followed, so a fresh object every render reopens nothing; a condition the definition refuses is not in force, and `scopeFilterIssues` says which. `opening` tells a dashboard which tab and filter values it opens with |
 | `useViewRuntime(runtime)` | Subscribes to a runtime and answers its snapshot. The runtime commits state before it notifies and returns the same object while nothing changes — exactly what `useSyncExternalStore` asks of a store |
 
 `useOpenView`'s `retry()` opens the same id again: the way back from a failure that may pass (the store unreachable, or answering with an error of its own).
@@ -64,21 +64,21 @@ export interface OpenViewState {
   error: Issue | null;
   retry(): void;
   runtime: AnyViewRuntime | null;
-  scopeIssues: Issue[];
+  scopeFilterIssues: Issue[];
   status: QueryStatus;
 }
 ```
 
 ## The view list and its management {#api-useViewList}
 
-`useViewList` answers one definition's list, preferences and permissions. They load independently and never block each other: a failed list leaves an open view alone, and failed preferences only drop back to server order. The list's [async state](#async-state) is `status` and `error`, the preferences' their own `preferences.status` and `preferences.error`, beside what was read (`preferences.value`); a reload refreshes the preferences in place, so theirs is `'loading'` only until the first answer. `options.kinds` narrows the list to those kinds before it is ordered and before a default is resolved from it — a workbench draws only the kinds it has parts for, or its sidebar would offer views the body cannot render.
+`useViewList` answers one definition's list, preferences and permissions. They load independently and never block each other: a failed list leaves an open view alone, and failed preferences only drop back to server order. The list's [async state](#async-state) is `status` and `error`, the preferences' their own `preferences.status` and `preferences.error`, beside what was read (`preferences.value`); a refresh reads the preferences again in place, so theirs is `'loading'` only until the first answer. `options.viewKinds` narrows the list to those kinds before it is ordered and before a default is resolved from it — a workbench draws only the kinds it has parts for, or its sidebar would offer views the body cannot render.
 
 `all` holds the same summaries before that narrowing: a reorder stores one order for the whole definition, and a narrowed workbench submitting only what it sees would drop every other id from `preferences.order`, so a caller that writes the order reads it from `all` and moves the two ids it can see inside it.
 
-`useViewManager` manages the views a list shows rather than the open one: rename, move to the other audience, delete, reorder and choose a default, with the recovery actions for writes no runtime owns. A write that lands reloads the list, because the list is what changed.
+`useViewManager` manages the views a list shows rather than the open one: rename, move to the other audience, delete, reorder and choose a default, with the recovery actions for writes no runtime owns. A write that lands refreshes the list, because the list is what changed.
 
 ```ts
-export declare function useViewList(engine: ViewEngine, definitionId: string, options?: ViewListOptions): ViewListState;
+export declare function useViewList(engine: ViewEngine, definitionId: string, options?: UseViewListOptions): ViewListState;
 export declare function useViewManager(engine: ViewEngine, definitionId: string, input: ViewManagerOptions): ViewManagerController;
 
 export interface ViewListState {
@@ -89,7 +89,7 @@ export interface ViewListState {
   items: ViewInstanceSummary[];
   permissions: ViewPermissions;
   preferences: ViewListPreferences;
-  reload(options?: ViewListReloadOptions): void;
+  refresh(options?: ViewListRefreshOptions): void;
   status: QueryStatus;
 }
 
@@ -118,12 +118,12 @@ export interface WorkbenchOptions {
   guardUnload?: boolean;
   handOver?: ViewHandOver | null;
   instanceId?: string | null;
-  kinds: readonly ViewKind[];
   newView?: NewViewOptions;
   onDrilldown?(target: DrillTarget): void;
   onInstanceChange?(id: string | null): void;
   onNavigate?(to: ViewNavigation): void;
   opening?(instanceId: string): DashboardOpening | undefined;
+  viewKinds: readonly ViewKind[];
 }
 ```
 

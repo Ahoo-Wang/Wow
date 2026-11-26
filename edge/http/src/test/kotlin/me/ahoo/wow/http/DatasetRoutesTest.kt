@@ -231,7 +231,11 @@ class DatasetRoutesTest {
             .contains("id", "tenant_id", "owner_id", "region", "amount")
         val tag = described.headers.eTag
         tag.assert().isEqualTo("\"${described.body!!["version"].asString()}\"")
-        node.get(SALES, "alice", mapOf(HttpHeaders.IF_NONE_MATCH to "W/$tag")).status.assert().isEqualTo(304)
+        // Whether the caller sees the dataset is the caller's: a shared cache must not answer another caller.
+        described.headers.cacheControl.assert().isEqualTo("private, no-cache")
+        val unchanged = node.get(SALES, "alice", mapOf(HttpHeaders.IF_NONE_MATCH to "W/$tag"))
+        unchanged.status.assert().isEqualTo(304)
+        unchanged.headers.cacheControl.assert().isEqualTo("private, no-cache")
         node.get(SALES, "alice", mapOf(HttpHeaders.ACCEPT to MediaType.TEXT_EVENT_STREAM_VALUE)).status.assert()
             .isEqualTo(406)
     }
@@ -259,6 +263,15 @@ class DatasetRoutesTest {
         node.get("/wow/dataset", "alice", mapOf(WowHeaders.SCOPE to "tenant=\"(0)\""))
             .assertQueryProblem(403, FrameworkCodes.AUTH_FORBIDDEN)
         node.get("/wow/dataset", null).status.assert().isEqualTo(401)
+    }
+
+    @Test
+    fun `a Wow-Scope that does not parse should be a malformed request on the list, a descriptor and a query`() {
+        val malformed = mapOf(WowHeaders.SCOPE to "tenant=()", "X-Admin" to "yes")
+        node.get("/wow/dataset", "alice", malformed).assertQueryProblem(400, FrameworkCodes.REQUEST_MALFORMED)
+        node.get(SALES, "alice", malformed).assertQueryProblem(400, FrameworkCodes.REQUEST_MALFORMED)
+        node.query("""{"kind":"count","filter":{"op":"match-all"}}""", headers = malformed)
+            .assertQueryProblem(400, FrameworkCodes.REQUEST_MALFORMED)
     }
 
     @Test

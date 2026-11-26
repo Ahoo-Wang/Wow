@@ -89,9 +89,9 @@ class PlainValuesTest {
         )
         input.copyWith(requestId = "r-2").requestId.assert().isEqualTo("r-2")
         checks(
-            CommandTarget.of(type, "o-1", "b"),
-            CommandTarget.of(type, "o-1", "b", emptyMap()),
-            CommandTarget.of(type, null, "b"),
+            CommandTarget.of(type, "b", "o-1"),
+            CommandTarget.of(type, "b", "o-1", emptyMap()),
+            CommandTarget.of(type, "b", null),
             "CommandTarget("
         )
     }

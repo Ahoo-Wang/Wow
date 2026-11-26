@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.test
 
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -27,6 +28,7 @@ import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.route.RouteCall
 import me.ahoo.wow.kernel.CommandCalls
+import me.ahoo.wow.spi.call.requestIdOf
 import java.util.concurrent.CopyOnWriteArrayList
 
 /**
@@ -101,9 +103,13 @@ class AnsweringCommandClient internal constructor(
         }
     }
 
-    /** [request]'s answer, the call kept in [calls]. */
+    /**
+     * [request]'s answer, the call kept in [calls]. Sent while a decide function decides, a request that gives no id
+     * takes the one a node's client gives it ([requestIdOf]): its command's next call, the same at every attempt, a
+     * call that changes at a later attempt failing the command as on a node.
+     */
     private suspend fun take(request: CommandRequest<*>): CommandResult {
-        val call = CommandCall(caller, request)
+        val call = CommandCall(caller, request, currentCoroutineContext().requestIdOf(request))
         taken += call
         return answer(call)
     }
@@ -114,13 +120,21 @@ class AnsweringCommandClient internal constructor(
  * gave), and the [request]. Its results are the ones a target answers it with, on [ref]: the request's aggregate when
  * it names its type and id, else the ref the test gives.
  */
-class CommandCall internal constructor(val caller: Caller?, val request: CommandRequest<*>) {
+class CommandCall internal constructor(
+    val caller: Caller?,
+    val request: CommandRequest<*>,
+    /**
+     * The request id the call was sent under: the request's own, else, sent while a decide function decides, the one
+     * a node's client derives from the command being decided and the call's index; null for neither.
+     */
+    val requestId: String? = request.requestId,
+) {
     /** The request's aggregate, when it names its type and id, in its target tenant or the caller's. */
     val ref: AggregateRef?
         get() {
             val type = request.type ?: return null
-            val id = request.id ?: return null
-            return type.ref(request.targetTenant ?: caller?.tenantId ?: Caller.DEFAULT_TENANT, id)
+            val id = request.aggregateId ?: return null
+            return type.ref(request.targetScope?.tenantId ?: caller?.tenantId ?: Caller.DEFAULT_TENANT, id)
         }
 
     /**
@@ -155,7 +169,7 @@ class CommandCall internal constructor(val caller: Caller?, val request: Command
     }
 
     private fun commandOf(ref: AggregateRef): Command<*> {
-        val id = request.requestId ?: "request-of-${ref.id}"
+        val id = requestId ?: "request-of-${ref.id}"
         return Command(id, id, ref, request.command)
     }
 

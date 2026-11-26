@@ -21,6 +21,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.CommandRequest
@@ -29,7 +30,7 @@ import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.decide.Misuse
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
@@ -121,7 +122,7 @@ class InProcessCommandClientTest {
     }
 
     private val registry = WaitRegistry()
-    private val origin = Origin("node-1", "127.0.0.1:9090", "shop")
+    private val origin = Origin("shop", "node-1", "127.0.0.1:9090")
 
     private fun gateway(
         models: List<me.ahoo.wow.kernel.AggregateModel<*>> = listOf(model),
@@ -186,7 +187,7 @@ class InProcessCommandClientTest {
             override val input = model.commandType(AddItem::class.java)
 
             override suspend fun transform(input: CommandInput): CommandTarget =
-                CommandTarget(input.type, input.aggregateId ?: "c-alice", input.body, input.headers)
+                CommandTarget(input.type, input.body, input.aggregateId ?: "c-alice", input.headers)
         }
         val result = InProcessCommandClient(gateway(transformers = listOf(mine))).of(alice).wait(AddItem("pear"))
         result.ref.assert().isEqualTo(cart.ref(TENANT, "c-alice"))
@@ -203,19 +204,27 @@ class InProcessCommandClientTest {
             mismatch.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_VERSION_MISMATCH)
             val targeted = InProcessCommandClient(gateway).of(admin).wait(
                 CommandRequest.builder(cart.ref(TENANT, "c-2"), AddItem("kiwi"))
-                    .wait(WaitPlan.COMMITTED).timeout(5.seconds).targetScope(Scope("alice")).build(),
+                    .wait(WaitPlan.COMMITTED).timeout(5.seconds).targetScope(TargetScope.of(TENANT, Scope("alice")))
+                    .build(),
             )
             targeted.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
             commands.last().scope.assert().isEqualTo(Scope("alice"))
             commands.last().wait.timeout.assert().isEqualTo(5.seconds)
-            // A target tenant alone acts in the target tenant, in no scope.
+            // A target tenant alone acts in the target tenant, in the caller's own scope, as an HTTP client and a saga do.
             InProcessCommandClient(gateway).of(admin)
                 .wait(CommandRequest.builder(cart.ref(TENANT, "c-6"), AddItem("fig")).wait(WaitPlan.COMMITTED).build())
-            commands.last().scope.assert().isEqualTo(Scope.NONE)
+            commands.last().scope.assert().isEqualTo(admin.scope)
             commands.last().ref.tenantId.assert().isEqualTo(TENANT)
             // A target scope alone acts in it in the caller's own tenant.
             InProcessCommandClient(gateway).of(admin)
-                .wait(CommandRequest.of(AddItem("yuzu"), "c-10", targetScope = Scope("bob"), wait = WaitPlan.COMMITTED))
+                .wait(
+                    CommandRequest.of(
+                        AddItem("yuzu"),
+                        "c-10",
+                        targetScope = TargetScope.of(scope = Scope("bob")),
+                        wait = WaitPlan.COMMITTED
+                    )
+                )
             commands.last().ref.tenantId.assert().isEqualTo("ops")
             commands.last().scope.assert().isEqualTo(Scope("bob"))
             client.send(CommandRequest.of(AddItem("lime"), "c-7", timeout = 3.seconds))
@@ -244,6 +253,12 @@ class InProcessCommandClientTest {
             commands.last().requestId.assert().isEqualTo(derived(1))
             client.wait(CommandRequest.of(AddItem("plum"), "c-8", requestId = "own"))
             commands.last().requestId.assert().isEqualTo("own")
+            // The derived ids are the framework's (#7064): admission takes their prefix from this client alone.
+            derived(0).assert().startsWith("wow:")
+            val named = assertThrows<CommandRejectedException> {
+                runBlocking { client.wait(CommandRequest.of(AddItem("plum"), "c-8", requestId = derived(2))) }
+            }
+            named.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
         }
     }
 
@@ -280,12 +295,15 @@ class InProcessCommandClientTest {
             }
             val gateway = gateway(listOf(invoices, payments), log = log)
             calls = InProcessCommandClient(gateway).of(alice)
-            val open = ServerCommandRequest.builder(
+            val open = ServerCommandRequest.of(
                 CONTEXT,
                 "invoice",
                 OpenInvoice::class.java.name,
                 CommandBody.Value(OpenInvoice(10)),
-            ).caller(alice).requestId("open-1").wait(WaitPlan.COMMITTED).build()
+                caller = alice,
+                requestId = "open-1",
+                wait = WaitPlan.COMMITTED,
+            )
 
             val first = gateway.execute(open)
             first.status.assert().isEqualTo(CommandResult.Status.FAILED)
@@ -344,7 +362,7 @@ class InProcessCommandClientTest {
         }
         problem.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNDECLARED_EVENT)
         problem.status.assert().isEqualTo(500)
-        problem.retry.assert().isEqualTo(Retry.NONE)
+        problem.retry.assert().isEqualTo(RetryAdvice.NONE)
         problem.message.assert().contains("shop.faulty's decide function of OpenCart produced OpenCart")
     }
 
@@ -364,14 +382,14 @@ class InProcessCommandClientTest {
         val busy = assertThrows<WowProblemException> { InProcessCommandClient.settled(failed(ResultCodes.BUSY)) }
         busy.code.assert().isEqualTo(ResultCodes.BUSY)
         busy.status.assert().isEqualTo(429)
-        busy.retry.assert().isEqualTo(Retry.SAME_REQUEST)
+        busy.retry.assert().isEqualTo(RetryAdvice.SAME_REQUEST)
         busy.result!!.error!!.message.assert().isEqualTo("It failed.")
         val timedOut = InProcessCommandClient.problemOf(failed(ResultCodes.WAIT_TIMEOUT))
         timedOut.status.assert().isEqualTo(504)
-        timedOut.retry.assert().isEqualTo(Retry.SAME_REQUEST)
+        timedOut.retry.assert().isEqualTo(RetryAdvice.SAME_REQUEST)
         val crashed = InProcessCommandClient.problemOf(failed(ResultCodes.FAILED))
         crashed.status.assert().isEqualTo(500)
-        crashed.retry.assert().isEqualTo(Retry.NONE)
+        crashed.retry.assert().isEqualTo(RetryAdvice.NONE)
         InProcessCommandClient.problemOf(failed("wow.something.new")).status.assert().isEqualTo(500)
         val down = InProcessCommandClient.problemOf(failed(ResultCodes.STORAGE_UNAVAILABLE))
         down.status.assert().isEqualTo(503)

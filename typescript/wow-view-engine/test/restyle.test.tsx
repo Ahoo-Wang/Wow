@@ -84,7 +84,7 @@ describe('restyledOnly', () => {
     expect(
       restyledOnly(ordersDefinition(), ran, {
         ...ran,
-        summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+        summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
       }),
     ).toBe('summaries');
   });
@@ -323,7 +323,7 @@ describe('a summary over a field the page did not ask for', () => {
       card: { title: 'id', fields: [] },
     });
   const summaries: RecordSummary[] = [
-    { field: 'amount', fn: AggregationFunction.SUM },
+    { field: 'amount', function: AggregationFunction.SUM },
   ];
 
   function open(failTotals: boolean, config = amountHidden()) {
@@ -343,7 +343,7 @@ describe('a summary over a field the page did not ask for', () => {
     });
     const runtime = engine.create('orders', {
       title: 'Orders',
-      scope: 'personal',
+      audience: 'personal',
       config,
     });
     return { engine, runtime, paged };
@@ -375,11 +375,11 @@ describe('a summary over a field the page did not ask for', () => {
     ]);
     const data = recordData(runtime);
     expect(data.summaries).toMatchObject({
-      scope: 'total',
+      over: 'total',
       cells: [{ field: 'amount', value: 30 }],
     });
     expect(pageSummaries(data.summaries!.cells, data.view.rows)).toMatchObject({
-      scope: 'page',
+      over: 'page',
       cells: [{ field: 'amount', value: 10 }],
     });
     engine.dispose();
@@ -395,7 +395,7 @@ describe('a summary over a field the page did not ask for', () => {
 
     expect(paged).toHaveBeenCalledTimes(2);
     expect(recordData(runtime).summaries).toMatchObject({
-      scope: 'page',
+      over: 'page',
       cells: [{ field: 'amount', value: 30 }],
     });
     engine.dispose();
@@ -414,7 +414,7 @@ describe('a summary over a field the page did not ask for', () => {
 
     expect(paged).toHaveBeenCalledTimes(1);
     expect(recordData(runtime).summaries).toMatchObject({
-      scope: 'total',
+      over: 'total',
       cells: [{ field: 'amount', value: 30 }],
     });
     engine.dispose();

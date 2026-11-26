@@ -30,10 +30,7 @@ import { cn } from 'cn';
 import type { RecordKey } from '../../model/index.js';
 import type { DetailSection, RecordRow } from '../../record/index.js';
 import { recordValue } from '../../record/index.js';
-import type {
-  RecordDetailController,
-  RecordDetailSection,
-} from '../../react/index.js';
+import type { RecordDetailSection } from '../../react/index.js';
 import { LineAlert } from '../kit/alerts.js';
 import { AlertAction, AlertTitle } from '../components/alert.js';
 import { Button } from '../components/button.js';
@@ -60,6 +57,7 @@ import { cellValue } from './cells.js';
 import { blockOf } from './DetailStructure.js';
 import { placeSections } from './detailPlacement.js';
 import { useCharacterKeys } from '../kit/characterKeys.js';
+import type { RecordDetailController } from '../../react/useRecordDetail.js';
 
 interface RecordDetailProps {
   detail: RecordDetailController;

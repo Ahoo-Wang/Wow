@@ -14,13 +14,12 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { projectRecord } from '../src/record/index.js';
-import { builtinFieldKinds } from '../src/filter/index.js';
+import { builtinFieldKindRegistry } from '../src/filter/index.js';
 import { validateDefinition } from '../src/runtime/index.js';
 import type { FieldDefinition } from '../src/index.js';
 import {
   ViewSurface,
   cellValue,
-  tableTime,
   useSurfaceDisplay,
   useViewMessages,
   zhCN,
@@ -28,6 +27,7 @@ import {
   type CellSurface,
 } from '../src/ui/index.js';
 import { ordersDefinition, recordConfig } from './fixtures.js';
+import { tableTime } from '../src/ui/kit/displayTime.js';
 
 afterEach(cleanup);
 
@@ -149,7 +149,7 @@ describe('timePrecision on a field', () => {
       { total: 0, exact: true, list: [] },
     ).columns[0];
   const codes = (extra: Partial<FieldDefinition>) =>
-    validateDefinition(definition(extra), builtinFieldKinds).map(
+    validateDefinition(definition(extra), builtinFieldKindRegistry).map(
       found => found.code,
     );
 

@@ -76,6 +76,7 @@ export interface NewAnalysis {
   title: string;
 }
 
+/** Props of `NewAnalysisDialog`. */
 export interface NewAnalysisDialogProps {
   engine: ViewEngine;
   open: boolean;
@@ -86,6 +87,11 @@ export interface NewAnalysisDialogProps {
    * the dialog stays open to say so.
    */
   onAdd(analysis: NewAnalysis): boolean;
+  /**
+   * The whole list of options behind a `remote` key, where the host has it
+   * at hand: the value editor filters it as the reader types, rather than
+   * searching the source the engine's `optionSource` answers.
+   */
   optionsFor?(remote: string): FieldOption[] | undefined;
   /**
    * Where the keyboard goes as it closes (`FinalFocus`): the control that
@@ -463,7 +469,7 @@ function useHeldAnalysis(
       try {
         runtime = engine.create(definition.id, {
           title: definition.title,
-          scope: 'personal',
+          audience: 'personal',
           config: defaultAnalysisConfig(definition, engine.limits),
         });
         setHeld({ definitionId: definition.id, runtime, error: null });

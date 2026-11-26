@@ -59,7 +59,7 @@ export function useSummaries(
   const whole = holdsEveryRow(paging);
   return useMemo(() => {
     if (!summaries) return [];
-    if (summaries.scope === 'page' || whole) return [summaries];
+    if (summaries.over === 'page' || whole) return [summaries];
     return [pageSummaries(summaries.cells, rows), summaries];
   }, [summaries, rows, whole]);
 }

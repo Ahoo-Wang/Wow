@@ -16,21 +16,24 @@ package me.ahoo.wow.api.query.dsl
 import me.ahoo.wow.api.query.QueryField
 
 /**
- * A DSL whose fields may be named under a common path: after `nested("state")`, `"name"` is `state.name`. A path
- * already under it is kept as it is, and a name equal to it is under it: `"state"` is `state.state`
- * ([QueryField.absoluteTo]).
+ * A DSL whose fields may be named under a common path, as the filter DSL's are: within `"state".path { … }`, `"name"`
+ * is `state.name`. A path already under it is kept as it is, and a name equal to it is under it: `"state"` is
+ * `state.state` ([QueryField.absoluteTo]). Paths nest: a path within a path is under both.
  */
 @QueryDslMarker
 abstract class NestedFieldDsl internal constructor() {
-    /** The field this block's names are under; `null` until [nested] names one (a blank name names none). */
+    /** The field this block's names are under, while a `path` block runs; `null` outside one. */
     private var nestedField: QueryField<*>? = null
 
-    fun nested(nestedField: String) {
-        this.nestedField = nestedField.takeIf { it.isNotBlank() }?.let { QueryField(it) }
-    }
-
-    fun nested(nestedField: QueryField<*>) {
-        this.nestedField = nestedField
+    /** Runs [block] with its names under [path], within the path a block already runs under. */
+    internal fun <D : NestedFieldDsl> D.under(path: QueryField<*>, block: D.() -> Unit) {
+        val outer = nestedField
+        nestedField = path.absoluteTo(outer)
+        try {
+            block()
+        } finally {
+            nestedField = outer
+        }
     }
 
     /** This path in the block's terms: under its nested field, as [QueryField.absoluteTo] places it. */

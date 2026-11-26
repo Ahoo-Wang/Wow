@@ -29,9 +29,7 @@
  * ------------------------------------------------------------------------ */
 
 import {
-  builtinFieldKinds,
-  CHART_TYPES,
-  DEFAULT_MISSING_KEY,
+  builtinFieldKindRegistry,
   compileAnalysis,
   compileFilter,
   type AnalysisViewConfig,
@@ -58,6 +56,8 @@ import {
 } from './source.js';
 import { ANALYSIS_VIEWS, ORDER_SYSTEM_VIEWS, RETAIL_ORDERS } from './views.js';
 import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
+import { CHART_TYPES } from '../../../../wow-view-engine/src/model/chart.js';
+import { DEFAULT_MISSING_KEY } from '../../../../wow-view-engine/src/analysis/defaults.js';
 
 const DAY_MS = 86_400_000;
 
@@ -125,7 +125,10 @@ async function answer(
   config: AnalysisViewConfig,
 ): Promise<RecordData[]> {
   const definition = definitionOf(definitionId);
-  const query = compileAnalysis(definition, config, builtinFieldKinds, CONTEXT);
+  const query = compileAnalysis(definition, config, {
+    kinds: builtinFieldKindRegistry,
+    context: CONTEXT,
+  });
   return (await retailSource(definition.source as RetailSourceKey).aggregate(
     query,
   )) as RecordData[];
@@ -357,7 +360,7 @@ export async function sortingLine() {
   const filter = compileFilter(
     definition.fields,
     config.filter,
-    builtinFieldKinds,
+    builtinFieldKindRegistry,
     CONTEXT,
   );
   const { list, total } = await retailSource(

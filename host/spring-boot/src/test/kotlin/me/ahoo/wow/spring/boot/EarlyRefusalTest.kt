@@ -48,7 +48,12 @@ class EarlyRefusalTest {
     fun `a wow setting that does not bind should be refused by the properties' binding, on the application's log`(
         output: CapturedOutput,
     ) {
-        refused("wow.memory.topic-retention" to "0", output, "Property: wow.memory.topic-retention", "Value: \"0\"")
+        refused(
+            "wow.memory.topic-retention" to "many",
+            output,
+            "Property: wow.memory.topic-retention",
+            "Value: \"many\"",
+        )
     }
 
     @Test
@@ -97,7 +102,7 @@ class EarlyRefusalTest {
         // One value at a time, so a post-processor that returns early on one does not hide its read of another; with
         // each, the defaults of the post-processors that read it.
         mapOf(
-            ("wow.memory.topic-retention" to "0") to wowReaders,
+            ("wow.memory.topic-retention" to "many") to wowReaders,
             ("wow.cosec.mode" to "gatewayy") to wowReaders,
             (PROBES to "maybe") to listOf(HealthGroupsEnvironmentPostProcessor.SOURCE),
             (MONGO_URI to "mongodb://localhost/sh%zzop") to listOf(ConnectionDefaultsEnvironmentPostProcessor.SOURCE),

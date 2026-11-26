@@ -65,7 +65,7 @@ class TopicPlacementTest : TopicSubscriptionsFixtures() {
         subscriptions = listOf(board),
         options = testOptions().copyWith(parked = ParkedRetryOptions(spec, scanInterval = 10.milliseconds)),
         cluster = fastOptions(),
-        partitionRefresh = 20.milliseconds,
+        partitionRefreshInterval = 20.milliseconds,
     ).also {
         started += it
         it.start()

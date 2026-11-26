@@ -72,8 +72,8 @@ function view(
     kind: 'view',
     instanceId,
     bindings: [
-      { globalField: 'region', panelField: 'warehouse' },
-      { globalField: 'status', panelField: 'status' },
+      { dashboardField: 'region', panelField: 'warehouse' },
+      { dashboardField: 'status', panelField: 'status' },
     ],
     layout: { x, y: 0, w: 8, h: 4 },
     ...extra,
@@ -324,7 +324,7 @@ describe('holdFilters', () => {
 
     const offered = runtime.valueCandidates('region');
     expect(offered).not.toBeNull();
-    await offered?.search('', new AbortController().signal);
+    await offered?.search('', { signal: new AbortController().signal });
     const asked = vi
       .mocked(source.aggregate)
       .mock.calls.map(([query]) => JSON.stringify(query))

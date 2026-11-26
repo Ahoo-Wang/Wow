@@ -87,7 +87,7 @@ dependencies {
 | `wow-clickhouse` | 数仓 Sink 和数据集的查询（[ClickHouse](../operate/clickhouse)）；在 10.0 中是实验性的，在数据集与分析模块正式发布之前仍在孵化中 |
 | `wow-elasticsearch` | 存储类型 `elasticsearch`，用于快照及其查询，以及为检索索引事件流的 Sink |
 | `wow-observability` | 节点工作的追踪和指标 |
-| `wow-cosec` | 公开路由的 CoSec 认证与授权（[保护部署](../operate/security)）；在 10.0 中是实验性的，跟随 CoSec 8 的预发布版本 |
+| `wow-cosec` | 公开路由的 CoSec 认证与授权（[保护部署](../operate/security)）；在 10.0 中是实验性的，直到一个 10.x 的次版本去掉这个标记 |
 | `wow-cosid` | CosId 的 ID 生成器 |
 | `wow-reactor` | 返回 Reactor 的 `Mono` 和 `Flux` 的处理函数 |
 
@@ -133,6 +133,8 @@ dependencies {
 | Bean Validation 实现（`spring-boot-starter-validation`） | 在准入时检查每个命令体的 Jakarta 约束，回答 `wow.command.invalid`（400）（[编写聚合](./aggregates#check-its-shape)） |
 | `Observer` | 观察节点的工作：各个阶段，以及它注意到的事，比如一次拒绝 |
 
+宿主取用的扩展点中有六个属于 Wow 的 SPI（`@WowSpi`）：上表的 `GlobalIdGenerator`、`AggregateIdGenerator`、`FailureClassifier` 与 `Observer`，以及 `CommandCaller` 与 `QueryObserver`。10.x 的次版本可能改动它们，比如给观察器加一个阶段（[API 级别](../reference/api-levels)），所以实现它们的类在写它的地方选择使用 `@OptIn(WowSpi::class)`，否则编译器会告警；升级时，查看发布说明里关于所实现扩展点的部分。其余 Bean 是公开 API。
+
 这些钩子大多是列表：宿主取该类型的每个 Bean，按 Bean 的顺序（`@Order`、`Ordered` 或 `@Priority`，这是唯一的排序方式）。授权器、变换器、校验器、观察者、失败分类器，以及读取授权器、查询过滤器和查询观察者，都是这样的列表：
 
 - **授权器全部询问。** 只有每个 `CommandAuthorizer` 都允许，命令才被允许；按顺序第一个拒绝的就是答案，其余的不再询问。允许的意思是没有异议，而不是推翻其他授权器，也没有弃权：只管一类事的授权器（比如服务身份可以调用哪些命令，`caller.service`）对它管辖之外的命令一律允许。开启 `wow.cosec.authorizer.enabled` 后，CoSec 的授权器也是其中之一。一个授权器都没有时，命令被允许，但 Wow 的运维命令除外：定时任务的命令、快照重建以及运维人员对停放条目的操作，公开端口和运维路由都拒绝，除非有授权器决定它们（`CommandAuthorizer.operational { … }` 或 CoSec 的）；只管别的事的授权器不算（[授权命令](../operate/security#authorize-commands)）。
@@ -154,4 +156,4 @@ Wow 分组下的环境变量（如 `WOW_KAFKA_…`）也按同样方式检查。
 
 `./gradlew bootRun` 或应用的 main 函数会启动一个节点。没有 `DataSource` 或 `MongoClient` 时，数据保存在内存中，这只在开发 profile 中允许。没有 Kafka 时，只要它做的事都不需要主题，它在任何地方都能启动，并在启动时说明它不发布任何流；在开发中，它改为把主题保存在 JVM 里（[服务什么时候需要 Kafka](../operate/kafka#when-a-service-needs-kafka)）。生产服务需要什么，见[部署模型](../operate/topology)。
 
-公开端口的每条路由都需要认证，包括 `GET /wow/manifest` 和 `GET /wow/openapi`：没有调用者的请求得到 401（`wow.auth.unauthenticated`）。开发时，请求用开发身份请求头指明调用者（[调用者是谁](./http#who-the-caller-is)）。`cosec` profile 下、位于 CoSec 网关之后的节点，相信网关转发的 `CoSec-Identity` 请求头：直接调用它的本地客户端或测试，发送网关会转发的身份，即 `wow-cosec` 的 `CoSecIdentity("alice", listOf("buyer")).headers()`，按 CoSec 文档的格式写出（[把网关放在前面](../operate/security#put-the-gateway-in-front)）。
+公开端口的每条路由都需要认证，包括 `GET /wow/openapi`，以及 `wow.http.manifest.enabled` 打开时的 `GET /wow/manifest`（默认关闭）：没有调用者的请求得到 401（`wow.auth.unauthenticated`）。开发时，请求用开发身份请求头指明调用者（[调用者是谁](./http#who-the-caller-is)）。`cosec` profile 下、位于 CoSec 网关之后的节点，相信网关转发的 `CoSec-Identity` 请求头：直接调用它的本地客户端或测试，发送网关会转发的身份，即 `wow-cosec` 的 `CoSecIdentity("alice", listOf("buyer")).headers()`，按 CoSec 文档的格式写出（[把网关放在前面](../operate/security#put-the-gateway-in-front)）。

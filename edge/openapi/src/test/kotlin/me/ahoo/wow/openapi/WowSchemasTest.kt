@@ -14,6 +14,7 @@
 package me.ahoo.wow.openapi
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.manifest.AccessAttributeManifest
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.openapi.OpenApiFixtures.MANIFEST
@@ -22,11 +23,26 @@ import me.ahoo.wow.openapi.OpenApiFixtures.kinds
 import me.ahoo.wow.openapi.OpenApiFixtures.ref
 import me.ahoo.wow.openapi.OpenApiFixtures.responses
 import me.ahoo.wow.openapi.OpenApiFixtures.schema
+import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
 
 /** The framework schemas of the document ([WowSchemas]): what the edge writes, and the access attributes. */
 class WowSchemasTest {
     private val document = ManifestOpenApi.write(MANIFEST)
+
+    /**
+     * #7050: a creation that names no id and is refused before admission chooses one (a validator's
+     * `wow.command.invalid`, an authorizer's 403) answers its result with `"id": null`, as `WowJson` writes an
+     * unassigned ref; `wow.AggregateRef`, which `CommandResult.ref` and a problem's `result.ref` point at, says so.
+     */
+    @Test
+    fun `an unassigned aggregate ref, as a refused creation's result holds it, should match its schema`() {
+        val ref = WowJson.mapper.writeValueAsString(AggregateType("shop", "cart").unassigned("(0)"))
+        ref.assert().contains("\"id\":null")
+        OpenApiChecks.validate(document, "wow.AggregateRef", ref).assert().isEmpty()
+        OpenApiChecks.validate(document, "wow.AggregateRef", ref.replace("\"id\":null", "\"id\":\"c-1\"")).assert()
+            .isEmpty()
+    }
 
     @Test
     fun `the framework schemas should hold what the edge writes`() {

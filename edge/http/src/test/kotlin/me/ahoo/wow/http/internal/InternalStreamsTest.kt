@@ -102,7 +102,7 @@ class InternalStreamsTest {
             val sender = sender(maxBatch = 1)
             channel.connect(address)
             val forwards = (1..FORWARDS).map { n -> async { channel.forward(address, forwardCommand("c-$n")) } }
-            val origin = Origin("node-1", address, "bank-service")
+            val origin = Origin("bank-service", "node-1", address)
             repeat(SIGNALS) { n ->
                 sender.send(origin, WaitSignal(waitId = "w-$n", result = committed("c-$n")), deadline())
             }
@@ -201,7 +201,7 @@ class InternalStreamsTest {
         }
         eventually { executing.get() == 2 }
         val sender = sender()
-        val origin = Origin("node-1", server.address, "bank-service")
+        val origin = Origin("bank-service", "node-1", server.address)
         sender.send(origin, WaitSignal(waitId = "w-1", result = committed("c-1")), deadline())
         delay(HttpSignalSenderOptions.DEFAULT_RETRY_BACKOFF * 2)
         signals.assert().isEmpty()

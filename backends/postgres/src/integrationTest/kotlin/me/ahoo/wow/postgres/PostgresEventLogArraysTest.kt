@@ -39,6 +39,6 @@ class PostgresEventLogArraysTest : EventLogSpec() {
 
     /** As [PostgresEventLogTest] refuses it: a `\u0000` in a payload string, which `jsonb` does not take. */
     override fun refused(stream: EventStreamRecord): EventStreamRecord = stream.copyWith(
-        events = listOf(EventRecord("x.aggregate.Named", 1, """{"name":"a\u0000b"}""")),
+        events = listOf(EventRecord.of("x.aggregate.Named", 1, """{"name":"a\u0000b"}""")),
     )
 }

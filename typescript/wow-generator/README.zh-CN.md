@@ -14,8 +14,7 @@ pnpm add -D @ahoo-wang/wow-generator typescript
 curl -s http://localhost:8080/wow/manifest > manifest.json
 pnpm exec wow-generator generate \
   --input ./manifest.json \
-  --output ./src/generated \
-  --ts-config-file-path ./tsconfig.json
+  --output ./src/generated
 ```
 
 每个限界上下文写出 `types.ts`（Manifest 中 schema 对应的命令、事件与状态类型）、
@@ -61,8 +60,7 @@ pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator \
 pnpm add -D @ahoo-wang/wow-generator typescript
 pnpm exec wow-generator generate \
   --input ./openapi.yaml \
-  --output ./src/generated \
-  --ts-config-file-path ./tsconfig.json
+  --output ./src/generated
 ```
 
 生成的 API 客户端是装饰器类，编译它们的项目需要在 `tsconfig.json` 中设置
@@ -76,24 +74,23 @@ pnpm exec wow-generator generate \
 生成成功时先输出警告（如有），最后输出一行摘要：
 
 ```text
-Generated 12 files into src/generated with /work/app/wow-generator.config.json, 1 warning
+Generated 12 files into src/generated with wow-generator.config.json, 1 warning
 ```
 
 ## 选项与退出码
 
-| 选项                               | 含义                                                             |
-| ---------------------------------- | ---------------------------------------------------------------- |
-| `-i, --input <file>`               | Wow Manifest 或 OpenAPI 3.x 文档：文件路径或 http(s) URL（必填） |
-| `-o, --output <path>`              | 输出目录，默认 `src/generated`                                   |
-| `-c, --config <file>`              | 配置文件，默认 `./wow-generator.config.json`                     |
-| `-t, --ts-config-file-path <file>` | 项目的 `tsconfig.json`                                           |
-| `-H, --header <header>`            | 读取 http(s) 输入或配置时发送的 `Name: value` 请求头，可重复     |
-| `--timeout <ms>`                   | http(s) 请求超过这个毫秒数即放弃，默认 30000                     |
-| `--schema-docs <mode>`             | `summary`（默认）或 `full`，后者还嵌入每个模型的 JSON schema     |
-| `--strict`                         | 本次运行有警告时以退出码 4 结束                                  |
-| `--check`                          | 什么也不写；输出不同时列出这些文件并以退出码 6 结束              |
-| `--verbose`                        | 输出每一步（带时间戳），失败时输出堆栈                           |
-| `--quiet`                          | 只输出警告和错误                                                 |
+| 选项                    | 含义                                                             |
+| ----------------------- | ---------------------------------------------------------------- |
+| `-i, --input <file>`    | Wow Manifest 或 OpenAPI 3.x 文档：文件路径或 http(s) URL（必填） |
+| `-o, --output <path>`   | 输出目录，默认 `src/generated`                                   |
+| `-c, --config <file>`   | 配置文件，默认 `./wow-generator.config.json`                     |
+| `-H, --header <header>` | 读取 http(s) 输入或配置时发送的 `Name: value` 请求头，可重复     |
+| `--timeout <ms>`        | http(s) 请求超过这个毫秒数即放弃，默认 30000                     |
+| `--schema-docs <mode>`  | `summary`（默认）或 `full`，后者还嵌入每个模型的 JSON schema     |
+| `--strict`              | 本次运行有警告时以退出码 4 结束                                  |
+| `--check`               | 什么也不写；输出不同时列出这些文件并以退出码 6 结束              |
+| `--verbose`             | 输出每一步（带时间戳），失败时输出堆栈                           |
+| `--quiet`               | 只输出警告和错误                                                 |
 
 http(s) 输入的响应不是 2xx 或超时都会失败。Swagger 2.0 文档会被拒绝，请先转换为 OpenAPI 3。
 
@@ -130,7 +127,7 @@ http(s) 输入的响应不是 2xx 或超时都会失败。Swagger 2.0 文档会�
 存在；配置读不到、解析不了，或某个选项的形态不对，都会让本次生成失败，而不是退回默认值。
 生成器不认识的选项——例如拼错的 `apiClient`——会被逐个点名警告并忽略。
 
-摘要行会写出实际读取的配置的绝对路径，一次运行就能回答"我的配置生效了吗"；`--verbose` 还会
+摘要行会写出实际读取的配置相对于运行目录的路径，一次运行就能回答"我的配置生效了吗"；`--verbose` 还会
 写出解析出的设置：
 
 ```text

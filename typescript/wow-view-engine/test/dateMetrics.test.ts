@@ -24,9 +24,8 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   defaultAnalysisConfig,
-  fitChartSlots,
   projectAnalysis,
   validateAnalysis,
   validateDefinition,
@@ -47,6 +46,7 @@ import {
   type DataViewDefinition,
 } from '../src/model/index.js';
 import { INSTANT, analysisConfig, ordersDefinition } from './fixtures.js';
+import { fitChartSlots } from '../src/analysis/chartSlots.js';
 
 const { SUM, AVG, MIN, MAX } = AggregationFunction;
 const { TERMS } = AggregationGroupType;
@@ -134,7 +134,7 @@ function config(
 }
 
 const errors = (target: AnalysisViewConfig, definition = dated()) =>
-  validateAnalysis(definition, target, builtinFieldKinds)
+  validateAnalysis(definition, target, builtinFieldKindRegistry)
     .filter(found => found.severity === 'error')
     .map(found => found.code);
 
@@ -222,7 +222,9 @@ describe('a date is summarised by its earliest and its latest', () => {
       fields: [{ field: 'createdAt', groups: [], functions: [SUM] }],
     });
     expect(
-      validateDefinition(sumOnly, builtinFieldKinds).map(found => found.code),
+      validateDefinition(sumOnly, builtinFieldKindRegistry).map(
+        found => found.code,
+      ),
     ).toContain('definition.analysis.no-metric');
   });
 });

@@ -27,9 +27,14 @@ import {
 } from './conditionFocus.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
 
+/** Props of `FilterPanel`. */
 export interface FilterPanelProps {
   filter: FilterEditorController;
-  /** Candidates for a `remote` value editor, by the key its kind declared. */
+  /**
+   * The whole list of options behind a `remote` key, where the host has it
+   * at hand: the value editor filters it as the reader types, rather than
+   * searching the source the engine's `optionSource` answers.
+   */
   optionsFor?(remote: string): FieldOption[] | undefined;
   disabled?: boolean;
   /**

@@ -82,19 +82,51 @@ class ScheduleJob @InternalWowApi constructor(
  * The state of one job instance, the aggregate `<context>.schedule`: the [job] it runs, by [rule], whose own part is
  * [override] (null: the job's default); whether it is [enabled]; the log [partition] of a [JobScope.SHARDED] job's
  * instance; and the last tick: the [timer] and [slot] it ran, due at [due], with how many [ticks] and how many slots
- * [skipped] in all.
+ * [skipped] in all. Only the job aggregate's own evolve functions change it: a test reads it
+ * (`ScheduleSpec.instanceOf`) but cannot set it.
  */
 class JobState {
     var job: String? = null
+        internal set
     var rule: ScheduleRule.Cron? = null
+        internal set
     var override: JobRule? = null
+        internal set
     var enabled: Boolean = false
+        internal set
     var partition: Int? = null
+        internal set
     var timer: String? = null
+        internal set
     var slot: Long = 0
+        internal set
     var due: Long? = null
+        internal set
     var ticks: Long = 0
+        internal set
     var skipped: Long = 0
+        internal set
+}
+
+/**
+ * A [JobState] of the given facts, for Wow's own modules that stand for the job aggregate without running it (the test
+ * DSL's `whenTick`): only the aggregate's evolve functions set a state's facts otherwise.
+ */
+@InternalWowApi
+fun jobStateOf(
+    job: String,
+    rule: ScheduleRule.Cron? = null,
+    enabled: Boolean = false,
+    partition: Int? = null,
+    slot: Long = 0,
+    due: Long? = null,
+): JobState = JobState().also {
+    it.job = job
+    it.rule = rule
+    it.enabled = enabled
+    it.partition = partition
+    it.slot = slot
+    it.due = due
 }
 
 /**

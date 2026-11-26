@@ -330,7 +330,7 @@ class CoSecNode(
         registry,
         SubscriptionDirectory.NONE,
         LocalSignalSender("node-1", registry),
-        Origin("node-1", "127.0.0.1:9090", "shop-service"),
+        Origin("shop-service", "node-1", "127.0.0.1:9090"),
         WaitOptions(maxTimeout = 30.seconds),
     )
     private val gateway = CommandGateway(

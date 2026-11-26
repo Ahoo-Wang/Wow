@@ -22,7 +22,11 @@ import type { AggregationGroup } from './groups.js';
 import type { HavingExpression } from './having.js';
 import type { AggregationMetric } from './metrics.js';
 
-/** The kind of an {@link AggregationExpression} node, sent as its `type`. */
+/**
+ * The kind of an {@link AggregationExpression} node, sent as its `type`.
+ *
+ * @experimental
+ */
 export enum AggregationExpressionType {
   /** The value of a field; {@link aggregation.field}. */
   FIELD = 'field',
@@ -41,6 +45,8 @@ export enum AggregationExpressionType {
  * The unit a `DATE_DIFF` measures elapsed time in. Each has a fixed length:
  * a `DAY` is exactly 24 hours, and months and years, whose length depends on
  * a calendar and a time zone, are not offered.
+ *
+ * @experimental
  */
 export enum DateDiffUnit {
   SECOND = 'second',
@@ -52,6 +58,8 @@ export enum DateDiffUnit {
 /**
  * The arithmetic of a `BINARY` node, in an {@link AggregationExpression} or a
  * {@link DerivedExpression}.
+ *
+ * @experimental
  */
 export enum AggregationExpressionOperator {
   /** `left + right` */
@@ -68,6 +76,8 @@ export enum AggregationExpressionOperator {
  * An array field whose elements the query aggregates over instead of the
  * root documents; build it with {@link aggregation.element}. A query takes at
  * most `AGGREGATION_LIMITS.MAX_ELEMENTS` of them.
+ *
+ * @experimental
  */
 export interface AggregationElement {
   /** The array field, a query field path. */
@@ -79,14 +89,22 @@ export interface AggregationElement {
   filter?: ElementFilterExpression | ExpressionFilter;
 }
 
-/** The value of a field, as an operand; {@link aggregation.field}. */
+/**
+ * The value of a field, as an operand; {@link aggregation.field}.
+ *
+ * @experimental
+ */
 export interface FieldAggregationExpression<FIELDS extends string = string> {
   type: AggregationExpressionType.FIELD;
   /** The field, a query field path. */
   field: QueryField<FIELDS>;
 }
 
-/** A number, as an operand; {@link aggregation.constant}. */
+/**
+ * A number, as an operand; {@link aggregation.constant}.
+ *
+ * @experimental
+ */
 export interface ConstantAggregationExpression {
   type: AggregationExpressionType.CONSTANT;
   /** A finite number. */
@@ -96,6 +114,8 @@ export interface ConstantAggregationExpression {
 /**
  * `left operator right`; {@link aggregation.add}, {@link aggregation.subtract},
  * {@link aggregation.multiply}, {@link aggregation.divide}.
+ *
+ * @experimental
  */
 export interface BinaryAggregationExpression<FIELDS extends string = string> {
   type: AggregationExpressionType.BINARY;
@@ -113,6 +133,8 @@ export interface BinaryAggregationExpression<FIELDS extends string = string> {
  * value when either is absent. Both are single-valued time fields (their
  * `aggregate.groups` list `DATE_HISTOGRAM`), each read in its own encoding;
  * {@link aggregation.dateDiff}. Wow 9.2 and later.
+ *
+ * @experimental
  */
 export interface DateDiffAggregationExpression<FIELDS extends string = string> {
   type: AggregationExpressionType.DATE_DIFF;
@@ -131,6 +153,8 @@ export interface DateDiffAggregationExpression<FIELDS extends string = string> {
  * `AGGREGATION_LIMITS.MAX_EXPRESSION_DEPTH` deep and `MAX_EXPRESSION_NODES`
  * large, counted over a query's metrics together and over each group or
  * filter on its own.
+ *
+ * @experimental
  */
 export type AggregationExpression<FIELDS extends string = string> =
   | FieldAggregationExpression<FIELDS>
@@ -138,7 +162,11 @@ export type AggregationExpression<FIELDS extends string = string> =
   | BinaryAggregationExpression<FIELDS>
   | DateDiffAggregationExpression<FIELDS>;
 
-/** The comparison of a `CONDITION` in a {@link HavingExpression}. */
+/**
+ * The comparison of a `CONDITION` in a {@link HavingExpression}.
+ *
+ * @experimental
+ */
 export enum ComparisonOperator {
   /** `=` */
   EQ = 'eq',
@@ -168,6 +196,7 @@ export enum ComparisonOperator {
  *
  * @template ROOT_FIELDS - The fields `filter` may name
  * @template AGGREGATION_FIELDS - The fields groups and metrics may name
+ * @experimental
  */
 export interface AggregationQuery<
   ROOT_FIELDS extends string = string,
@@ -207,6 +236,8 @@ export interface AggregationQuery<
  * A query that breaks one of them is refused by the server, which says what
  * was wrong but not which metric or group said it. Checking here keeps the
  * complaint next to the call that built the query.
+ *
+ * @experimental
  */
 export const AGGREGATION_LIMITS = Object.freeze({
   /** Rows returned when a query names no limit of its own. */

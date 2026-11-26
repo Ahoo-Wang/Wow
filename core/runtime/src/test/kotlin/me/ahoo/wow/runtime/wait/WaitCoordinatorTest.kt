@@ -298,7 +298,7 @@ class WaitCoordinatorTest : WaitCoordinatorFixtures() {
             result.error!!.code.assert().isEqualTo(ResultCodes.WAIT_TIMEOUT)
             result.hop.assert().isEqualTo(sagaHop)
             // With unknown contexts rejected, the plan is invalid and the command does not run.
-            val strict = coordinator(WaitOptions(unknownContexts = UnknownContexts.REJECT), shopOnly)
+            val strict = coordinator(WaitOptions(unknownContexts = UnknownContexts.REFUSE), shopOnly)
             strict.execute(order, place(wait = plan)).error!!.code.assert().isEqualTo(ResultCodes.WAIT_INVALID)
         }
 
@@ -320,7 +320,7 @@ class WaitCoordinatorTest : WaitCoordinatorFixtures() {
             signalTime = 1L,
         )
         sender.send(
-            Origin("node-2", "10.0.0.2:9090", "shop"),
+            Origin("shop", "node-2", "10.0.0.2:9090"),
             WaitSignal(waitId = "w-9", result = result),
             Long.MAX_VALUE
         )

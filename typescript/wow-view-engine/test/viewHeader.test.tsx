@@ -305,7 +305,7 @@ describe('ViewHeader', () => {
     const { engine } = setup();
     const runtime = engine.create('orders', {
       title: 'Untitled',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
     render(<Harness engine={engine} runtime={runtime} />);

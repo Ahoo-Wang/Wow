@@ -321,7 +321,7 @@ class DatasetBinderTest {
 
     @Test
     fun `a Wow source whose aggregate an access policy governs should be read by no dataset of the catalog`() {
-        val governed = SOURCES + (MEMBERS_ID to DatasetFixtures.members(access = "POLICY"))
+        val governed = SOURCES + (MEMBERS_ID to DatasetFixtures.members(access = "policy"))
         fun forbidden(sources: Map<String, SourceState?>) =
             (DatasetBinder.bind(DEFINITION, sources) as DatasetBinder.Result.Invalid).forbidden
 
@@ -345,5 +345,11 @@ class DatasetBinderTest {
             .contains("does not say whether an access policy decides the rows of shop.member")
         // Its service says the default rule reads them: the dataset binds as before.
         bound(members).subject.id.assert().isEqualTo(MEMBERS_ID)
+        // Only `default` says so: a value this catalog does not know, a pre-release row's `DEFAULT` among them, is a
+        // policy's.
+        listOf("DEFAULT", "inherited").forEach { access ->
+            problems(members, SOURCES + (MEMBERS_ID to DatasetFixtures.members(access = access))).single().assert()
+                .contains("the access policy of shop.member decides its rows")
+        }
     }
 }

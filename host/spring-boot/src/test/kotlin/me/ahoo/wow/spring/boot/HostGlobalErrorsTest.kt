@@ -16,7 +16,7 @@ package me.ahoo.wow.spring.boot
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.problem.ProblemMapper
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.http.caller.CallerResolver
@@ -74,6 +74,7 @@ class HostGlobalErrorsTest {
     fun `turned off, the application's own routes are Spring's, and Wow's routes still answer by the mappers`() {
         startHost(
             "wow.http.global-errors.enabled" to false,
+            "wow.http.manifest.enabled" to true,
             sources = mapping,
         ).use { host ->
             host.problem("/app/catalog").assert().doesNotContain("bank.catalog.unreachable")
@@ -125,13 +126,13 @@ class AppMappers {
     @Bean
     @Order(1)
     fun claimingMapper(): ProblemMapper =
-        ProblemMapper { WowProblemException("bank.claimed", 418, Retry.NONE, null, "Claimed.") }
+        ProblemMapper { WowProblemException("bank.claimed", 418, RetryAdvice.NONE, null, "Claimed.") }
 
     @Bean
     @Order(0)
     fun catalogMapper(): ProblemMapper = ProblemMapper { failure ->
         (failure as? UnsupportedOperationException)?.let {
-            WowProblemException("bank.catalog.unreachable", 502, Retry.SAME_REQUEST, null, "No catalog.")
+            WowProblemException("bank.catalog.unreachable", 502, RetryAdvice.SAME_REQUEST, null, "No catalog.")
         }
     }
 

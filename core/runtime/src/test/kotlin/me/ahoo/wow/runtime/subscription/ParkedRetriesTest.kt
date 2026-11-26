@@ -134,13 +134,13 @@ class ParkedRetriesTest {
             clock.advance(1.seconds)
             eventually { attempts.get() == 2 && parked()?.retries == 1 }
             val first = parked()!!
-            first.retryAt.assert().isEqualTo(clock.millis())
+            first.lastRetryAt.assert().isEqualTo(clock.millis())
             first.nextRetryAt(spec).assert().isEqualTo(clock.millis() + 2_000)
 
             // The second is due two seconds after the first started, not one.
             clock.advance(1.seconds)
             attemptedAfterScans(2)
-            parked()!!.nextAttemptAt.assert().isEqualTo(first.retryAt!! + 2_000)
+            parked()!!.nextAttemptAt.assert().isEqualTo(first.lastRetryAt!! + 2_000)
             clock.advance(1.seconds)
             eventually { attempts.get() == 3 && parked()?.retries == 2 }
 

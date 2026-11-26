@@ -24,6 +24,7 @@ import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.ops.parkedRoutes
 import me.ahoo.wow.http.problem.GlobalErrors
 import me.ahoo.wow.http.problem.LingeringClose
+import me.ahoo.wow.http.problem.ReadTimeouts
 import me.ahoo.wow.http.problem.ServerRefusals
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.http.route.ServiceRoutes
@@ -34,6 +35,7 @@ import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.query.schema.MaskStrategyResolver
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.ServiceRouteAuthorizer
+import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.state.StateReads
 import me.ahoo.wow.spi.SystemCommandGroups
@@ -45,11 +47,13 @@ import me.ahoo.wow.spring.boot.node.RoutesScope
 import me.ahoo.wow.spring.boot.node.WowModels
 import me.ahoo.wow.spring.boot.query.QueryAutoConfiguration
 import me.ahoo.wow.spring.boot.security.DevelopmentCallerResolver
+import me.ahoo.wow.spring.boot.transport.PortProviders.Companion.configured
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.boot.reactor.netty.NettyServerCustomizer
+import org.springframework.boot.web.server.autoconfigure.ServerProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.env.Environment
@@ -76,15 +80,24 @@ internal class NodePublicPort {
      */
     @Bean
     @InternalWowApi
-    fun wowServerRefusals(environment: Environment): NettyServerCustomizer {
-        val binder = Binder.get(environment)
-        fun limit(key: String, default: DataSize): String =
-            "${(binder.bind(key, DataSize::class.java).orElse(null) ?: default).toBytes()} bytes ($key)"
-        val limits = ServerRefusals.Limits(
-            requestLine = limit(MAX_INITIAL_LINE_LENGTH, DEFAULT_MAX_INITIAL_LINE_LENGTH),
-            headers = limit(MAX_HEADER_SIZE, DEFAULT_MAX_HEADER_SIZE),
-        )
+    fun wowServerRefusals(
+        environment: Environment,
+        serverProperties: ObjectProvider<ServerProperties>,
+    ): NettyServerCustomizer {
+        val limits = limitsOf(environment, serverProperties.ifAvailable)
         return NettyServerCustomizer { server -> LingeringClose.of(ServerRefusals.of(server, limits)) }
+    }
+
+    /**
+     * The public server's read timeout (`wow.http.read-timeout`, [ReadTimeouts]): a request whose body stalls longer
+     * between two reads is answered 408 and its connection closed, as is a connection whose body stalls as long once
+     * its request is answered. It holds from the request's headers to its body's end, never over the answer.
+     */
+    @Bean
+    @InternalWowApi
+    fun wowReadTimeout(properties: WowProperties): NettyServerCustomizer {
+        val timeout = properties.http.checkedReadTimeout()
+        return NettyServerCustomizer { server -> ReadTimeouts.of(server, timeout) }
     }
 
     /**
@@ -117,7 +130,7 @@ internal class NodePublicPort {
             "No CallerResolver bean, and the node is not in development (no profile of wow.dev-profiles): the " +
                 "public port would have no caller to serve."
         }
-        val tenant = properties.tenant.default
+        val tenant = properties.tenant.checkedDefault()
         logger.warn {
             "No CallerResolver bean, in the development profile ${development.profiles.joinToString()}: the public port " +
                 "takes its callers from the ${DevelopmentHeaders.USER}, ${DevelopmentHeaders.OWNER}, " +
@@ -132,19 +145,26 @@ internal class NodePublicPort {
     @Bean
     @ConditionalOnMissingBean
     @InternalWowApi
-    fun wowHttpOptions(properties: WowProperties, environment: Environment): WowHttpOptions {
+    fun wowHttpOptions(
+        properties: WowProperties,
+        environment: Environment,
+        contracts: ObjectProvider<ContractDirectory>,
+    ): WowHttpOptions {
         val strategy = ForwardHeadersEnvironmentPostProcessor.inEffect(environment)
         logger.info {
             "The public port reads the client's address with $strategy: " +
                 "the gateway in front of it must overwrite X-Forwarded-For."
         }
-        return WowHttpOptions(
-            requestFacts = properties.http.requestFacts.toSet(),
-            errorStatuses = properties.http.errorStatuses(),
-            manifestEndpoint = properties.http.manifest.enabled,
-            openApiEndpoint = properties.http.openapi.enabled,
-            clientFacts = properties.http.clientFacts.enabled,
-        )
+        contracts.ifAvailable?.let { directory -> warnUndeclared(properties.http, directory) }
+        return configured("wow.http") {
+            WowHttpOptions(
+                requestFacts = properties.http.requestFactNames(),
+                errorStatuses = properties.http.errorStatuses(),
+                manifestEndpoint = properties.http.manifest.enabled,
+                openApiEndpoint = properties.http.openapi.enabled,
+                clientFacts = properties.http.clientFacts.enabled,
+            )
+        }
     }
 
     /**
@@ -168,13 +188,21 @@ internal class NodePublicPort {
 
     /**
      * The response masks of the state reads and the `events` model: the Manifest's sensitive fields, with
-     * the application's [MaskStrategyResolver] for its custom strategies, as the snapshot queries mask them.
+     * the application's [MaskStrategyResolver] for its custom strategies, as the snapshot queries mask them; a
+     * schedule's command by its command type's schema, the peer contracts' for a command of another context.
      */
     @Bean
     @ConditionalOnMissingBean
     @InternalWowApi
-    fun wowPayloadMasks(manifest: Manifest, strategies: ObjectProvider<MaskStrategyResolver>): PayloadMasks =
-        PayloadMasks(manifest, strategies.getIfAvailable { MaskStrategyResolver.NONE })
+    fun wowPayloadMasks(
+        manifest: Manifest,
+        contracts: ContractDirectory,
+        strategies: ObjectProvider<MaskStrategyResolver>,
+    ): PayloadMasks = PayloadMasks(
+        manifest,
+        strategies.getIfAvailable { MaskStrategyResolver.NONE },
+        contracts.peers.map { it.manifest },
+    )
 
     /**
      * The public routes, served by the application's WebFlux server; the query routes when [QueryAutoConfiguration]
@@ -257,6 +285,26 @@ internal class NodePublicPort {
         private val DEFAULT_MAX_HEADER_SIZE: DataSize = DataSize.ofKilobytes(8)
 
         /**
+         * The public server's limits as its refusals name them ([ServerRefusals.Limits]): the request line's as the
+         * environment sets its key; the header block's as the server is built with it, from the bound [server]
+         * properties, which another configuration may set after binding (CoSec's gateway mode derives 16 KB there,
+         * `IDN-43`), and from the environment's key only on a host without them.
+         */
+        internal fun limitsOf(environment: Environment, server: ServerProperties?): ServerRefusals.Limits {
+            val binder = Binder.get(environment)
+            fun bound(key: String, default: DataSize): DataSize =
+                binder.bind(key, DataSize::class.java).orElse(null) ?: default
+            fun named(key: String, size: DataSize): String = "${size.toBytes()} bytes ($key)"
+            val headers: DataSize = if (server != null) {
+                server.maxHttpRequestHeaderSize
+            } else {
+                bound(MAX_HEADER_SIZE, DEFAULT_MAX_HEADER_SIZE)
+            }
+            val requestLine = bound(MAX_INITIAL_LINE_LENGTH, DEFAULT_MAX_INITIAL_LINE_LENGTH)
+            return ServerRefusals.Limits(named(MAX_INITIAL_LINE_LENGTH, requestLine), named(MAX_HEADER_SIZE, headers))
+        }
+
+        /**
          * The operational commands ([SystemCommandGroups.OPERATIONAL]) the Manifest routes, by their names: a context's
          * jobs and an aggregate type's snapshot rebuild, which the public port refuses unless an authorizer decides them.
          */
@@ -274,6 +322,28 @@ internal class NodePublicPort {
                 "$operational with 403 until the application gives one (CommandAuthorizer.operational, or CoSec's " +
                 "with wow.cosec.authorizer.enabled); the jobs, the sagas and the internal port's calls send them as " +
                 "before."
+        }
+
+        /** The error codes [contracts] declare: each Manifest's framework table and its contexts' tables. */
+        internal fun declaredErrorCodes(contracts: ContractDirectory): Set<String> =
+            contracts.fragments.flatMapTo(HashSet()) { fragment ->
+                fragment.manifest.errors.map { it.code } +
+                    fragment.manifest.contexts.flatMap { context -> context.errors.map { it.code } }
+            }
+
+        /**
+         * One warning for each code of `wow.http.errors` outside `wow.` that [contracts] do not declare: a mistyped
+         * code's status is never used, but a code may be right that no Manifest declares.
+         */
+        internal fun warnUndeclared(http: HttpProperties, contracts: ContractDirectory) {
+            http.undeclaredErrorCodes(declaredErrorCodes(contracts)).forEach { code ->
+                logger.warn {
+                    "wow.http.errors.[$code] names a code that neither this service's Manifest nor a peer contract on " +
+                        "the class path declares: if it is mistyped, its status is never used. It may still be " +
+                        "right: a domain rejection's code that no @ErrorCode declares, a ProblemMapper's, or a peer's " +
+                        "whose contract is not on the class path."
+                }
+            }
         }
 
         /** Spring Boot's key of the address the public server binds. */

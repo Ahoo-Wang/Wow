@@ -46,6 +46,7 @@ import type {
   FilterTree,
   RuntimeLimits,
 } from '../model/index.js';
+import { DEFAULT_RUNTIME_LIMITS } from '../model/index.js';
 import {
   AggregationExpressionOperators,
   AggregationExpressionTypes,
@@ -79,6 +80,16 @@ import { momentMetrics } from './metricFormat.js';
 import { hiddenMetrics } from './serverLines.js';
 import { topRankMetric, withTopHaving } from './top.js';
 
+/** How `compileAnalysis` compiles a config, beside the config itself. */
+export interface CompileAnalysisOptions {
+  /** The field kinds conditions are compiled with. */
+  kinds: FieldKindRegistry;
+  /** The moment and the zone a relative condition is read in. */
+  context: FilterCompileContext;
+  /** The runtime's limits, over `DEFAULT_RUNTIME_LIMITS`. */
+  limits?: Partial<RuntimeLimits>;
+}
+
 /**
  * Compilation is a mapping, not a translation: the configuration is
  * isomorphic to the Wow aggregation protocol and differs only in storing enum
@@ -88,10 +99,10 @@ import { topRankMetric, withTopHaving } from './top.js';
 export function compileAnalysis(
   definition: DataViewDefinition,
   config: AnalysisViewConfig,
-  kinds: FieldKindRegistry,
-  context: FilterCompileContext,
-  limits?: Pick<RuntimeLimits, 'maxAnalysisRows'>,
+  options: CompileAnalysisOptions,
 ): AggregationQuery {
+  const { kinds, context } = options;
+  const limits = { ...DEFAULT_RUNTIME_LIMITS, ...options.limits };
   const scope = scopeOf(definition, config);
   const query = baseQuery(definition, scope, config, kinds, context);
   const inner = innerPrefix(scope);

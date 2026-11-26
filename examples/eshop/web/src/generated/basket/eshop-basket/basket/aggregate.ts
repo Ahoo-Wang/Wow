@@ -10,7 +10,6 @@ import type { BasketCheckedOut, BasketCleared, BasketItemAdded, BasketItemQuanti
 export const BasketAggregate = {
   context: 'eshop-basket',
   name: 'basket',
-  path: '/eshop-basket/basket',
   ownership: 'owner',
   idSource: 'owner',
   snapshot: true,
@@ -21,7 +20,7 @@ export const BasketAggregate = {
       'eshop-basket.basket.BasketItemAdded': { unitPrice: true },
     },
     commands: {
-      AddBasketItem: { unitPrice: true },
+      'eshop-basket.basket.AddBasketItem': { unitPrice: true },
     },
   },
   Errors: {

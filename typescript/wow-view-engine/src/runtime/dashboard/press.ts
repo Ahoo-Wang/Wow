@@ -103,7 +103,9 @@ export type PressDestination =
   | { fallback: Issue };
 
 /** Another board as a click reads it: the instance, its config a board's. */
-export type DestinationBoard = ViewInstance & { config: DashboardViewConfig };
+export type DestinationDashboard = ViewInstance & {
+  config: DashboardViewConfig;
+};
 
 /** What the presses need of the runtime that holds the board. */
 interface PressHost {
@@ -183,7 +185,7 @@ export class PanelPresses {
       filtersOf(this.host.applied()).map(field => [field.name, field]),
     );
     return bindingsOf(found.panel).some(binding => {
-      const filter = byName.get(binding.globalField);
+      const filter = byName.get(binding.dashboardField);
       if (!filter || current.from?.[filter.name] !== panelId) return false;
       const value = this.valueOf(panelId, filter, binding.panelField, row);
       const held = current.values[filter.name];
@@ -236,7 +238,7 @@ export class PanelPresses {
     if (!filter || !found || !child || ran?.kind !== 'analysis')
       return { kind: 'none' };
     const field = bindingsOf(found.panel).find(
-      binding => binding.globalField === name,
+      binding => binding.dashboardField === name,
     )?.panelField;
     const spanned = drillSpan(
       ran,
@@ -286,7 +288,7 @@ export class PanelPresses {
         ? { refused: issue('dashboard.click.url-unsafe', at) }
         : { to: { kind: 'url', url } };
     }
-    if (click.kind === 'dashboard') return this.toBoard(click, pressed, at);
+    if (click.kind === 'dashboard') return this.toDashboard(click, pressed, at);
     const reference = await this.host.reference(click.instanceId);
     if (!reference)
       return {
@@ -325,7 +327,7 @@ export class PanelPresses {
    * the read re-judges the click (a reference settling admits the board
    * again); `null` for one gone, unreadable or not a board.
    */
-  async board(instanceId: string): Promise<DestinationBoard | null> {
+  async board(instanceId: string): Promise<DestinationDashboard | null> {
     const reference = await this.host.reference(instanceId);
     const config = reference?.instance.config;
     return reference && config?.kind === 'dashboard'
@@ -345,7 +347,7 @@ export class PanelPresses {
    * filter left blank, a value the target filter refuses (several into one
    * that takes one) — leaves that filter at its default too.
    */
-  private async toBoard(
+  private async toDashboard(
     click: BoardClick,
     pressed: Pressed,
     at: IssuePath,
@@ -415,7 +417,7 @@ export class PanelPresses {
     );
     const binding =
       filter &&
-      bindingsOf(panel).find(entry => entry.globalField === filter.name);
+      bindingsOf(panel).find(entry => entry.dashboardField === filter.name);
     return filter && binding ? { filter, field: binding.panelField } : null;
   }
 

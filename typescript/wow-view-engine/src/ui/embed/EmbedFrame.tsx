@@ -121,13 +121,13 @@ export function EmbedFrame({
           it; the view below is whatever its author saved, and still worth
           showing (D17-5).
         */}
-        {opened.scopeIssues.length > 0 && (
+        {opened.scopeFilterIssues.length > 0 && (
           <Alert variant="destructive">
             <AlertTitle>
               {messages.label(kindWord('label.scope.refused', kind))}
             </AlertTitle>
             <AlertDescription>
-              {messages.issues(opened.scopeIssues)}
+              {messages.issues(opened.scopeFilterIssues)}
             </AlertDescription>
           </Alert>
         )}

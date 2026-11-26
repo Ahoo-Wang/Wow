@@ -77,9 +77,10 @@ sealed interface DecideFunction<S : Any> {
 /**
  * An after hook: runs after the decide function of every command it [applies] to, sees the same,
  * not yet evolved state, and returns events appended after the command's own, in the same event stream. It does not
- * run when the command is rejected. A hook the model builder makes runs after a system command (a lifecycle or
- * `wow.schedule` one) only when it names it ([AggregateModelBuilder.after]). Like a decide function it
- * keeps its form; a [Suspending.blocking] one runs on a virtual thread.
+ * run when the command is rejected, and it may reject the command itself, as a decide function does ([Decisions]). A
+ * hook the model builder makes runs after a system command (a lifecycle or `wow.schedule` one) only when it names it
+ * ([AggregateModelBuilder.after]). Like a decide function it keeps its form; a [Suspending.blocking] one runs on a
+ * virtual thread.
  *
  * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */

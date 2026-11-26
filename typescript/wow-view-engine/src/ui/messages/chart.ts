@@ -358,4 +358,4 @@ export const chartMessages = {
   'label.chart.compare.against': 'vs {metric}',
   'label.chart.compare.unmatched':
     'The span of {metric} does not match the dates picked; not compared',
-} as const satisfies Record<string, string>;
+} satisfies Record<string, string>;

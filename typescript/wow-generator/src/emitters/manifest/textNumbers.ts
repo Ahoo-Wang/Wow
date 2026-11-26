@@ -22,6 +22,7 @@ import type { ModuleBuilder, ModuleSet } from '../../emit/moduleBuilder';
 import type { AggregateModel, ContextModel } from '../../manifest/model';
 import type { TextNumbersModel } from '../../manifest/textNumbers';
 import { quoteStringLiteral, resolvePropertyName } from '../../naming/naming';
+import { doc } from './generatedModule';
 
 /** Where the marks of a module go: the module, the output directory, and the client's entry. */
 interface Target {
@@ -33,7 +34,7 @@ interface Target {
 /**
  * A TypeScript literal of `marks`, importing what it uses into the module:
  * `{ price: true, lines: { '*': { amount: true } } }`, `() => treeNumbers`,
- * `textNumberOr(…)`, `textNumbersBy('kind', { … })`.
+ * `textNumbersOr(…)`, `textNumbersBy('kind', { … })`.
  */
 function literal(marks: TextNumbersModel, target: Target): string {
   if (marks === true) return 'true';
@@ -49,8 +50,8 @@ function literal(marks: TextNumbersModel, target: Target): string {
     return `() => ${marks.lazy.name}`;
   }
   if ('or' in marks) {
-    target.module.imports.add(target.client, ['textNumberOr']);
-    return `textNumberOr(${literal(marks.or, target)})`;
+    target.module.imports.add(target.client, ['textNumbersOr']);
+    return `textNumbersOr(${literal(marks.or, target)})`;
   }
   target.module.imports.add(target.client, ['textNumbersBy']);
   return `textNumbersBy(${quoteStringLiteral(marks.by)}, ${entries(marks.cases, target)})`;
@@ -142,7 +143,7 @@ export function emitTextNumbers(
   const target = { module, outputDir, client };
   for (const declared of context.textNumbers) {
     module.add(
-      `\n/** The exact numbers of \`${declared.key}\`${declared.beside ? ' with what an `allOf` says beside it' : ''}, a recursive type: its own marks, and others', read them lazily. */\nexport const ${declared.name}: TextNumbers = ${literal(declared.marks, target)};`,
+      `\n${doc([`The exact numbers of \`${declared.key}\`${declared.beside ? ' with what an `allOf` says beside it' : ''}, a recursive type: its own marks, and others', read them lazily.`])}export const ${declared.name}: TextNumbers = ${literal(declared.marks, target)};`,
     );
   }
 }

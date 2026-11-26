@@ -16,8 +16,8 @@ import type { GeneratorOptions } from '../api/options';
 
 /**
  * Test seam: an option under this key hands a generator the ts-morph project
- * to write into, such as an in-memory one, instead of one it reads from
- * `tsConfigFilePath`. A symbol the package does not export, so it is no part
+ * to write into, such as an in-memory one, instead of a project of its own.
+ * A symbol the package does not export, so it is no part
  * of the public options. It lives apart from `CodeGenerator`, whose
  * declaration therefore names neither it nor ts-morph, whose major version it
  * would follow.

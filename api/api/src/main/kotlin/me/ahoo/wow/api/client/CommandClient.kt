@@ -27,9 +27,10 @@ import me.ahoo.wow.api.result.Violation
  * contract its api jar carries, through that context's command topic, or over HTTP with the HTTP
  * implementation.
  *
- * Each call takes one [CommandRequest]: the command object, the aggregate it goes to (its [id][CommandRequest.id] and,
- * unless the command's class says, its [type][CommandRequest.type]), and how it is sent. The tenant and scope are the
- * caller's, or the target's a cross-scope caller names ([CommandRequest.targetTenant], [CommandRequest.targetScope]);
+ * Each call takes one [CommandRequest]: the command object, the aggregate it goes to (its
+ * [aggregateId][CommandRequest.aggregateId] and, unless the command's class says, its [type][CommandRequest.type]), and
+ * how it is sent. The tenant and scope are the caller's, or the target's a cross-scope caller names
+ * ([CommandRequest.targetScope], whose scope left out keeps the caller's own);
  * a target tenant that is the caller's own is the caller's, so a request built from a ref of the caller's tenant
  * (`toCommandRequest(to = event.ref)` in a saga) is an ordinary one. Shorthands take the command itself, its id and
  * a block of the request's other fields (`client.wait(command, id) { wait(WaitPlan.COMMITTED) }`, imported from

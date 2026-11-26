@@ -14,13 +14,15 @@
 package me.ahoo.wow.viewstore.domain.view
 
 /**
- * Answers which shared dashboards reference a view: the view store's own snapshot query, kept behind this port so the
- * domain does not depend on the query stack. The service binds it.
+ * Answers which dashboards every reader sees reference a view, a claim's check: the view store's own snapshot query,
+ * kept behind this port so the domain does not depend on the query stack. The service binds it. A stored system
+ * dashboard counts as a shared one: every tenant of its application reads it.
  */
 fun interface SharedBoardReferences {
     /**
-     * The shared dashboards (owner `(shared)`) of [tenantId] and [appId], not deleted, whose panels reference [viewId]
-     * at any of [ViewConfigs.PANEL_REFERENCES].
+     * The shared dashboards (owner `(shared)`) of [tenantId] and [appId], and the stored system dashboards (owner
+     * `(system)` of the tenant `(platform)`) of [appId], not deleted, whose panels reference [viewId] at any of
+     * [ViewConfigs.PANEL_REFERENCES].
      */
     suspend fun referencingBoards(tenantId: String, appId: String, viewId: String): List<BoardReference>
 }

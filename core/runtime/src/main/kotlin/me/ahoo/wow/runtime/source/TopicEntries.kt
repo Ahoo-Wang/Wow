@@ -25,6 +25,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.runtime.subscription.EntrySource
+import me.ahoo.wow.runtime.subscription.RetiredOnly
 import me.ahoo.wow.runtime.subscription.SourcedEntry
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
 import me.ahoo.wow.runtime.subscription.TimedEntry
@@ -85,6 +86,8 @@ internal class TopicEntries(
     override val name: String get() = "topic $topic"
 
     override val repeats: Boolean get() = true
+
+    override val contiguous: Boolean get() = true
 
     override fun requirePartition(partition: Int) =
         require(partition in 0 until partitions) { "Topic $topic has $partitions partitions." }
@@ -177,8 +180,12 @@ internal class TopicEntries(
 
     @Suppress("TooGenericExceptionCaught") // Whatever cannot be decoded is parked, or passed over.
     private fun entryOf(partition: Int, message: SourceMessage): SourcedEntry? {
-        val record = try {
-            EnvelopeCodec.stateEventOf(message.value)
+        // A state event that is no stream (an event stream checks more) cannot be decoded either. One that holds no
+        // event, a commit its model retired every event of, stands for its version alone.
+        val (record, stream) = try {
+            EnvelopeCodec.stateEventOf(message.value).let {
+                it to if (it.events.isEmpty()) RetiredOnly.streamOf(it) else streamOf(it)
+            }
         } catch (failure: Exception) {
             if (!EnvelopeCodec.isEnvelope(message.value)) {
                 throw ForeignTopicRecordException(topic, partition, message.offset, failure)
@@ -186,7 +193,7 @@ internal class TopicEntries(
             return undecodable(partition, message, failure)
         }
         checkPlaced(partition, message, record.ref)
-        return SourcedEntry(LogPosition(partition, message.offset + 1), streamOf(record), record.transport, record)
+        return SourcedEntry(LogPosition(partition, message.offset + 1), stream, record.transport, record)
     }
 
     /** The partitions of [topic] warned of a record placed otherwise than by its log's partition. */

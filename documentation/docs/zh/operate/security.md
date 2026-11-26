@@ -26,7 +26,7 @@ Wow 服务有两扇门：公开端口，调用方在这里发送命令和查询�
 宿主用它的 `CallerResolver` 把每个请求变成一个调用方。没有解析器时，开发 profile（`wow.dev-profiles` 中的某个 profile）中的节点从任何客户端都能设置的 `Wow-User`、`Wow-Owner`、`Wow-Roles`、`Wow-Tenant` 和 `Wow-App` 请求头读取调用方，不带 `Wow-User` 的请求是默认租户的匿名调用方（[调用方是谁](../guide/http#who-the-caller-is)）。它会记录一条警告；其他节点拒绝启动，不论它绑定什么地址：回环的 `wow.internal.host` 并不表示开发模式，因为它会以匿名身份服务的公开端口在回环之外也能访问。公开端口监听在 Spring Boot 绑定它的地址上（`server.address`，不设置时是所有网卡）；这个地址不是回环网卡时，开发 profile 中的节点在启动时会说明：能访问它的任何机器都能指定调用方。有意匿名的服务用一个返回 `CallerResolver.ANONYMOUS` 的 `CallerResolver` Bean 表明这一点。解析器从不返回服务身份（`Caller.ofService`、`service = true`）：服务只在内部端口上声明自己，公开路由、运维路由和订阅路由对这样的调用方返回 403 `wow.auth.forbidden`，所以客户端发送的任何内容都不会被当作服务信任。公开端口的机器客户端是普通调用方，带着它的角色（`Caller.of(subject = "billing-job", roles = listOf("operator"))`）。
 
 ::: warning wow-cosec 在 10.0 中是实验性的
-`wow-cosec` 跟随 CoSec 8.0.0，而 CoSec 8.0.0 仍是预发布版本，所以 `wow-cosec` 在 10.x 内可能改变。它的类型（`CoSecCallerResolver`、`CoSecCallerOptions`、`CoSecCommandAuthorizer`、`CoSecServiceRouteAuthorizer`、`CoSecActions`）以及宿主的 `CoSecAutoConfiguration`、`CoSecRouteMapAutoConfiguration` 和 `CoSecAuthorizersAutoConfiguration` 都是 `@ExperimentalWowApi`（[API 级别](../reference/api-levels)），`wow.cosec.*` 配置键也可能随之改变。只靠依赖和配置键启用 CoSec 的服务无需再做什么；在 Kotlin 代码里用到这些类型时，以 `@OptIn(ExperimentalWowApi::class)` 选择使用。CoSec 8 正式发布后，一个 10.x 的次版本会去掉这个标记。不用 CoSec 的服务不受影响：其余 API 的级别不变。
+`wow-cosec` 运行在 CoSec 8 的正式版 CoSec 8.0.0 上，在 10.0 中仍是实验性的：它的接口尚未作为稳定 API 审查过，所以在 10.x 内可能改变。它的类型（`CoSecCallerResolver`、`CoSecCallerOptions`、`CoSecCommandAuthorizer`、`CoSecServiceRouteAuthorizer`、`CoSecActions`）以及宿主的 `CoSecAutoConfiguration`、`CoSecRouteMapAutoConfiguration` 和 `CoSecAuthorizersAutoConfiguration` 都是 `@ExperimentalWowApi`（[API 级别](../reference/api-levels)），`wow.cosec.*` 配置键也可能随之改变。只靠依赖和配置键启用 CoSec 的服务无需再做什么；在 Kotlin 代码里用到这些类型时，以 `@OptIn(ExperimentalWowApi::class)` 选择使用。一个 10.x 的次版本会去掉这个标记。不用 CoSec 的服务不受影响：其余 API 的级别不变。
 :::
 
 类路径上有 `wow-cosec` 以及 CoSec 的 starter 和 WebFlux 模块（`me.ahoo.cosec:cosec-spring-boot`、`me.ahoo.cosec:cosec-webflux`）时，除非应用自己定义了 `CallerResolver`，CoSec 的解析器就是宿主的解析器。CoSec 的管道认证每个请求并解析它的作用域，即决定这个请求时所在的应用和空间；解析器把 CoSec 构建的安全上下文变成调用方：
@@ -122,7 +122,7 @@ CoSec 拒绝的请求在任何路由之前由 CoSec 回答：它的状态、它�
 | `unavailable`（503） | `wow.auth.unavailable`，不带 `Retry-After`：CoSec 对它不设这个头 |
 | `internal-error`（500） | 没有码，`about:blank`，与 Wow 自己的意外错误一样 |
 
-CoSec 的 `type` 与 `code` 放在成员 `cosec` 里，`requestId` 和 `traceId` 保留 CoSec 的名字。CoSec 以后新增的拒绝类型保持 CoSec 的回答体。应用自己声明了 `ProblemRenderer`（CoSec 的试验性 API）时，无论开关怎样，都由它写回答体；启动日志会说明由哪个渲染器写。
+CoSec 的 `type` 与 `code` 放在成员 `cosec` 里，`requestId` 和 `traceId` 保留 CoSec 的名字。CoSec 以后新增的拒绝类型保持 CoSec 的回答体。应用自己声明了 CoSec 的 `ProblemRenderer` 时，无论开关怎样，都由它写回答体；启动日志会说明由哪个渲染器写。
 
 是否打开，取决于两件事：
 
@@ -172,11 +172,11 @@ Wow 信任网关转发的身份，所以网关本身就是一条边界。每个�
 
 宿主看不到网络，所以启动时不检查这两条。
 
-再次发送的命令，只有带着同一个请求 ID 才是同一条命令。客户端在丢失应答后重发命令时，要带上同一个 `Wow-Request-Id`，服务会把它当作重复请求应答，而不会执行两次。使用 CoSec 时，没有 `Wow-Request-Id` 的命令取请求的 `CoSec-Request-Id` 作为请求 ID。CoSec 网关为它转发的每个请求设置一次这个头，请求的重试（例如 Spring Cloud Gateway 在连接重置后的重试）会再次发送同一个值，所以服务把重试当作重复请求应答。请求同时带有两者时，以 `Wow-Request-Id` 为准。
+再次发送的命令，只有带着同一个请求 ID 才是同一条命令。客户端在丢失应答后重发命令时，要带上同一个 `Wow-Request-Id`，服务会把它当作重复请求应答，而不会执行两次。CoSec 开启时，没有 `Wow-Request-Id` 的命令取请求的 `CoSec-Request-Id` 作为请求 ID；CoSec 关闭时（`wow.cosec.mode: disabled`），不读 CoSec 的任何头。CoSec 网关为它转发的每个请求设置一次这个头，请求的重试（例如 Spring Cloud Gateway 在连接重置后的重试）会再次发送同一个值，所以服务把重试当作重复请求应答。请求同时带有两者时，以 `Wow-Request-Id` 为准。
 
 ### 以网关模式运行服务 {#run-services-in-gateway-mode}
 
-在 CoSec 网关之后，服务不必再校验一遍令牌，也不必持有 CoSec 的文档。`wow.cosec.mode: gateway` 为此设置 CoSec 的默认值：`cosec.enabled=true`、`cosec.pipeline.mode=gateway` 和 `cosec.jwt.enabled=false`。应用自己设置的 `cosec.*` 键仍然优先。
+在 CoSec 网关之后，服务不必再校验一遍令牌，也不必持有 CoSec 的文档。`wow.cosec.mode: gateway` 为此设置 CoSec 的默认值：`cosec.enabled=true`、`cosec.pipeline.mode=gateway` 和 `cosec.jwt.enabled=false`。应用自己设置的 `cosec.*` 键仍然优先。在这个模式下，除非应用自己设置了 `server.max-http-request-header-size`，CoSec 会把服务器的请求头上限从 8 KB 提高到 16 KB：在请求的其他请求头之外，给网关转发的身份（`cosec.pipeline.identity.max-size`，8 KB）留出空间。它的启动日志说明生效的上限，超过上限的请求以 431 回答并指明这个上限（[服务器在路由之前拒绝的请求](../reference/http#server-refusals)）。
 
 ```yaml
 wow:
@@ -429,7 +429,7 @@ kafka-acls.sh --bootstrap-server kafka:9092 --add --allow-principal User:ops --o
 
 - 尽可能不让个人数据进入事件，例如姓名、地址、电话号码和关于某个人的自由文本。把它们保存在可以删除的读模型里，例如投影的表或另一个服务，并在事件里放一个不透明的 ID。
 - 决定函数需要个人数据时，让它通过领域服务读取，而不是把数据带在事件里。
-- 提交的操作人记录为不透明的 ID。每次提交都会记录请求事实：已认证的应用，以及对公开端口上的请求，客户端的远程地址和 User-Agent，即 `remote_ip` 和 `user_agent`。IP 地址和 User-Agent 属于个人数据，一旦写入就无法删除。把事件日志以及显示这些事实的服务日志都当作含有个人数据的数据来对待，并据此设置日志的保留期。`wow.http.client-facts.enabled`（默认 `true`）可以关闭地址和 User-Agent 的记录：设为 `false` 时，公开端口两者都不记录。不要再往 `wow.http.request-facts` 里加其他个人数据。
+- 提交的操作人记录为不透明的 ID。每次提交都会记录请求事实：已认证的应用，以及对公开端口上的请求，客户端的远程地址和 User-Agent，即 `remote_ip` 和 `user_agent`。IP 地址和 User-Agent 属于个人数据，一旦写入就无法删除。它们留在请求到达的那个服务里：服务发布到状态主题、供其他上下文读取的记录两者都不带，`app_id` 和宿主的请求事实照常发布。把事件日志以及显示这些事实的服务日志都当作含有个人数据的数据来对待，并据此设置日志的保留期。`wow.http.client-facts.enabled`（默认 `true`）可以关闭地址和 User-Agent 的记录：设为 `false` 时，公开端口两者都不记录。不要再往 `wow.http.request-facts` 里加其他个人数据。CoSec 的设备 ID `CoSec-Device-Id`（CoSec 的 TypeScript 客户端从每个浏览器发送）就是这样的数据：只有应用把它列在那里时 Wow 才记录它。
 - 快照、数仓和检索索引都从日志派生：在那里删除一行，并不会删除事实。
 
 ## 租户 {#tenants}

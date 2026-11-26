@@ -14,7 +14,7 @@
 package me.ahoo.wow.http.problem
 
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Violation
@@ -28,13 +28,18 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.reactive.function.server.bodyValueAndAwait
+import kotlin.math.ceil
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * An RFC 9457 problem as the public port writes it: `type` is `urn:wow:error:<code>`, the
  * extension members are [code], what a retry may do ([retry], with `Retry-After` when a retry may get past it), [violations],
  * the whole [result] of a command that has a ref, the aggregate's [version] the problem answered, and the [extensions]
  * of its rejection, each a member of its own name; one without a value, or with the name of a member above (`retry`
- * and `version` among them, even on a problem without one) or of RFC 9457's `instance`, is left out.
+ * and `version` among them, even on a problem without one) or of RFC 9457's `instance`, is left out. A domain's
+ * extensions, a rejection's or a service route refusal's, also leave out the names Wow keeps for members of its own
+ * (`requestId`, `traceId`, `errors`; [domainExtensions]).
  *
  * An error answered before a command has a ref (401, a malformed header, a missing route, 406, 415) carries no
  * [result]. One that is only HTTP's (a missing route, 406, 415) has no Wow code: its type is `about:blank`, as RFC 9457
@@ -48,31 +53,37 @@ class Problem @InternalWowApi constructor(
     val violations: List<Violation> = emptyList(),
     val result: CommandResult? = null,
     val extensions: Map<String, Any?> = emptyMap(),
-    retryAfter: Long? = null,
+    retryAfter: Duration? = null,
     /**
      * The aggregate's version the problem answered, the one meaning of the `version` member: a rejection's (the
      * version its events reached, else the one the decision saw: the next `If-Match`; none for a creation's), or the
      * current version a state read below its minimum version was answered with; null for any other problem.
      */
     val version: Int? = null,
-    retry: Retry? = null,
+    retry: RetryAdvice? = null,
 ) {
     /**
      * What a retry may do, the `retry` member: as given, else as the error catalog declares it for [code]
      * ([FrameworkErrors.ALL]); none for a code the catalog does not list, a domain's among them.
      */
-    val retry: Retry = retry ?: code?.let { FrameworkErrors.BY_CODE[it]?.retry } ?: Retry.NONE
+    val retry: RetryAdvice = retry ?: code?.let { FrameworkErrors.BY_CODE[it]?.retry } ?: RetryAdvice.NONE
 
     /**
-     * The seconds after which the request may be retried, written as `Retry-After` (not a member of the body) when a
-     * [retry] may get past it ([retryAfterHeader]): as given, else the catalog's for [code].
+     * How long after which the request may be retried, written as `Retry-After` (not a member of the body) when a
+     * [retry] may get past it ([retryAfterHeader]): as given, else the catalog's for [code]; the type of
+     * [me.ahoo.wow.api.problem.WowProblemException.retryAfter].
      */
-    val retryAfter: Long? = retryAfter
+    val retryAfter: Duration? = retryAfter
         ?: (code?.let { FrameworkErrors.BY_CODE[it]?.retryAfter } ?: FrameworkErrors.RETRY_AFTER_SECONDS)
-            .toLong().takeIf { this.retry != Retry.NONE }
+            .seconds.takeIf { this.retry != RetryAdvice.NONE }
 
-    /** The `Retry-After` the response carries: [retryAfter], when a [retry] may get past the problem. */
-    val retryAfterHeader: Long? get() = retryAfter.takeIf { retry != Retry.NONE }
+    /**
+     * The `Retry-After` the response carries, in whole seconds rounded up (`Retry-After` takes no fraction): [retryAfter],
+     * when a [retry] may get past the problem.
+     */
+    val retryAfterHeader: Long?
+        get() = retryAfter?.let { ceil(it.inWholeMilliseconds / MILLIS_PER_SECOND).toLong() }
+            .takeIf { retry != RetryAdvice.NONE }
 
     /** `urn:wow:error:<code>`, or `about:blank` without a code. */
     val type: String get() = code?.let { TYPE_PREFIX + it } ?: ABOUT_BLANK
@@ -139,9 +150,9 @@ class Problem @InternalWowApi constructor(
         violations: List<Violation> = this.violations,
         result: CommandResult? = this.result,
         extensions: Map<String, Any?> = this.extensions,
-        retryAfter: Long? = this.retryAfter,
+        retryAfter: Duration? = this.retryAfter,
         version: Int? = this.version,
-        retry: Retry = this.retry,
+        retry: RetryAdvice = this.retry,
     ): Problem = Problem(status, title, detail, code, violations, result, extensions, retryAfter, version, retry)
 
     companion object {
@@ -156,11 +167,13 @@ class Problem @InternalWowApi constructor(
             violations: List<Violation> = emptyList(),
             result: CommandResult? = null,
             extensions: Map<String, Any?> = emptyMap(),
-            retryAfter: Long? = null,
+            retryAfter: Duration? = null,
             version: Int? = null,
         ): Problem = Problem(status, title, detail, code, violations, result, extensions, retryAfter, version)
 
         const val TYPE_PREFIX: String = "urn:wow:error:"
+
+        private const val MILLIS_PER_SECOND = 1000.0
         const val ABOUT_BLANK: String = "about:blank"
 
         /** The member of the aggregate's version the problem answered ([version]). */
@@ -169,8 +182,32 @@ class Problem @InternalWowApi constructor(
         /** The member of what a retry may do ([retry]). */
         const val RETRY: String = "retry"
 
-        /** The names no extension takes, even on a problem without their member. */
-        private val RESERVED: Set<String> = setOf(INSTANCE, VERSION, RETRY)
+        /** The names no extension takes, even on a problem without their member: every member a problem writes. */
+        private val RESERVED: Set<String> = setOf(
+            "type",
+            "title",
+            "status",
+            "detail",
+            "code",
+            RETRY,
+            "violations",
+            "result",
+            VERSION,
+            INSTANCE,
+        )
+
+        /**
+         * The names Wow keeps for members of its own besides [RESERVED]: CoSec's refusals, as Wow writes them, carry
+         * `requestId` and `traceId` among their extensions, and `errors` is kept for Wow.
+         */
+        private val KEPT: Set<String> = setOf("requestId", "traceId", "errors")
+
+        /**
+         * A domain's [extensions], a rejection's or a service route refusal's, without the names a problem writes or
+         * Wow keeps ([RESERVED], [KEPT]): a domain's value is never read as a member of Wow's.
+         */
+        internal fun domainExtensions(extensions: Map<String, Any?>): Map<String, Any?> =
+            extensions.filterKeys { it !in RESERVED && it !in KEPT }
 
         /** RFC 9457's member that names the occurrence, which no extension takes. */
         private const val INSTANCE: String = "instance"
@@ -187,10 +224,10 @@ class Problem @InternalWowApi constructor(
         fun ofFailure(failure: Throwable): Problem {
             val unavailable = generateSequence(failure) { it.cause }.firstOrNull { it is StorageUnavailableException }
             if (unavailable != null) {
-                val status = HttpStatus.SERVICE_UNAVAILABLE
+                // The code's title, the same for every occurrence (RFC 9457), never the status's reason phrase.
                 return Problem(
-                    status.value(),
-                    status.reasonPhrase,
+                    HttpStatus.SERVICE_UNAVAILABLE.value(),
+                    FrameworkErrors.TITLES.getValue(FrameworkCodes.STORAGE_UNAVAILABLE),
                     unavailable.message,
                     FrameworkCodes.STORAGE_UNAVAILABLE,
                 )

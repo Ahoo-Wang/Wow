@@ -165,7 +165,8 @@ export function recordProjection(
     asked.push(config.kanban.lane);
   for (const sort of config.sort) asked.push(sort.field);
   for (const summary of config.summaries ?? [])
-    if (summary.fn !== AggregationMetricTypes.COUNT) asked.push(summary.field);
+    if (summary.function !== AggregationMetricTypes.COUNT)
+      asked.push(summary.field);
   asked.push(...(capability.rowFields ?? []));
   if (capability.rowName !== undefined) asked.push(capability.rowName);
   // Money whose currency each record holds reads in that currency, so the
@@ -197,6 +198,16 @@ export function recordProjection(
   };
 }
 
+/** How `compileRecord` compiles a config, beside the config itself. */
+export interface CompileRecordOptions {
+  /** The field kinds conditions are compiled with. */
+  kinds: FieldKindRegistry;
+  /** The moment and the zone a relative condition is read in. */
+  context: FilterCompileContext;
+  /** The page asked for. */
+  page: RecordPageTarget;
+}
+
 /**
  * Compiles the applied config into the query its source understands. Which of
  * the two it is comes from the definition, not from the config: paging is a
@@ -205,10 +216,9 @@ export function recordProjection(
 export function compileRecord(
   definition: DataViewDefinition,
   config: RecordViewConfig,
-  kinds: FieldKindRegistry,
-  context: FilterCompileContext,
-  page: RecordPageTarget,
+  options: CompileRecordOptions,
 ): FilterPagedQuery | CursorQuery {
+  const { kinds, context, page } = options;
   const capability = definition.record;
   if (!capability)
     throw new Error(
@@ -298,9 +308,9 @@ export function summaryMetrics(
 ): AggregationMetric[] {
   const summaries = config.summaries ?? [];
   const metrics = summaries.map(summary =>
-    SUMMARY_METRIC[summary.fn](
+    SUMMARY_METRIC[summary.function](
       summary.field,
-      summaryAlias(summary.field, summary.fn),
+      summaryAlias(summary.field, summary.function),
     ),
   );
   // Money in a currency each record holds asks which currencies the range

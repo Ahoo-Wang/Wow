@@ -26,6 +26,7 @@ import me.ahoo.wow.example.eshop.catalog.server.CatalogServer
 import me.ahoo.wow.example.eshop.inventory.server.InventoryServer
 import me.ahoo.wow.example.eshop.ordering.server.OrderingServer
 import me.ahoo.wow.example.eshop.payment.server.PaymentServer
+import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.test.server.WowServer
 import me.ahoo.wow.test.server.wowServer
 import org.junit.jupiter.api.Test
@@ -128,12 +129,11 @@ class EshopSharedJvmTest {
         }
     }
 
-    /** The names of the contexts the service's Manifest lists. */
-    private fun WowServer.contexts(): List<String> {
-        val manifest = http.get("/wow/manifest")
-        check(manifest.status == OK) { "GET /wow/manifest answered $manifest" }
-        return manifest.body!!["contexts"].values().map { it["name"].asString() }
-    }
+    /**
+     * The names of the contexts the service's Manifest lists: the Manifest its node serves the cluster on its internal
+     * port, its public port serving none (`wow.http.manifest.enabled` is off).
+     */
+    private fun WowServer.contexts(): List<String> = bean<Manifest>().contexts.map { it.name }
 
     private companion object {
         /** A port no ordering listens on: the basket's checkout call has an address, which no test here calls. */

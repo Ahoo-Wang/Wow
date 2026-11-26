@@ -35,3 +35,11 @@ export const OUTPUT: string;
 export function frameworkErrors(
   catalog: FrameworkErrorsCatalog,
 ): Promise<string>;
+
+/** The file of the codes' titles: src/testing/frameworkTitles.ts. */
+export const TITLES_OUTPUT: string;
+
+/** The source of src/testing/frameworkTitles.ts for `catalog`, formatted. */
+export function frameworkTitles(
+  catalog: FrameworkErrorsCatalog,
+): Promise<string>;

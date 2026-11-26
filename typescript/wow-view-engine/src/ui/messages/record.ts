@@ -412,4 +412,4 @@ export const recordMessages = {
   'record.summary.duplicate': 'The {fn} summary of {field} is listed twice.',
   'record.summary.unsupported': '{field} does not offer the {fn} summary.',
   'record.table.invalid': 'The table settings could not be read.',
-} as const satisfies Record<string, string>;
+} satisfies Record<string, string>;

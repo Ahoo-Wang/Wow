@@ -27,7 +27,8 @@ export function PaidOrders({ client, page }: { client: OrderSnapshotQueryClient;
 - Hand the options on and a newer query, `abort()`, `reset()` or an unmount cancels the request; pass a method through an arrow function, or it loses its `this`.
 - Create the client once, outside the component or memoized; never build one inside `execute`.
 - `requestOptions` adds the scope, the space or headers to every run; a change by content runs the query again, so keep header values stable across renders.
-- `error` is an `Error`; `problem` is the same error when the service answered with a `WowProblemError` (its `code`, `status`, retry hint), else `undefined`.
+- `error` is an `Error`, a `WowProblemError` (`code`, `status`, `retryAfterMs`) when the service answered with a problem; `problem` is that error's RFC 9457 body (`code`, `status`, `detail`, `violations`), else `undefined`. An `AbortError` the run's own signal did not cause is a failure, not an abort.
+- A change of `query` or `requestOptions` aborts the request in flight, `autoExecute` or not; a cursor hook's `hasMore` is false while its controlled query is `undefined`.
 
 ## Cursor pages and aggregations
 

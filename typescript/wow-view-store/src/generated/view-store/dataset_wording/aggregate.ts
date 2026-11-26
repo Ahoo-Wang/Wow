@@ -10,8 +10,8 @@ import type { DatasetWordingCleared, DatasetWordingSet } from '../types.js';
 export const DatasetWordingAggregate = {
   context: 'view-store',
   name: 'dataset_wording',
-  path: '/view-store/dataset_wording',
   ownership: 'tenant',
+  idSource: 'assigned',
   snapshot: true,
 } as const;
 

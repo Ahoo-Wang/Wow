@@ -16,6 +16,7 @@ package me.ahoo.wow.spi.state
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.spi.json.WowJson
@@ -33,6 +34,7 @@ import tools.jackson.databind.JsonNode
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
+@WowSpi
 class StateEventPayload private constructor(
     val name: String,
     val revision: Int,
@@ -86,7 +88,9 @@ class StateEventPayload private constructor(
  * - [ref] and [version] identify the commit; [id] (`ref@version`) is what a reader deduplicates by
  *   (publishing is at least once).
  * - [commandId], [requestId], [commandType], [commitTime], [scope], [causation], [headers] and [operator] are the
- *   stream's facts; [events] are its events at their current revision.
+ *   stream's facts; [events] are its events at their current revision, none when the model retired every event of
+ *   the commit: the transport sink publishes every commit, so an aggregate's versions on its state topic are
+ *   contiguous from its first record.
  * - [state] is the aggregate's state after the stream; null when the sink publishes the aggregate type without it
  *   (`PublishedManifest.includeState`). [deleted] is the aggregate's after the stream, as the kernel evolved it, and
  *   [access] its access attributes, the built-in owner and space among them, in their stored form
@@ -101,6 +105,7 @@ class StateEventPayload private constructor(
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
+@WowSpi
 class StateEventRecord @InternalWowApi constructor(
     val ref: AggregateRef,
     val version: Int,
@@ -124,7 +129,6 @@ class StateEventRecord @InternalWowApi constructor(
         require(version >= 1) { "A committed version starts at 1." }
         require(commandId.isNotBlank()) { "A state event names its command." }
         require(commandType.isNotBlank()) { "A state event names the type of its command." }
-        require(events.isNotEmpty()) { "A state event holds at least one event." }
         require(state == null || state.version == version) {
             "The state of $ref@$version is of version ${state?.version}."
         }

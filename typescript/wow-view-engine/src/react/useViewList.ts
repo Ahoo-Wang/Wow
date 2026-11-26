@@ -23,7 +23,8 @@ import { orderSummaries } from '../runtime/preferences.js';
 import type { ViewPermissions } from '../store/ViewStore.js';
 import { toIssue } from '../runtime/failure/issues.js';
 
-export interface ViewListOptions {
+/** What `useViewList` reads of the list beside the definition. */
+export interface UseViewListOptions {
   /**
    * Narrows the list to these kinds, before it is ordered and before a
    * default is resolved from it.
@@ -35,11 +36,11 @@ export interface ViewListOptions {
    * is a blank page rather than a view. Left out, every kind is listed, which
    * is what a dashboard definition wants.
    */
-  kinds?: readonly ViewKind[];
+  viewKinds?: readonly ViewKind[];
 }
 
 /** What a caller already knows about the list it is asking to be read again. */
-export interface ViewListReloadOptions {
+export interface ViewListRefreshOptions {
   /**
    * An instance that is gone: it is dropped from the summaries kept on screen
    * for the duration of the reload, and `defaultInstanceId` never names it,
@@ -77,7 +78,7 @@ export interface ViewListState {
   /** Summaries in the order the workbench shows them. */
   items: ViewInstanceSummary[];
   /**
-   * The same summaries before `options.kinds` narrowed them, in the same
+   * The same summaries before `options.viewKinds` narrowed them, in the same
    * order. Equal to `items` when no kinds were asked for.
    *
    * A reorder stores one order for the whole definition, and a narrowed
@@ -104,7 +105,7 @@ export interface ViewListState {
    * list, and on a state a host writes itself.
    */
   cut?: number;
-  reload(options?: ViewListReloadOptions): void;
+  refresh(options?: ViewListRefreshOptions): void;
 }
 
 /**
@@ -152,12 +153,12 @@ const FIRST_LOAD: ReloadRequest = { token: 0, without: null };
 export function useViewList(
   engine: ViewEngine,
   definitionId: string,
-  options: ViewListOptions = {},
+  options: UseViewListOptions = {},
 ): ViewListState {
   // Read off the object rather than kept: a caller writes the options inline,
   // so the object — and the array in it — is new every render while what
   // they say is not. The kinds are held by what they say.
-  const kindsKey = options.kinds?.join(' ');
+  const kindsKey = options.viewKinds?.join(' ');
   const kinds = useMemo(
     () =>
       kindsKey === undefined
@@ -244,7 +245,7 @@ export function useViewList(
     [engine, definitionId],
   );
   const reload = useCallback(
-    (options?: ViewListReloadOptions) =>
+    (options?: ViewListRefreshOptions) =>
       setRequest(current => ({
         token: current.token + 1,
         without: options?.without ?? null,
@@ -338,6 +339,6 @@ export function useViewList(
     status: !settled ? 'loading' : current.error ? 'error' : 'success',
     error: current.error,
     ...(current.cut === undefined ? {} : { cut: current.cut }),
-    reload,
+    refresh: reload,
   };
 }

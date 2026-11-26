@@ -440,7 +440,7 @@ class SagaCallBindingTest {
                 execution,
             )
             val onItemsAdded = Hop.handled("MailSaga.onItemsAdded", SHOP)
-            val wait = WaitContext("w", Origin("n", "a:1", "s"), listOf(onItemsAdded), Long.MAX_VALUE)
+            val wait = WaitContext("w", Origin("s", "n", "a:1"), listOf(onItemsAdded), Long.MAX_VALUE)
             runCatching { receipts.committed(committed, AddItems::class.java, wait) }.exceptionOrNull()
                 .assert().isInstanceOf(CallRejectedHandlingException::class.java)
             val signalled = signals.single()
@@ -520,7 +520,7 @@ class SagaCallBindingTest {
     @Test
     fun `an outgoing call should be a derived command of its type`() {
         val command = Command("c", "r", BOX.ref(TENANT, "alice"), Deliver(emptyList()), causation = Causation("a", "b"))
-        val wait = WaitContext("w", Origin("n", "a:1", "s"), listOf(Hop.committed("mail")), 1L)
+        val wait = WaitContext("w", Origin("s", "n", "a:1"), listOf(Hop.committed("mail")), 1L)
         OutgoingCall("mail.box.Deliver", command, wait).name.assert().isEqualTo("Deliver")
         // The tenant its saga acts for is part of the call (#6556).
         val acting = OutgoingCall.of("mail.box.Deliver", command, wait, TENANT)
@@ -558,7 +558,7 @@ class SagaCallBindingTest {
                 registry,
                 SubscriptionDirectory.NONE,
                 LocalSignalSender("mail-node-1", registry),
-                Origin("mail-node-1", "127.0.0.1:9191", "mail-service"),
+                Origin("mail-service", "mail-node-1", "127.0.0.1:9191"),
                 WaitOptions(maxTimeout = 5.seconds, defaultTimeout = 5.seconds),
             )
             return CommandGateway(

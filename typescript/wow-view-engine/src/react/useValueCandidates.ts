@@ -100,7 +100,7 @@ export function useValueCandidates(
     const timer = setTimeout(
       () => {
         settle({ status: 'loading', error: null });
-        source.search(text, controller.signal).then(
+        source.search(text, { signal: controller.signal }).then(
           answer =>
             settle({
               status: 'success',

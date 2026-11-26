@@ -81,7 +81,8 @@ export class ViewStoreError extends Error {
   readonly reachable?: true;
   /**
    * The backend's own word for the failure, where it gave one — a Wow
-   * server's `errorCode` (`ViewAppRequired`, `ViewInvalid`, …) — so a host
+   * server's problem `code` (`view-store.app-required`,
+   * `view-store.invalid`, …) — so a host
    * can tell apart what the port's code folds together. Diagnostics only:
    * the engine decides by `code`.
    */
@@ -134,7 +135,7 @@ export interface ConflictingState {
  * `ViewStoreError` with one of the port's codes. The name is what keeps a
  * stray `{ code: 'NOT_FOUND' }` from an HTTP library out. Every guard of
  * the engine's errors reads them so (`isViewWriteError`,
- * `isViewCommandError`, `isExportCancelledError`).
+ * `isViewCommandError`, `isExportCancelledError`, `isActionInputError`).
  */
 export function isViewStoreError(error: unknown): error is ViewStoreError {
   if (!isNamedError(error, 'ViewStoreError')) return false;

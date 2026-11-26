@@ -173,6 +173,12 @@ class AccessWalking(
         }
     }
 
+    /** Whether a store besides the log stamps [type]'s history ([target]): a Sink that indexes its streams. */
+    fun targeted(type: AggregateType): Boolean = !targets[type].isNullOrEmpty()
+
+    /** [type]'s log as its store gives it, before the hand-over wraps it: what stamps and walks its history. */
+    fun logOf(type: AggregateType): EventLog? = logOf.invoke(type)
+
     /**
      * Runs [maintain] in [scope], at once and again at once while it leaves a walk of this node, else after an
      * interval. Until the first run claims them, the follower leaves the streams without attributes to the walks
@@ -288,8 +294,8 @@ class AccessWalking(
         }
         val (access, state) = (if (walked) replaying(ref, replay) else replay()) ?: return null
         val head = streams.last().version
-        val written = stamps.stampIn(ref, access, head, 1, head + 1, options.batch)
-        targets[ref.type]?.forEach { it.stampIn(ref, access, head, 1, head + 1, options.batch) }
+        val written = stamps.stampIn(ref, access, head, 1, head + 1, options.stampBatch)
+        targets[ref.type]?.forEach { it.stampIn(ref, access, head, 1, head + 1, options.stampBatch) }
         snapshots.rewrite(ref, streams, state)
         val millis = started.elapsedNow().inWholeMilliseconds
         observer.observed(ObservedEvent.AccessStamped(ref.type, cause, written, millis))

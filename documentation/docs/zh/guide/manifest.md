@@ -13,7 +13,7 @@ outline: deep
 1. **编译器**写出每个领域模块的片段 `META-INF/wow/manifest/<module>.json`（[编译器生成什么](./generated-code#the-manifest-fragment)）。
 2. **Gradle 插件**（`generateWowManifestFragment`）用片段中类型的 JSON Schema、查询关键字和状态的指纹补全片段。类型上的 Jakarta Bean Validation 约束成为它的 schema 的校验关键字，客户端在发送之前就能看到：`@Positive` 是值为 0 的 `exclusiveMinimum`，`@NotBlank` 是值为 1 的 `minLength`，`@Size` 是长度或条目数的上下界，`@Pattern` 是 `pattern`，`@Email` 是 `email` 格式。字段是否必填、能否为 null，仍然由它的 Kotlin 类型决定。补全后的片段替换模块资源中编译器写出的那个。这个任务要加载模块编译出的类，所以它运行在模块的 Java 工具链（`kotlin { jvmToolchain(25) }`）上，而不是运行 Gradle 的 JVM 上：Gradle 可以比模块的 JDK 更旧。
 3. **在构建时**，`mergeWowManifest` 把服务运行时类路径上的片段合并成 `build/wow/manifest.json`。
-4. **在启动时**，宿主合并同样的片段，加上框架的错误码，并在 `GET /wow/manifest` 上提供结果；它与公开端口的每条路由一样需要认证：没有调用者的请求得到 401。
+4. **在启动时**，宿主合并同样的片段，加上框架的错误码，并在 `GET /wow/manifest` 上提供结果：内部端口把它提供给集群中的服务，公开端口只在 `wow.http.manifest.enabled: true` 时提供（默认关闭，因为 Manifest 列出了服务的每条路由、每个 schema 和每个错误），并与那里的每条路由一样需要认证：没有调用者的请求得到 401。
 
 快照查询从补全后的片段读取状态 schema：只有插件补全之后，状态字段才能被过滤和排序。
 
@@ -80,7 +80,7 @@ Jackson 的树不需要声明。Wow 的 JSON 把它写成它所承载的 JSON，
 
 发送另一个上下文的命令、或读取它发布的事件流的服务，需要那个上下文的命令、事件、状态和错误。插件从对方上下文的片段中挑出它们，即 `META-INF/wow/contract.json`，由它的 api 模块作为特性 `contract` 发布。依赖这个 api 模块的服务在类路径上找到这份契约，用它来指明它发送的命令、检查跨进对方上下文的等待计划，并解码对方发布的事件。不需要任何配置：依赖 api 就够了。
 
-无法引入 api jar 的工具，例如控制台或网关，改为从对端的 `GET /wow/manifest` 读取它的 Manifest（[调用其他服务](./calling-services#call-a-command-by-name)）。
+无法引入 api jar 的工具，例如控制台或网关，改为从对端的 `GET /wow/manifest` 读取它的 Manifest（[调用其他服务](./calling-services#call-a-command-by-name)）：以服务身份从内部端口读取，或者从在公开端口提供它的对端（`wow.http.manifest.enabled: true`）的公开端口读取。
 
 ## 兼容检查 {#the-compatibility-check}
 

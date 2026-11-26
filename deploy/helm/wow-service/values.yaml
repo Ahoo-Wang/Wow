@@ -19,8 +19,8 @@ service:
   #  - context: eshop-payment
   #    service: eshop-payment-service
   #    namespace: payments
-  # Where every node serves the service's Manifest, on either port; given to the pods as the wow.ahoo.me/manifest
-  # annotation.
+  # Where every node serves the service's Manifest: on the internal port, and on the public one when
+  # wow.http.manifest.enabled is on; given to the pods as the wow.ahoo.me/manifest annotation.
   manifest:
     route: /wow/manifest
 

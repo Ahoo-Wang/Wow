@@ -36,16 +36,18 @@ import tools.jackson.databind.JsonNode
  *   null when there is none, and holds the `wait` context and the `trace` only, in the one form of a transport
  *   ([me.ahoo.wow.spi.log.TransportCodec]): the reservations of a log entry stay in the
  *   context.
- * - **Reading**: unknown fields are ignored at every level, so this version reads what the next minor one writes;
- * a format other than [Envelope.FORMAT], or a kind this version does not know, is refused with an
+ * - **Reading**: unknown fields are ignored at every level, and a hop's stage this version does not know reads as
+ *   [me.ahoo.wow.api.result.Stage.UNKNOWN] ([WowJson.readerBuilder]), so this version reads what the next minor one
+ *   writes; a format other than [Envelope.FORMAT], or a kind this version does not know, is refused with an
  *   [IllegalArgumentException].
  * - **State events**: [stateEvent] and [stateEventOf] turn a [StateEventRecord] into the envelope of kind
  *   [EnvelopeKind.STATE_EVENT] and back: `id` is `ref@version`, `type` the aggregate type, `payload`
  *   `{ref, version, commandId, requestId, commandType, commitTime, events, state, scope, deleted, access,
  *   accessVersion, causation, headers, operator, imported}` (`imported` only when true; `access` in its stored form,
  *   [AccessValues], or null when not stamped; `accessVersion` the version it is of, null with it) with each event
- *   `{name, revision, payload}` and the state `{version, schemaFingerprint, state}` or null.
+ *   `{name, revision, body}` and the state `{version, schemaFingerprint, state}` or null.
  */
+@InternalWowApi
 object EnvelopeCodec {
     private val mapper = WowJson.mapper
 
@@ -61,9 +63,9 @@ object EnvelopeCodec {
         ),
     )
 
-    /** The envelope [bytes] hold. */
+    /** The envelope [bytes] hold, as a node of the minor version before reads a newer one's ([WowJson.reader]). */
     fun decode(bytes: ByteArray): Envelope {
-        val wire = mapper.readValue(bytes, EnvelopeWire::class.java)
+        val wire = WowJson.reader.readValue(bytes, EnvelopeWire::class.java)
         require(wire.format == Envelope.FORMAT) {
             "Envelope format ${wire.format} is not the format ${Envelope.FORMAT} this version reads."
         }

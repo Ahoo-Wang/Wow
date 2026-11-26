@@ -24,6 +24,7 @@ import me.ahoo.wow.manifest.EventManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.query.policy.GovernedAggregates
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.json.WowJson
@@ -66,7 +67,7 @@ class ClickHouseCatalogTest {
             statements.create(sink.schema)
             sink.write(listOf(recordOf(type = CatalogFixtures.MEMBER)))
             asked.assert().isEqualTo(1)
-            statements.catalog.single().second.lines().first().assert().contains("\"access\":\"DEFAULT\"")
+            statements.catalog.single().second.lines().first().assert().contains("\"access\":\"default\"")
         }
 
     @Test
@@ -78,16 +79,16 @@ class ClickHouseCatalogTest {
         state.service.assert().isEqualTo("crm-service")
         state.context.assert().isEqualTo("crm")
         state.aggregate.assert().isEqualTo("member")
-        state.ownership.assert().isEqualTo("OWNER")
+        state.ownership.assert().isEqualTo("owner")
         state.tenantColumn.assert().isEqualTo("tenant_id")
         state.ownerColumn.assert().isEqualTo("owner_id")
         state.spaceColumn.assert().isEqualTo("space_id")
         state.sensitive.assert().containsExactlyInAnyOrder(
-            CatalogSensitive("state.phone", "DISPLAY", """{"keepPrefix":3,"keepSuffix":4}"""),
+            CatalogSensitive("state.phone", "display", """{"keepPrefix":3,"keepSuffix":4}"""),
             // The value type's keyword and the property's: the highest level is kept.
-            CatalogSensitive("state.address.street", "CONFIDENTIAL"),
-            CatalogSensitive("state.cards.{key}", "CONFIDENTIAL"),
-            CatalogSensitive("state.notes", "DISPLAY"),
+            CatalogSensitive("state.address.street", "confidential"),
+            CatalogSensitive("state.cards.{key}", "confidential"),
+            CatalogSensitive("state.notes", "display"),
         )
         state.references.assert().containsExactlyInAnyOrder(
             CatalogReference("state.referrerId", "crm", "member"),
@@ -101,16 +102,16 @@ class ClickHouseCatalogTest {
 
         val events = entries.getValue("events")
         events.sensitive.assert().containsExactly(
-            CatalogSensitive("payload.phone", "DISPLAY", "", "member_registered", 2)
+            CatalogSensitive("body.phone", "display", "", "member_registered", 2)
         )
         events.columnsHash.assert().isEqualTo(ClickHouseCatalog.columnsHash(ClickHouseSinkSchema.EVENT_COLUMNS))
         entries.getValue("state_events").sensitive.map { it.path }.assert()
-            .contains("state.phone", "events.payload.phone")
+            .contains("state.phone", "events.body.phone")
 
         // Only the top-level scalars are flat columns, by the column's name.
         val flat = entries.getValue("state_flat")
         flat.sensitive.assert().containsExactly(
-            CatalogSensitive("phone", "DISPLAY", """{"keepPrefix":3,"keepSuffix":4}""")
+            CatalogSensitive("phone", "display", """{"keepPrefix":3,"keepSuffix":4}""")
         )
         flat.references.assert().containsExactlyInAnyOrder(
             CatalogReference("referrerId", "crm", "member"),
@@ -122,6 +123,41 @@ class ClickHouseCatalogTest {
             .isNotEqualTo(flat.fingerprint).hasSize(64)
     }
 
+    /**
+     * A path whose only mark is a level this version does not know is written with that level: dropped, as it was, the
+     * path read as not sensitive in `wow_catalog`, and the catalog showed and served it unmasked.
+     */
+    @Test
+    fun `a path marked only at a level this version does not know should be written with it, never as not sensitive`() {
+        @Suppress("UNCHECKED_CAST")
+        val state = CatalogFixtures.MANIFEST.defs.getValue("MemberState") as Map<String, Any?>
+
+        @Suppress("UNCHECKED_CAST")
+        val properties = state.getValue("properties") as Map<String, Any?>
+        val notes = mapOf("type" to "string", "x-wow-sensitive" to mapOf("level" to "later"))
+        val defs = CatalogFixtures.MANIFEST.defs +
+            ("MemberState" to state + ("properties" to properties + ("remark" to notes)))
+        val manifest = CatalogFixtures.MANIFEST.copyWith(defs = defs)
+        val entries = ClickHouseSinks(statements, manifest, ClickHouseSinkOptions()).catalogOf(CatalogFixtures.MEMBER)
+            .associateBy { it.role }
+        entries.getValue("state").sensitive.single { it.path == "state.remark" }.level.assert().isEqualTo("later")
+        entries.getValue("state_flat").sensitive.single { it.path == "remark" }.level.assert().isEqualTo("later")
+    }
+
+    /**
+     * A level this version does not know is kept as the Manifest wrote it, for a reader that knows it, and ranks above
+     * every level this version knows when a path carries two marks: never dropped, which would read as no level.
+     */
+    @Test
+    fun `a level this version does not know should be kept as written, and rank above every known one`() {
+        // The street's own type declares a later version's level; the property declares display.
+        val later = mapOf("type" to "string", "x-wow-sensitive" to mapOf("level" to "later"))
+        val manifest = CatalogFixtures.MANIFEST.copyWith(defs = CatalogFixtures.MANIFEST.defs + ("Street" to later))
+        val state = ClickHouseSinks(statements, manifest, ClickHouseSinkOptions()).catalogOf(CatalogFixtures.MEMBER)
+            .single { it.role == "state" }
+        state.sensitive.single { it.path == "state.address.street" }.level.assert().isEqualTo("later")
+    }
+
     @Test
     fun `a tenant's resource should have no owner column, and without the history only two tables`() {
         val options = ClickHouseSinkOptions(
@@ -130,7 +166,7 @@ class ClickHouseCatalogTest {
         val entries = sinks(options).catalogOf(CatalogFixtures.STORE)
         entries.map { it.role }.assert().containsExactly("state", "state_flat")
         entries.forEach {
-            it.ownership.assert().isEqualTo("TENANT")
+            it.ownership.assert().isEqualTo("tenant")
             it.ownerColumn.assert().isEmpty()
             it.sensitive.assert().isEmpty()
         }
@@ -271,10 +307,10 @@ object CatalogFixtures {
                         "x-wow-sensitive" to SENSITIVE_DISPLAY,
                         "x-wow-mask" to linkedMapOf("keepPrefix" to 3, "keepSuffix" to 4),
                     ),
-                    "referrerId" to mapOf("type" to "string", "x-wow-reference" to mapOf("aggregateName" to "member")),
+                    "referrerId" to mapOf("type" to "string", "x-wow-reference" to mapOf("aggregate" to "member")),
                     "storeId" to mapOf(
                         "type" to "string",
-                        "x-wow-reference" to mapOf("aggregateName" to "store", "contextName" to "shop"),
+                        "x-wow-reference" to mapOf("aggregate" to "store", "context" to "shop"),
                     ),
                     "address" to mapOf("\$ref" to "#/\$defs/Address"),
                     "cards" to mapOf(

@@ -32,8 +32,8 @@ function Fulfilment({
   return (
     <RetailBoardScene
       instanceId={FULFILMENT}
-      initialTab={tab}
-      initialFilters={filters}
+      defaultTab={tab}
+      defaultFilters={filters}
     />
   );
 }

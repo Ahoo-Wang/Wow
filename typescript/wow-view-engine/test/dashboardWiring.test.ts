@@ -31,7 +31,7 @@ import {
   addFilter,
   moveFilter,
   removeFilter,
-  removeFixedScope,
+  removeFixed,
   renameFilter,
   retypeFilter,
   setFilterDefault,
@@ -146,13 +146,13 @@ describe('wiring a filter', () => {
     );
 
     expect(bindingsOf(config, 'a')).toEqual([
-      { globalField: 'created', panelField: 'createdAt' },
+      { dashboardField: 'created', panelField: 'createdAt' },
     ]);
     // `b` on the same data, `c` on another tab and another dataset whose
     // `createdAt` is a date; `d`'s `createdAt` is text, so it is left alone.
     expect(connected).toEqual(['b', 'c']);
     expect(bindingsOf(config, 'c')).toEqual([
-      { globalField: 'created', panelField: 'createdAt', auto: true },
+      { dashboardField: 'created', panelField: 'createdAt', auto: true },
     ]);
     expect(bindingsOf(config, 'd')).toEqual([]);
   });
@@ -164,7 +164,9 @@ describe('wiring a filter', () => {
         panel.id === 'b'
           ? {
               ...panel,
-              bindings: [{ globalField: 'created', panelField: 'createdAt' }],
+              bindings: [
+                { dashboardField: 'created', panelField: 'createdAt' },
+              ],
             }
           : panel,
       ),
@@ -178,7 +180,7 @@ describe('wiring a filter', () => {
     );
     expect(connected).toEqual(['c']);
     expect(bindingsOf(config, 'b')).toEqual([
-      { globalField: 'created', panelField: 'createdAt' },
+      { dashboardField: 'created', panelField: 'createdAt' },
     ]);
   });
 
@@ -186,7 +188,7 @@ describe('wiring a filter', () => {
     const once = bindPanel(board, 'created', 'c', 'createdAt', fieldsOf).config;
     const again = bindPanel(once, 'created', 'c', 'createdAt', fieldsOf);
     expect(bindingsOf(again.config, 'c')).toEqual([
-      { globalField: 'created', panelField: 'createdAt' },
+      { dashboardField: 'created', panelField: 'createdAt' },
     ]);
     expect(again.connected).toEqual([]);
   });
@@ -250,14 +252,14 @@ describe('a panel added comes wired', () => {
       fieldsOf,
     ).config;
     expect(autoBindings(wired, SHIPMENTS)).toEqual([
-      { globalField: 'created', panelField: 'createdAt', auto: true },
+      { dashboardField: 'created', panelField: 'createdAt', auto: true },
     ]);
     // Nothing wired yet: a field named as the filter is.
     const named = dashboardConfig({
       fields: [{ name: 'createdAt', label: 'Created', kind: 'date' }],
     });
     expect(autoBindings(named, ORDERS)).toEqual([
-      { globalField: 'createdAt', panelField: 'createdAt', auto: true },
+      { dashboardField: 'createdAt', panelField: 'createdAt', auto: true },
     ]);
     expect(autoBindings(board, ORDERS)).toEqual([]);
     expect(autoBindings(wired, NOTES)).toEqual([]);
@@ -273,7 +275,7 @@ describe('a panel added comes wired', () => {
     ).config;
     expect(
       autoBindings(wired, ORDERS, [
-        { globalField: 'created', panelField: 'createdAt' },
+        { dashboardField: 'created', panelField: 'createdAt' },
       ]),
     ).toEqual([]);
   });
@@ -335,7 +337,7 @@ describe('a search filter', () => {
     );
     expect(connected).toEqual(['returnList']);
     expect(bindingsOf(config, 'returnList')).toEqual([
-      { globalField: 'find', panelField: 'keyword', auto: true },
+      { dashboardField: 'find', panelField: 'keyword', auto: true },
     ]);
     expect(bindingsOf(config, 'orderChart')).toEqual([]);
     expect(bindingsOf(config, 'shipmentList')).toEqual([]);
@@ -347,7 +349,7 @@ describe('a search filter', () => {
 
   it('comes onto a panel added with a search box, and never onto another', () => {
     expect(autoBindings(searchBoard, returns)).toEqual([
-      { globalField: 'find', panelField: 'keyword', auto: true },
+      { dashboardField: 'find', panelField: 'keyword', auto: true },
     ]);
     expect(
       autoBindings(searchBoard, boardFieldsOf('analysis', orders)),
@@ -638,12 +640,12 @@ describe('setting up the filters', () => {
         ],
       },
     });
-    const removed = removeFixedScope(fixed);
+    const removed = removeFixed(fixed);
     // The member stays: its being there says the board is read (D26 Q31).
     expect(removed.fixed).toEqual({ op: 'and', children: [] });
     expect(removed.fields).toBe(fixed.fields);
-    expect(removeFixedScope(removed)).toBe(removed);
-    expect(removeFixedScope(board)).toBe(board);
+    expect(removeFixed(removed)).toBe(removed);
+    expect(removeFixed(board)).toBe(board);
   });
 });
 
@@ -680,19 +682,21 @@ describe('the list the wired fields declare', () => {
     fields: [{ name: 'phase', label: 'Phase', kind: 'string' }],
     panels: [
       view('a', 'status', {
-        bindings: [{ globalField: 'phase', panelField: 'status' }],
+        bindings: [{ dashboardField: 'phase', panelField: 'status' }],
       }),
       view('b', 'state', {
-        bindings: [{ globalField: 'phase', panelField: 'state', auto: true }],
+        bindings: [
+          { dashboardField: 'phase', panelField: 'state', auto: true },
+        ],
       }),
       // A field without a list adds nothing to it.
       view('c', 'orders', {
-        bindings: [{ globalField: 'phase', panelField: 'warehouse' }],
+        bindings: [{ dashboardField: 'phase', panelField: 'warehouse' }],
       }),
       // Not wired: not asked.
       view('d', 'status'),
       view('e', 'unknown', {
-        bindings: [{ globalField: 'phase', panelField: 'x' }],
+        bindings: [{ dashboardField: 'phase', panelField: 'x' }],
       }),
     ],
   });

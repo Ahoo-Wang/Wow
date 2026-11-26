@@ -33,6 +33,7 @@ import {
  */
 export type FieldKindId = BuiltinFieldKindId | (string & {});
 
+/** The id of a field kind the engine ships. */
 export type BuiltinFieldKindId =
   | 'string'
   | 'number'
@@ -396,7 +397,7 @@ export interface FieldDefinition {
   options?: FieldOption[];
   /**
    * Remote candidate source key for `reference`, resolved by the engine:
-   * the host's `resolveOptions(remote)` both offers a condition's candidates
+   * the host's `optionSource(remote)` both offers a condition's candidates
    * and reads the ids a row holds as names. The server still sorts
    * and searches the stored id, so such a field is never a search field,
    * and sorts only with `sortable: true`, by the id; a reader sees names,

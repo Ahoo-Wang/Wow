@@ -27,6 +27,7 @@ import kotlinx.coroutines.reactor.ReactorContext
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Stage
+import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.HttpJson
@@ -77,7 +78,7 @@ internal data class CommandTarget(
 }
 
 /**
- * Sends the command of a route through [gateway] (–):
+ * Sends the command of a route through [gateway]:
  *
  * - the caller from [authenticator]; the wait (a plan that names no timeout waits the gateway's
  *   [default][CommandGateway.defaultWaitTimeout]), the target scope, the expected version and the request id from the Wow
@@ -100,7 +101,8 @@ internal data class CommandTarget(
  *   each hop is reached, until the wait ends. A rejection, a timeout or a failure after the head is the stream's last
  *   event, and so is a chain that ended before its plan did, its result marked `chainEnded` with the hops not reached
  *   as `pending`, which is also the result answered without the event stream. After that last result, one more event,
- *   `end` with `{"reason":"complete"}`, says the stream is whole, as a streamed list's `end` does: a reader that does
+ *   `end` with `{"reason":"complete","resumable":false}`, says the stream is whole, in a streamed list's `end`'s
+ *   shape: a reader that does
  *   not get it before the stream ends, however cleanly, has an unknown outcome, and never infers the end from the plan
  *   (#6808). It follows only results that ended as the wait did: a stream whose results fail or are cancelled (the
  *   node stopping, its routes' scope cancelled) has no `end`. A comment (`: keep-alive`) is written at once, which
@@ -126,6 +128,7 @@ internal class CommandHandler(
 ) {
     suspend fun handle(request: ServerRequest, target: CommandTarget): ServerResponse {
         val caller = authenticator.authenticate(request)
+        refuseQueryParameters(request)
         if (target.operational && !internal && !gateway.decidesOperational) {
             throw ProblemException(statuses.problemOf(FrameworkCodes.AUTH_FORBIDDEN, refusedWithoutAuthorizer(target)))
         }
@@ -153,7 +156,7 @@ internal class CommandHandler(
             body = CommandBody.Bytes(request.awaitBytesOrNull()?.takeIf { it.isNotEmpty() } ?: EMPTY_BODY),
             caller = caller,
             aggregateId = target.id ?: if (target.byId) request.pathVariable(ID) else null,
-            target = headers.target(request),
+            targetScope = headers.target(request),
             requestId = headers.requestId(request, options.requestIdHeaders),
             expectedVersion = expectedVersion,
             headers = headers.facts(request, options.requestFacts),
@@ -163,6 +166,21 @@ internal class CommandHandler(
         )
         val ifMatch = request.headers().firstHeader(WowHeaders.IF_MATCH) != null
         return if (eventStream) stream(command, ifMatch) else execute(command, ifMatch)
+    }
+
+    /**
+     * A command route takes no query parameter, on either port (#7053): one is refused, naming it, so that nothing a
+     * client sends outside the body is dropped (a misspelled parameter, or one a proxy appends), and no parameter can
+     * later be given a meaning that changes what a request already does.
+     */
+    private fun refuseQueryParameters(request: ServerRequest) {
+        val name = request.queryParams().keys.firstOrNull() ?: return
+        val detail = "'$name' is a query parameter, which no command route takes: a command reads its body and its " +
+            "headers alone."
+        throw ProblemException(
+            statuses.problemOf(FrameworkCodes.REQUEST_MALFORMED, detail)
+                .copyWith(violations = listOf(Violation(name, FrameworkCodes.REQUEST_MALFORMED, detail))),
+        )
     }
 
     private suspend fun execute(command: ServerCommandRequest, ifMatch: Boolean): ServerResponse {
@@ -223,7 +241,7 @@ internal class CommandHandler(
         const val END_EVENT: String = "end"
 
         private val COMPLETE: ServerSentEvent<String> =
-            ServerSentEvent.builder("{\"reason\":\"complete\"}").event(END_EVENT).build()
+            ServerSentEvent.builder("{\"reason\":\"complete\",\"resumable\":false}").event(END_EVENT).build()
 
         /** The comment it writes, which a reader of server-sent events skips. */
         private val KEEP_ALIVE_COMMENT: ServerSentEvent<String> =

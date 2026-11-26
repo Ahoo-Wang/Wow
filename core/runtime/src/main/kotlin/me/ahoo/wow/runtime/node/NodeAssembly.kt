@@ -22,7 +22,9 @@ import me.ahoo.wow.kernel.schedule.ScheduleJobModel
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.InFlightLimit
 import me.ahoo.wow.runtime.StateCacheSizing
+import me.ahoo.wow.runtime.access.AccessCapabilities
 import me.ahoo.wow.runtime.access.AccessStamping
+import me.ahoo.wow.runtime.access.EventsSources
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommittedRequests
 import me.ahoo.wow.runtime.admission.ModelRegistry
@@ -126,6 +128,8 @@ internal class NodeAssembly(
     deadlines: WaitDeadlines,
     /** The application's describers of its handlers' failures ([RuntimeFailures.of]); none by default. */
     failureDescribers: List<FailureDescriber> = emptyList(),
+    /** Where each type's `events` model is served from, which must keep its history's attributes current. */
+    private val eventsSources: EventsSources = EventsSources.NONE,
 ) {
     /** The jobs of each context's `@OnSchedule` handlers, by the name of the subscription that runs each. */
     private val declaredJobs: Map<String, Map<String, ScheduleJob>> =
@@ -246,7 +250,7 @@ internal class NodeAssembly(
     /** Delivers signals: to [waits] when they are this node's, through the remote sender otherwise. */
     val signals: SignalSender = LocalSignalSender(node, waits, service, remoteSignals)
 
-    private val origin = Origin(node, address.orEmpty(), service)
+    private val origin = Origin(service, node, address.orEmpty())
 
     /** Sends the commands of every context's sagas to the command topics of other contexts; null without a producer. */
     private val sender: CommandSender? = topics?.takeIf { it.producer != null }?.let { CommandSender(contracts, it) }
@@ -386,6 +390,28 @@ internal class NodeAssembly(
 
     val applicationSubscriptions = contexts.values.associateWith { subscriptions.subscriptions(it) }
 
+    init {
+        // After the subscriptions: a Sink that stamps the histories it indexes is a walk's target by now.
+        val placed = contexts.values.flatMap { context ->
+            context.logGroups.flatMap { group ->
+                group.types.map { type ->
+                    AccessCapabilities.Placed(
+                        type,
+                        group.store,
+                        // The store's own log: the group's log is wrapped by the hand-over, which stamps nothing.
+                        context.accessWalking?.logOf(type) ?: group.log,
+                        context.accessWalking?.targeted(type) == true,
+                    )
+                }
+            }
+        }
+        val refusals = AccessCapabilities.refusals(placed, eventsSources)
+        check(refusals.isEmpty()) {
+            "An events query would decide by access attributes these stores cannot keep current: " +
+                refusals.joinToString("; ")
+        }
+    }
+
     /**
      * The subscriptions of other contexts' published streams, by the topic they read: one runtime
      * per topic on this node. Wow's own: health, pauses and tests read it; its type is internal to Wow.
@@ -443,7 +469,7 @@ internal class NodeAssembly(
             ids = admission.ids.global,
             context = wiring.contextOf(Component.LEDGER, publishing.context),
             available = available,
-            availability = topics?.partitionRefresh ?: publishing.interval,
+            availability = topics?.partitionRefreshInterval ?: publishing.interval,
         )
     }
 
@@ -488,7 +514,7 @@ internal class NodeAssembly(
     fun bind(address: String) {
         check(bound == null) { "Node $node already has the address $bound." }
         bound = address
-        val origin = Origin(node, address, service)
+        val origin = Origin(service, node, address)
         contexts.values.forEach { it.coordinator.origin = origin }
     }
 }

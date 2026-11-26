@@ -14,9 +14,9 @@
 import type { Fetcher } from '@ahoo-wang/fetcher';
 import {
   CommandClient,
+  Hop,
   MANIFEST_FORMAT,
   type RoutingManifest,
-  wait,
   WaitPlan,
 } from '@ahoo-wang/wow-client';
 import type { OrderCommands } from './orderActions.js';
@@ -56,8 +56,8 @@ export function wowOrderCommands(fetcher: Fetcher): OrderCommands {
     // reports it on that order, and the order stays selected.
     await commands.wait({
       command: `example.order.${command}`,
-      id: orderId,
-      wait: WaitPlan.of(wait.snapshot('example')),
+      aggregateId: orderId,
+      wait: WaitPlan.of(Hop.snapshot('example')),
     });
   };
   return {

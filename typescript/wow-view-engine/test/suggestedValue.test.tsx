@@ -26,7 +26,8 @@ import type {
   ValueCandidateSource,
   ValueCandidates,
 } from '../src/index.js';
-import { FilterValueEditor, ViewSurface, zhCN } from '../src/ui/index.js';
+import { ViewSurface, zhCN } from '../src/ui/index.js';
+import { FilterValueEditor } from '../src/ui/filter/FilterValueEditor.js';
 
 afterEach(cleanup);
 
@@ -48,7 +49,8 @@ function fakeSource(answers: Record<string, ValueCandidates | Error>): {
     calls,
     source: {
       field: 'processor',
-      search(query, signal) {
+      search(query, options) {
+        const signal = options?.signal;
         calls.push({ query, signal });
         const answer = answers[query] ?? { values: [], complete: true };
         return answer instanceof Error

@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.WindowFunction
 import me.ahoo.wow.query.spec.MetricSpec
@@ -23,6 +24,7 @@ import me.ahoo.wow.query.spec.MetricSpec
  *
  * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
+@WowSpi
 enum class SupportMode {
     /** The backend computes it natively. */
     NATIVE,
@@ -38,6 +40,7 @@ enum class SupportMode {
  * How a storage pages. Neither mode has a residual implementation, so each is NATIVE or NONE. A storage declares it
  * with [of].
  */
+@WowSpi
 class PagingSupport @InternalWowApi constructor(
     /** Keyset pages ordered by the cursor sort (cursor queries). */
     val keyset: SupportMode = SupportMode.NATIVE,
@@ -83,6 +86,7 @@ class PagingSupport @InternalWowApi constructor(
  * percentiles and distinct counts need the records themselves, so they are NATIVE or NONE. A storage declares it with
  * [of].
  */
+@WowSpi
 class AggregationSupport @InternalWowApi constructor(
     val having: SupportMode = SupportMode.NATIVE,
     /** Ordering groups by a metric before the limit. */
@@ -163,6 +167,7 @@ class AggregationSupport @InternalWowApi constructor(
  *
  * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
+@WowSpi
 enum class AbsentValues {
     /** Distinct from a missing field: `EXISTS` matches them and `IS_EMPTY` matches only an empty array. */
     DISTINCT,
@@ -179,6 +184,7 @@ enum class AbsentValues {
  * What a storage declares beyond each field's native capabilities, bound into the schema by its adapter
  * ([QueryStorageFacts.Builder.storage]); a storage declares it with [of], or takes [NATIVE].
  */
+@WowSpi
 class StorageSupport @InternalWowApi constructor(
     val paging: PagingSupport = PagingSupport(),
     val aggregation: AggregationSupport = AggregationSupport(),

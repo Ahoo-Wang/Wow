@@ -280,7 +280,9 @@ class MongoReservationStore(
         const val K = "k"
         const val TENANT_ID = "tenant_id"
         const val KEY = "key"
-        const val OWNER = "owner"
+
+        /** The aggregate holding the key, `{tenant_id, id}`. */
+        const val OWNER = "aggregate"
         const val ID = "id"
         const val OWNER_TENANT_ID = "$OWNER.$TENANT_ID"
         const val OWNER_ID = "$OWNER.$ID"

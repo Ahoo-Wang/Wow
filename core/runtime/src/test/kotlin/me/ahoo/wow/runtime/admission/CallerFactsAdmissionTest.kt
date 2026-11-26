@@ -32,7 +32,7 @@ class CallerFactsAdmissionTest : CommandGatewayFixtures() {
     @Test
     fun `a command sent through the node's own client records its caller's application`(): Unit = runBlocking {
         val client = InProcessCommandClient(gateway()).of(inApp)
-        val result = client.wait(CommandRequest.of(AddItem("apple"), id = "cart-1"))
+        val result = client.wait(CommandRequest.of(AddItem("apple"), aggregateId = "cart-1"))
         result.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         commands.single().headers.assert().isEqualTo(mapOf(RequestFacts.APP_ID to "app-a"))
     }

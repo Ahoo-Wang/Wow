@@ -22,7 +22,10 @@ import {
   FilterOperator,
   AggregationMetricType,
 } from '@ahoo-wang/wow-client/dsl';
-import { CHART_TYPES } from '../src/index.js';
+import { CHART_TYPES } from '../src/model/chart.js';
+import { FilterValueEditor } from '../src/ui/filter/FilterValueEditor.js';
+import { formatIssues } from '../src/ui/kit/messages.js';
+import { ViewList } from '../src/ui/workbench/ViewList.js';
 import {
   DATE_TIME_PRESETS,
   RELATIVE_DATE_UNITS,
@@ -35,14 +38,11 @@ import type {
   ViewListState,
 } from '../src/react/index.js';
 import {
-  FilterValueEditor,
   formatIssue,
-  formatIssues,
   formatMessage,
   MessagesProvider,
   ResultToolbar,
   useViewMessages,
-  ViewList,
   ViewSurface,
   zhCN,
 } from '../src/ui/index.js';
@@ -152,7 +152,7 @@ describe('the Chinese catalogue', () => {
       [...sentence.matchAll(/\{(\w+)\}/g)].map(match => match[1]).sort();
 
     const dropped = Object.entries(en).flatMap(([key, english]) => {
-      const mine = new Set(placeholders(zhCN[key] ?? ''));
+      const mine = new Set(placeholders(zhCN[key as keyof typeof zhCN] ?? ''));
       const lost = placeholders(english).filter(name => !mine.has(name));
       return lost.length === 0 ? [] : [`${key}: ${lost.join(', ')}`];
     });
@@ -824,7 +824,7 @@ function listState(items: ViewInstanceSummary[]): ViewListState {
     defaultInstanceId: null,
     status: 'success',
     error: null,
-    reload: () => {},
+    refresh: () => {},
   };
 }
 

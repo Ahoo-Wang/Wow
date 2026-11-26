@@ -1,24 +1,24 @@
 {
   "version": 1,
   "files": {
-    "eshop-catalog/brand/aggregate.ts": "46d0b114c986ec082450fa1642c513e77001fa995b385892ab6887fed20fdddb",
-    "eshop-catalog/brand/commandClient.ts": "e7dd1b6a6bef3a1422b03391fabaa622c6a515710d8b29939cd10fabeb617bb7",
+    "eshop-catalog/brand/aggregate.ts": "21f5b823a8c9c60e61ec146852d7f6a572059559079a594581d726b6900452e7",
+    "eshop-catalog/brand/commandClient.ts": "635e30477c3768f5c9a30ce7a9058a8d79d34c43330389548bd34976688292bc",
     "eshop-catalog/brand/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
     "eshop-catalog/brand/queryClient.ts": "a4aa537302123366073ea86589bdc310cb45a577d3cfddf75da50c5ec3762c7f",
-    "eshop-catalog/category/aggregate.ts": "429a34391b9e38650f35c1da1c50ba6afba48adccc899dc6b1f3b63ed1628e1a",
-    "eshop-catalog/category/commandClient.ts": "0a52321c7a98d3cd6b2fe823dd986ff3d6a9de1dd1608cdf1d2ac2f5e1d63a38",
+    "eshop-catalog/category/aggregate.ts": "8b397698b849e37b91749238caa0207c3cc70344f7f6b2fc8c730fddc11a9cbe",
+    "eshop-catalog/category/commandClient.ts": "42b68e4162f920679a6d6120e4891be6d90577bb5dda96aa74ad085152e219c5",
     "eshop-catalog/category/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
     "eshop-catalog/category/queryClient.ts": "51769dace5e09ca4e3d9aa7fec055f028ba94eb02b77f404c053aa1aa34691bd",
-    "eshop-catalog/client.ts": "612a2d8023f1663748c15a9d8a917a3b45e30dd7acafbf5f3aa543d124faa2ed",
-    "eshop-catalog/contract.ts": "1044d1a300eb09f457935a2d24470078e7a8f094c0ab29619d8c5ee159db2d56",
+    "eshop-catalog/client.ts": "28cfa7b6a2f12a1290cb25ff9a738b79152724a58ba8b2682c27785f3d76f232",
+    "eshop-catalog/contract.ts": "f1498719ab8e342ec7762115c246c79cc5e38fc02b096bc36d53b60e51e91aaf",
     "eshop-catalog/index.ts": "372a9e6e97dc70386f0657d43ee79940d3ecface826dc1ea7a21ea6ab2e700cb",
     "eshop-catalog/manifest.ts": "72d8fb9cc98aaf53ff357298814d9de8029e16726013b471801d03f14de3ce05",
-    "eshop-catalog/product/aggregate.ts": "7098b598e245b0aa88baf8101c70943a8744922d81b384a970b509e8f72bae2f",
-    "eshop-catalog/product/commandClient.ts": "3ab21087ec0d12cd93697f88b249e55437f5c874e2560734fc96efe3650cbf37",
+    "eshop-catalog/product/aggregate.ts": "8c105af1143f46b65faa5233a9eb27699d4b9b50b2fed76ceacec50bf0b1f655",
+    "eshop-catalog/product/commandClient.ts": "77fe4ba7d504ba826838c522ff5d8d7e0d6cbbc673ffa624494edba63502eedb",
     "eshop-catalog/product/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
     "eshop-catalog/product/queryClient.ts": "14b2a43ef910149950872559f32de82d5e5220e132009e04623b406430d42cc3",
     "eshop-catalog/routes.ts": "bcccd1a79e0e45641e28c87b108152117716e00883d577f43498ab7edd74f0dd",
-    "eshop-catalog/types.ts": "d794bbfb83dc2ef11f5ca0a35d9d1ac7ca31aecab838d7e20a75f6ff8d2d3074",
+    "eshop-catalog/types.ts": "67693d0e239fcfb72e33ac2f4c8b4620b01b56f79c931447ddee16d67fc1fae2",
     "index.ts": "53358c402aac5a307b6b750416698301221b17837af9410680e7cc0fae083b90"
   }
 }

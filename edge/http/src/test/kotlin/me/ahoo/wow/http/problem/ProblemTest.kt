@@ -13,10 +13,14 @@
 
 package me.ahoo.wow.http.problem
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FrameworkCodes
@@ -30,7 +34,11 @@ import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
+import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
+import kotlin.time.Duration.Companion.seconds
 
 /** [Problem], [ProblemException] and the fallbacks of [ErrorStatuses]. */
 class ProblemTest {
@@ -62,7 +70,8 @@ class ProblemTest {
             mapOf("items" to listOf(mapOf("id" to "i-1")), "code" to "other", "instance" to "/x", "none" to null)
         val result = result(ErrorInfo(CART_EMPTY, "The cart is empty.", extensions = extensions))
         val problem = statuses.problemOf(result)
-        problem.extensions.assert().isEqualTo(extensions)
+        // A member's name, or RFC 9457's instance, is no extension of a domain's (#7052).
+        problem.extensions.assert().isEqualTo(extensions - "code" - "instance")
         problem.members().let { members ->
             members["items"].assert().isEqualTo(listOf(mapOf("id" to "i-1")))
             members["code"].assert().isEqualTo(CART_EMPTY)
@@ -91,6 +100,63 @@ class ProblemTest {
         statuses.problemOf(named).members()["version"].assert().isEqualTo(3)
         statuses.problemOf(result(ErrorInfo(CART_EMPTY, "Empty.", extensions = mapOf("version" to "v2")))).members()
             .keys.assert().doesNotContain("version")
+    }
+
+    /**
+     * #7052: an extension named like a member is no member of Wow's, even on a problem without that member; else a
+     * client would read a domain's value as Wow's (the TypeScript client takes `violations` as its list of violations).
+     */
+    @ParameterizedTest
+    @ValueSource(
+        strings = ["type", "title", "status", "detail", "code", "retry", "violations", "result", "version", "instance"],
+    )
+    fun `an extension named like a member should be left out, even on a problem without that member`(name: String) {
+        val problem = Problem.of(422, "Rejected", null, null, extensions = mapOf(name to "the domain's value"))
+        problem.members()[name].assert().isNotEqualTo("the domain's value")
+    }
+
+    @Test
+    fun `a rejection's extensions should leave out the names Wow keeps, which Wow's own problems write (D484 N7)`() {
+        val statuses = ErrorStatuses(cartManifest())
+        val extensions = mapOf("requestId" to "r-1", "traceId" to "t-1", "errors" to listOf("e"), "items" to 2)
+        val members = statuses.problemOf(result(ErrorInfo(CART_EMPTY, "Empty.", extensions = extensions))).members()
+        members.keys.assert().doesNotContain("requestId", "traceId", "errors")
+        members["items"].assert().isEqualTo(2)
+        // Wow's own problem, CoSec's refusal as Wow writes it, keeps them.
+        Problem.of(401, "Unauthorized", null, null, extensions = mapOf("requestId" to "r-1", "traceId" to "t-1"))
+            .members().assert().containsEntry("requestId", "r-1").containsEntry("traceId", "t-1")
+    }
+
+    /** What [ErrorStatuses] logs while [block] runs. */
+    private fun logged(block: () -> Unit): List<ILoggingEvent> {
+        val logger = LoggerFactory.getLogger(ErrorStatuses::class.java.name) as Logger
+        val appender = ListAppender<ILoggingEvent>().apply { start() }
+        logger.addAppender(appender)
+        try {
+            block()
+        } finally {
+            logger.detachAppender(appender)
+        }
+        return appender.list
+    }
+
+    @Test
+    fun `a kept name left out of a problem should be warned of once, naming it and its code, never its value`() {
+        val statuses = ErrorStatuses(cartManifest())
+        fun rejected(vararg extensions: Pair<String, Any?>) =
+            statuses.problemOf(result(ErrorInfo(CART_EMPTY, "Empty.", extensions = mapOf(*extensions))))
+        val first = logged { rejected("errors" to listOf("secret-value"), "items" to 2) }
+        val warning = first.single()
+        warning.level.assert().isEqualTo(Level.WARN)
+        warning.formattedMessage.assert().isEqualTo(
+            "The extension 'errors' of $CART_EMPTY is left out of its problem: a problem keeps the name 'errors' for a " +
+                "member of its own. The command's result still carries it, in its error's extensions. Rename the " +
+                "extension to have it answered.",
+        )
+        // Once per name, not per request; a name without a value loses nothing, so it is not warned of.
+        logged { rejected("errors" to listOf("secret-value"), "status" to null) }.assert().isEmpty()
+        logged { rejected("status" to "open") }.map { it.formattedMessage }.single().assert()
+            .startsWith("The extension 'status' of $CART_EMPTY is left out of its problem")
     }
 
     @Test
@@ -146,7 +212,9 @@ class ProblemTest {
         statuses.status(FrameworkCodes.COMMAND_BUSY).assert().isEqualTo(503)
         statuses.title(FrameworkCodes.COMMAND_BUSY, null, 503).assert().isEqualTo("Command busy")
         val problem = statuses.problemOf(FrameworkCodes.COMMAND_BUSY, "Later.")
-        problem.assert().isEqualTo(Problem(503, "Command busy", "Later.", FrameworkCodes.COMMAND_BUSY, retryAfter = 1))
+        problem.assert().isEqualTo(
+            Problem(503, "Command busy", "Later.", FrameworkCodes.COMMAND_BUSY, retryAfter = 1.seconds)
+        )
     }
 
     @Test
@@ -154,19 +222,19 @@ class ProblemTest {
         val statuses = ErrorStatuses(Manifest())
         val unavailable = statuses.problemOf(FrameworkCodes.STORAGE_UNAVAILABLE, "Down.")
         unavailable.status.assert().isEqualTo(503)
-        unavailable.retry.assert().isEqualTo(Retry.SAME_REQUEST)
-        unavailable.retryAfter.assert().isEqualTo(FrameworkErrors.RETRY_AFTER_SECONDS.toLong())
+        unavailable.retry.assert().isEqualTo(RetryAdvice.SAME_REQUEST)
+        unavailable.retryAfter.assert().isEqualTo(FrameworkErrors.RETRY_AFTER_SECONDS.seconds)
         unavailable.members().keys.assert().containsExactly("type", "title", "status", "detail", "code", "retry")
         unavailable.members()["retry"].assert().isEqualTo("same-request")
         statuses.problemOf(FrameworkCodes.COMMAND_FAILED, "Failed.").apply {
-            retry.assert().isEqualTo(Retry.NONE)
+            retry.assert().isEqualTo(RetryAdvice.NONE)
             retryAfter.assert().isNull()
             members()["retry"].assert().isEqualTo("none")
         }
         // A domain's code is none: no Retry-After is written, whatever is given; an explicit retry wins over the catalog's.
-        Problem(422, "Full", null, "shop.cart.full", retryAfter = 5).retryAfterHeader.assert().isNull()
-        Problem(503, "Down", null, FrameworkCodes.COMMAND_FAILED, retry = Retry.SAME_REQUEST).retryAfter.assert()
-            .isEqualTo(FrameworkErrors.RETRY_AFTER_SECONDS.toLong())
+        Problem(422, "Full", null, "shop.cart.full", retryAfter = 5.seconds).retryAfterHeader.assert().isNull()
+        Problem(503, "Down", null, FrameworkCodes.COMMAND_FAILED, retry = RetryAdvice.SAME_REQUEST).retryAfter.assert()
+            .isEqualTo(FrameworkErrors.RETRY_AFTER_SECONDS.seconds)
     }
 
     @Test
@@ -175,7 +243,7 @@ class ProblemTest {
         FrameworkErrors.ALL.forEach { error ->
             val problem = statuses.problemOf(error.code, "Later.")
             problem.retry.assert().describedAs(error.code).isEqualTo(error.retry)
-            problem.retryAfter.assert().describedAs(error.code).isEqualTo(error.retryAfter?.toLong())
+            problem.retryAfter.assert().describedAs(error.code).isEqualTo(error.retryAfter?.seconds)
         }
         // A query that ran out of time is 504 without Retry-After: the same query would run as long (D254 ③).
         statuses.problemOf(FrameworkCodes.QUERY_TIMEOUT, "Too long.").retryAfter.assert().isNull()

@@ -36,12 +36,7 @@ export {
   useAnalysisEditor,
 } from './useAnalysisEditor.js';
 export type { AnalysisFieldOption } from './analysisFields.js';
-export type {
-  DropCause,
-  QuestionEditing,
-  Reshape,
-  ReshapeProposal,
-} from './analysisEditing.js';
+export type { DropCause, QuestionEditing } from './analysisEditing.js';
 export type { DropNotice, MetricRemoval } from './useReshape.js';
 export {
   type AnalysisResultController,
@@ -55,11 +50,7 @@ export {
   type FollowUpGroup,
   type SplitOption,
 } from './followUp.js';
-export {
-  type RefreshController,
-  useAutoRefresh,
-  useRefreshCountdown,
-} from './useAutoRefresh.js';
+export { type RefreshController } from './useAutoRefresh.js';
 export {
   type ActionFailureContext,
   type ActionRunner,
@@ -79,44 +70,30 @@ export {
   type RowActionView,
   useRecordActions,
 } from './useRecordActions.js';
-export { type SearchBoxController, useSearchBox } from './useSearchBox.js';
-export { useReferenceLabels } from './useReferenceLabels.js';
-export {
-  type UnavailableController,
-  useUnavailable,
-} from './useUnavailable.js';
 export {
   type DashboardController,
   type DashboardPanelView,
   useDashboard,
 } from './useDashboard.js';
 export {
-  type DatasetsReading,
+  type UseDatasetsOptions,
   type DatasetsState,
   useDatasets,
 } from './useDatasets.js';
-export {
-  type FollowUpHost,
-  type PanelFollowUpsOptions,
-  usePanelFollowUps,
-} from './usePanelFollowUps.js';
+export { type FollowUpHost } from './usePanelFollowUps.js';
 export {
   type FilterEditorController,
   useFilterEditor,
 } from './useFilterEditor.js';
 export { type FilterTreeController } from './filterTree.js';
-export {
-  type RecordDetailControl,
-  type RecordDetailController,
-  useRecordDetail,
-} from './useRecordDetail.js';
+export { type RecordDetailControl } from './useRecordDetail.js';
 export {
   type RecordExportController,
   type RecordExportOptions,
   type RecordExportOutcome,
   type RecordExportProgress,
-  type RecordExportScope,
-  type RecordExportScopes,
+  type RecordExportExtent,
+  type RecordExportExtents,
   type RecordExportTable,
   useRecordExport,
 } from './useRecordExport.js';
@@ -133,15 +110,10 @@ export {
 export {
   type SaveAbilities,
   type SaveCommandState,
-  type BoardChoice,
+  type DashboardChoice,
   type SaveCommands,
   useSaveCommands,
 } from './useSaveCommands.js';
-export {
-  type ValueCandidatesController,
-  type ValueCandidatesOptions,
-  useValueCandidates,
-} from './useValueCandidates.js';
 export { useEngine } from './engineContext.js';
 export { useCreateViewEngine } from './useCreateViewEngine.js';
 export {
@@ -156,9 +128,9 @@ export {
   useViewRuntime,
 } from './useViewRuntime.js';
 export {
-  type ViewListOptions,
+  type UseViewListOptions,
   type ViewListPreferences,
-  type ViewListReloadOptions,
+  type ViewListRefreshOptions,
   type ViewListState,
   useViewList,
 } from './useViewList.js';
@@ -186,23 +158,9 @@ export {
 // that read one stay behind the entry (`/ui` imports them from `writes.ts`).
 export type { RecoveredWrite, SettledWrite } from './writes.js';
 export {
-  type InstanceSyncOptions,
-  useInstanceSync,
-} from './workbench/instanceSync.js';
-export {
   type LeaveGuard,
   type LeaveGuardOptions,
   type LeaveGuardState,
   useLeaveGuard,
 } from './workbench/leaveGuard.js';
-export {
-  type ReleaseDeletedOptions,
-  useReleaseDeleted,
-} from './workbench/releaseDeleted.js';
-export {
-  type HandedRemovalOptions,
-  useHandOver,
-  useHandedConditions,
-  useHandedRemoval,
-} from './workbench/handOver.js';
 export type { NewViewOptions } from './workbench/newView.js';

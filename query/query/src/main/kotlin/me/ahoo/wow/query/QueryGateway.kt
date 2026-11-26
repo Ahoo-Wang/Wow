@@ -75,7 +75,10 @@ import tools.jackson.databind.node.ObjectNode
  * ([QueryAdmission]), executed on the backend's four primitives (`BackendQueries.kt`) within the timeout the caller's
  * budget gives, and observed. Records are JSON trees as the model stores them; a caller that wants a type reads them
  * with `WowJson`.
+ *
+ * Internal to Wow: its descriptor and record schema are Wow's own types (#7030).
  */
+@InternalWowApi
 interface QueryGateway {
     val aggregateType: AggregateType
 
@@ -100,7 +103,7 @@ interface QueryGateway {
      * names when given. [after] is a token of this model and effective sort (a stream's or a `cursor` query's); any
      * other is `wow.query.invalid`. The query is admitted like a `cursor` query, so a stream resumed with the same
      * query from another node or after a restart reads on from the same place, under its caller's scope again; at most
-     * [query]'s limit records are read (`0`: all of them), and its budget bounds neither the limit nor the chunks.
+     * [query]'s limit records are read (`null`: all of them), and its budget bounds neither the limit nor the chunks.
      * Each chunk runs within the query's timeout and under one bulkhead permit, given back before its records are
      * emitted. Chunks are not one snapshot: see [chunks]. Only for a query [resumes].
      */
@@ -155,6 +158,7 @@ interface QueryGateway {
      */
     suspend fun recordSchema(): QueryModelSchema? = null
 
+    @InternalWowApi
     companion object {
         /** The records a [stream] reads per chunk by default. */
         const val DEFAULT_STREAM_CHUNK_SIZE: Int = 500
@@ -249,7 +253,7 @@ class DefaultQueryGateway(
     override suspend fun recordSchema(): QueryModelSchema = schemaProvider.schema()
 
     override suspend fun describe(entry: QueryEntry, defaultListSize: Int?): QueryModelDescriptor =
-        schemaProvider.schema().describe(entryPolicy.budget(entryPolicy.admit(entry)), defaultListSize)
+        schemaProvider.schema().describe(entryPolicy.budget(entry), defaultListSize)
             .withConstraints(constraints)
 
     /**

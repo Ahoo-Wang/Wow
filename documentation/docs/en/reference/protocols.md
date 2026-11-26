@@ -53,6 +53,8 @@ A conditional header is `*` or a comma-separated list of entity tags, each `"<op
 - **`If-Match` on a command** compares strongly (RFC 9110 §13.1.1). A strong tag names a version, either as a state read tags it (`"3-0123456789abcdef"`) or alone (`"3"`). The command runs when the aggregate is at that version; otherwise it is 412 `wow.aggregate.version-mismatch`. A command takes one expected version: a list whose tags name the same version is that version, and one naming two or more is 400 `wow.request.malformed`. A weak tag, or a tag that names no version (`"03"`, `"2147483648"`), never matches, and a list of only those gave no version, so is 400 `wow.request.malformed`, not a mismatch. The digest of a state's tag is not compared: the version decides. The lines of an `If-Match` given more than once are one list. `*` on a command that always creates its aggregate is 412; on any other command, unlike RFC 9110, `*` adds no condition, and a missing aggregate stays 404 `wow.aggregate.not-found`.
 - **`If-None-Match` on a state read** compares weakly (§13.1.2). `W/` is ignored, `*` matches any state, and a matching tag answers 304.
 
+Every tagged answer, a state read's and a query model's or a dataset's descriptor's, its 304 included, carries `Cache-Control: private, no-cache` (RFC 9111 §5.2.2.4, §5.2.2.7). Who may read it is the caller's, and so is what a state read reads: the same path names an aggregate in each caller's own tenant. So a shared cache in front of the service stores none of it, and a browser's cache keeps it but asks again with `If-None-Match` each time, a 304 when nothing changed.
+
 ## Event stream
 
 The event stream is the fact: the events one command produced, committed by one append. It is one entry of the log, and the storage backends lay its fields out as columns or document fields.
@@ -64,7 +66,7 @@ The event stream is the fact: the events one command produced, committed by one 
 | `commandId`, `requestId` | The command that produced it and its idempotency key. |
 | `commandType` | The type name of that command. A request id reused with another command type is refused; with the same type, it is a retry. |
 | `commitTime` | When it was committed. |
-| `events` | Each event's `name`, `revision` and `payload`, in order. Schedules set or cancelled are among them, as the system events `wow.schedule.ScheduleSet` and `wow.schedule.ScheduleCancelled`; a `ScheduleSet` holds the scheduled command's body in `command`, a JSON object. |
+| `events` | Each event's `name`, `revision` and `body`, its data, in order. Schedules set or cancelled are among them, as the system events `wow.schedule.ScheduleSet` and `wow.schedule.ScheduleCancelled`; a `ScheduleSet` holds the scheduled command's body in `command`, a JSON object. |
 | `scope` | The aggregate's owner and space after this commit. |
 | `access` | The aggregate's access attributes, `owner` and `space` among them: those after this commit, then kept current as they change; null for a stream not stamped. |
 | `accessVersion` | The version `access` is of: this commit's own when it was committed with them, a later commit's once that one changed them. Every copy of the attributes, in the log, an index of the streams or a sink's table, keeps the one of the later version; null with `access`. |
@@ -86,7 +88,9 @@ A state event is a commit together with the aggregate's state after it. Handlers
 | `deleted` | Whether the aggregate is deleted after this commit. |
 | `imported` | `true` for a commit `migrate-data` imported from 9.x, up to the context's cut-over; left out otherwise. A saga or a reactor of another context passes over it, since 9.x acted on it. |
 
-Events are upgraded to their current revision before they are published.
+Events are upgraded to their current revision before they are published. A published stream's `headers` leave out the client's address and user agent (`remote_ip`, `user_agent`), which stay with the service the request reached; `app_id` and the host's request facts go on.
+
+A published stream has a record for every commit of the aggregate type, so an aggregate's versions on its topic run on without a gap from its first record. A commit whose events the aggregate all retired is published with `events` empty: a Wow subscription passes over it and calls no handler, as for the same commit in the context's own log. A commit that only sets or cancels schedules is published with its `wow.schedule.*` events, as they are in any commit. A version is missing from a topic only where the publishing service's operator skipped a commit its transport sink could not write, or where the sink was set to start after the aggregate's first commits. A state topic written by a 10.0 pre-release is created again, as every pre-release store is, before a 10.0 release publishes to it.
 
 ## Kafka envelope
 
@@ -134,7 +138,7 @@ A published state event:
       {
         "name": "bank.account.Deposited",
         "revision": 1,
-        "payload": {
+        "body": {
           "amount": 100
         }
       }
@@ -168,7 +172,7 @@ A published state event:
 }
 ```
 
-Event payloads and the state are embedded JSON objects, not escaped strings, so a consumer reads values by path.
+An event's body and the state are embedded JSON objects, not escaped strings, so a consumer reads values by path.
 
 ## Commands on a topic
 
@@ -418,7 +422,7 @@ A hop that completes sends a signal straight to the internal port of the node th
 }
 ```
 
-A node may send several signals to one node as a JSON array of them. The receiving node deduplicates a signal by its wait id, its hop, its command and the function that produced its result (its context and subscription).
+A node may send several signals to one node as a JSON array of them. The receiving node deduplicates a signal by its wait id, its hop, its command and the function that produced its result (its context and subscription). It answers 400 to a body that is not signals, or holds a signal of a format it does not read, and 413 to one larger than its internal port takes (`spring.http.codecs.max-in-memory-size`): the sender sends a batch refused as malformed again one signal a request, and one refused as too large by halves, so that a signal the node cannot take costs only itself.
 
 ## Cluster channel
 
@@ -426,10 +430,10 @@ The nodes of one service forward commands to each other on their internal ports,
 
 | Message | Fields |
 | --- | --- |
-| Forward | `{v, command, transport, deadline}`: the [command](#commands-on-a-topic) in its wire form, the transport data (the wait context of an open wait and the trace propagation fields, null when there is neither) and the absolute deadline. |
-| Reply | `{v, result, reached, refused}`: either the owner's `result` at `COMMITTED` with the later hops it `reached` at once, or `refused` with one of `not-owner`, `expired`, `unknown-type`, `too-large`. |
+| Forward | `{format, command, transport, deadline}`: the [command](#commands-on-a-topic) in its wire form, the transport data (the wait context of an open wait and the trace propagation fields, null when there is neither) and the absolute deadline. |
+| Reply | `{format, result, reached, refused}`: either the owner's `result` at `COMMITTED` with the later hops it `reached` at once, or `refused` with one of `not-owner`, `expired`, `unknown-type`, `too-large`, `unknown-format` (the forward, or a format it carries, is one the node does not read) and `malformed` (a body the node cannot read as a forward). |
 
-A forward refused before its deadline is executed by the sending node itself; one refused after it is not executed at all. A forward that was sent and got no reply by its deadline and the 2 seconds after it is not executed by the sender either: the sender answers that the outcome is unknown, and the caller retries with the same request id.
+A node answers every forward it does not run with a refusal, never with a 400, so its sender knows it was not executed. A forward refused before its deadline is executed by the sending node itself; one refused after it is not executed at all. A reply of a format the sender does not read leaves the outcome unknown to it, as no reply does. A forward that was sent and got no reply by its deadline and the 2 seconds after it is not executed by the sender either: the sender answers that the outcome is unknown, and the caller retries with the same request id.
 
 ## Snapshot
 
@@ -450,10 +454,12 @@ The `snapshot` query model reads them as its system fields, flattened: `tenantId
 
 ## Format versions
 
-The structures with a format version are: the log entry's facts and transport data, the snapshot record, the state event, the command's wire form, the command result, the wait signal, the Kafka envelope and the cluster channel's messages.
+The structures with a format version are: the log entry's facts and transport data, the snapshot record, the state event, the command's wire form, the command result, the wait signal, the Kafka envelope, the cluster channel's messages and the call a service's synchronous call carries (`Wow-Call`).
 
-- Logs and snapshot stores record their format version per table. Every message on the wire carries its own: `format`, or `v` on the cluster channel.
-- **Adding is not a format change.** A new optional field with a default keeps the format version. Readers ignore fields they do not know, and fill in the default for a field that is missing.
+- Logs and snapshot stores record their format version per table. Every message on the wire carries its own, `format`.
+- **A format a reader does not read is refused**, never read as its own: a node refuses a forward of another format (`unknown-format`), answers 400 to signals of another format, or with a result of one, and 400 `wow.command.malformed` to a `Wow-Call` of another; a sender reads a forward's reply of another format as an unknown outcome. Each is a comparison of a number the reader has already read.
+- **Adding is not a format change.** A new optional field with a default keeps the format version. Readers ignore fields they do not know, and fill in the default for a field that is missing. On PostgreSQL such a field is a column added within the format (`ALTER TABLE … ADD COLUMN IF NOT EXISTS`, the member record's `wow_version` the first): `ddl: auto` adds it to a table made before it, and `validate` refuses the table without it, naming the statement.
+- **A value a newer writer added** to a result's status, a hop's stage or a function's kind is read as `UNKNOWN`, wherever a node reads it: a log entry's transport, a topic's envelope, the cluster channel, a peer's `Wow-Call`. A server still refuses an unknown value in a client's request.
 - **Within a major version**, a new field is first read by one minor version and written only by the next, so two adjacent minor versions can run side by side during a rolling upgrade.
 - **A change old readers cannot read** waits for the next major version, whose migration tool converts the data.
 

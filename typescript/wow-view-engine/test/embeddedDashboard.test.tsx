@@ -96,8 +96,8 @@ function panel(
     title,
     instanceId,
     bindings: [
-      { globalField: 'region', panelField: 'warehouse' },
-      { globalField: 'status', panelField: 'status' },
+      { dashboardField: 'region', panelField: 'warehouse' },
+      { dashboardField: 'status', panelField: 'status' },
     ],
     layout: { x, y: 0, w: 12, h: 4 },
     ...extra,
@@ -222,7 +222,7 @@ describe('EmbeddedDashboard', () => {
               kind: 'view',
               title: 'Mine only',
               instanceId: 'orders-1',
-              bindings: [{ globalField: 'ghost', panelField: 'status' }],
+              bindings: [{ dashboardField: 'ghost', panelField: 'status' }],
               layout: { x: 0, y: 0, w: 6, h: 4 },
             },
             { ...note('# Weekly review'), layout: { x: 6, y: 0, w: 6, h: 2 } },
@@ -532,7 +532,7 @@ describe('EmbeddedDashboard', () => {
     const { runtime, rerender } = embed({
       filterModes: { region: 'locked' },
       pageValues: { values: { region: ['CN'] } },
-      initialFilters: { values: { status: ['SHIPPED'] } },
+      defaultFilters: { values: { status: ['SHIPPED'] } },
       onFiltersChange,
     });
 
@@ -576,7 +576,7 @@ describe('EmbeddedDashboard', () => {
       },
       // A reader who edited the address to another customer, a hidden value
       // and another unit.
-      initialFilters: {
+      defaultFilters: {
         values: { region: ['EU'], status: ['SHIPPED'] },
         unit: AggregationDateUnit.DAY,
       },
@@ -603,7 +603,7 @@ describe('EmbeddedDashboard', () => {
       engine: engineOf(withDefault),
       filterModes: { region: 'locked' },
       pageValues: { values: { region: ['CN'] } },
-      initialFilters: { values: { region: ['EU'] } },
+      defaultFilters: { values: { region: ['EU'] } },
     });
 
     await waitFor(() =>
@@ -641,7 +641,7 @@ describe('EmbeddedDashboard', () => {
     const { runtime } = embed({
       // A filter renamed since the address was written, and two values on a
       // filter that takes one — beside a region the board still has.
-      initialFilters: {
+      defaultFilters: {
         values: { region: ['EU'], gone: ['x'], status: ['A', 'B'] },
       },
       onFiltersChange,
@@ -693,7 +693,7 @@ describe('EmbeddedDashboard', () => {
     };
     const { runtime } = embed({
       engine: engineOf(grouped),
-      initialFilters: { values: { status: ['SHIPPED'] } },
+      defaultFilters: { values: { status: ['SHIPPED'] } },
       expandable: true,
       openInWorkbench: true,
       onNavigate: vi.fn(),
@@ -1000,7 +1000,7 @@ describe('EmbeddedDashboard', () => {
               fields: [{ name: 'q', label: 'Find', kind: 'search' }],
               panels: [
                 panel('list', 'list', 'Order list', {
-                  bindings: [{ globalField: 'q', panelField: 'q' }],
+                  bindings: [{ dashboardField: 'q', panelField: 'q' }],
                 }),
               ],
             }),

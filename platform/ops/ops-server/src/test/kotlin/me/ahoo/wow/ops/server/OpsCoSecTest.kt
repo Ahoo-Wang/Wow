@@ -13,10 +13,10 @@
 
 package me.ahoo.wow.ops.server
 
-import me.ahoo.cosec.annotations.ExperimentalCoSecApi
 import me.ahoo.cosec.testkit.IdentityHeader
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.cosec.CoSecCallerResolver
@@ -38,6 +38,7 @@ import org.springframework.boot.autoconfigure.AutoConfiguration
  * gateway mode reads it and the operator is its principal. A request without an identity is answered 401; a viewer
  * reads the entries and may not act on them; an operator's retry goes to the owning context under the operator's name.
  */
+@OptIn(InternalWowApi::class) // reads the ledger's commands on their topic (CommandWire)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class OpsCoSecTest {
     private val ops: OpsNode = startOps(
@@ -53,7 +54,6 @@ class OpsCoSecTest {
      * [id] of CoSec's default tenant with [roles], as the CoSec gateway forwards it after verifying its credential: the
      * service holds no secret and verifies nothing, it believes the header.
      */
-    @OptIn(ExperimentalCoSecApi::class) // CoSec's test kit is experimental in 8.0
     private fun signedIn(id: String, vararg roles: String): Who =
         Who(mapOf(IdentityHeader.NAME to IdentityHeader.forSubject(id, roles = roles.toSet())))
 
@@ -96,6 +96,18 @@ class OpsCoSecTest {
     fun `the deployment's probes should answer without an identity (R3-H)`() {
         eventually("ready") { ops.get("/actuator/health/readiness", Who.NOBODY).status == OK }
         ops.get("/actuator/health/liveness", Who.NOBODY).status.assert().isEqualTo(OK)
+    }
+
+    /**
+     * CoSec's gateway mode, which the host sets from `wow.cosec.mode`, raises the server's header limit to 16 KB, room
+     * for the identity the gateway forwards (`IDN-43`, CoSec 8.0.0-rc.1), and the refusal past it names that limit.
+     */
+    @Test
+    fun `headers past Spring Boot's 8 KB should be served, as CoSec derives 16 KB here, and a 431 names that limit`() {
+        ops.get("/actuator/health/liveness", Who(mapOf("X-Pad" to "a".repeat(12_000)))).status.assert().isEqualTo(OK)
+        val past = ops.get("/actuator/health/liveness", Who(mapOf("X-Pad" to "a".repeat(17_000))))
+        past.status.assert().isEqualTo(HEADERS_TOO_LARGE)
+        past.json["detail"].asString().assert().contains("16384 bytes (server.max-http-request-header-size)")
     }
 
     @Test
@@ -163,5 +175,6 @@ class OpsCoSecTest {
         const val OK = 200
         const val UNAUTHORIZED = 401
         const val FORBIDDEN = 403
+        const val HEADERS_TOO_LARGE = 431
     }
 }

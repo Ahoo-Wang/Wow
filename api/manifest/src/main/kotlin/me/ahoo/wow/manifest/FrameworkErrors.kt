@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.manifest
 
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FrameworkCodes
@@ -77,7 +77,7 @@ object FrameworkErrors {
             "CoSec could not decide whether the request may proceed; nothing was done, so it may be sent again. " +
                 "Only CoSec's refusals carry it, when wow.cosec.problems is wow: their headers are CoSec's, which " +
                 "sets no Retry-After on a 503, so the wait here is the catalog's default for a client, not a header.",
-            retry = Retry.NEW_REQUEST,
+            retry = RetryAdvice.NEW_REQUEST,
             retryAfter = RETRY_AFTER_SECONDS,
         ),
         ErrorManifest(
@@ -101,7 +101,7 @@ object FrameworkErrors {
             429,
             "CoSec refused the request for a rate limit it spent; nothing was done, so it may be sent again after " +
                 "the Retry-After CoSec sets. Written for CoSec's refusals when wow.cosec.problems is wow.",
-            retry = Retry.NEW_REQUEST,
+            retry = RetryAdvice.NEW_REQUEST,
             retryAfter = RETRY_AFTER_SECONDS,
         ),
         ErrorManifest(FrameworkCodes.COMMAND_MALFORMED, 400, "The command body cannot be read as the command type."),
@@ -132,7 +132,7 @@ object FrameworkErrors {
             FrameworkCodes.COMMAND_CONTENDED,
             409,
             "Concurrent writers kept winning the version; retrying with the same request id is safe.",
-            retry = Retry.SAME_REQUEST,
+            retry = RetryAdvice.SAME_REQUEST,
             retryAfter = RETRY_AFTER_SECONDS,
         ),
         ErrorManifest(
@@ -145,14 +145,14 @@ object FrameworkErrors {
             429,
             "The command was not taken: its aggregate has too many commands waiting, or the node too many in flight; " +
                 "retry later.",
-            retry = Retry.SAME_REQUEST,
+            retry = RetryAdvice.SAME_REQUEST,
             retryAfter = RETRY_AFTER_SECONDS,
         ),
         ErrorManifest(
             FrameworkCodes.COMMAND_UNKNOWN,
             503,
             "Whether the command committed is unknown; retrying with the same request id is safe.",
-            retry = Retry.SAME_REQUEST,
+            retry = RetryAdvice.SAME_REQUEST,
             retryAfter = RETRY_AFTER_SECONDS,
         ),
         ErrorManifest(
@@ -176,28 +176,28 @@ object FrameworkErrors {
             FrameworkCodes.NODE_CLOSING,
             503,
             "The node is shutting down; retry on another node.",
-            retry = Retry.SAME_REQUEST,
+            retry = RetryAdvice.SAME_REQUEST,
             retryAfter = RETRY_AFTER_SECONDS
         ),
         ErrorManifest(
             FrameworkCodes.NODE_STANDBY,
             503,
             "The node is on standby until the cut-over: it serves reads only.",
-            retry = Retry.SAME_REQUEST,
+            retry = RetryAdvice.SAME_REQUEST,
             retryAfter = RETRY_AFTER_SECONDS
         ),
         ErrorManifest(
             FrameworkCodes.STORAGE_UNAVAILABLE,
             503,
             "A store could not be reached or did not answer in time; retry later, a command with the same request id.",
-            retry = Retry.SAME_REQUEST,
+            retry = RetryAdvice.SAME_REQUEST,
             retryAfter = RETRY_AFTER_SECONDS,
         ),
         ErrorManifest(
             FrameworkCodes.SCHEDULE_NOT_DUE,
             503,
             "A scheduled command arrived too long before its due time on this node's clock; it is sent again later.",
-            retry = Retry.SAME_REQUEST,
+            retry = RetryAdvice.SAME_REQUEST,
             retryAfter = RETRY_AFTER_SECONDS,
         ),
         ErrorManifest(
@@ -220,13 +220,14 @@ object FrameworkErrors {
             FrameworkCodes.WAIT_TIMEOUT,
             504,
             "The wait ran out of time; the command may have committed. The problem carries the last stage reached.",
-            retry = Retry.SAME_REQUEST,
+            retry = RetryAdvice.SAME_REQUEST,
             retryAfter = RETRY_AFTER_SECONDS,
         ),
         ErrorManifest(
             FrameworkCodes.ROUTE_MALFORMED,
             400,
-            "A service route's parameter or body cannot be read as its type; the violation names the parameter.",
+            "A service route's parameter or body cannot be read as its type, or the request gives a query parameter " +
+                "the route does not declare, or one twice; the violation names the parameter.",
         ),
         ErrorManifest(FrameworkCodes.QUERY_MALFORMED, 400, "The query body cannot be read as a query."),
         ErrorManifest(
@@ -263,14 +264,14 @@ object FrameworkErrors {
             409,
             "The state read asked for a version the aggregate has not reached within the wait; the problem carries " +
                 "its current version: retry later.",
-            retry = Retry.NEW_REQUEST,
+            retry = RetryAdvice.NEW_REQUEST,
             retryAfter = RETRY_AFTER_SECONDS,
         ),
         ErrorManifest(
             FrameworkCodes.QUERY_BUSY,
             429,
             "The query was not run: its store has as many queries running as it allows; retry later.",
-            retry = Retry.NEW_REQUEST,
+            retry = RetryAdvice.NEW_REQUEST,
             retryAfter = RETRY_AFTER_SECONDS,
         ),
         ErrorManifest(
@@ -288,7 +289,7 @@ object FrameworkErrors {
             503,
             "A client reached no node of the peer, or lost the connection before a query's answer; nothing was " +
                 "changed, so the request may be sent again.",
-            retry = Retry.NEW_REQUEST,
+            retry = RetryAdvice.NEW_REQUEST,
             retryAfter = RETRY_AFTER_SECONDS,
         ),
     )
@@ -364,7 +365,7 @@ object FrameworkErrors {
         return WowProblemException(
             code,
             error?.status ?: INTERNAL_ERROR_STATUS,
-            error?.retry ?: Retry.NONE,
+            error?.retry ?: RetryAdvice.NONE,
             error?.retryAfter?.seconds,
             message,
             result,

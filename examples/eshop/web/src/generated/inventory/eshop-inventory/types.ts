@@ -83,12 +83,3 @@ export interface StockState {
   onHand: number;
   reservations: Record<string, number>;
 }
-
-
-/**
- * Moves the aggregate to the space spaceId.
- * - key: `wow.lifecycle.TransferSpace`
- */
-export interface TransferSpace {
-  spaceId: string;
-}

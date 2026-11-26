@@ -1,6 +1,6 @@
 ---
 title: 'wow-view-store 参考'
-description: '@ahoo-wang/wow-view-store 包的 WowViewStore：视图引擎的 ViewStore 落在 Wow 视图存储服务上，保留的作用域、错误码，以及它发出的每个请求。'
+description: '@ahoo-wang/wow-view-store 包的 WowViewStore：视图引擎的 ViewStore 落在 Wow 视图存储服务上，它的选项、保留所有者、错误码，以及它发出的每个请求。'
 ---
 
 # wow-view-store 参考
@@ -15,18 +15,17 @@ description: '@ahoo-wang/wow-view-store 包的 WowViewStore：视图引擎的 Vi
 
 | 导出 | 作用 |
 |---|---|
-| `WowViewStore` | store 本身：`new WowViewStore({ fetcher, permissions?, pageSize? })`，交给 `new ViewEngine({ store })` |
-| `WowViewStoreOptions` | `fetcher`：由它的拦截器带上授权信息，即为前端的应用签发的令牌；`permissions`：哪些按钮可用；`pageSize`：`list` 一页的视图数 |
-| `SHARED_SCOPE`、`SYSTEM_SCOPE` | 保留所有者的 `Wow-Scope`：共享视图与共享偏好是 `{ ownerId: '(shared)' }`，存储的系统视图是 `{ tenantId: '(platform)', ownerId: '(system)' }` |
+| `WowViewStore` | store 本身：`new WowViewStore({ fetcher, basePath?, defaultWaitMs?, permissions?, pageSize? })`，交给 `new ViewEngine({ store })` |
+| `WowViewStoreOptions` | wow-client 的 `WowClientOptions`，与每个 Wow 客户端接收的一样：`fetcher`，这里必填，由它的拦截器带上授权信息，即为前端的应用签发的令牌；`basePath`：每条路由前面的网关前缀；`defaultWaitMs`：服务的默认等待。再加 store 自己的：`permissions`：哪些按钮可用；`pageSize`：`list` 一页的视图数 |
 | `WowViewStoreErrorCodes`、`WowViewStoreErrorCode` | 视图存储自己的 problem 错误码，与 Wow 的并列，以及它们的联合类型 |
 | `datasetCatalogOf(client)` | 基于 `DatasetClient` 的视图引擎数据集目录：Wow 服务提供的数据集（`GET /wow/dataset`），以及每个数据集的数据源 |
-| `WowDatasetWordings`、`WowDatasetWordingsOptions` | 视图引擎落在视图存储上的 `DatasetWordingStore`：租户对每个数据集的措辞，每个数据集与应用一份；它接收一个 `fetcher` |
+| `WowDatasetWordings`、`WowDatasetWordingsOptions` | 视图引擎落在视图存储上的 `DatasetWordingStore`：租户对每个数据集的措辞，每个数据集与应用一份；它与 `WowViewStore` 一样接收 wow-client 的选项，`fetcher` 必填 |
 
 ```ts
-export interface WowViewStoreOptions {
-  fetcher: Fetcher;
-  permissions?: (definitionId: string) => ViewPermissions;
-  pageSize?: number;
+export interface WowViewStoreOptions extends WowClientOptions {
+  readonly fetcher: Fetcher;
+  readonly permissions?: (definitionId: string) => ViewPermissions;
+  readonly pageSize?: number;
 }
 ```
 
@@ -36,32 +35,28 @@ export interface WowViewStoreOptions {
 
 - `fetcher` 走的基础 URL 要能提供 `/view-store/…`：视图存储服务前面的网关。它的拦截器携带是谁在请求，即授权信息；服务从主体中取得租户与所有者，从令牌（它的 `aud`）或网关的路由（`cosec-app-id`）取得保存每个视图的应用：CoSec 8 不读取 `CoSec-App-Id`，所以前端需要为它的应用签发的令牌，或者设置应用的路由；视图属于保留所有者时由 store 自己加上 `Wow-Scope`。没有哪条路径写出租户或所有者。
 - `permissions` 决定一份定义的视图哪些按钮可用，从不决定写入能做什么：每次写入都由服务授权。宿主按调用者持有的角色回答：`createShared` 与 `changeAudience` 按能写所有者 `(shared)` 的角色（出厂为 `view-store.shared-writer`），因为新建共享视图、共享个人视图和认领共享视图都需要它；`editSystem` 按能写 `(platform)` 的 `(system)` 的角色（`view-store.system-writer`）。不给时除 `editSystem` 外全部允许，`editSystem` 只有回答为 `true` 才开启。
-- `pageSize` 是 `list` 一页最多返回的视图数，默认 100，即服务的默认游标页大小。系统视图在第一页整体返回，所以第一页可能更多。
+- `basePath` 与 `defaultWaitMs` 是 wow-client 的选项，每个 Wow 客户端都这样读：网关在自己的前缀下提供服务时，用 `basePath`，而不是用改写 URL 的 fetcher；部署的服务对没有说明等待的命令等得比一分钟更久时（`wow.wait.default-timeout`），给出这个等待，它限定除共享与认领之外的每次写入，那两者的等待由 store 说明。
+- `pageSize` 是 `list` 一页最多返回的视图数，默认 100，即服务的默认游标页大小。服务整体返回系统视图，store 像对其他视图一样把它们分页，所以没有哪一页会更多。共享与个人视图用每次至多 `pageSize` 个视图的游标查询读取，所以 `pageSize` 高于服务的游标页上限（`wow.query.budgets.http.max-page-size`，出厂为 100）时，服务会拒绝每个读到它们的列表，即 `INVALID`：这个上限是服务的配置，store 读不到，所以两者要一起调高。
 
 ```ts
 export declare class WowViewStore implements ViewStore {
   constructor(options: WowViewStoreOptions);
-  changeAudience(id: string, audience: ViewAudience, revision: string, context: WriteOptions): Promise<ViewInstance>;
-  create(input: Omit<ViewInstance, 'id' | 'revision'>, context: WriteOptions): Promise<ViewInstance>;
-  delete(id: string, revision: string, context: WriteOptions): Promise<void>;
+  changeAudience(id: string, audience: ViewAudience, revision: string, options: WriteOptions): Promise<ViewInstance>;
+  create(input: Omit<ViewInstance, 'id' | 'revision'>, options: WriteOptions): Promise<ViewInstance>;
+  delete(id: string, revision: string, options: WriteOptions): Promise<void>;
   get(id: string, options?: ReadOptions): Promise<ViewInstance>;
   getPreferences(definitionId: string, options?: ReadOptions): Promise<ViewPreferences>;
   list(definitionId: string, options?: ViewListOptions): Promise<ViewListPage>;
   readonly permissions?: (definitionId: string) => ViewPermissions;
-  rename(id: string, title: string, revision: string, context: WriteOptions): Promise<ViewInstance>;
-  save(id: string, config: ViewConfig, revision: string, context: WriteOptions): Promise<ViewInstance>;
-  setPreferences(definitionId: string, preferences: ViewPreferences, context: WriteOptions): Promise<ViewPreferences>;
+  rename(id: string, title: string, revision: string, options: WriteOptions): Promise<ViewInstance>;
+  save(id: string, config: ViewConfig, revision: string, options: WriteOptions): Promise<ViewInstance>;
+  setPreferences(definitionId: string, preferences: ViewPreferences, options: WriteOptions): Promise<ViewPreferences>;
 }
 ```
 
-### 保留的作用域 {#api-SHARED_SCOPE}
+### 保留所有者 {#reserved-owners}
 
-个人视图属于调用者，所以请求它时不写所有者。共享视图属于保留所有者 `(shared)`，存储的系统视图属于租户 `(platform)` 的 `(system)`，与调用者的租户无关，是全局的。store 通过发送 `Wow-Scope`，即 `SHARED_SCOPE` 或 `SYSTEM_SCOPE`，以这些所有者的身份操作，服务只对持有写它们的角色的调用者放行。所有者 ID 本身属于视图存储的契约，留在包内部；宿主只有在用自己的 Wow 客户端访问这些所有者时，才需要这两个作用域。
-
-```ts
-export declare const SHARED_SCOPE: TargetScope;
-export declare const SYSTEM_SCOPE: TargetScope;
-```
+个人视图属于调用者，所以请求它时不写所有者。共享视图属于保留所有者 `(shared)`，存储的系统视图属于租户 `(platform)` 的 `(system)`，与调用者的租户无关，是全局的。store 通过发送 `Wow-Scope`（`owner="(shared)"`，或 `tenant="(platform)", owner="(system)"`）以这些所有者的身份操作，服务只对持有写它们的角色的调用者放行。所有者 ID 与它们的作用域属于视图存储的契约，留在包内部。
 
 ### 错误码 {#api-WowViewStoreErrorCodes}
 
@@ -85,7 +80,7 @@ export type WowViewStoreErrorCode = (typeof WowViewStoreErrorCodes)[keyof typeof
 | `view-store.invalid` | 400 | 写入无效：它的配置、标题、偏好或措辞 |
 | `view-store.owner-required` | 400 | 写入没有所有者：视图由用户、`(shared)` 或 `(platform)` 下的 `(system)` 保存 |
 | `view-store.not-found` | 404 | 聚合属于另一个应用，读起来就像不存在 |
-| `view-store.referenced-by-shared-dashboard` | 409 | 认领一个共享仪表盘展示着的视图，它保持共享；problem 在 `boards` 里列出这些仪表盘 |
+| `view-store.referenced-by-shared-dashboard` | 409 | 认领一个共享仪表盘或存储的系统仪表盘展示着的视图，它保持共享；problem 在 `boards` 里列出这些仪表盘 |
 | `view-store.system-view-read-only` | 403 | 共享或认领系统视图，系统视图从不改变受众 |
 
 ## 合同 {#contract}
@@ -99,7 +94,7 @@ export type WowViewStoreErrorCode = (typeof WowViewStoreErrorCodes)[keyof typeof
 | 错误 | 按 problem 的 `code` 映射到 `CONFLICT`、`NOT_FOUND`、`FORBIDDEN`、`INVALID` 与 `UNAVAILABLE`；只有没回来已知错误码时才看 HTTP 状态；服务不提供该路由时为 `UNSUPPORTED`。错误把错误码保留在 `detail.code` |
 | 列表顺序 | 系统视图，然后共享，然后个人，每个受众内最早的在前；一次一页，每页 `pageSize` 个视图，用一个跨受众的游标 |
 | 系统视图 | 配置的只读；存储的带 `stored: true`，以 `(platform)` 的 `(system)` 身份新建（以副本发布）、保存、重命名与删除，从不共享或认领。它们的 `revision` 是内容哈希；store 在旁边发送它读到的版本。引擎的 `editSystem` 由宿主给出，不说就关闭 |
-| 共享仪表盘 | 共享仪表盘展示着的视图保持共享：认领为 `INVALID`，它的 `boards` 是这些仪表盘存储时的标题，视图引擎用自己的话说出来 |
+| 共享仪表盘 | 共享仪表盘展示着的视图保持共享，存储的系统仪表盘展示着的视图也一样，因为每个读者都看得到它：认领为 `INVALID`，它的 `boards` 是这些仪表盘存储时的标题，视图引擎用自己的话说出来 |
 
 ## 请求 {#requests}
 
@@ -140,7 +135,7 @@ export type WowViewStoreErrorCode = (typeof WowViewStoreErrorCodes)[keyof typeof
 
 每个 `ViewStoreError` 都保留它从哪里读来：请求的失败作为 `cause`，problem 的错误码作为 `detail.code`，所以宿主能分清 `view-store.app-required` 与 `view-store.invalid`，两者都是 `INVALID`。
 
-服务因为有共享仪表盘展示视图而拒绝认领时，错误的 `boards` 带着这些仪表盘存储时的**标题**，视图引擎用自己的话把拒绝说在它们周围：写成键的标题仍是键，在显示拒绝的地方说出来。`message` 保留服务的原话，供日志使用。
+服务因为有共享仪表盘（或存储的系统仪表盘）展示视图而拒绝认领时，错误的 `boards` 带着这些仪表盘存储时的**标题**，视图引擎用自己的话把拒绝说在它们周围：写成键的标题仍是键，在显示拒绝的地方说出来。`message` 保留服务的原话，供日志使用。
 
 ## 宿主与网关 {#hosts-and-the-gateway}
 

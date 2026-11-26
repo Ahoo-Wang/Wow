@@ -34,7 +34,7 @@ import {
 import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
 import { queryFailureIssue } from '../src/runtime/failure/queryFailure.js';
 import { sourceFailure } from '../src/runtime/failure/sourceReason.js';
-import { formatIssue, QueryStrip, zhCN } from '../src/ui/index.js';
+import { formatIssue, zhCN } from '../src/ui/index.js';
 import { en } from '../src/ui/messages/en.js';
 import {
   dashboardConfig,
@@ -47,6 +47,7 @@ import {
   testSource,
   resourcesOf,
 } from './fixtures.js';
+import { QueryStrip } from '../src/ui/kit/StatusStrip.js';
 
 afterEach(cleanup);
 
@@ -98,7 +99,7 @@ describe('a refusal of the reader is the permission state', () => {
       code: 'runtime.query.forbidden',
       severity: 'error',
       path: [],
-      params: { reason: `${errorCode}: not for you.`, errorCode },
+      params: { reason: `${errorCode}: not for you.`, code: errorCode },
     });
     expect(formatIssue(zhCN, found)).toBe(
       '无权限查看这些数据，请联系管理员开通。',
@@ -115,7 +116,7 @@ describe('a refusal of the reader is the permission state', () => {
     );
     await expect(issueOf(error)).resolves.toMatchObject({
       code: 'runtime.query.forbidden',
-      params: { errorCode: AUTH_FORBIDDEN },
+      params: { code: AUTH_FORBIDDEN },
     });
   });
 
@@ -188,7 +189,7 @@ describe('the permission state in a view', () => {
           definitionId: 'orders',
           instanceId: 'orders-1',
           runtimeId: runtime.id,
-          errorCode: AUTH_FORBIDDEN,
+          code: AUTH_FORBIDDEN,
         },
       },
     ]);

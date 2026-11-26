@@ -96,6 +96,14 @@ internal class MongoSequencer(
      */
     fun handOff(partition: Int): Closing? = lanes[partition].handOff()
 
+    /**
+     * Another node's block of [partition] from [from] lies past this node's current block: the current block is closed
+     * at its next sequence, as on a hand-off, so this node's next append reserves past the other node's block and its
+     * tail reads the other node's entries in sequence order (#7085). The [Closing] to write, null when the current
+     * block is used up, ends before [from], or there is none.
+     */
+    fun overtaken(partition: Int, from: Long): Closing? = lanes[partition].overtaken(from)
+
     /** [sequence] of [partition] is written, or has its placeholder. */
     fun settle(partition: Int, sequence: Long) = lanes[partition].settle(sequence)
 
@@ -193,6 +201,8 @@ internal class MongoSequencer(
             }
 
         fun handOff(): Closing? = lock.withLock { current?.let(::retire) }
+
+        fun overtaken(from: Long): Closing? = lock.withLock { current?.takeIf { from > it.to }?.let(::retire) }
 
         /** Under the lock, so no allocation from the block runs meanwhile: one after it takes a new block. */
         fun unallocated(sequence: Long): Closing? =

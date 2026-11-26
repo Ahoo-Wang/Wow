@@ -31,6 +31,8 @@ rows.map { it.state.price }.assert().containsExactly(BigDecimal("5.00"), BigDeci
 ```
 
 - `filter { }` 块中的条件以 `and` 组合；`and { }`、`or { }`、`nor { }` 和 `not { }` 可以嵌套。值按它写成的 JSON 比较，所以枚举按它的名字匹配。
+- `"state".path { }` 把块中的字段放在 `state` 之下，`filter`、`sort` 与 `projection` 里写法相同：`sort { "state".path { "price".asc() } }`。已在该路径之下的字段（如 `ProductStateProperties.STATE__PRICE`）保持不变。
+- `beforeNow` 与 `afterNow` 把字段与服务器的时钟加上一个 `kotlin.time.Duration` 比较：`"state.createdAt".afterNow((-30).minutes)` 就是最近半小时之内。
 - `ProductStateProperties.STATE__PRICE` 就是 `state.price`；系统字段（`AGGREGATE_ID`、`OWNER_ID`、`VERSION`、`LAST_EVENT_TIME`、`ACCESS` 等）来自 `SnapshotProperties`，`SnapshotProperties.access(name)` 就是访问属性 `access.<name>`。
 - `snapshots<ProductState>()` 把每一行解码为 `Snapshot<ProductState>`：它的 `ref`、`version`、`scope`、`access` 和类型化的 `state`。投影了部分字段的查询无法填充类型化的行：改用 `dynamic<Map<String, Any?>>()` 执行它。
 - `of(caller)` 按调用方所看到的模型执行查询；`trusted()` 以受信任的代码执行（[读取状态](./reading-state#in-kotlin)）。
@@ -149,7 +151,9 @@ data class OrderState(
 | `@QueryText` | 供人按词检索的文字，例如名称或描述：`search` 可以指定它，不指定字段的 `search` 也会读它（[Elasticsearch 上](../operate/elasticsearch#full-text-search)） |
 | `@Sensitive` | 在每个结果中脱敏的字符串：`DISPLAY` 仍可以过滤和排序，`CONFIDENTIAL` 永远不可以 |
 
-脱敏的字段对每个调用方都脱敏：在查询、状态读取、事件查询和轨迹中都一样，在数仓的目录中、在[状态视图缓存](./extensions/cocache)中也一样。它在 Wow 作为读取返回它的地方和 Wow 把它发布给别的上下文的地方脱敏，而在 Wow 存储它的地方不脱敏：见[脱敏止步之处](#where-masking-stops)。`DISPLAY` 值有两个例外，都要明确说出来：服务自己明确要求读取的（[见下文](#read-a-display-value-raw)），以及属主声明为揭示它的发布事件流（[脱敏止步之处](#where-masking-stops)）。
+之后的 10.x 版本新增的级别，保护程度不超过脱敏：保护程度高于 `CONFIDENTIAL` 的级别只会随大版本出现，因为每个节点都得先能读懂它。所以节点遇到不认识的级别（比如另一个服务的目录行里的），会把它当作 `CONFIDENTIAL`：脱敏且永不比较，绝不会比该级别要求的保护得更少。
+
+脱敏的字段对每个调用方都脱敏：在查询、状态读取、事件查询和轨迹中都一样，在数仓的目录中、在[状态视图缓存](./extensions/cocache)中也一样。它在 Wow 作为读取返回它的地方和 Wow 把它发布给别的上下文的地方脱敏，而在 Wow 存储它的地方不脱敏：见[脱敏止步之处](#where-masking-stops)。`DISPLAY` 值有两个例外，都要明确说出来：服务自己明确要求读取的（[见下文](#read-a-display-value-raw)），以及属主声明为揭示它的发布事件流（[脱敏止步之处](#where-masking-stops)）。定时的命令在发出之前保存在它的事件 `wow.schedule.ScheduleSet` 里，按它的命令类型的请求体脱敏，用那条命令的 schema，发往别的上下文的命令用对端契约里的 schema（[定时](./scheduling)）。
 
 ### 读取 `DISPLAY` 值的原值 {#read-a-display-value-raw}
 

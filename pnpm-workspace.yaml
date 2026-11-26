@@ -14,13 +14,16 @@ allowBuilds:
 # unnoticed. Development and tests use the default catalog below.
 catalogs:
   peers:
-    # Development and tests run on fetcher 6 (the default catalog below);
+    # Development and tests run on fetcher 8 (the default catalog below);
     # ci.yml's fetcher-floor job pins the floor of this range
     # (.github/scripts/fetcher-floor.mjs) and runs the tests and the package
-    # check on it.
-    '@ahoo-wang/fetcher': '^5.1.5 || ^6.0.0'
-    '@ahoo-wang/fetcher-decorator': '^5.1.5 || ^6.0.0'
-    '@ahoo-wang/fetcher-eventstream': '^5.1.5 || ^6.0.0'
+    # check on it. Fetcher 8 is accepted from its first release candidate
+    # (D490): `^8.0.0-rc.1` is the form that admits 8.0.0-rc.1 itself and
+    # every later 8.x. Fetcher 6 stays in the range; `fetcher-floor.mjs pin
+    # 6.1.1` repeats the floor job's run on it.
+    '@ahoo-wang/fetcher': '^5.1.5 || ^6.0.0 || ^8.0.0-rc.1'
+    '@ahoo-wang/fetcher-decorator': '^5.1.5 || ^6.0.0 || ^8.0.0-rc.1'
+    '@ahoo-wang/fetcher-eventstream': '^5.1.5 || ^6.0.0 || ^8.0.0-rc.1'
     # Optional: only the view engine's /testing entry loads it (D65).
     mingo: ^7.2.4
     react: ^19.0.0
@@ -33,13 +36,13 @@ catalogs:
 catalog:
   # CoSec 8's client, released with CoSec at its version. Exact until CoSec 8.0:
   # the package's `latest` tag is a deprecated 0.0.0 placeholder until then.
-  '@ahoo-wang/cosec-fetcher': 8.0.0-beta.8
-  '@ahoo-wang/fetcher': '^6.1.1'
-  '@ahoo-wang/fetcher-decorator': '^6.1.1'
-  '@ahoo-wang/fetcher-eventbus': '^6.1.1'
-  '@ahoo-wang/fetcher-eventstream': '^6.1.1'
-  '@ahoo-wang/fetcher-openapi': '^6.1.1'
-  '@ahoo-wang/fetcher-storage': '^6.1.1'
+  '@ahoo-wang/cosec-fetcher': 8.0.0
+  '@ahoo-wang/fetcher': '^8.0.0'
+  '@ahoo-wang/fetcher-decorator': '^8.0.0'
+  '@ahoo-wang/fetcher-eventbus': '^8.0.0'
+  '@ahoo-wang/fetcher-eventstream': '^8.0.0'
+  '@ahoo-wang/fetcher-openapi': '^8.0.0'
+  '@ahoo-wang/fetcher-storage': '^8.0.0'
   axe-core: ^4.14.1
   babel-plugin-react-compiler: 1.0.0
   '@base-ui/react': ^1.9.0

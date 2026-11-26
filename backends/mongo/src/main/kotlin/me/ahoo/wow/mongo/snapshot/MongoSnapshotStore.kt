@@ -36,6 +36,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.mongo.ExactBson
 import me.ahoo.wow.mongo.MongoDatabases
 import me.ahoo.wow.mongo.MongoFailures
@@ -68,7 +69,6 @@ import org.bson.BsonMaxKey
 import org.bson.BsonMaximumSizeExceededException
 import org.bson.BsonMinKey
 import org.bson.BsonString
-import org.bson.BsonType
 import org.bson.Document
 import org.bson.conversions.Bson
 import kotlin.time.Duration
@@ -296,7 +296,7 @@ class MongoSnapshotStore(
      * mark of a version up to its own. Whether it was written.
      *
      * The write returns the stale mark the document had before it, so the clearing write runs only when there was a
-     * mark to clear: a save is one round trip unless the snapshot was marked stale (B.D diagnostics). A mark set after
+     * mark to clear: a save is one round trip unless the snapshot was marked stale. A mark set after
      * the write, of the version it wrote, stays.
      */
     private fun upsert(snapshots: MongoCollection<Document>, guarded: Bson, snapshot: SnapshotRecord): Boolean {
@@ -371,7 +371,7 @@ class MongoSnapshotStore(
         try {
             tables.insertOne(
                 Document(ID, structure).append(REVISION, revision).append(REBUILDING, revision != 1)
-                    .append(BACKFILLED, false).append(FILL, fill.name),
+                    .append(BACKFILLED, false).append(FILL, WireNames.of(fill)),
             )
         } catch (failure: MongoWriteException) {
             if (!failure.isDuplicateKey()) {
@@ -410,13 +410,25 @@ class MongoSnapshotStore(
         marked?.let(::tableOf)
     }
 
-    private val tables: MongoCollection<Document> get() = database.getCollection(TABLES)
+    /**
+     * The registry of the snapshot collections, its format record claimed before this store first reads or writes it:
+     * a revision's claim may come before any snapshot collection is made sure of, and its insert would create the
+     * registry without its record.
+     */
+    private val tables: MongoCollection<Document> by lazy {
+        MongoFormat.claim(database, TABLES, FORMAT, ddl)
+        database.getCollection(TABLES)
+    }
 
     private fun tableOf(document: Document) = SnapshotTable(
         revision = document.getInteger(REVISION),
         rebuilding = document.getBoolean(REBUILDING),
         backfilled = document.getBoolean(BACKFILLED),
-        fill = SnapshotFill.valueOf(document.getString(FILL)),
+        fill = checkNotNull(WireNames.entryOf<SnapshotFill>(document.getString(FILL))) {
+            // By its wire name; no case is added within 10.x (SnapshotFill), so one this version does not know is
+            // refused, naming it.
+            "A snapshot table's fill ${document.getString(FILL)} is not one this version of Wow reads."
+        },
     )
 
     // Interruptible: the kernel gives up on a load past its timeout, and the read ends with it.
@@ -506,15 +518,9 @@ class MongoSnapshotStore(
         ): MongoCollection<Document> {
             val name = collectionName(context, aggregate)
             MongoFormat.claim(database, name, FORMAT, ddl)
+            // The registry of the snapshot collections has its format record too, as the log's and the timers' do.
+            MongoFormat.claim(database, TABLES, FORMAT, ddl)
             return database.getCollection(name).also { collection ->
-                // A snapshot's key is its `_id`: an alpha's have the driver's ObjectIds, and a save
-                // would add a second document for the aggregate beside it.
-                check(
-                    collection.find(Filters.type(ID, BsonType.OBJECT_ID)).projection(Projections.include(ID)).first() == null
-                ) {
-                    "$name was written by an earlier 10.0 alpha, whose snapshots have no key as their _id: rebuild " +
-                        "the snapshots from the log, an alpha's data is not migrated."
-                }
                 SCOPE_INDEXES.forEach { (index, field) ->
                     MongoFormat.index(collection, Indexes.ascending(TENANT_ID, field), scopeIndexOptions(index), ddl)
                 }

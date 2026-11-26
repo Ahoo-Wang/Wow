@@ -240,7 +240,7 @@ private val documentAccess = accessPolicy<Document> {
 
 - **快照查询**（列表、分页、计数、聚合运算及它们的流）把策略的 `read` 作为存储执行的过滤条件（[查询快照](./queries#who-sees-what)）。
 - **状态读取**（包括按版本和按时刻的读取）和 **trace** 都在聚合的最新状态上判定，所以调用方现在能读取的聚合，它能读取全部历史；现在不能读取的，历史也一概读不到。被隐藏的聚合答 `404 wow.aggregate.not-found`，与不存在的聚合完全一样（[读取状态](./reading-state#who-sees-a-state)）。
-- **事件查询**按每条流记下的其聚合当前的属性判定。一次提交改变了属性时，内置订阅 `wow.access` 把新的属性盖章到该聚合更早的流上，通常在几秒之内完成，所以转移或撤销共享对全部历史生效。尚未盖章的流在策略下对任何调用方都不显示（[查询事件流](./event-queries#who-sees-what)、[重建与重放](../operate/replay#access-attributes)）。
+- **事件查询**按每条流记下的其聚合当前的属性判定。一次提交改变了属性时，内置订阅 `wow.access` 把新的属性盖章到该聚合更早的流上，通常在几秒之内完成，所以转移或撤销共享对全部历史生效。盖章由提供事件模型的存储完成：Wow 各个后端的日志都可以；若事件模型要由做不到的存储提供，节点拒绝启动。尚未盖章的流在策略下对任何调用方都不显示（[查询事件流](./event-queries#who-sees-what)、[重建与重放](../operate/replay#access-attributes)）。
 - **绑定到该聚合的数据集**按每一行所属聚合当前的属性读取（[发布数据集](./datasets#rows-of-an-aggregate-with-an-access-policy)）。
 
 读取授权器最先被询问，决定调用方能否读取这个模型（[授权读取](../operate/security#authorize-reads)）；接着由策略决定它读到哪些聚合，再由状态模式的掩码决定它看到其中哪些字段（[描述类型说明不了的东西](./queries#describe-what-types-cannot)）。
@@ -304,4 +304,4 @@ fun `a caller reads and changes what the policy grants on the aggregate its even
 
 ## 在另一个作用域中行事 {#act-in-another-scope}
 
-被允许在另一个租户或作用域中行事的调用方，例如客服工具，在 `Wow-Scope` 请求头中指明它，或者在命令客户端的 `CommandRequest`（`targetTenant`、`targetScope`）中指明。提交会记录操作人是在另一个作用域中行事的。它在那里读取和修改什么，仍由访问策略决定（[哪些是受信的](#what-is-trusted)）。
+被允许在另一个租户或作用域中行事的调用方，例如客服工具，在 `Wow-Scope` 请求头中指明它，或者在命令客户端的 `CommandRequest`（`targetScope`，一个 `TargetScope`：只写租户的目标在那里保留调用方自己的作用域）中指明。提交会记录操作人是在另一个作用域中行事的。它在那里读取和修改什么，仍由访问策略决定（[哪些是受信的](#what-is-trusted)）。

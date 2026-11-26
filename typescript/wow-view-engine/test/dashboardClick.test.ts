@@ -38,10 +38,10 @@ import {
   type PanelReference,
 } from '../src/dashboard/index.js';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   type DashboardField,
   type DashboardViewConfig,
-  type BoardValueSource,
+  type DashboardValueSource,
   type DashboardViewPanel,
   type FieldDefinition,
   type PanelClick,
@@ -66,8 +66,8 @@ function panel(click?: unknown, id = 'chart'): DashboardViewPanel {
     kind: 'view',
     instanceId: 'by-warehouse',
     bindings: [
-      { globalField: 'region', panelField: 'warehouse' },
-      { globalField: 'created', panelField: 'createdAt' },
+      { dashboardField: 'region', panelField: 'warehouse' },
+      { dashboardField: 'created', panelField: 'createdAt' },
     ],
     layout: { x: 0, y: 0, w: 12, h: 4 },
     ...(click === undefined ? {} : { click }),
@@ -286,7 +286,7 @@ describe('where a pressed value came from (DashboardFilters.from)', () => {
     const { filters, refused } = admitFilters(
       config,
       { values: { region: ['CN'] }, from: { region: 'chart' } },
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(refused).toEqual([]);
     expect(filters).toEqual({
@@ -305,7 +305,7 @@ describe('where a pressed value came from (DashboardFilters.from)', () => {
       const { filters, refused } = admitFilters(
         config,
         { values: { region: ['CN'] }, from } as never,
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       );
       expect(refused).toEqual([]);
       expect(filters).toEqual({ values: { region: ['CN'] } });
@@ -315,7 +315,7 @@ describe('where a pressed value came from (DashboardFilters.from)', () => {
       admitFilters(
         config,
         { values: {}, from: { region: 'chart' } },
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       ).filters,
     ).toEqual({ values: {} });
   });
@@ -349,13 +349,13 @@ describe('a click that opens another board (D23 Q17)', () => {
     { name: 'warehouse', label: 'Warehouse', kind: 'string' },
     { name: 'createdAt', label: 'Created', kind: 'datetime' },
   ];
-  const click = (values: Record<string, BoardValueSource>) => ({
+  const click = (values: Record<string, DashboardValueSource>) => ({
     kind: 'dashboard' as const,
     instanceId: 'regional',
     values,
   });
   const judged = (
-    values: Record<string, BoardValueSource>,
+    values: Record<string, DashboardValueSource>,
     target: PanelReference | null | undefined,
     known: typeof groups | null = groups,
   ) =>
@@ -470,7 +470,7 @@ describe('a mapping from one of this board’s filters (D23 Q17, 2026-09-23)', (
     kind: 'date',
   };
   const judged = (
-    values: Record<string, BoardValueSource>,
+    values: Record<string, DashboardValueSource>,
     read: PanelReference | undefined,
   ) =>
     validateBoardClick(

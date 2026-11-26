@@ -133,7 +133,7 @@ describe('the period a trend card’s number covers', () => {
       [{ month: day(9, 1), orders: 2 }],
     );
     expect(data.period).toMatchObject({
-      partial: true,
+      unfinished: true,
       span: { from: day(9, 22), to: day(9, 23) },
     });
   });
@@ -148,7 +148,7 @@ describe('the period a trend card’s number covers', () => {
       to: day(8, 21),
       zone: 'UTC',
     });
-    expect(data.period?.partial).toBeUndefined();
+    expect(data.period?.unfinished).toBeUndefined();
   });
 
   it('compares two periods cut unlike each other with nothing', () => {
@@ -180,7 +180,7 @@ describe('the period a trend card’s number covers', () => {
     expect(data.period).toEqual({
       at: day(9, 1),
       unit: AggregationDateUnit.MONTH,
-      partial: true,
+      unfinished: true,
     });
   });
 
@@ -292,9 +292,7 @@ describe('a metric whose own dates the question’s miss', () => {
       dailyOrdersDefinition(),
       config,
       [{ gmv: 33, last: 0, delta: 33 }],
-      undefined,
-      undefined,
-      { timeZone: 'UTC', now: NOW },
+      { context: { timeZone: 'UTC', now: NOW } },
     );
     expect(view.rows).toEqual([{ gmv: 33, last: null, delta: null }]);
     expect((view.chart as MetricCardData).compare).toEqual({

@@ -64,7 +64,7 @@ import kotlin.time.Duration
  *   [StateMasks] (the query side's, which the host declares): its `DISPLAY` values too, unless the stream is declared
  *   revealing and `wow.query.sensitivity.display-shared` is on ([PublicationMasks]).
  * - **Source**: the [SourceTopics] over the source, the producer and the admin, after the same prefix, with the
- *   transport's `command-intake.enabled`, `ddl` and `topics.partition-refresh` ([TopicTransportOptions], which every
+ *   transport's `command-intake.enabled`, `ddl` and `topics.partition-refresh-interval` ([TopicTransportOptions], which every
  *   topic transport has): the subscriptions of other contexts' streams read through it, and a saga's commands to
  *   other contexts go through it.
  * - **Warnings**: once the application is ready, what the transport warns about the node's command topics
@@ -177,7 +177,7 @@ class TransportAutoConfiguration {
             selected.commandIntake,
             admin,
             selected.ddl ?: wow.ifAvailable?.ddl ?: Ddl.AUTO,
-            selected.partitionRefresh,
+            selected.partitionRefreshInterval,
         )
 
         /** Logs, once the application is ready, what the transport warns about the node's command topics. */
@@ -228,7 +228,7 @@ internal class SelectedTransport(val provider: TransportProvider, val config: Tr
 
     val commandIntake: Boolean get() = config.settings.option(TopicTransportOptions.COMMAND_INTAKE)
 
-    val partitionRefresh: Duration get() = config.settings.option(TopicTransportOptions.PARTITION_REFRESH)
+    val partitionRefreshInterval: Duration get() = config.settings.option(TopicTransportOptions.PARTITION_REFRESH)
 
     /** The transport's `ddl`, null when it sets none. */
     val ddl: Ddl? get() = config.settings.option(TopicTransportOptions.DDL)

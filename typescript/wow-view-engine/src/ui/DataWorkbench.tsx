@@ -44,7 +44,10 @@ import { FailureSink } from './kit/failureSink.js';
 import type { ViewDensity, ViewPreset } from './kit/presets.js';
 import type { ColorMode, ViewSurfaceProps } from './kit/ViewSurface.js';
 import { AnalysisParts } from './workbench/AnalysisParts.js';
-import { RecordParts, type RecordViewProps } from './workbench/RecordParts.js';
+import {
+  RecordParts,
+  type RecordViewOptions,
+} from './workbench/RecordParts.js';
 
 /** The kinds of view a data definition holds; a dashboard is a definition of its own. */
 export type DataViewKind = 'record' | 'analysis';
@@ -123,6 +126,11 @@ export interface DataWorkbenchProps {
    * the same choice as `messages`, made for values rather than words.
    */
   locale?: string;
+  /**
+   * The whole list of options behind a `remote` key, where the host has it
+   * at hand: the value editor filters it as the reader types, rather than
+   * searching the source the engine's `optionSource` answers.
+   */
   optionsFor?(remote: string): FieldOption[] | undefined;
   /**
    * The sidebar this workbench opens on. It is view state and nothing else —
@@ -170,7 +178,7 @@ export interface DataWorkbenchProps {
    * it draws. What the host bound to the definition (`bind`: its `actions`,
    * `slots` and `reading`) is the default of each; one given here wins.
    */
-  record?: RecordViewProps;
+  record?: RecordViewOptions;
 }
 
 /**
@@ -180,16 +188,16 @@ export interface DataWorkbenchProps {
  */
 function useBoundRecord(
   definitionId: string,
-  given: RecordViewProps | undefined,
-): RecordViewProps | undefined {
+  given: RecordViewOptions | undefined,
+): RecordViewOptions | undefined {
   const binding = useBindings()(definitionId);
   return useMemo(() => {
     if (!binding) return given;
-    const { actions, slots, reading } = binding;
+    const { actions, slots, detail } = binding;
     return {
       ...(actions ? { actions } : {}),
       ...(slots ? { slots } : {}),
-      ...(reading ? { detail: reading } : {}),
+      ...(detail ? { detail } : {}),
       ...given,
     };
   }, [binding, given]);
@@ -263,7 +271,7 @@ function DataWorkbenchSurface({
   // page.
   const messages = useViewMessages(wording, locale);
   const workbench = useWorkbench(engine, definitionId, {
-    kinds,
+    viewKinds: kinds,
     instanceId: addressed.instanceId,
     onInstanceChange: addressed.onInstanceChange,
     handOver: handed,

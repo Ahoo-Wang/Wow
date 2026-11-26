@@ -63,7 +63,7 @@ class RuntimeValuesTest {
 
     @Test
     fun `an option equals another with the same fields, and prints them`() {
-        valueSemantics(SnapshotOptions(), SnapshotOptions(), SnapshotOptions(batch = 1))
+        valueSemantics(SnapshotOptions(), SnapshotOptions(), SnapshotOptions(rebuildPageSize = 1))
         valueSemantics(SnapshotOptions(), SnapshotOptions(), SnapshotOptions(writesInFlight = 4))
         valueSemantics(ClusterOptions(), ClusterOptions(), ClusterOptions(leaseParallelism = 1))
         valueSemantics(JobOptions(), JobOptions(), JobOptions(enabled = false))
@@ -112,22 +112,23 @@ class RuntimeValuesTest {
 
     @Test
     fun `a request is built with the facts it is given, the others left at their defaults`() {
-        val plain = ServerCommandRequest.builder("sales", "order", "Place", body).build()
+        val plain = ServerCommandRequest.of("sales", "order", "Place", body)
         plain.assert().isEqualTo(ServerCommandRequest.of("sales", "order", "Place", body))
         plain.caller.assert().isEqualTo(Caller.ANONYMOUS)
         plain.wait.assert().isNull()
         val caller = Caller(subject = "alice")
         val target = TargetScope(tenantId = "t-2")
-        val request = ServerCommandRequest.builder("sales", "order", "Place", body)
-            .caller(caller)
-            .aggregateId("o-1")
-            .target(target)
-            .requestId("r-1")
-            .expectedVersion(3)
-            .headers(mapOf("app" to "web"))
-            .wait(WaitPlan.COMMITTED)
-            .trace(mapOf("traceparent" to "00-1-2-01"))
-            .build()
+        val request = ServerCommandRequest.of(
+            "sales", "order", "Place", body,
+            caller = caller,
+            aggregateId = "o-1",
+            targetScope = target,
+            requestId = "r-1",
+            expectedVersion = 3,
+            headers = mapOf("app" to "web"),
+            wait = WaitPlan.COMMITTED,
+            trace = mapOf("traceparent" to "00-1-2-01"),
+        )
         request.assert().isEqualTo(
             ServerCommandRequest(
                 context = "sales",
@@ -136,7 +137,7 @@ class RuntimeValuesTest {
                 body = body,
                 caller = caller,
                 aggregateId = "o-1",
-                target = target,
+                targetScope = target,
                 requestId = "r-1",
                 expectedVersion = 3,
                 headers = mapOf("app" to "web"),

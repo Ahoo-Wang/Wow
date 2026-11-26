@@ -75,7 +75,7 @@ function Shell({
   hold?(workbench: ReturnType<typeof useWorkbench>): void;
 } & Partial<WorkbenchShellProps>) {
   const workbench = useWorkbench(engine, 'orders', {
-    kinds: ['record'],
+    viewKinds: ['record'],
     instanceId: 'mine',
   });
   hold?.(workbench);

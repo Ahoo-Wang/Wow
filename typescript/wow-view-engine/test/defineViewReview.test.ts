@@ -24,7 +24,7 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   defineView,
   MemoryViewStore,
   text,
@@ -63,7 +63,7 @@ describe('defineView, as reviewed', () => {
     const { definition: narrowed, findings } = narrowDefinition(
       definition,
       lacking,
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(narrowed.fields[0].sortable).toBe(false);
     expect(codes(findings)).toContain('capability.field.unsortable');
@@ -79,12 +79,12 @@ describe('defineView, as reviewed', () => {
     const definition = defineView(none, spec({ id: 'Order' }));
     expect(definition.analysis).toBeUndefined();
     expect(
-      codes(validateDefinition(definition, builtinFieldKinds)),
+      codes(validateDefinition(definition, builtinFieldKindRegistry)),
     ).not.toContain('definition.analysis.no-metric');
     const narrowed = narrowDefinition(
       definition,
       ordersDescriptor(),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     ).definition;
     expect(narrowed.analysis?.count).toBe(true);
   });
@@ -136,7 +136,7 @@ describe('defineView, as reviewed', () => {
       narrowDefinition(
         definition,
         snapshot,
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       ).definition.fields[2].elements?.find(entry => entry.name === 'q')
         ?.operators,
     ).toEqual([]);
@@ -161,7 +161,7 @@ describe('defineView, as reviewed', () => {
           },
         ],
       },
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     ).definition;
     // Every comparison of its kind, as this source admits them all.
     expect(elastic.fields[0].operators).toBeUndefined();
@@ -186,8 +186,8 @@ describe('defineView, as reviewed', () => {
     expect(analysed(definition.analysis?.fields)).toEqual(['id']);
     expect(
       analysed(
-        narrowDefinition(definition, masked, builtinFieldKinds).definition
-          .analysis?.fields,
+        narrowDefinition(definition, masked, builtinFieldKindRegistry)
+          .definition.analysis?.fields,
       ),
     ).toEqual(['id']);
   });
@@ -234,7 +234,7 @@ describe('defineView, as reviewed', () => {
     const narrowed = narrowDefinition(
       definition,
       aliased,
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     ).definition;
     expect(narrowed.timeField).toBe('createdAt');
     expect(narrowed.views?.[0].timeField).toBe('createdAt');
@@ -374,7 +374,7 @@ describe('defineView, as reviewed', () => {
     const { definition: narrowed, findings } = narrowDefinition(
       definition,
       lesser,
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(
       narrowed.analysis?.fields.find(entry => entry.field === 'amount')?.groups,

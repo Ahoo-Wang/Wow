@@ -22,6 +22,7 @@ import type { QueryHookOptions, QueryHookReturn } from '../types.js';
  * @template ROW - One row of the result: the groups and metrics by alias
  * @template FIELDS - The field names the aggregation may use
  * @template Q - The aggregation type: `AggregationQuery` by default
+ * @experimental
  */
 export interface UseAggregateQueryOptions<
   ROW,
@@ -35,6 +36,7 @@ export interface UseAggregateQueryOptions<
  * @template ROW - One row of the result
  * @template FIELDS - The field names the aggregation may use
  * @template Q - The aggregation type: `AggregationQuery` by default
+ * @experimental
  */
 export interface UseAggregateQueryReturn<
   ROW,
@@ -83,6 +85,7 @@ export interface UseAggregateQueryReturn<
  *   return <ul>{result?.map(row => <li key={row.status}>{row.status}: {row.orders}</li>)}</ul>;
  * }
  * ```
+ * @experimental
  */
 export function useAggregateQuery<ROW, FIELDS extends string = string>(
   options: UseAggregateQueryOptions<
@@ -94,6 +97,8 @@ export function useAggregateQuery<ROW, FIELDS extends string = string>(
 /**
  * {@link useAggregateQuery} typed by an aggregation `Q` of your own, a
  * subtype of `AggregationQuery`.
+ *
+ * @experimental
  */
 export function useAggregateQuery<
   ROW,

@@ -14,7 +14,11 @@
 import { constantName } from '../constantName.js';
 import { ComparisonOperator } from './types.js';
 
-/** The kind of a {@link HavingExpression} node, sent as its `type`. */
+/**
+ * The kind of a {@link HavingExpression} node, sent as its `type`.
+ *
+ * @experimental
+ */
 export enum HavingExpressionType {
   /** A metric compared with a number; `aggregation.having.eq` … `lte`. */
   CONDITION = 'condition',
@@ -36,6 +40,8 @@ export enum HavingExpressionType {
 /**
  * Filters grouped results by metric aliases, before sorting/limit; never an
  * `ANY`, `FIRST` or `LAST` metric.
+ *
+ * @experimental
  */
 export type HavingExpression =
   | {
@@ -69,6 +75,8 @@ export type HavingExpression =
  * Each builder checks its own numbers and throws a `TypeError` with the
  * message Wow answers; `aggregation.query()` checks what spans the query:
  * that `metric` names a declared, non-ANY metric, and that the query groups.
+ *
+ * @experimental
  */
 export interface HavingDsl {
   /**

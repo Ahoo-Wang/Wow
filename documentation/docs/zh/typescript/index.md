@@ -29,7 +29,7 @@ Wow 服务的路由、等待、problem 和查询语言，由 [`typescript/`](htt
 | --- | --- |
 | Node.js，用于生成器和服务端渲染 | `>=22.12.0` |
 | TypeScript | 6 或更高；CI 在 6.0 和最新的 7.x 上检查这些包 |
-| `@ahoo-wang/fetcher`、`fetcher-eventstream`（OpenAPI 客户端还需要 `fetcher-decorator`） | `^5.1.5 \|\| ^6.0.0` |
+| `@ahoo-wang/fetcher`、`fetcher-eventstream`（OpenAPI 客户端还需要 `fetcher-decorator`） | `^5.1.5 \|\| ^6.0.0 \|\| ^8.0.0-rc.1` |
 | React 和 React DOM，用于 `wow-react` 和视图引擎的界面 | `^19.0.0` |
 | `@ahoo-wang/wow-client`，用于其他 Wow 包 | 同一个次版本，`~x.y.z` |
 

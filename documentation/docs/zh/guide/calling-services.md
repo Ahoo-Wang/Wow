@@ -28,7 +28,7 @@ submitted.ref.assert().isEqualTo(ref)
 | `wait(command, id)` | 命令的等待计划的结果，除非请求指定了计划，否则是服务端的默认计划 |
 | `stream(command, id)` | 等待中每一跳结果的 flow，最后一个就是 `wait` 返回的结果；收集这个 flow 才会发送命令 |
 
-这些调用从客户端的包导入（`import me.ahoo.wow.api.client.wait`）。ref 可以代替 ID 指明聚合，`wait(command, to = ref)`：它的类型、已分配时的 ID 和它的租户；同时给出 ID 和 ref 的调用会失败。每个调用都接受一个块，`wait(command, id) { wait(WaitPlan.COMMITTED); requestId(key) }`，按 `CommandRequest.Builder` 的名字设置请求的其余内容，也就是 Java 调用方在 `CommandRequest.builder(command)` 上链式调用的名字：`to(ref)`，以及聚合 `type`（`DeleteAggregate` 这类每个聚合都接受的生命周期命令总要指明它）、`wait` 计划及其 `timeout`、让命令幂等的 `requestId`（不写时生成新的）、聚合的 `expectedVersion`，以及对被允许在另一个作用域行事的调用方，`targetTenant` 和 `targetScope`。否则租户和作用域就是调用方自己的：与调用方相同的目标租户不改变任何东西。每个调用也接受事先造好的请求，原样传入：`command.toCommandRequest(id) { … }`（`import me.ahoo.wow.api.client.toCommandRequest`），或者 Java 里的 `CommandRequest.builder(command)`；带着块传入请求会失败，因为请求不是命令。
+这些调用从客户端的包导入（`import me.ahoo.wow.api.client.wait`）。ref 可以代替 ID 指明聚合，`wait(command, to = ref)`：它的类型、已分配时的 ID 和它的租户。调用接受 ID 或 ref，二者不能同时给出：它们是两个重载，同时写两者编译不过。每个调用都接受一个块，`wait(command, id) { wait(WaitPlan.COMMITTED); requestId(key) }`，按 `CommandRequest.Builder` 的名字设置请求的其余内容，也就是 Java 调用方在 `CommandRequest.builder(command)` 上链式调用的名字：`to(ref)`，以及聚合 `type`（`DeleteAggregate` 这类每个聚合都接受的生命周期命令总要指明它）、`wait` 计划及其 `timeout`、让命令幂等的 `requestId`（不写时生成新的）、聚合的 `expectedVersion`，以及对被允许在另一个作用域行事的调用方，`targetScope`（`TargetScope.of(tenant, scope)`：不写作用域则保留调用方自己的），或者一步只写 `targetTenant`。否则租户和作用域就是调用方自己的：与调用方相同的目标租户不改变任何东西，只写了租户的目标在那个租户里以调用方自己的作用域行事，进程内与经 HTTP 都一样。每个调用也接受事先造好的请求，原样传入：`command.toCommandRequest(id) { … }`（`import me.ahoo.wow.api.client.toCommandRequest`），或者 Java 里的 `CommandRequest.builder(command)`；带着块传入请求会失败，因为请求不是命令。
 
 命令总有一个可追责的调用方：在 `of` 给出别的调用方之前，客户端以匿名调用方发送，命令没有受信任模式。系统发送方传入它自己的服务调用方。
 
@@ -93,7 +93,7 @@ wow:
 
 ## 按名字调用命令 {#call-a-command-by-name}
 
-控制台、网关或工具可以在没有对端 api jar 的情况下调用对端。它用 `wow.peers.<context>.contract: manifest` 列出对端，并发送一个 `NamedCommand`：命令的完整类型名 `context.aggregate.Command` 及其 JSON 命令体。客户端从 `GET /wow/manifest` 读取对端的 Manifest，在发送任何东西之前拒绝 Manifest 没有声明的命令。
+控制台、网关或工具可以在没有对端 api jar 的情况下调用对端。它用 `wow.peers.<context>.contract: manifest` 列出对端，并发送一个 `NamedCommand`：命令的完整类型名 `context.aggregate.Command` 及其 JSON 命令体。客户端从 `GET /wow/manifest` 读取对端的 Manifest，在发送任何东西之前拒绝 Manifest 没有声明的命令：`mode: service` 下从对端的内部端口读取，内部端口总是把它提供给集群中的服务；`mode: user` 下从对端的公开端口读取，只有对端设置了 `wow.http.manifest.enabled: true` 时公开端口才提供它。
 
 ## 在 Wow 宿主之外 {#outside-a-wow-host}
 

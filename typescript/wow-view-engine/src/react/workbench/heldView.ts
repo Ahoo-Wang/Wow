@@ -32,7 +32,7 @@ import { drillFilter, narrowsTo } from '../../analysis/index.js';
 import { defaultRecordConfig } from '../../record/index.js';
 import type {
   AnyViewRuntime,
-  BoardOrigin,
+  DashboardOrigin,
   GroupNaming,
   SavedViewTarget,
   ViewEngine,
@@ -100,8 +100,8 @@ export interface HeldView {
    * opened with, so the shell opens it with its editor folded.
    */
   handed?: true;
-  /** The board it was handed from, for the way back (`WorkbenchController.board`). */
-  board?: BoardOrigin;
+  /** The board it was handed from, for the way back (`WorkbenchController.dashboardOrigin`). */
+  dashboardOrigin?: DashboardOrigin;
 }
 
 /** The view held, and the one call that replaces it. */
@@ -155,7 +155,7 @@ export interface HeldCommandsInput extends Pick<
 > {
   engine: ViewEngine;
   definitionId: string;
-  kinds: readonly ViewKind[];
+  viewKinds: readonly ViewKind[];
   definition: ReturnType<ViewEngine['definitions']['get']>;
   runtime: AnyViewRuntime | null;
   state: ViewRuntimeState<ViewConfig> | null;
@@ -170,12 +170,12 @@ export interface HeldCommandsInput extends Pick<
 
 /**
  * The ways into and out of a held view, as the controller offers them
- * (`WorkbenchController.create`, `drill`, `follow`, `back`, `toBoard`).
+ * (`WorkbenchController.create`, `drill`, `follow`, `back`, `toDashboard`).
  */
 export function useHeldCommands({
   engine,
   definitionId,
-  kinds,
+  viewKinds: kinds,
   definition,
   newView,
   onDrilldown,
@@ -209,7 +209,7 @@ export function useHeldCommands({
       request(() => {
         const made = engine.create(definitionId, {
           title,
-          scope: blank.scope,
+          audience: blank.scope,
           config: blank.config,
         });
         hold({
@@ -243,7 +243,7 @@ export function useHeldCommands({
       if (!runtime || !state) return;
       const made = engine.create(definitionId, {
         title: viewTitle,
-        scope: 'personal',
+        audience: 'personal',
         config,
         scopeFilter: runtime.scopeFilter,
       });
@@ -325,9 +325,9 @@ export function useHeldCommands({
     : held
       ? held.origin
         ? null
-        : (held.board ?? null)
+        : (held.dashboardOrigin ?? null)
       : (handedHere?.from ?? null);
-  const toBoard = useCallback(() => {
+  const toDashboard = useCallback(() => {
     if (board) request(() => onNavigate?.(board.back));
   }, [board, request, onNavigate]);
 
@@ -338,8 +338,8 @@ export function useHeldCommands({
     drill,
     follow: holdFrom,
     back,
-    board,
-    toBoard,
+    dashboardOrigin: board,
+    toDashboard,
   };
 }
 

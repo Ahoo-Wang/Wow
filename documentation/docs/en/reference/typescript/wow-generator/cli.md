@@ -11,10 +11,9 @@ description: 'Generator CLI — @ahoo-wang/wow-generator'
 
 | Option                             | Required/default              | Meaning                                                                                                  |
 | ---------------------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `-i, --input <file>`               | Required                      | Local path or HTTP/HTTPS URL of a Wow Manifest (`GET /wow/manifest`) or an OpenAPI 3.x document           |
+| `-i, --input <file>`               | Required                      | Local path or HTTP/HTTPS URL of a Wow Manifest (`GET /wow/manifest`, which a service serves only with `wow.http.manifest.enabled: true`; its committed `manifest/baseline.json` needs none) or an OpenAPI 3.x document |
 | `-o, --output <path>`              | `src/generated`               | Output root, resolved relative to working directory                                                      |
 | `-c, --config <file>`              | `./wow-generator.config.json` | Generator configuration; see [configuration](./configuration). A named file has to exist                 |
-| `-t, --ts-config-file-path <file>` | Omitted                       | ts-morph project configuration; supply your decorator-enabled tsconfig                                   |
 | `-H, --header <header>`            | None; repeatable              | `Name: value` request header sent when the input or the configuration is an HTTP/HTTPS URL               |
 | `--timeout <ms>`                   | `30000`                       | Milliseconds before fetching an HTTP/HTTPS input or configuration is abandoned                           |
 | `--schema-docs <mode>`             | `summary`                     | What model doc comments carry: `summary` (title, description, constraints) or `full` (also the JSON schema) |
@@ -31,7 +30,7 @@ A token-protected document is fetched with a header, for example from an environ
 
 ```bash
 pnpm exec wow-generator generate -i https://api.example.com/v3/api-docs \
-  -H "Authorization: Bearer $API_TOKEN" --timeout 60000 -o ./src/generated -t ./tsconfig.json
+  -H "Authorization: Bearer $API_TOKEN" --timeout 60000 -o ./src/generated
 ```
 
 ## Output
@@ -126,14 +125,14 @@ Save the following as `tsconfig.json`. Install the [runtime dependencies](./gene
 
 ```bash
 pnpm add -D @ahoo-wang/wow-generator typescript
-pnpm exec wow-generator generate -i ./openapi.json -o ./src/generated -t ./tsconfig.json
+pnpm exec wow-generator generate -i ./openapi.json -o ./src/generated
 pnpm exec tsc --noEmit -p ./tsconfig.json
 ```
 
 For a repository fixture, after building, run from `typescript/wow-generator`:
 
 ```bash
-node dist/cli.js generate -i "$PWD/test/manifests/eshop-ordering.json" -o /tmp/wow-demo-generated -t tsconfig.json
+node dist/cli.js generate -i "$PWD/test/manifests/eshop-ordering.json" -o /tmp/wow-demo-generated
 ```
 
 ## Failures and exit codes
@@ -143,7 +142,7 @@ node dist/cli.js generate -i "$PWD/test/manifests/eshop-ordering.json" -o /tmp/w
 | 0         | Success       | The files were written; or `--help`, `help <command>` or `--version` printed                                                          |
 | 1         | Internal      | An unexpected error, a defect of the generator; rerun with `--verbose` for the stack trace                                            |
 | 2         | Input         | The input cannot be read or fetched, is neither JSON nor YAML, or is not an OpenAPI 3.x document; or the command line is invalid: an option value is invalid (`--timeout abc`), a required option or an option's value is missing, an option or a command is unknown, or no command is given |
-| 3         | Configuration | The configuration or the tsconfig cannot be read, parsed or validated; the configuration is read before the document                 |
+| 3         | Configuration | The configuration cannot be read, parsed or validated; it is read before the document                                               |
 | 4         | Specification | The document describes code the generator cannot produce: a dangling, cyclic or external `$ref`, two schemas that generate the same model, two operations that generate the same method, malformed Wow metadata; or `--strict` is set and the run logged a warning |
 | 5         | Output        | The output directory cannot be written as asked: its `.wow-generator.json` manifest cannot be parsed, was written by a newer wow-generator or is not a manifest (see [output ownership](./generated-output#ownership-and-failures)), a path resolves outside it, or writing or deleting a file fails |
 | 6         | Check         | `--check` is set and the output directory differs from what the run would write: a file it writes is missing or has other bytes, a file of the last run's `.wow-generator.json` it no longer writes is still there, or the manifest it would write differs. Each is listed by its path in the output directory, and nothing is written. A file no manifest names is never compared |

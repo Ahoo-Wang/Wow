@@ -17,7 +17,6 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
-import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.TargetScope
@@ -50,6 +49,7 @@ import me.ahoo.wow.spi.call.requestIdOf
  * A failure is the problem the edge would answer it with: its status, retry and `Retry-After` as the error catalog
  * declares them for its code ([FrameworkErrors.problemOf]).
  */
+@InternalWowApi
 class InProcessCommandClient @InternalWowApi constructor(
     private val gateway: CommandGateway,
     private val caller: Caller = Caller.ANONYMOUS,
@@ -68,26 +68,30 @@ class InProcessCommandClient @InternalWowApi constructor(
 
     /**
      * [request] as the gateway receives it, from [caller], with [plan]: its request id the request's, else derived
-     * from the command being decided when sent from a decide function, else the command's id.
+     * from the command being decided when sent from a decide function, else the command's id. A derived one is marked
+     * as the framework's ([ServerCommandRequest.frameworkRequestId]), so admission takes its `wow:` prefix, which it
+     * refuses from a request id the application names.
      */
     private suspend fun serverRequest(request: CommandRequest<*>, plan: WaitPlan?): ServerCommandRequest {
         val type = typeOf(request, gateway::aggregatesOf)
         val command = request.command
         val targetTenant = targetTenantOf(request, caller.tenantId)
-        return ServerCommandRequest.builder(type.context, type.name, command.javaClass.name, CommandBody.Value(command))
-            .aggregateId(request.id)
-            .caller(caller)
-            .requestId(currentCoroutineContext().requestIdOf(request))
-            .expectedVersion(request.expectedVersion)
-            .target(
-                if (targetTenant != null || request.targetScope != null) {
-                    TargetScope(targetTenant, request.targetScope ?: Scope.NONE)
-                } else {
-                    null
-                },
-            )
-            .wait(plan)
-            .build()
+        val targetScope = request.targetScope?.scope
+        val requestId = currentCoroutineContext().requestIdOf(request)
+        return ServerCommandRequest.of(
+            type.context, type.name, command.javaClass.name, CommandBody.Value(command),
+            aggregateId = request.aggregateId,
+            caller = caller,
+            requestId = requestId,
+            expectedVersion = request.expectedVersion,
+            // A tenant alone keeps the caller's own scope, as an HTTP client and a saga do.
+            targetScope = if (targetTenant != null || targetScope != null) {
+                TargetScope(targetTenant, targetScope)
+            } else {
+                null
+            },
+            wait = plan,
+        ).copyWith(frameworkRequestId = request.requestId == null && requestId != null)
     }
 
     /** How long [send] waits for the broker to acknowledge a peer's command: the request's timeout, else the default. */

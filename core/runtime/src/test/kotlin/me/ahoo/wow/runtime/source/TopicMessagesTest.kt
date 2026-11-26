@@ -20,6 +20,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.ledger.Recoverable
 import me.ahoo.wow.runtime.cluster.LeaseGroup
 import me.ahoo.wow.runtime.subscription.eventually
+import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.ledger.ParkedAmendment
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.transport.PartitionedSource
@@ -27,6 +28,7 @@ import me.ahoo.wow.spi.transport.SourceMessage
 import me.ahoo.wow.spi.transport.TopicMessage
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -61,6 +63,18 @@ class TopicMessagesTest : TopicSubscriptionsFixtures() {
         ledger.parked(BOARD_ID, order("o-1")).assert().isNull()
         undecodable.assert().containsExactly(0L to false)
     }
+
+    @Test
+    fun `a record of no value, as the Kafka source reads a tombstone, should stop its partition's read as foreign`(): Unit =
+        runBlocking {
+            val partition = partitionOf("o-1")
+            topics.send(ORDER_TOPIC, TopicMessage.of("o-1", ByteArray(0), partition = partition))
+            val foreign = assertThrows<ForeignTopicRecordException> {
+                TopicEntries(ORDER_TOPIC, topics, PARTITIONS).tail(partition, null).toList()
+            }
+            foreign.offset.assert().isEqualTo(0L)
+            foreign.partition.assert().isEqualTo(partition)
+        }
 
     @Test
     fun `a record of another producer, such as 9x on a topic of the same name, should stop the read before it`(): Unit =
@@ -150,6 +164,30 @@ class TopicMessagesTest : TopicSubscriptionsFixtures() {
             subscriptions.retry(BOARD, order("o-1")).assert().isFalse()
             subscriptions.skip(BOARD, order("o-1")).assert().isTrue()
             ledger.parked(BOARD_ID, order("o-1")).assert().isNull()
+        }
+
+    @Test
+    fun `a state event naming its data payload should park its aggregate and let the partition through`(): Unit =
+        runBlocking {
+            // F5: a pre-release publisher wrote an event's data as `payload`; this version reads it as `body` only.
+            val (parkedId, otherId) = idsIn(partitionOf("o-1"), 2)
+            start("node-1")
+            topics.publish(orderRecord(parkedId, 1))
+            eventually { handled.versionsOf(parkedId) == listOf(1) }
+            val envelope = WowJson.mapper.readTree(EnvelopeCodec.message(orderRecord(parkedId, 2)).value) as ObjectNode
+            val event = envelope.path("payload").path("events").path(0) as ObjectNode
+            event.set("payload", event.remove("body"))
+            val written = WowJson.mapper.writeValueAsBytes(envelope)
+            topics.send(ORDER_TOPIC, TopicMessage.of(order(parkedId).toString(), written))
+            topics.publish(orderRecord(otherId, 1), orderRecord(parkedId, 3))
+
+            // The partition's next record, another aggregate's, is handled; the parked one waits.
+            eventually { handled.versionsOf(otherId) == listOf(1) }
+            eventually { ledger.parked(BOARD_ID, order(parkedId)) != null }
+            ledger.parked(BOARD_ID, order(parkedId))!!.reason.assert().startsWith(
+                "me.ahoo.wow.runtime.subscription.UndecodableEntryException: not decodable by this version; caused by ",
+            )
+            handled.versionsOf(parkedId).assert().containsExactly(1)
         }
 
     @Test

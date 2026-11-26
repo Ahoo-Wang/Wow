@@ -219,21 +219,21 @@ export interface FieldKind {
 
 ### 登记表 {#api-FieldKindRegistry}
 
-登记表是按 id 索引的只读 Map。`builtinFieldKinds` 是现成的登记表；`withFieldKinds` 在它之上添加或替换类型而不改动它，结果交给 `ViewEngineOptions.kinds`，也交给 `defineView` 的 `options.kinds`。
+登记表是按 id 索引的只读 Map。`builtinFieldKindRegistry` 是现成的登记表；`withFieldKinds` 在它之上添加或替换类型而不改动它，结果交给 `ViewEngineOptions.kinds`，也交给 `defineView` 的 `options.kinds`。
 
 <!-- typecheck-context
 declare const moneyKind: import('@ahoo-wang/wow-view-engine').FieldKind
 -->
 
 ```ts
-import { builtinFieldKinds, withFieldKinds } from '@ahoo-wang/wow-view-engine';
+import { builtinFieldKindRegistry, withFieldKinds } from '@ahoo-wang/wow-view-engine';
 
-export const kinds = withFieldKinds(builtinFieldKinds, [moneyKind]);
+export const kinds = withFieldKinds(builtinFieldKindRegistry, [moneyKind]);
 ```
 
 ```ts
 export type FieldKindRegistry = ReadonlyMap<FieldKindId, FieldKind>;
-export declare const builtinFieldKinds: FieldKindRegistry;
+export declare const builtinFieldKindRegistry: FieldKindRegistry;
 export declare const BUILTIN_FIELD_KINDS: readonly FieldKind[];
 export declare function withFieldKinds(registry: FieldKindRegistry, kinds: readonly FieldKind[]): FieldKindRegistry;
 export declare function createFieldKindRegistry(kinds: readonly FieldKind[]): FieldKindRegistry;

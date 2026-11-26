@@ -20,6 +20,7 @@ import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.spi.access.AccessValues
@@ -38,6 +39,7 @@ import org.junit.jupiter.api.assertThrows
  * read only [EventLogFixtures]' fixtures, hooks and constants; see [EventLogFixtures] for the chain of families this
  * class is part of.
  */
+@WowSpi
 abstract class EventLogRecordCases internal constructor() : EventLogFixtures() {
     @Test
     fun `an aggregate's first stream is version 1 and each next one exactly one more`(): Unit = runBlocking {
@@ -79,7 +81,7 @@ abstract class EventLogRecordCases internal constructor() : EventLogFixtures() {
         log.append(appended)
         log.read(appended.ref).toList().single().assertSameAs(appended)
         checkNotNull(log.findByRequestId(type, "tenant", appended.requestId)).assertSameAs(appended)
-        withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(1).toList() }.single().stream.assertSameAs(appended)
+        withTimeout(tailTimeout) { log.tail(0).take(1).toList() }.single().stream.assertSameAs(appended)
     }
 
     @Test
@@ -111,7 +113,7 @@ abstract class EventLogRecordCases internal constructor() : EventLogFixtures() {
         val declared = stream("b", 1, access = linkedMapOf("owner" to null, "space" to null, "region" to null))
         log.append(bare)
         log.append(declared)
-        val tailed = withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(2).toList() }.map { it.stream }
+        val tailed = withTimeout(tailTimeout) { log.tail(0).take(2).toList() }.map { it.stream }
         tailed.forEachIndexed { index, read -> read.assertSameAs(listOf(bare, declared)[index]) }
         listOf(bare, declared).forEach { appended ->
             log.readEntries(appended.ref, 1, 1).toList().single().stream.assertSameAs(appended)
@@ -172,7 +174,7 @@ abstract class EventLogRecordCases internal constructor() : EventLogFixtures() {
             withEvents.events.map { it.name to ExactJson.of(it.payload) },
             alone.events.map { it.name to ExactJson.of(it.payload) },
         )
-        val tailed = withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(2).toList() }
+        val tailed = withTimeout(tailTimeout) { log.tail(0).take(2).toList() }
         tailed.map { it.stream.events.map { event -> event.name } }.assert()
             .containsExactly(withEvents.events.map { it.name }, listOf("wow.schedule.ScheduleCancelled"))
     }

@@ -186,7 +186,7 @@ describe('resumable query streams (decision D253)', () => {
         ),
     );
     const stream = await new EventQueryClient(PRODUCT, client()).stream(query, {
-      resume: { initialDelayMs: 100, maxDelayMs: 150 },
+      resume: { backoffMs: 100, maxRetryAfterMs: 150 },
     });
     expect(ids(await readAll(stream))).toEqual(['p1', 'p2', 'p3', 'p4']);
     expect(lastEventIds(requests).slice(0, 4)).toEqual([
@@ -210,7 +210,7 @@ describe('resumable query streams (decision D253)', () => {
     );
     const stream = await new SnapshotQueryClient(PRODUCT, client()).stream(
       query,
-      { resume: { initialDelayMs: 10 } },
+      { resume: { backoffMs: 10 } },
     );
     expect(ids(await readAll(stream))).toEqual(['p1', 'p2']);
     expect(lastEventIds(requests)).toEqual([null, 'p1', 'p1']);
@@ -243,7 +243,7 @@ describe('resumable query streams (decision D253)', () => {
     );
     const patient = await new SnapshotQueryClient(PRODUCT, client()).stream(
       query,
-      { resume: { maxDelayMs: 60_000 } },
+      { resume: { maxRetryAfterMs: 60_000 } },
     );
     expect(ids(await readAll(patient))).toEqual(['p1', 'p2']);
     expect(delays).toContain(30_000);
@@ -257,7 +257,7 @@ describe('resumable query streams (decision D253)', () => {
     );
     const stream = await new SnapshotQueryClient(PRODUCT, client()).stream(
       query,
-      { resume: { maxRetries: 2 } },
+      { resume: { maxAttempts: 3 } },
     );
     const read: unknown[] = [];
     const failure = await (async () => {
@@ -401,11 +401,63 @@ describe('resumable query streams (decision D253)', () => {
     await expect(
       readAll(await new SnapshotQueryClient(PRODUCT, client()).stream(query)),
     ).rejects.toThrow('hold-expired');
-    // So does one cut off after records without positions.
+    // So does one cut off after records without positions, as the stream
+    // the peer lost: `wow.peer.unavailable`, as the Kotlin client answers it.
     answers(() => sseResponse('event:row\ndata:{"id":"x"}\n\n'));
     await expect(
       readAll(await new SnapshotQueryClient(PRODUCT, client()).stream(query)),
-    ).rejects.toThrow('cut off');
+    ).rejects.toMatchObject({
+      code: 'wow.peer.unavailable',
+      retry: 'new-request',
+      message: expect.stringContaining('cut off'),
+    });
+  });
+
+  it('errors a stream cut off, or whose connection is lost, past its resumes with wow.peer.unavailable, as the Kotlin client does', async () => {
+    // HttpQueryApi's `lost(...)`: the stream that lost its connection, or
+    // ended without its `end`, is the peer's, `retry` new-request.
+    answers(() => sseResponse(row('p1')));
+    const cut = await failureOf(
+      await new SnapshotQueryClient(PRODUCT, client()).stream(query, {
+        resume: { maxAttempts: 1 },
+      }),
+    );
+    expect(cut).toBeInstanceOf(WowProblemError);
+    expect(cut).toMatchObject({
+      code: 'wow.peer.unavailable',
+      status: 503,
+      retry: 'new-request',
+    });
+    answers(() => dropped(row('p1')));
+    const lost = await failureOf(
+      await new SnapshotQueryClient(PRODUCT, client()).stream(query, {
+        resume: { maxAttempts: 1 },
+      }),
+    );
+    expect(lost).toBeInstanceOf(WowProblemError);
+    expect(lost).toMatchObject({ code: 'wow.peer.unavailable' });
+    expect((lost as WowProblemError).cause).toEqual(
+      new TypeError('network error'),
+    );
+    // A stream that could not be asked for again, past its resumes, too.
+    let first = true;
+    stubFetch(() => {
+      if (first) {
+        first = false;
+        return dropped(row('p1'));
+      }
+      throw new TypeError('connection refused');
+    });
+    const refused = await failureOf(
+      await new SnapshotQueryClient(PRODUCT, client()).stream(query, {
+        resume: { maxAttempts: 2, backoffMs: 0 },
+      }),
+    );
+    expect(refused).toMatchObject({ code: 'wow.peer.unavailable' });
+    // The fetcher's own error of the request, which names the refusal.
+    expect((refused as WowProblemError).cause).toMatchObject({
+      message: 'connection refused',
+    });
   });
 
   it('fails a stream that drops after records without positions, and one told not to resume', async () => {
@@ -420,7 +472,10 @@ describe('resumable query streams (decision D253)', () => {
       expect((await reader.read()).value).toEqual({ id: 'x' });
       const next = reader.read();
       body.fail(new TypeError('network error'));
-      await expect(next).rejects.toThrow('network error');
+      await expect(next).rejects.toMatchObject({
+        code: 'wow.peer.unavailable',
+        cause: new TypeError('network error'),
+      });
       expect(requests).toHaveLength(1);
     }
     // Told not to resume, a drop after a position fails too.
@@ -435,7 +490,10 @@ describe('resumable query streams (decision D253)', () => {
     expect((await reader.read()).value).toEqual({ id: 'p1' });
     const next = reader.read();
     body.fail(new TypeError('network error'));
-    await expect(next).rejects.toThrow('network error');
+    await expect(next).rejects.toMatchObject({
+      code: 'wow.peer.unavailable',
+      cause: new TypeError('network error'),
+    });
     expect(requests).toHaveLength(1);
   });
 
@@ -563,7 +621,7 @@ describe('resumable query streams (decision D253)', () => {
     );
     const reader = (
       await new SnapshotQueryClient(PRODUCT, client()).stream(query, {
-        resume: { initialDelayMs: 750 },
+        resume: { backoffMs: 750 },
       })
     ).getReader();
     await reader.read();
@@ -658,3 +716,16 @@ describe('resumable query streams (decision D253)', () => {
     expect(only.cancelled()).toBe(true);
   });
 });
+
+/** What reading `stream` to its end fails with. */
+async function failureOf(stream: ReadableStream<unknown>): Promise<unknown> {
+  const reader = stream.getReader();
+  try {
+    while (!(await reader.read()).done) {
+      // Each row read; the failure is what ends the stream.
+    }
+  } catch (error) {
+    return error;
+  }
+  return undefined;
+}

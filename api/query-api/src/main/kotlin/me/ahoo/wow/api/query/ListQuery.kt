@@ -16,22 +16,22 @@ package me.ahoo.wow.api.query
 import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
- * Data class representing a query for retrieving a list of items with optional filtering, projection, sorting, and limiting.
+ * A list query: the records its filter matches, in its order, with its projection, at most its limit.
  *
  * It supports all standard query operations ([Queryable]) and limits how many items it returns.
  *
  * @property filter The filter expression to apply to the query; [MatchAllFilter], every record, by default.
  * @property projection The field projection to control which fields are included in the results.
- * @property sort The sorting criteria to order the results.
+ * @param sort The order of the results; the query keeps a copy.
  * @property limit The most items to return, at least 1; `null`, the default, takes the entry's default list size.
  * Only trusted code that dropped the budget (`trusted().unbounded()`) lists every match with `null`; a stream
  * (`stream`) reads every match in chunks.
  *
  * ```
- * val query = ListQuery(
- *     filter = EqualFilter(QueryField("status"), value),
- *     projection = Projection(listOf(QueryField("name"), QueryField("email"))),
- *     sort = listOf(Sort(QueryField("name"), Direction.ASC)),
+ * val query = ListQuery.of(
+ *     filter = EqualFilter.of(QueryField("status"), value),
+ *     projection = Projection.of(listOf(QueryField("name"), QueryField("email"))),
+ *     sort = listOf(Sort.of(QueryField("name"), Sort.Direction.ASC)),
  *     limit = 50
  * )
  * ```
@@ -39,9 +39,15 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 class ListQuery @InternalWowApi constructor(
     override val filter: FilterExpression = MatchAllFilter,
     override val projection: Projection = Projection.ALL,
-    override val sort: List<Sort> = emptyList(),
+    sort: List<Sort> = emptyList(),
     val limit: Int? = null,
 ) : Queryable<ListQuery> {
+    /**
+     * The sorting criteria to order the results; a copy, so a list its caller changes later changes neither this query
+     * nor its hash.
+     */
+    override val sort: List<Sort> = sort.copied()
+
     init {
         require(limit == null || limit >= 1) {
             "limit must be at least 1."

@@ -27,9 +27,11 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.EventCodec
@@ -109,18 +111,29 @@ class SinkSubscriptionTest {
     private val written = CopyOnWriteArrayList<StateEventRecord>()
     private val commands = AtomicInteger()
 
-    private fun sink(includeState: Boolean = true, masks: RecordMasks? = null) = SinkSubscription(
+    private fun sink(
+        includeState: Boolean = true,
+        masks: RecordMasks? = null,
+        everyCommit: Boolean = false,
+        published: Boolean = false,
+    ) = SinkSubscription(
         NAME,
         type,
         { written += it },
         SharedStateReader(NAME, listOf(model), kernel, codec, views),
         includeState,
         masks,
+        everyCommit = everyCommit,
+        published = published,
     )
 
-    private suspend fun commit(body: Any, scope: Scope = Scope.NONE): EventStreamRecord {
+    private suspend fun commit(
+        body: Any,
+        scope: Scope = Scope.NONE,
+        headers: Map<String, String> = emptyMap(),
+    ): EventStreamRecord {
         val id = commands.incrementAndGet()
-        val command = Command("c-$id", "r-$id", ref, body, scope = scope)
+        val command = Command("c-$id", "r-$id", ref, body, scope = scope, headers = headers)
         return (executor.execute(model, command) as CommandOutcome.Committed).stream
     }
 
@@ -130,6 +143,33 @@ class SinkSubscriptionTest {
     }
 
     private fun tree(json: String) = WowJson.mapper.readTree(json)
+
+    /**
+     * D485 ④: a record the transport sink publishes on the state topic, to other contexts, leaves out the client's
+     * address and `User-Agent`, personal data the log of the service the request reached keeps; the application and the
+     * host's request facts go on. A store's sink, the service's own, keeps the log's headers.
+     */
+    @Test
+    fun `a published record should leave out the client's address and User-Agent, and a store's keep them`(): Unit =
+        runBlocking {
+            val facts = mapOf(
+                RequestFacts.APP_ID to "console",
+                RequestFacts.REMOTE_IP to "203.0.113.7",
+                RequestFacts.USER_AGENT to "curl/8.9",
+                "X-Region" to "eu",
+            )
+            val stream = commit(SetPrice(BigDecimal("2.50")), headers = facts)
+            stream.headers.assert().containsAllEntriesOf(facts)
+            handle(sink(everyCommit = true, published = true), stream)
+            written.single().headers.let { headers ->
+                headers.keys.assert().doesNotContain(RequestFacts.REMOTE_IP, RequestFacts.USER_AGENT)
+                headers.assert().isEqualTo(stream.headers - RequestFacts.REMOTE_IP - RequestFacts.USER_AGENT)
+                    .containsEntry(RequestFacts.APP_ID, "console").containsEntry("X-Region", "eu")
+            }
+            written.clear()
+            handle(sink(), stream)
+            written.single().headers.assert().isEqualTo(stream.headers)
+        }
 
     @Test
     fun `a commit should be written with its facts, current events and the state after it`(): Unit = runBlocking {
@@ -275,6 +315,49 @@ class SinkSubscriptionTest {
     }
 
     @Test
+    fun `a sink of every commit should write a stream of only retired events as a record that holds none`(): Unit =
+        runBlocking {
+            val discounted = EventRecord(DISCOUNTED, 1, """{"percent":10}""")
+            val priced = EventRecord("shop.order.Priced", 2, """{"amount":1.20,"currency":"EUR"}""")
+            listOf(listOf(discounted, priced), listOf(discounted)).forEachIndexed { index, events ->
+                val version = index + 1
+                val stream = EventStreamRecord(
+                    ref = ref,
+                    version = version,
+                    commandId = "c-$version",
+                    requestId = "r-$version",
+                    commandType = "shop.order.SetPrice",
+                    commitTime = version.toLong(),
+                    events = events,
+                    scope = Scope.NONE,
+                )
+                log.append(stream).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            }
+            val sink = sink(everyCommit = true)
+            log.read(ref).collect { handle(sink, it) }
+            // The transport sink's: version 2 is published too, so the aggregate's versions on its topic are contiguous.
+            written.map { it.version }.assert().containsExactly(1, 2)
+            written[1].events.assert().isEmpty()
+            written[1].state!!.version.assert().isEqualTo(2)
+        }
+
+    @Test
+    fun `a sink of every commit should take a stream that only changes schedules, which a store's sink passes over`() {
+        val scheduled = EventStreamRecord(
+            ref = ref,
+            version = 2,
+            commandId = "c-2",
+            requestId = "r-2",
+            commandType = "wow.schedule.SetSchedule",
+            commitTime = 2L,
+            events = Schedules.EVENTS.keys.take(1).map { EventRecord(it, 1, "{}") },
+            scope = Scope.NONE,
+        )
+        sink(everyCommit = true).subscription.takes(scheduled).assert().isTrue()
+        sink().subscription.takes(scheduled).assert().isFalse()
+    }
+
+    @Test
     fun `a stored TagsApplied of the tags Wow no longer has should be left out as a retired event`(): Unit =
         runBlocking {
             val tagsApplied = EventRecord("wow.lifecycle.TagsApplied", 1, """{"tags":{"region":["eu"]}}""")
@@ -313,7 +396,7 @@ class SinkSubscriptionTest {
     @Test
     fun `the wait context and the trace should go with the record, the reservations stay`(): Unit = runBlocking {
         val sink = sink()
-        val wait = WaitContext("w", Origin("n-1", "n-1:9090", "shop"), listOf(Hop.handled("OrderView.onEvent")), 9L)
+        val wait = WaitContext("w", Origin("shop", "n-1", "n-1:9090"), listOf(Hop.handled("OrderView.onEvent")), 9L)
         val reservations = listOf(ReservationKey("email", "a@b"))
         handle(sink, commit(SetPrice(BigDecimal.ONE)), Transport(wait, reservations, mapOf("traceparent" to "t")))
         handle(sink, commit(SetPrice(BigDecimal.TEN)), Transport(reservations = reservations))
@@ -324,7 +407,7 @@ class SinkSubscriptionTest {
     @Test
     fun `an observed sink should write the trace of its own handling instead of the entry's`(): Unit = runBlocking {
         val sink = sink()
-        val wait = WaitContext("w", Origin("n-1", "n-1:9090", "shop"), listOf(Hop.handled("OrderView.onEvent")), 9L)
+        val wait = WaitContext("w", Origin("shop", "n-1", "n-1:9090"), listOf(Hop.handled("OrderView.onEvent")), 9L)
         withContext(TestTrace("sink")) {
             handle(sink, commit(SetPrice(BigDecimal.ONE)), Transport(wait, trace = mapOf("traceparent" to "t")))
             handle(sink, commit(SetPrice(BigDecimal.TEN)))

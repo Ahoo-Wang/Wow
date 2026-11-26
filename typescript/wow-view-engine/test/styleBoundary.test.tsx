@@ -29,7 +29,7 @@ import { CHART_COLOR_SLOTS } from '../src/model/chart.js';
 import { Dialog, DialogTitle } from '../src/ui/components/dialog.js';
 import { DialogContent } from '../src/ui/kit/popups.js';
 import {
-  BUILT_IN_PRESETS,
+  BUILTIN_PRESETS,
   ViewSurface,
   type ViewSurfaceProps,
 } from '../src/ui/index.js';
@@ -618,7 +618,7 @@ describe('a preset reaches the surface and its popups', () => {
       });
     });
     expect(selectors).toEqual(
-      BUILT_IN_PRESETS.map(name => `:where([data-fve-preset='${name}'])`),
+      BUILTIN_PRESETS.map(name => `:where([data-fve-preset='${name}'])`),
     );
     // No at-rule: the brand's derivation is the stylesheet's, and its one
     // feature query sits there (theme-architecture.md 2.6).

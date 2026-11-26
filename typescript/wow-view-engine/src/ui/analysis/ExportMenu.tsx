@@ -26,7 +26,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../components/dropdown-menu.js';
-import { ExportDialog, type ExportWindowProps } from '../kit/ExportDialog.js';
+import { ExportDialog, type ExportWindowOptions } from '../kit/ExportDialog.js';
 import {
   DialogMenuItem,
   HandOffMenu,
@@ -111,7 +111,7 @@ export function ExportMenu({
   image,
   detached,
 }: {
-  data: ExportWindowProps | null;
+  data: ExportWindowOptions | null;
   image: ChartImageOffer;
   detached: DetachedDialog;
 }) {

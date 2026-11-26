@@ -96,7 +96,7 @@ function Band({
         <EmbeddedDashboard
           engine={engine}
           instanceId={GALLERY_BOARD}
-          initialFilters={GALLERY_FILTERS}
+          defaultFilters={GALLERY_FILTERS}
           withTitle
           headingLevel={3}
           {...pinned}

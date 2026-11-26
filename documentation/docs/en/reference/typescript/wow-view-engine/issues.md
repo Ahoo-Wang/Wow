@@ -526,7 +526,6 @@ The list holds the codes `issue('…')` raises directly and those raised through
 | `runtime.query.failed.empty-body` | The service received an empty query: {reason} |
 | `runtime.query.failed.event-projection-type-required` | An event's payload cannot be shown without its type; keep the event type column. |
 | `runtime.query.failed.expensive-operator-disabled` | The service does not allow this costly query here: {reason} |
-| `runtime.query.failed.explicit-entry-required` | The query named no entry to run against: {reason} |
 | `runtime.query.failed.filter-too-large` | The conditions are more than the service accepts in one query: {reason} |
 | `runtime.query.failed.first-last-requires-order-by` | “First value” and “Last value” of {field} need a field to order by here: this data has no event time in that place. |
 | `runtime.query.failed.first-last-requires-single-value` | “First value” and “Last value” need a field that holds a single value; {field} may hold several. |

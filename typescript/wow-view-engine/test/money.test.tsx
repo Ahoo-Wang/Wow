@@ -29,7 +29,7 @@ import {
 import {
   MemoryViewStore,
   ViewEngine,
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   compileAnalysis,
   compileRecord,
   projectAnalysis,
@@ -154,7 +154,7 @@ describe('the descriptor’s numeric semantics (#3552)', () => {
     return narrowDefinition(
       definition,
       descriptor,
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     ).definition.fields.find(one => one.name === 'amount');
   };
 
@@ -285,7 +285,7 @@ describe('the descriptor’s numeric semantics (#3552)', () => {
     const { findings } = narrowDefinition(
       definition,
       descriptor,
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(
       findings.find(
@@ -311,12 +311,12 @@ describe('the descriptor’s numeric semantics (#3552)', () => {
       ],
     });
     expect(
-      validateDefinition(definition, builtinFieldKinds).map(
+      validateDefinition(definition, builtinFieldKindRegistry).map(
         found => found.code,
       ),
     ).toContain('definition.field.numeric-invalid');
     expect(
-      validateDefinition(moneyDefinition(), builtinFieldKinds).filter(
+      validateDefinition(moneyDefinition(), builtinFieldKindRegistry).filter(
         found => found.severity === 'error',
       ),
     ).toEqual([]);
@@ -378,20 +378,18 @@ describe('record views of row-currency money', () => {
       table: { columns: [{ field: 'id' }, { field: 'amount' }] },
     });
     expect(recordProjection(definition, config).include).toContain('currency');
-    const query = compileRecord(
-      definition,
-      config,
-      builtinFieldKinds,
-      CONTEXT,
-      { index: 1 },
-    );
+    const query = compileRecord(definition, config, {
+      kinds: builtinFieldKindRegistry,
+      context: CONTEXT,
+      page: { index: 1 },
+    });
     expect(JSON.stringify(query)).toContain('currency');
   });
 
   it('total a page in its one currency, and refuse a total across several', () => {
     const definition = moneyDefinition();
     const config = recordConfig({
-      summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+      summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
     });
     const one = projectSummaries(definition, config, {
       scope: 'page',
@@ -417,12 +415,12 @@ describe('record views of row-currency money', () => {
   it('ask the whole range which currencies it holds', () => {
     const definition = moneyDefinition();
     const config = recordConfig({
-      summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+      summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
     });
     const query = compileSummaries(
       definition,
       config,
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
       CONTEXT,
     );
     expect(query?.metrics.map(metric => metric.alias)).toEqual([
@@ -487,12 +485,10 @@ describe('record views of row-currency money', () => {
 
 describe('analyses of row-currency money', () => {
   it('ask each money metric which currencies its records hold', () => {
-    const query = compileAnalysis(
-      moneyDefinition(),
-      sumConfig(),
-      builtinFieldKinds,
-      CONTEXT,
-    );
+    const query = compileAnalysis(moneyDefinition(), sumConfig(), {
+      kinds: builtinFieldKindRegistry,
+      context: CONTEXT,
+    });
     expect(query.metrics.map(metric => metric.alias)).toEqual([
       'total',
       'total__currencies',
@@ -511,12 +507,10 @@ describe('analyses of row-currency money', () => {
         ),
       },
     });
-    const query = compileAnalysis(
-      definition,
-      sumConfig(),
-      builtinFieldKinds,
-      CONTEXT,
-    );
+    const query = compileAnalysis(definition, sumConfig(), {
+      kinds: builtinFieldKindRegistry,
+      context: CONTEXT,
+    });
     expect(query.metrics.map(metric => metric.alias)).toEqual(['total']);
     expect(
       currencyIssues(definition, sumConfig(), []).map(found => found.code),
@@ -818,7 +812,7 @@ describe('a derived amount over money in each record’s currency', () => {
       ],
     });
     const codes = (definition: DataViewDefinition) =>
-      validateAnalysis(definition, config, builtinFieldKinds).map(
+      validateAnalysis(definition, config, builtinFieldKindRegistry).map(
         found => found.code,
       );
     expect(codes(moneyDefinition())).not.toContain(

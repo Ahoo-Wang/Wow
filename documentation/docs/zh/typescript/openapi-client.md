@@ -100,7 +100,7 @@ pnpm add -D @ahoo-wang/wow-generator typescript@6.0.3
 ## 3. 生成并编译 {#_3-generate-and-compile}
 
 ```bash
-pnpm exec wow-generator generate -i ./openapi.json -o ./src/generated -t ./tsconfig.json
+pnpm exec wow-generator generate -i ./openapi.json -o ./src/generated
 pnpm exec tsc --noEmit -p ./tsconfig.json
 ```
 

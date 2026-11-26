@@ -13,15 +13,21 @@
 
 package me.ahoo.wow.mongo.ledger
 
+import com.mongodb.client.model.Filters
+import com.mongodb.client.model.Updates
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.ledger.Recoverable
 import me.ahoo.wow.mongo.log.MongoLogFixture
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
+import me.ahoo.wow.spi.ledger.ParkedAmendment
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.tck.ledger.FailureLedgerSpec
+import org.bson.Document
 import org.junit.jupiter.api.Test
 
 class MongoFailureLedgerTest : FailureLedgerSpec() {
@@ -42,6 +48,16 @@ class MongoFailureLedgerTest : FailureLedgerSpec() {
         // Finding A2-13: the old layout was accepted silently.
         MongoLogFixture.createUnrecorded("ledger_unrecorded")
         assertThrownBy<IllegalStateException> { ledger("ledger_unrecorded") }
+        // Under validate too, as a collection Wow did not record, not as one that does not exist.
+        MongoLogFixture.createUnrecorded("ledger_unrecorded_validated")
+        assertThrownBy<IllegalStateException> {
+            MongoFailureLedger(
+                MongoLogFixture.client,
+                MongoLogFixture.DATABASE,
+                "ledger_unrecorded_validated",
+                ddl = Ddl.VALIDATE,
+            ).createSchema()
+        }.message().contains("exists without a format record")
         ledger("ledger_bumped")
         MongoLogFixture.bumpFormat("ledger_bumped")
         assertThrownBy<IllegalStateException> { ledger("ledger_bumped") }
@@ -72,6 +88,50 @@ class MongoFailureLedgerTest : FailureLedgerSpec() {
         assertThrownBy<IllegalStateException> { ledger("ledger_other_format") }
             .message().contains("format 2", "format 1")
     }
+
+    @Test
+    fun `the start of the last retry is stored as last_retry_at`(): Unit = runBlocking {
+        val ledger = ledger("ledger_last_retry_at")
+        val subscription = SubscriptionId("ledger", "last-retry-" + System.nanoTime())
+        val ref = AggregateType("ledger", "order").ref("tenant", "a")
+        ledger.park(ParkedAggregate(subscription, ref, 0, 1, "failed", 7)).assert().isTrue()
+        ledger.amend(subscription, ref, ParkedAmendment.ClaimRetry(0, 42))!!.lastRetryAt.assert().isEqualTo(42L)
+        val stored = MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE)
+            .getCollection("ledger_last_retry_at")
+            .find(Document("subscription", subscription.name))
+            .first()!!
+        stored.getLong("last_retry_at").assert().isEqualTo(42L)
+        stored.containsKey("retry_at").assert().isFalse()
+    }
+
+    @Test
+    fun `a later version's mark and request should survive a generic amendment, warned of once each`(): Unit =
+        runBlocking {
+            val collection = "ledger_later_values"
+            val ledger = ledger(collection)
+            val subscription = SubscriptionId("ledger", "later-" + System.nanoTime())
+            val ref = AggregateType("ledger", "order").ref("t", "later")
+            ledger.park(ParkedAggregate(subscription, ref, 0, 3, "boom", 7)).assert().isTrue()
+            val stored = MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection(collection)
+            stored.updateMany(
+                Filters.eq("subscription", subscription.name),
+                Updates.combine(Updates.set("recoverable", "later-mark"), Updates.set("request", "later-request")),
+            ).modifiedCount.assert().isEqualTo(1)
+
+            val read = ledger.parked(subscription, ref)!!
+            read.recoverable.assert().isEqualTo(Recoverable.UNKNOWN)
+            read.request.assert().isNull()
+            ledger.list(subscription).single().request.assert().isNull()
+            MongoFailureLedger.unknown.seen.assert().contains("recoverable=later-mark", "request=later-request")
+            // Each warned of once: a later read finds it warned already.
+            MongoFailureLedger.unknown.warn("request", "later-request").assert().isFalse()
+
+            // The generic path writes the entry back whole, under the revision read: both values are kept.
+            ledger.amend(subscription, ref, ParkedAmendment.ApplyRetrySpec(null)).assert().isNotNull()
+            val document = stored.find(Filters.eq("subscription", subscription.name)).single()
+            document.getString("recoverable").assert().isEqualTo("later-mark")
+            document.getString("request").assert().isEqualTo("later-request")
+        }
 
     /** "￿" sorts before "😀" (U+1F600) by code point but after it by UTF-16 unit, as Java orders strings. */
     @Test

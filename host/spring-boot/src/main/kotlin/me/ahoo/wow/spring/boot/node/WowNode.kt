@@ -107,6 +107,9 @@ data class NodeIdentity(
                     local.hostAddress
                 }
             val port = properties.internal.port
+            configCheck(port in 0..MAX_PORT, "wow.internal.port", port, "Set a port from 1 to $MAX_PORT, or 0.") {
+                "wow.internal.port is $port, no port the internal server can bind."
+            }
             val address = configured ?: NodeAddress.of(host, port).takeIf { port != 0 }
             val bindHost = named ?: configured?.let(NodeAddress::hostOf) ?: host
             return NodeIdentity(service, node, address, host, bindHost, serviceKey)
@@ -170,15 +173,22 @@ data class NodeIdentity(
             }
         }
 
-        /** Refuses a `wow.node.address` the internal port's clients cannot reach: a bare IPv6 literal. */
+        /**
+         * Refuses a `wow.node.address` the internal port's clients cannot reach ([NodeAddress.isValid]): a bare IPv6
+         * literal, a host without its port, or a port outside 1 to 65535.
+         */
         private fun checkAddress(address: String) {
             configCheck(
                 NodeAddress.isValid(address),
                 "wow.node.address",
                 address,
-                "Write an IPv6 host in brackets, such as [::1]:9191, as RFC 3986 does.",
+                "Write host:port, the port the internal port listens on (1 to 65535), and an IPv6 host in brackets, " +
+                    "such as [::1]:9191, as RFC 3986 does.",
             ) { "wow.node.address [$address] is no host and port the other nodes can reach." }
         }
+
+        /** The highest TCP port. */
+        private const val MAX_PORT = 65_535
 
         private const val BYTE = 0xFF
         private const val SHARED_FIRST = 100

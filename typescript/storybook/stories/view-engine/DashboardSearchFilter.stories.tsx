@@ -57,7 +57,7 @@ function viewPanel(
   title: string,
   instanceId: string,
   layout: DashboardPanel['layout'],
-  bindings: { globalField: string; panelField: string }[] = [],
+  bindings: { dashboardField: string; panelField: string }[] = [],
 ): DashboardPanel {
   return { id, kind: 'view', title, instanceId, bindings, layout };
 }
@@ -68,7 +68,7 @@ function viewPanel(
  * wired to both lists, as an author saved it.
  */
 function searchBoard(search: boolean): DashboardViewConfig {
-  const wired = search ? [{ globalField: 'find', panelField: 'q' }] : [];
+  const wired = search ? [{ dashboardField: 'find', panelField: 'q' }] : [];
   return dashboardConfig({
     fields: search ? [{ name: 'find', label: '搜索订单', kind: 'search' }] : [],
     panels: [

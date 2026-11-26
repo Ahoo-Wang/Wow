@@ -92,7 +92,7 @@ describe('the summary row', () => {
   const withSummary: ViewInstance = {
     ...mine,
     config: recordConfig({
-      summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+      summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
     }),
   };
 
@@ -137,8 +137,8 @@ describe('the summary row', () => {
       ...mine,
       config: recordConfig({
         summaries: [
-          { field: 'amount', fn: AggregationFunction.SUM },
-          { field: 'amount', fn: AggregationFunction.AVG },
+          { field: 'amount', function: AggregationFunction.SUM },
+          { field: 'amount', function: AggregationFunction.AVG },
         ],
       }),
     };
@@ -219,7 +219,7 @@ describe('the summary rows', () => {
   ): RecordTableController =>
     twoColumnTable({
       summaries: {
-        scope: 'total',
+        over: 'total',
         cells: [
           {
             field: 'amount',
@@ -266,7 +266,7 @@ describe('the summary rows', () => {
       <RecordTable
         table={summaries({
           summaries: {
-            scope: 'total',
+            over: 'total',
             cells: [
               {
                 field: 'amount',
@@ -314,7 +314,7 @@ describe('the summary rows', () => {
             rows: [{ key: 'o-1', data: { createdAt: INSTANT } }],
             paging: MANY_PAGES,
             summaries: {
-              scope: 'total',
+              over: 'total',
               cells: [
                 {
                   field: 'createdAt',
@@ -364,7 +364,7 @@ describe('the summary rows', () => {
       <RecordTable
         table={summaries({
           summaries: {
-            scope: 'total',
+            over: 'total',
             cells: [
               {
                 field: 'warehouse',
@@ -436,7 +436,7 @@ describe('the summary rows on a single page', () => {
   ): RecordTableController =>
     twoColumnTable({
       summaries: {
-        scope: 'total',
+        over: 'total',
         cells: [
           {
             field: 'amount',
@@ -494,7 +494,7 @@ describe('the summary rows on a single page', () => {
       <RecordTable
         table={summed({
           summaries: {
-            scope: 'page',
+            over: 'page',
             cells: [
               {
                 field: 'amount',
@@ -517,7 +517,7 @@ describe('the summary rows on a single page', () => {
     const summarised: ViewInstance = {
       ...pending,
       config: recordConfig({
-        summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+        summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
       }),
     };
     const store = new MemoryViewStore({ instances: [summarised] });
@@ -573,7 +573,7 @@ describe('the summary rows on a single page', () => {
  */
 describe('the summary band without a summarised column', () => {
   const offColumn: SummaryRow = {
-    scope: 'total',
+    over: 'total',
     cells: [
       {
         field: 'customer',
@@ -632,7 +632,7 @@ describe('the summary band without a summarised column', () => {
   const hidden = (base: ViewInstance): ViewInstance => ({
     ...base,
     config: recordConfig({
-      summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+      summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
       table: { columns: [{ field: 'id' }] },
     }),
   });

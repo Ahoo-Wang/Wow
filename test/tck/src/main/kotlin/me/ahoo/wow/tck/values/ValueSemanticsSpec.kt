@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.tck.values
 
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.Test
@@ -44,6 +45,7 @@ import java.util.regex.Pattern
  * (its `build/classes`), so each module checks its own. Fields of the type `kotlin.Lazy` (a `by lazy` cache), static,
  * synthetic and transient fields are not values and are left out.
  */
+@WowSpi
 abstract class ValueSemanticsSpec {
     /** The packages, with their subpackages, whose classes compiled in this module are checked. */
     protected abstract val packages: List<String>

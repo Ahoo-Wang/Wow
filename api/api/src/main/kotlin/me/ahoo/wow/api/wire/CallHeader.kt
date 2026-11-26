@@ -44,14 +44,18 @@ object CallHeader {
 }
 
 /**
- * The root command of a call on the wire ([CallHeader]): the call's [commandId], the root command's [tenantId],
- * [ownerId] and [spaceId], its [causation] and [operator], the [wait] context a wait that follows the calling saga goes
- * on with, [facts], the root request's facts that propagate (such as `{"app_id":"console"}`), and the [actingTenant]
- * the calling saga's execution acts for, which the target decides its type's tenant from (an addition within format
- * 1; none from an older writer, [tenantId] then counting as named).
+ * The root command of a call on the wire ([CallHeader]): its [format], the call's [commandId], the root command's
+ * [tenantId], [ownerId] and [spaceId], its [causation] and [operator], the [wait] context a wait that follows the
+ * calling saga goes on with, [facts], the root request's facts that propagate (such as `{"app_id":"console"}`), and the
+ * [actingTenant] the calling saga's execution acts for, which the target decides its type's tenant from (an addition
+ * within format 1; none from an older writer, [tenantId] then counting as named).
+ *
+ * Its reader compares the [format] and refuses a call of another, which a target answers as a malformed request: the
+ * call did not run there.
  */
 @InternalWowApi
 data class CallWire(
+    val format: Int = FORMAT,
     val commandId: String,
     val tenantId: String,
     val ownerId: String? = null,
@@ -61,7 +65,13 @@ data class CallWire(
     val wait: WaitWire? = null,
     val facts: Map<String, String> = emptyMap(),
     val actingTenant: String? = null,
-)
+) {
+    @InternalWowApi
+    companion object {
+        /** The format of this structure. */
+        const val FORMAT: Int = 1
+    }
+}
 
 /**
  * A wait context on the wire, in `Wow-Call` and the cluster channel's messages: the wait's [waitId]

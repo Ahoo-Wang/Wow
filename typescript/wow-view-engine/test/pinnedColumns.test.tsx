@@ -906,7 +906,7 @@ function controller(
     // A count under the first column: a band is drawn only under a column
     // that carries a summary (review P1-3).
     summaries: {
-      scope: 'page',
+      over: 'page',
       cells: [
         {
           field: columns[0].field,

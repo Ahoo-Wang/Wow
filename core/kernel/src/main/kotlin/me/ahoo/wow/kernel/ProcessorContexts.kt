@@ -82,7 +82,7 @@ class ExecutionContext @InternalWowApi constructor(
 class ExecutionSagaContext @InternalWowApi constructor(
     override val executionId: ExecutionId,
     private val event: StateEvent<*>,
-    override val ids: Ids,
+    ids: Ids,
     private val commandTypes: CommandTypes,
     private val codec: EventCodec = EventCodec(),
     private val calls: CommandCalls = CommandCalls.NONE,
@@ -105,6 +105,11 @@ class ExecutionSagaContext @InternalWowApi constructor(
         }
     }
 
+    /** The ids this handling draws, which no command it sends may name its target by ([SagaDerivation]). */
+    private val drawn = DrawnIds(ids)
+
+    override val ids: Ids get() = drawn
+
     /**
      * The commands are the commit's: its scope, the request facts that propagate ([RequestFacts.PROPAGATED]), its
      * operator, and a causation linking them to the commit (`ref@version`) and to the root command of the chain.
@@ -119,6 +124,7 @@ class ExecutionSagaContext @InternalWowApi constructor(
         Causation(event.correlationId, event.id),
         event.operator,
         sends,
+        drawn,
     ) { ref, type, key -> derivedIdOf(executionId, ref, type, key) }
 
     override val queries: SubscriptionQueries get() = contextQueries.of(executionId.ref.tenantId)
@@ -142,8 +148,8 @@ class ExecutionSagaContext @InternalWowApi constructor(
 
     companion object {
         /**
-         * The id, and request id, of the command to [ref] of [commandType] derived by [execution]: a name-based UUID of
-         * the execution, the target (its id, [AggregateRef.UNASSIGNED] for a creation that leaves it to admission), the
+         * The id, and request id, of the command to [target] of [commandType] derived by [execution]: a name-based UUID
+         * of the execution, the target (its id, [AggregateRef.UNASSIGNED] for a creation that leaves it to admission), the
          * command type and what tells it from the execution's others ([DerivedRequests]), stable across every execution
          * of the same commit by the same subscription, whatever else the handler derives:
          * - [requestId], the business key the request gives ([CommandRequest.requestId]), or `null` for the only
@@ -156,13 +162,13 @@ class ExecutionSagaContext @InternalWowApi constructor(
         @JvmOverloads
         fun derivedId(
             execution: ExecutionId,
-            ref: AggregateRef,
+            target: AggregateRef,
             commandType: Class<*>,
             requestId: String? = null,
             eventIndex: Int? = null,
         ): String {
             require(eventIndex == null || eventIndex >= 0) { "An event's index is never negative." }
-            return derivedIdOf(execution, ref, commandType, DerivedRequests.discriminatorOf(requestId, eventIndex))
+            return derivedIdOf(execution, target, commandType, DerivedRequests.discriminatorOf(requestId, eventIndex))
         }
 
         /**
@@ -218,6 +224,12 @@ class ExecutionSagaContext @InternalWowApi constructor(
  * handler's declarations ([SagaSends]), each command it returns, schedules or calls is one of them, or the handling
  * fails ([UndeclaredSendException]); a context built outside a handler's binding, as a domain module's test builds
  * one, has none.
+ *
+ * No command it derives, schedules, cancels or calls names its target by an id the handling drew from its context's
+ * `ids` ([drawn]): handling the same thing again draws other ids, so such a command would be another request to
+ * another aggregate every time, which no redelivery leaves safe. One that does fails the handling unrecoverable
+ * ([Misuse.Argument]), naming the two ways that are safe. An id drawn into a command's body is not checked:
+ * its request id is the same, and its target answers it with the first commit.
  */
 internal class SagaDerivation(
     private val executionId: ExecutionId,
@@ -229,6 +241,7 @@ internal class SagaDerivation(
     private val causation: Causation,
     private val operator: Operator?,
     private val sends: SagaSends?,
+    private val drawn: DrawnIds,
     private val idOf: (AggregateRef, Class<*>, String) -> String,
 ) {
     private val derived = DerivedRequests(executionId.subscription)
@@ -269,7 +282,7 @@ internal class SagaDerivation(
             request.command,
             derived.next(target, request.command.javaClass, request.requestId, event),
             request.expectedVersion,
-            request.targetScope,
+            request.targetScope?.scope,
         )
     }
 
@@ -281,6 +294,7 @@ internal class SagaDerivation(
         expectedVersion: Int? = null,
         targetScope: Scope? = null,
     ): Command<*> {
+        requireUse(!ref.isAssigned || !drawn.drew(ref.id)) { drawnTarget(ref, body) }
         val id = idOf(ref, body.javaClass, discriminator)
         return Command(
             id = id,
@@ -314,9 +328,17 @@ internal class SagaDerivation(
             target,
             body,
             derived.nextScheduled(target, body.javaClass, key, request.requestId),
-            targetScope = request.targetScope,
+            targetScope = request.targetScope?.scope,
         )
     }
+
+    private fun drawnTarget(ref: AggregateRef, body: Any): String =
+        "${executionId.subscription} sends ${body.javaClass.name} to $ref, an aggregate whose id it drew from " +
+            "SagaContext.ids in this handling: handling the commit again draws another id, so the command would be " +
+            "another request to another aggregate each time. Name the target by an id computed from what is handled " +
+            "(the source aggregate's id, a business key of the event), or derive the creation without an id and send " +
+            "the commands that follow it from the @OnCommitted handler of its receipt, which names the aggregate it " +
+            "created."
 
     fun cancel(key: String, target: AggregateRef) {
         val body = CancelSchedule(key)

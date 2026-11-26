@@ -123,8 +123,8 @@ function view(
     kind: 'view',
     instanceId,
     bindings: [
-      { globalField: 'region', panelField: 'warehouse' },
-      { globalField: 'created', panelField: 'createdAt' },
+      { dashboardField: 'region', panelField: 'warehouse' },
+      { dashboardField: 'created', panelField: 'createdAt' },
     ],
     layout: { x, y: 0, w: 8, h: 4 },
     ...extra,

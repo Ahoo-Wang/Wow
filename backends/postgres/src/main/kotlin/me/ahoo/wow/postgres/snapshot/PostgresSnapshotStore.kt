@@ -21,10 +21,10 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.postgres.PostgresBatches
 import me.ahoo.wow.postgres.PostgresFailures
 import me.ahoo.wow.postgres.PostgresFormat
-import me.ahoo.wow.postgres.PostgresSchema
 import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.inTransaction
 import me.ahoo.wow.postgres.jdbc
@@ -117,9 +117,17 @@ class PostgresSnapshotStore(
     private fun tables(aggregateName: String): PostgresSnapshotTables = created.get(aggregateName) {
         PostgresSnapshotTables(context, aggregateName).also { tables ->
             dataSource.autoCommitted { connection ->
-                PostgresFormat.schema(connection, ddl, listOf(tables.base to PostgresSnapshotTables.FORMAT)) {
-                    PostgresSchema.execute(connection, tables.ddl())
-                }
+                PostgresFormat.schema(
+                    connection,
+                    ddl,
+                    // The registry of the snapshot tables has its format record too, as the log's and the timers' do: a
+                    // registry missing under validate is refused at start, naming it, not at its first read.
+                    listOf(
+                        tables.base to PostgresSnapshotTables.FORMAT,
+                        PostgresSnapshotTables.TABLES to PostgresSnapshotTables.FORMAT,
+                    ),
+                    tables.ddl()
+                )
             }
         }
     }
@@ -413,7 +421,7 @@ class PostgresSnapshotStore(
                 claim.setString(1, tables.base)
                 claim.setInt(2, revision)
                 claim.setBoolean(3, revision != 1)
-                claim.setString(4, fill.name)
+                claim.setString(4, WireNames.of(fill))
                 claim.setBoolean(5, lower)
                 claim.executeQuery().use { rows -> if (rows.next()) tableOf(rows) else null }
             } ?: checkNotNull(recorded(connection, tables))
@@ -449,7 +457,11 @@ class PostgresSnapshotStore(
         revision = row.getInt("revision"),
         rebuilding = row.getBoolean("rebuilding"),
         backfilled = row.getBoolean("backfilled"),
-        fill = SnapshotFill.valueOf(row.getString("fill")),
+        fill = checkNotNull(WireNames.entryOf<SnapshotFill>(row.getString("fill"))) {
+            // By its wire name; no case is added within 10.x (SnapshotFill), so one this version does not know is
+            // refused, naming it.
+            "A snapshot table's fill ${row.getString("fill")} is not one this version of Wow reads."
+        },
     )
 
     // Interruptible: the kernel gives up on a load past its timeout, and the read ends with it.

@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.openapi
 
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.manifest.AccessAttributeManifest
 import me.ahoo.wow.manifest.ManifestSchema
@@ -297,7 +297,12 @@ internal object WowSchemas {
         mapOf(
             "type" to schemaRef(AGGREGATE_TYPE),
             "tenantId" to STRING,
-            "id" to STRING,
+            "id" to type(
+                "string",
+                nullable = true,
+                description = "The aggregate's id; null in the result of a creation refused before admission " +
+                    "chose its id.",
+            ),
         ),
         listOf("type", "tenantId", "id"),
     )
@@ -333,7 +338,7 @@ internal object WowSchemas {
             "code" to STRING,
             "retry" to obj(
                 "type" to "string",
-                "enum" to WireNames.namesOf<Retry>(),
+                "enum" to WireNames.namesOf<RetryAdvice>(),
                 "description" to "What a retry may do, as the error catalog declares it for the code; with " +
                     "`Retry-After` when a retry may get past the problem.",
             ),
@@ -348,7 +353,8 @@ internal object WowSchemas {
         ),
         listOf("type", "title", "status", "retry"),
         "An RFC 9457 problem; `result` is the command's when it has one, and the rejection's " +
-            "extensions are members of their own names.",
+            "extensions are members of their own names, except one named like a member here, `instance`, " +
+            "`requestId`, `traceId` or `errors`.",
     )
 
     private fun commitView(): Map<String, Any?> = objectSchema(

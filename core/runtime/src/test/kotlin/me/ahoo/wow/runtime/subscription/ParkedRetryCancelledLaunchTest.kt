@@ -58,7 +58,7 @@ class ParkedRetryCancelledLaunchTest {
 
     private fun worker(semaphore: Semaphore = permits) = mockk<SubscriptionWorker> {
         every { retryPermits } returns semaphore
-        coEvery { retry(ref) } coAnswers {
+        coEvery { retry(ref, any()) } coAnswers {
             calls.incrementAndGet()
             true
         }

@@ -57,7 +57,7 @@ fun onCommand(command: ConfirmOrderStock, paymentPolicy: PaymentPolicy, scope: D
 }
 ```
 
-- `scope.schedule(key, rule, command, target)` 把 `command` 发往 `target`，除非给出另一个 ref，否则就是这个聚合。定时与决定的事件一起提交，表现为系统事件 `wow.schedule.ScheduleSet`；只定时的决定就只提交这一个事件。表达式或时区读不出来、或者永远不会到来的 cron 规则（`0 0 0 30 2 *`）会让命令失败（`wow.command.failed`），什么都不提交：来自输入的规则由领域在定时之前检查，以便用它自己的错误码拒绝。
+- `scope.schedule(key, rule, command, target)` 把 `command` 发往 `target`，除非给出另一个 ref，否则就是这个聚合。定时与决定的事件一起提交，表现为系统事件 `wow.schedule.ScheduleSet`；只定时的决定就只提交这一个事件。这个事件在命令发出之前保存着它，在读取（轨迹、事件查询）或发布这个事件的地方，命令都按它的命令类型的请求体脱敏（[脱敏止步之处](./queries#where-masking-stops)）。表达式或时区读不出来、或者永远不会到来的 cron 规则（`0 0 0 30 2 *`）会让命令失败（`wow.command.failed`），什么都不提交：来自输入的规则由领域在定时之前检查，以便用它自己的错误码拒绝。
 - `scope.cancelSchedule(key)` 取消它；聚合没有这个键的调度时，它什么也不改变，与 `wow.schedule.CancelSchedule` 一致。订单在支付后取消 `payment-grace-period`。已经发出的命令不会被撤回：由它的目标的状态来把关。
 - 函数要在 `@OnCommand(schedules = [...])` 里声明被定时命令的类。编译器读不到函数体里的调用，而 Manifest 按完整类型名列出它们。这个声明只是 Manifest 的内容；内核不会拒绝它没有列出的定时。
 
@@ -68,7 +68,7 @@ Saga 在它的任何处理函数中把定时记录到 `SagaContext`：`context.s
 ## 定时命令怎样投递 {#how-a-scheduled-command-is-delivered}
 
 - 它**至少发送一次，从不提前**，可能稍有延迟：在交接或积压之后，以及在定时器的轮询间隔 `wow.timers.poll-interval`（默认 1 秒）之内。
-- 它**只被决定一次**。它的请求 ID 是定时器和时间槽（`timer#slot`），所以再发一次就是目标能认出的重复请求。目标从 `command.schedule` 读取它是为哪个时间槽发送的。
+- 它**只被决定一次**。它的请求 ID 是定时器和时间槽（`wow:timer#slot`），所以再发一次就是目标能认出的重复请求。调用方的请求 ID 都不能以 `wow:` 开头，所以没有人能抢先以定时器的请求 ID 提交。目标从 `command.schedule` 读取它是为哪个时间槽发送的。
 - 目标**按它那时的状态决定它**。拒绝是正常的守卫，不是失败：订单支付之后才到达的取消会被拒绝，定时器就此结束，这个拒绝不交给任何 `@OnRejected` 处理函数。
 - 发送它时出现的**技术故障**会重试 `wow.timers.max-attempts` 次（默认 10 次），然后在 `wow.timers.sends` 下停放，由运维人员重试或跳过（[停放的聚合](./failures#parked-aggregates)）。目标繁忙时一秒后再试，不计入尝试次数（[命令怎样重试](./failures#how-a-command-is-retried)）。
 - 它带着定时它的那次提交的作用域，并以那次提交作为它的因果。

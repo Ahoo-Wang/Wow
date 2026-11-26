@@ -51,9 +51,11 @@ import kotlin.time.Duration.Companion.minutes
  * - **DDL**: before its first write, and again once [recheckEvery] has passed since, the Sink creates
  *   or validates its tables as [ddl] says; a failure fails the write, which the subscription retries. The check
  *   repeated finds what changed since: a table dropped or altered fails the writes until it is as the Sink expects.
- *   A table or view is the Sink's when it has the columns the Sink expects and its comment says the Sink's format
- *   ([ClickHouseSinkSchema.FORMAT_COMMENT]); `auto` creates what is missing with it, and leaves an existing table as
- *   it is, so one of another format is refused as one of other columns is.
+ *   A table or view is the Sink's when it has at least the columns the Sink expects, each of its type, and its
+ *   comment says the Sink's format ([ClickHouseSinkSchema.FORMAT_COMMENT]); other columns, an operator's own or a later
+ *   version's within the format, are no reason. `auto` creates what is missing with it, adds to an existing table only
+ *   the columns Wow added within the format ([ClickHouseColumn.added]) and the computed ones, and leaves it otherwise
+ *   as it is, so one of another format, or of another column's type or a column of the format missing, is refused.
  * - **The flat view across versions**: during a rolling upgrade, writers of two state schemas run at
  *   once. The view's comment keeps the fingerprints of the definitions it was created with ([FlatLineage]): a writer
  *   replaces it only when its own definition is newer than every one before it, so an older instance that restarts
@@ -198,8 +200,15 @@ class ClickHouseSink internal constructor(
      * one ([FlatLineage.supersedes]). Returns the flat view's lineage.
      */
     private suspend fun create(): FlatLineage {
+        // A table or view of the Sink's names that is not the Sink's is refused before anything is created: a view's
+        // statement over it would fail ClickHouse's own analysis first, which names neither it nor the remedy.
+        val foreign = schema.expected.filter { it.name != schema.stateFlat }.mapNotNull { foreignProblemOf(it) }
+        if (foreign.isNotEmpty()) {
+            throw refusal(foreign)
+        }
         statements.execute(ClickHouseCatalog.ddl(schema.database))
         schema.ddl.forEach { statements.execute(it) }
+        addStored()
         addComputed()
         val lineage = lineage()
         val fingerprint = schema.flatFingerprint
@@ -207,6 +216,23 @@ class ClickHouseSink internal constructor(
             return lineage
         }
         return lineage.then(fingerprint).also { statements.execute(schema.flatView(it)) }
+    }
+
+    /**
+     * Adds the stored columns Wow added within the format ([ClickHouseColumn.added]) that a table lacks, each with its
+     * default; only to a table that is the Sink's, of its format and no other mismatch ([ClickHouseObject.mismatch]).
+     * Any other is left as it is, and [validate] refuses it.
+     */
+    private suspend fun addStored() {
+        schema.expected.filter { it.columns != null }.forEach { expected ->
+            if (!ClickHouseSinkSchema.hasFormat(statements.comment(schema.database, expected.name))) {
+                return@forEach
+            }
+            val actual = statements.columns(schema.database, expected.name)
+            if (expected.mismatch(actual) == null) {
+                schema.addStoredColumns(expected.name, expected.lacking(actual)).forEach { statements.execute(it) }
+            }
+        }
     }
 
     /**
@@ -237,18 +263,36 @@ class ClickHouseSink internal constructor(
             }
         }
         val problems = schema.expected.mapNotNull { expected -> problemOf(expected, newer) }
-        check(problems.isEmpty()) {
-            "The ClickHouse tables of ${schema.type} in ${schema.database} are not the Sink's: ${problems.joinToString(
-                "; "
-            )}. They hold nothing the log does not: drop them, and resetting the Sink's subscription fills them " +
-                "again from the log."
+        if (problems.isNotEmpty()) {
+            throw refusal(problems)
         }
+    }
+
+    /** The refusal of the tables for [problems], which names the remedy. */
+    private fun refusal(problems: List<String>): IllegalStateException = IllegalStateException(
+        "The ClickHouse tables of ${schema.type} in ${schema.database} are not the Sink's: " +
+            "${problems.joinToString("; ")}. They hold nothing the log does not: drop them, and raise the Sink's " +
+            "generation (wow.clickhouse.sink.generation, or its store's sink.generation), whose new subscriptions " +
+            "fill them again from the log.",
+    )
+
+    /**
+     * Why the table or view [expected], which exists, is of another format or layout ([ClickHouseObject.mismatch]),
+     * or null when it does not exist or is the Sink's, what it lacks of the format being `auto`'s to add.
+     */
+    private suspend fun foreignProblemOf(expected: ClickHouseObject): String? {
+        val comment = statements.comment(schema.database, expected.name) ?: return null
+        if (!ClickHouseSinkSchema.hasFormat(comment)) {
+            return "${expected.name} is not of format ${ClickHouseSinkSchema.FORMAT}"
+        }
+        return expected.columns?.let { expected.mismatch(statements.columns(schema.database, expected.name)) }
     }
 
     /**
      * Why the table or view [expected] is not the Sink's, or null when it is: it does not exist, its comment does not
-     * say the Sink's format, it has other columns ([ClickHouseObject.mismatch]), or it lacks a computed column, which
-     * `auto` adds and `validate` names with the statement that adds it. A materialized view, and a flat view a [newer]
+     * say the Sink's format, its columns are not the Sink's ([ClickHouseObject.mismatch]), or it lacks a stored column
+     * Wow added within the format or a computed column, which `auto` adds and `validate` names with the statement that
+     * adds it. A materialized view, and a flat view a [newer]
      * writer replaced, are checked by their comment alone.
      */
     private suspend fun problemOf(expected: ClickHouseObject, newer: Boolean): String? {
@@ -262,9 +306,14 @@ class ClickHouseSink internal constructor(
         }
         val actual = statements.columns(schema.database, name)
         expected.mismatch(actual)?.let { return it }
-        val missing = expected.missing(actual).takeIf { it.isNotEmpty() } ?: return null
-        return "$name lacks ${missing.joinToString { it.name }}, which a Sink with ddl=auto adds: " +
-            schema.addColumns(missing).joinToString("; ")
+        val lacking = expected.lacking(actual)
+        val missing = expected.missing(actual)
+        if (lacking.isEmpty() && missing.isEmpty()) {
+            return null
+        }
+        val adding = schema.addStoredColumns(name, lacking) + schema.addColumns(missing)
+        return "$name lacks ${(lacking.map { it.name } + missing.map { it.name }).joinToString()}, which a Sink " +
+            "with ddl=auto adds: ${adding.joinToString("; ")}"
     }
 
     override fun toString(): String =

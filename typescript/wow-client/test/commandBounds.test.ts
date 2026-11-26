@@ -85,7 +85,7 @@ describe('a command bounded by its wait and a grace', () => {
         settle(
           new CommandClient({ fetcher }, { manifest: TEST_MANIFEST }).wait({
             command: 'c.a.X',
-            id: '1',
+            aggregateId: '1',
             timeout: WAIT_MS,
           }),
         ),
@@ -108,7 +108,7 @@ describe('a command bounded by its wait and a grace', () => {
         settle(
           new CommandClient({ fetcher }, { manifest: TEST_MANIFEST }).wait({
             command: 'c.a.X',
-            id: '1',
+            aggregateId: '1',
             timeout: WAIT_MS,
           }),
         ),
@@ -133,7 +133,7 @@ describe('a command bounded by its wait and a grace', () => {
           { manifest: TEST_MANIFEST },
         ).stream({
           command: 'c.a.X',
-          id: '1',
+          aggregateId: '1',
           wait: WaitPlan.COMMITTED,
           timeout: WAIT_MS,
         })
@@ -148,7 +148,7 @@ describe('a command bounded by its wait and a grace', () => {
     BOUND_MS + 3_000,
   );
 
-  it('bounds a command by the wait it states and 5 s more, and one that states none by the longest default wait, a minute, and 5 s more', async () => {
+  it('bounds a command by the wait its plan states and 5 s more, and one with no plan by the longest default wait, a minute, and 5 s more', async () => {
     const delays: number[] = [];
     const real = globalThis.setTimeout;
     vi.spyOn(globalThis, 'setTimeout').mockImplementation(((
@@ -173,6 +173,7 @@ describe('a command bounded by its wait and a grace', () => {
       { commands, request: { timeout: 2_000 } },
       { commands, request: { wait: WaitPlan.COMMITTED.within(3_000) } },
       { commands, request: {} },
+      // A plan states its own timeout, 10 seconds, as Kotlin's client does.
       { commands, request: { wait: WaitPlan.COMMITTED } },
       // A client told its service waits longer by default: what states no
       // wait is bounded by that; a stated wait still by itself.
@@ -183,7 +184,7 @@ describe('a command bounded by its wait and a grace', () => {
       const abort = new AbortController();
       const sent = commands.wait({
         command: 'c.a.X',
-        id: '1',
+        aggregateId: '1',
         ...request,
         signal: abort.signal,
       });
@@ -191,7 +192,7 @@ describe('a command bounded by its wait and a grace', () => {
       abort.abort(new Error('done'));
       await sent.catch(() => undefined);
     }
-    expect(bounds()).toEqual([7_000, 8_000, 65_000, 65_000, 125_000, 7_000]);
+    expect(bounds()).toEqual([7_000, 8_000, 65_000, 15_000, 125_000, 7_000]);
   });
 
   /** Answers the command `ms` after it is sent, unless it is aborted first. */
@@ -213,7 +214,9 @@ describe('a command bounded by its wait and a grace', () => {
         { fetcher: testFetcher(), defaultWaitMs: 120_000 },
         { manifest: TEST_MANIFEST },
       );
-      const answered = settle(patient.wait({ command: 'c.a.X', id: '1' }));
+      const answered = settle(
+        patient.wait({ command: 'c.a.X', aggregateId: '1' }),
+      );
       await vi.advanceTimersByTimeAsync(70_000);
       expect(await answered).toBe('resolved');
 
@@ -222,7 +225,7 @@ describe('a command bounded by its wait and a grace', () => {
         { fetcher: testFetcher() },
         { manifest: TEST_MANIFEST },
       );
-      const cut = settle(hasty.wait({ command: 'c.a.X', id: '1' }));
+      const cut = settle(hasty.wait({ command: 'c.a.X', aggregateId: '1' }));
       await vi.advanceTimersByTimeAsync(65_000);
       expectUnknownOutcome(
         await cut,
@@ -243,7 +246,7 @@ describe('an answer lost or unreadable after its head', () => {
     const failure = await settle(
       new CommandClient({ fetcher }, { manifest: TEST_MANIFEST }).wait({
         command: 'c.a.X',
-        id: '1',
+        aggregateId: '1',
       }),
     );
     expectUnknownOutcome(failure, received[0]?.requestId);
@@ -258,7 +261,7 @@ describe('an answer lost or unreadable after its head', () => {
     const failure = await settle(
       new CommandClient({ fetcher }, { manifest: TEST_MANIFEST }).wait({
         command: 'c.a.X',
-        id: '1',
+        aggregateId: '1',
       }),
     );
     expectUnknownOutcome(failure, received[0]?.requestId);
@@ -272,7 +275,7 @@ describe('an answer lost or unreadable after its head', () => {
     const stream = await new CommandClient(
       { fetcher },
       { manifest: TEST_MANIFEST },
-    ).stream({ command: 'c.a.X', id: '1' });
+    ).stream({ command: 'c.a.X', aggregateId: '1' });
     const failure = await settle(stream.getReader().read());
     expectUnknownOutcome(failure, received[0]?.requestId);
   });
@@ -287,7 +290,7 @@ describe('an answer lost or unreadable after its head', () => {
     const pending = settle(
       new CommandClient({ fetcher }, { manifest: TEST_MANIFEST }).wait({
         command: 'c.a.X',
-        id: '1',
+        aggregateId: '1',
         signal: abort.signal,
       }),
     );
@@ -308,7 +311,7 @@ describe('an answer lost or unreadable after its head', () => {
     const reader = (
       await new CommandClient({ fetcher }, { manifest: TEST_MANIFEST }).stream({
         command: 'c.a.X',
-        id: '1',
+        aggregateId: '1',
         wait: WaitPlan.COMMITTED,
         signal: abort.signal,
       })

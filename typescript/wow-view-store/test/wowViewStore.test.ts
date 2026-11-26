@@ -28,17 +28,19 @@ import type {
   WriteOptions,
 } from '@ahoo-wang/wow-view-engine';
 import {
-  SHARED_SCOPE,
-  SYSTEM_SCOPE,
   WowViewStore,
   WowViewStoreErrorCodes,
+  type WowViewStoreOptions,
 } from '../src/index.js';
+import { SHARED_SCOPE, SYSTEM_SCOPE } from '../src/wire.js';
+import { clientOptions } from '../src/wowViewStore.js';
 import { listAll } from './conformance/wowViewStoreService.js';
 import { problem } from './support/fakeViewStore.js';
 import {
   actingAs,
   BASE_URL,
   installFake,
+  installGateway,
   WRITER_ROLES,
   type Caller,
 } from './support.js';
@@ -117,13 +119,69 @@ describe('the V10 WowViewStore', () => {
     expect(share.headers.has(WowHeaders.SCOPE)).toBe(false);
   });
 
-  it('exports the scopes of the reserved owners', () => {
+  // The entry exports neither scope (#7022 row 15): they are the store's
+  // own, as the owner ids are.
+  it('acts as the reserved owners by their scopes', () => {
     expect(SHARED_SCOPE).toEqual({ ownerId: '(shared)' });
     expect(SYSTEM_SCOPE).toEqual({
       tenantId: '(platform)',
       ownerId: '(system)',
     });
     expect(WowViewStoreErrorCodes.INVALID).toBe('view-store.invalid');
+  });
+
+  // #7022 row 14: the options are wow-client's, as every Wow client's are,
+  // so a gateway's prefix goes into basePath rather than into the fetcher.
+  it('sends every request under the base path its options give', async () => {
+    const gateway = installGateway('/views-api');
+    const behind = (): WowViewStore =>
+      new WowViewStore({ fetcher: actingAs(ALICE), basePath: '/views-api' });
+    const store = behind();
+    const made = await personal(store);
+    const renamed = await store.rename(
+      made.id,
+      'Renamed',
+      made.revision,
+      write(),
+    );
+    expect(renamed.title).toBe('Renamed');
+    expect((await store.list('orders')).items.map(item => item.id)).toEqual([
+      made.id,
+    ]);
+    // A store that has not seen the view finds it by the read by id.
+    expect((await behind().get(made.id)).title).toBe('Renamed');
+    const preferences = await store.getPreferences('orders');
+    await store.setPreferences(
+      'orders',
+      { ...preferences, defaultInstanceId: made.id },
+      write(),
+    );
+    expect(gateway.paths.length).toBeGreaterThan(5);
+    for (const path of gateway.paths)
+      expect(path).toMatch(/^\/views-api\/view-store\//);
+  });
+
+  it('hands the generated clients the fetcher, base path and default wait, and none of its own options', () => {
+    const fetcher = actingAs(ALICE);
+    const options: WowViewStoreOptions = {
+      fetcher,
+      basePath: '/views-api',
+      defaultWaitMs: 90_000,
+      pageSize: 10,
+      permissions: (): ViewPermissions => ({
+        createPersonal: true,
+        createShared: true,
+        reorder: true,
+        setDefault: true,
+        instance: () => ({ save: true, rename: true, delete: true }),
+      }),
+    };
+    expect(clientOptions(options)).toEqual({
+      fetcher,
+      basePath: '/views-api',
+      defaultWaitMs: 90_000,
+    });
+    expect(clientOptions({ fetcher })).toEqual({ fetcher });
   });
 
   it('keeps the permissions a host gives, and none it does not', () => {
@@ -435,13 +493,13 @@ describe('the V10 WowViewStore', () => {
       });
     });
 
-    it('are refused at a revision that is not one of this store', async () => {
+    it('are refused at a revision that is not one of this store as INVALID: malformed, not stale', async () => {
       installFake();
       const store = storeOf();
       const made = await personal(store);
       await expect(
         store.rename(made.id, 'Other', 'stale', write()),
-      ).rejects.toMatchObject({ code: 'CONFLICT' });
+      ).rejects.toMatchObject({ code: 'INVALID' });
     });
   });
 
@@ -668,7 +726,7 @@ describe('the V10 WowViewStore, a write’s revision and retry, and its list', (
     expect(again).toMatchObject({ id: made.id, config: { pageSize: 50 } });
   });
 
-  it('refuses preferences at a revision this store never issues as CONFLICT, before sending anything (#6918)', async () => {
+  it('refuses preferences at a revision this store never issues as INVALID, before sending anything (#6918)', async () => {
     installFake();
     const store = storeOf();
     await store.setPreferences(
@@ -677,14 +735,51 @@ describe('the V10 WowViewStore, a write’s revision and retry, and its list', (
       write(),
     );
     // As an instance write at such a revision is (`versionOf`): nothing was
-    // sent, so the outcome is known, and it is no unreachable service.
+    // sent, so the outcome is known, and it is no unreachable service. The
+    // request is malformed, not stale: INVALID, as a cursor never issued is.
+    const made = await personal(store);
+    for (const revision of ['not-a-version', 'NaN', '-1', '1.5', '']) {
+      await expect(
+        store.setPreferences(
+          'orders',
+          { order: ['b'], defaultInstanceId: null, revision },
+          write(),
+        ),
+        revision,
+      ).rejects.toMatchObject({ code: 'INVALID' });
+      await expect(
+        store.save(made.id, config, revision, write()),
+        revision,
+      ).rejects.toMatchObject({ code: 'INVALID' });
+    }
+  });
+
+  it('bounds a page by its pageSize across the configured system views, which the service answers whole (#7041)', async () => {
+    installFake({
+      systemViews: ['a', 'b', 'c'].map(id => ({
+        id: `configured-${id}`,
+        definitionId: 'orders',
+        title: id,
+        config: { kind: 'record' },
+      })),
+    });
+    const store = new WowViewStore({
+      fetcher: actingAs(ALICE),
+      pageSize: 2,
+    });
+    const first = await store.list('orders');
+    expect(first.items.map(view => view.id)).toEqual([
+      'configured-a',
+      'configured-b',
+    ]);
+    const second = await store.list('orders', { cursor: first.nextCursor });
+    expect(second.items.map(view => view.id)).toEqual(['configured-c']);
+    expect(second.nextCursor).toBeNull();
+    // A system cursor this store did not issue is refused as any is.
+    const forged = btoa(JSON.stringify({ audience: 'system', cursor: '-1' }));
     await expect(
-      store.setPreferences(
-        'orders',
-        { order: ['b'], defaultInstanceId: null, revision: 'not-a-version' },
-        write(),
-      ),
-    ).rejects.toMatchObject({ code: 'CONFLICT' });
+      store.list('orders', { cursor: forged }),
+    ).rejects.toMatchObject({ code: 'INVALID' });
   });
 
   it('refuses a page size below one where the store is made, as such a page would never end a list (#6919)', () => {

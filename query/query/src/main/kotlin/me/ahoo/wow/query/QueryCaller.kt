@@ -15,6 +15,7 @@ package me.ahoo.wow.query
 
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.query.CrossTenant
@@ -31,9 +32,9 @@ internal enum class QueryScopeProvenance {
 }
 
 /**
- * The caller's scope, split by [provenance][QueryScopeProvenance]. Both halves restrict the query; only the
- * [authenticated] half counts as provided when a gateway requires an authenticated scope.
+ * The caller's scope, split by [provenance][QueryScopeProvenance]: both halves restrict the query alike.
  */
+@WowSpi
 class QueryScope @InternalWowApi constructor(
     val authenticated: FilterExpression = MatchAllFilter,
     val declared: FilterExpression = MatchAllFilter,
@@ -77,6 +78,7 @@ private fun FilterExpression.and(other: FilterExpression): FilterExpression =
  *
  * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
+@WowSpi
 enum class QueryEntry {
     /** Stated by the HTTP edge for every query route; HTTP budgets and gates apply. */
     HTTP,
@@ -89,9 +91,6 @@ enum class QueryEntry {
      * in-process timeout applies.
      */
     UNBOUNDED,
-
-    /** Nobody said. Treated as [IN_PROCESS] unless explicit entries are required. */
-    UNSPECIFIED,
 }
 
 /**
@@ -111,7 +110,7 @@ enum class QueryEntry {
  *   appends to the query with what the policies add.
  * - [crossTenant]: the tenants a cross-tenant query reads in place of the caller's own; see
  *   [CrossTenant].
- * - [target]: the scope the request named (`Wow-Scope`), which [QueryTargets] admitted: the [caller]
+ * - [targetScope]: the scope the request named (`Wow-Scope`), which [QueryTargets] admitted: the [caller]
  *   then already acts in it.
  * - [revealsDisplay]: whether the query returns the raw value of a `@Sensitive(DISPLAY)` field, which every other
  *   query masks. Only code that asks in so many words sets it (`TrustedQueries.revealed()`, a subscription handler's
@@ -125,13 +124,14 @@ enum class QueryEntry {
  * ([QueryTargets.recheck]), so a caller built otherwise cannot reach further than [QueryTargets] lets it. Other code
  * builds a plain caller with [of], or uses [IN_PROCESS].
  */
+@WowSpi
 class QueryCaller @InternalWowApi constructor(
     val caller: Caller? = null,
-    val entry: QueryEntry = QueryEntry.UNSPECIFIED,
+    val entry: QueryEntry = QueryEntry.IN_PROCESS,
     val selection: FilterExpression = MatchAllFilter,
     val scope: QueryScope = QueryScope.NONE,
     val crossTenant: CrossTenant? = null,
-    val target: TargetScope? = null,
+    val targetScope: TargetScope? = null,
     val revealsDisplay: Boolean = false,
 ) {
     init {
@@ -179,30 +179,26 @@ class QueryCaller @InternalWowApi constructor(
         selection: FilterExpression = this.selection,
         scope: QueryScope = this.scope,
         crossTenant: CrossTenant? = this.crossTenant,
-        target: TargetScope? = this.target,
+        targetScope: TargetScope? = this.targetScope,
         revealsDisplay: Boolean = this.revealsDisplay,
-    ): QueryCaller = QueryCaller(caller, entry, selection, scope, crossTenant, target, revealsDisplay)
+    ): QueryCaller = QueryCaller(caller, entry, selection, scope, crossTenant, targetScope, revealsDisplay)
 
     override fun equals(other: Any?): Boolean = this === other ||
         other is QueryCaller && caller == other.caller && entry == other.entry && selection == other.selection &&
-        scope == other.scope && crossTenant == other.crossTenant && target == other.target &&
+        scope == other.scope && crossTenant == other.crossTenant && targetScope == other.targetScope &&
         revealsDisplay == other.revealsDisplay
 
     override fun hashCode(): Int =
-        listOf(caller, entry, selection, scope, crossTenant, target, revealsDisplay).hashCode()
+        listOf(caller, entry, selection, scope, crossTenant, targetScope, revealsDisplay).hashCode()
 
     override fun toString(): String =
         "QueryCaller(caller=$caller, entry=$entry, selection=$selection, scope=$scope, crossTenant=$crossTenant, " +
-            "target=$target, revealsDisplay=$revealsDisplay)"
+            "targetScope=$targetScope, revealsDisplay=$revealsDisplay)"
 
     companion object {
         /** Trusted in-process code with no caller and no scope. */
         @JvmField
         val IN_PROCESS: QueryCaller = QueryCaller(entry = QueryEntry.IN_PROCESS)
-
-        /** A query that states nothing: in-process unless the entry policy requires explicit entries. */
-        @JvmField
-        val UNSPECIFIED: QueryCaller = QueryCaller()
 
         /**
          * A plain caller: [caller]'s identity on [entry], in its own tenant and scope, naming no other scope and no
@@ -210,6 +206,6 @@ class QueryCaller @InternalWowApi constructor(
          */
         @JvmStatic
         @JvmOverloads
-        fun of(caller: Caller?, entry: QueryEntry = QueryEntry.UNSPECIFIED): QueryCaller = QueryCaller(caller, entry)
+        fun of(caller: Caller?, entry: QueryEntry = QueryEntry.IN_PROCESS): QueryCaller = QueryCaller(caller, entry)
     }
 }

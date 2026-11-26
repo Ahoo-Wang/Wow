@@ -58,6 +58,18 @@ class ClickHouseSinkProviderTest {
     }
 
     @Test
+    fun `the sink's subscriptions keep their name in the first generation and carry a raised one`() {
+        val endpoint = "endpoint" to "http://127.0.0.1:1"
+        ClickHouseSinks.processorOf(1).assert().isEqualTo(ClickHouseSinks.PROCESSOR)
+        ClickHouseSinkProvider.processorOf(SinkConfig.of("clickhouse", "clickhouse", mapOf(endpoint)))
+            .assert().isEqualTo("wow.clickhouse-sink")
+        ClickHouseSinkProvider.processorOf(
+            SinkConfig.of("clickhouse", "clickhouse", mapOf(endpoint, "sink.generation" to "2")),
+        ).assert().isEqualTo("wow.clickhouse-sink-g2")
+        assertThrows<IllegalArgumentException> { ClickHouseSinks.processorOf(0) }
+    }
+
+    @Test
     fun `unset settings take the Sink's defaults`() {
         val options = ClickHouseSinkProvider.options(config("endpoint" to "http://c:8123"))
         options.assert().isEqualTo(ClickHouseSinkOptions())

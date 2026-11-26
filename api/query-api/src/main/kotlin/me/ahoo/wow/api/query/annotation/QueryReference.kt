@@ -14,9 +14,9 @@ package me.ahoo.wow.api.query.annotation
 
 /**
  * Declares a field (or the elements of an array field) the id of an aggregate, so query consumers can look the
- * aggregate up and link to it: `@field:QueryReference("member")`. [contextName] defaults to the bounded context of
- * the model that declares the field. A property of type `AggregateId` needs no annotation: its `aggregateId` is
- * a reference to the aggregate its own `contextName` and `aggregateName` name.
+ * aggregate up and link to it: `@field:QueryReference("member")`, or `@field:QueryReference("product", context =
+ * "catalog")` for an aggregate of another bounded context. [context] defaults to the bounded context of the model that
+ * declares the field. The Manifest writes it as `x-wow-reference: {"aggregate": "member", "context"?: "catalog"}`.
  * A field has one semantic type, so this cannot combine with [QueryTemporal], [QueryDecimal], [QueryMoney] or
  * [QueryDuration].
  */
@@ -24,7 +24,8 @@ package me.ahoo.wow.api.query.annotation
 @Retention(AnnotationRetention.RUNTIME)
 @MustBeDocumented
 annotation class QueryReference(
-    val aggregateName: String,
+    /** The referenced aggregate's name. */
+    val aggregate: String,
     /** The referenced aggregate's bounded context; empty, the default, is the declaring model's own. */
-    val contextName: String = "",
+    val context: String = "",
 )

@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+@file:OptIn(WowSpi::class)
+
 package me.ahoo.wow.analytics.catalog.domain.dataset
 
 import kotlinx.coroutines.flow.toList
@@ -21,6 +23,7 @@ import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContract
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetDrafted
 import me.ahoo.wow.analytics.catalog.domain.DatasetFixtures.DEFINITION
 import me.ahoo.wow.analytics.catalog.domain.DatasetFixtures.REGIONS_ID
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.dsl.listQuery
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.test.query.memoryQueries

@@ -68,8 +68,19 @@ internal class PostgresTimerTables(private val context: String) {
      */
     fun due(tables: List<AggregateTimerTable>): String = unioned(tables, perPartition = true) { table ->
         "SELECT due.* FROM unnest(?::integer[]) AS owned(partition) CROSS JOIN LATERAL (SELECT $COLUMNS " +
-            "FROM ${table.table} WHERE partition = owned.partition AND status IN ('PENDING', 'FIRING') " +
+            "FROM ${table.table} WHERE partition = owned.partition AND status IN ('pending', 'firing') " +
             "AND due_at <= ? ORDER BY due_at, timer_id LIMIT ?) AS due"
+    }
+
+    /**
+     * The due timers of one partition across [tables] after a timer read last, in due order, as [due] reads them: the
+     * store's read on past the timers it skipped, whose rule it cannot read, in a partition whose page they filled
+     * ([PostgresTimerStore.due]). Only that case runs it. Parameters: the context, then per table the partition, until,
+     * the due time and the timer id read last, limit; then limit.
+     */
+    fun dueAfter(tables: List<AggregateTimerTable>): String = unioned(tables) { table ->
+        "SELECT $COLUMNS FROM ${table.table} WHERE partition = ? AND status IN ('pending', 'firing') AND due_at <= ? " +
+            "AND (due_at, timer_id) > (?, ?) ORDER BY due_at, timer_id LIMIT ?"
     }
 
     /**
@@ -78,7 +89,7 @@ internal class PostgresTimerTables(private val context: String) {
      */
     fun parked(tables: List<AggregateTimerTable>): String = unioned(tables) { table ->
         "SELECT $COLUMNS FROM ${table.table} WHERE target_context = ? AND target_aggregate = ? " +
-            "AND target_tenant_id = ? AND target_id = ? AND status = 'PARKED'"
+            "AND target_tenant_id = ? AND target_id = ? AND status = 'parked'"
     }
 
     /**
@@ -120,11 +131,12 @@ internal class PostgresTimerTables(private val context: String) {
 
         /** The registry of timer tables, shared by every context. */
         const val REGISTRY = "wow_timer_aggregate"
-        const val OWNER = "owner_tenant_id = ? AND owner_id = ?"
+        const val OWNER = "aggregate_tenant_id = ? AND aggregate_id = ?"
 
-        const val COLUMNS = "owner_tenant_id, owner_id, key, timer_id, version, partition, rule, slot, due_at, " +
+        const val COLUMNS = "aggregate_tenant_id, aggregate_id, key, timer_id, version, partition, rule, slot, due_at, " +
             "target_context, target_aggregate, target_tenant_id, target_id, command_type, body, correlation_id, " +
-            "causation_id, headers, status, attempts, outcome, operator, scope, slot_due_at, skipped"
+            "causation_id, headers, status, attempts, outcome, operator_id, operator_tenant_id, " +
+            "operator_acted_elsewhere, owner_id, space_id, slot_due_at, skipped"
     }
 }
 
@@ -140,8 +152,8 @@ internal class AggregateTimerTable(val aggregate: String, val base: String) {
     fun ddl(): List<String> = listOf(
         """
         CREATE TABLE IF NOT EXISTS $table (
-            owner_tenant_id text COLLATE "C" NOT NULL,
-            owner_id text COLLATE "C" NOT NULL,
+            aggregate_tenant_id text COLLATE "C" NOT NULL,
+            aggregate_id text COLLATE "C" NOT NULL,
             key text COLLATE "C" NOT NULL,
             timer_id text COLLATE "C" NOT NULL,
             version integer NOT NULL,
@@ -162,16 +174,19 @@ internal class AggregateTimerTable(val aggregate: String, val base: String) {
             status text NOT NULL,
             attempts integer NOT NULL,
             outcome text,
-            operator jsonb,
-            scope jsonb,
+            operator_id text,
+            operator_tenant_id text,
+            operator_acted_elsewhere boolean,
+            owner_id text,
+            space_id text,
             skipped bigint NOT NULL,
-            PRIMARY KEY (owner_tenant_id, owner_id, key)
+            PRIMARY KEY (aggregate_tenant_id, aggregate_id, key)
         )
         """.trimIndent(),
         "CREATE INDEX IF NOT EXISTS \"$dueIndex\" ON $table (partition, due_at, timer_id) " +
-            "WHERE status IN ('PENDING', 'FIRING')",
+            "WHERE status IN ('pending', 'firing')",
         "CREATE INDEX IF NOT EXISTS \"$parkedIndex\" ON $table " +
-            "(target_context, target_aggregate, target_tenant_id, target_id) WHERE status = 'PARKED'",
+            "(target_context, target_aggregate, target_tenant_id, target_id) WHERE status = 'parked'",
     )
 
     /**
@@ -182,26 +197,28 @@ internal class AggregateTimerTable(val aggregate: String, val base: String) {
      */
     val put = """
         INSERT INTO $table AS held (${PostgresTimerTables.COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?,
-            ?, ?, ?, ?, ?, ?::jsonb, 'PENDING', 0, NULL, ?::jsonb, ?::jsonb, ?, ?)
-        ON CONFLICT (owner_tenant_id, owner_id, key) DO UPDATE
+            ?, ?, ?, ?, ?, ?::jsonb, 'pending', 0, NULL, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (aggregate_tenant_id, aggregate_id, key) DO UPDATE
         SET timer_id = excluded.timer_id, version = excluded.version, partition = excluded.partition,
             rule = excluded.rule, slot = excluded.slot, due_at = excluded.due_at, target_context = excluded.target_context,
             target_aggregate = excluded.target_aggregate, target_tenant_id = excluded.target_tenant_id,
             target_id = excluded.target_id, command_type = excluded.command_type, body = excluded.body,
             correlation_id = excluded.correlation_id, causation_id = excluded.causation_id,
-            headers = excluded.headers, status = 'PENDING', attempts = 0, outcome = NULL,
-            operator = excluded.operator, scope = excluded.scope, slot_due_at = excluded.slot_due_at,
+            headers = excluded.headers, status = 'pending', attempts = 0, outcome = NULL,
+            operator_id = excluded.operator_id, operator_tenant_id = excluded.operator_tenant_id,
+            operator_acted_elsewhere = excluded.operator_acted_elsewhere, owner_id = excluded.owner_id,
+            space_id = excluded.space_id, slot_due_at = excluded.slot_due_at,
             skipped = excluded.skipped
         WHERE held.timer_id <> excluded.timer_id AND held.version <= excluded.version
     """.trimIndent()
 
     /** Parameters: version, the owner's two columns, key, version. */
-    val cancel = "UPDATE $table SET status = 'CANCELLED', version = greatest(version, ?) " +
-        "WHERE ${PostgresTimerTables.OWNER} AND key = ? AND status IN ('PENDING', 'FIRING', 'PARKED') AND version <= ?"
+    val cancel = "UPDATE $table SET status = 'cancelled', version = greatest(version, ?) " +
+        "WHERE ${PostgresTimerTables.OWNER} AND key = ? AND status IN ('pending', 'firing', 'parked') AND version <= ?"
 
     /** Parameters: version, the owner's two columns, version. */
-    val cancelAll = "UPDATE $table SET status = 'CANCELLED', version = greatest(version, ?) " +
-        "WHERE ${PostgresTimerTables.OWNER} AND status IN ('PENDING', 'FIRING', 'PARKED') AND version <= ?"
+    val cancelAll = "UPDATE $table SET status = 'cancelled', version = greatest(version, ?) " +
+        "WHERE ${PostgresTimerTables.OWNER} AND status IN ('pending', 'firing', 'parked') AND version <= ?"
 
     /** Parameters: the owner's two columns, key. */
     val find = "SELECT ${PostgresTimerTables.COLUMNS} FROM $table WHERE ${PostgresTimerTables.OWNER} AND key = ?"

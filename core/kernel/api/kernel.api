@@ -269,29 +269,6 @@ public final class me/ahoo/wow/kernel/InvalidDerivedRequestException : java/lang
 	public fun <init> (Ljava/lang/String;)V
 }
 
-public final class me/ahoo/wow/kernel/KernelOptions {
-	public static final field Companion Lme/ahoo/wow/kernel/KernelOptions$Companion;
-	public static final field DEFAULT_MAX_ATTEMPTS I
-	public static final field DEFAULT_MAX_REPLAY I
-	public synthetic fun <init> (IZJJIIJILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getMaxAttempts ()I
-	public final fun getMaxEarlyWait-UwyO8pc ()J
-	public final fun getMaxReplay ()I
-	public final fun getRecentRequests ()I
-	public final fun getReservationTtl-UwyO8pc ()J
-	public final fun getSnapshotLoadTimeout-UwyO8pc ()J
-	public final fun getVerifyDecidePurity ()Z
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/kernel/KernelOptions$Companion {
-	public final fun getDEFAULT_MAX_EARLY_WAIT-UwyO8pc ()J
-	public final fun getDEFAULT_RESERVATION_TTL-UwyO8pc ()J
-	public final fun getDEFAULT_SNAPSHOT_LOAD_TIMEOUT-UwyO8pc ()J
-}
-
 public final class me/ahoo/wow/kernel/MissingDependencyException : java/lang/IllegalStateException {
 	public fun <init> (Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;Ljava/lang/reflect/Type;)V
 	public synthetic fun <init> (Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;Ljava/lang/reflect/Type;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
@@ -499,16 +476,6 @@ public final class me/ahoo/wow/kernel/schedule/JobState {
 	public final fun getSlot ()J
 	public final fun getTicks ()J
 	public final fun getTimer ()Ljava/lang/String;
-	public final fun setDue (Ljava/lang/Long;)V
-	public final fun setEnabled (Z)V
-	public final fun setJob (Ljava/lang/String;)V
-	public final fun setOverride (Lme/ahoo/wow/api/schedule/JobRule;)V
-	public final fun setPartition (Ljava/lang/Integer;)V
-	public final fun setRule (Lme/ahoo/wow/api/schedule/ScheduleRule$Cron;)V
-	public final fun setSkipped (J)V
-	public final fun setSlot (J)V
-	public final fun setTicks (J)V
-	public final fun setTimer (Ljava/lang/String;)V
 }
 
 public final class me/ahoo/wow/kernel/schedule/ScheduleJob {

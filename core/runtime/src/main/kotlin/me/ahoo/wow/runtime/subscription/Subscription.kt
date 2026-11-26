@@ -177,13 +177,15 @@ class Subscription private constructor(
 
     /**
      * Whether [stream] is this subscription's to handle: its [filter] matches it, or it takes every entry. The entry of
-     * an undecodable message ([UndecodableMessage]) is taken by the aggregate it names, whatever events it held.
+     * an undecodable message ([UndecodableMessage]) is taken by the aggregate it names, whatever events it held; that of
+     * a published record that holds no event ([RetiredOnly]) by none.
      */
     internal fun takes(stream: EventStreamRecord): Boolean = takesAll ||
         if (UndecodableMessage.isUndecodable(stream)) {
             filter.copy(events = emptySet()).matches(stream)
         } else {
-            (takesEventless || stream.events.any { it.name !in Schedules.EVENTS }) && filter.matches(stream)
+            !RetiredOnly.isRetiredOnly(stream) &&
+                (takesEventless || stream.events.any { it.name !in Schedules.EVENTS }) && filter.matches(stream)
         }
 
     override fun toString(): String = "Subscription($name)"
@@ -267,6 +269,7 @@ class Subscription private constructor(
             models: Collection<AggregateModel<*>> = emptyList(),
             context: String = filter.context,
             retry: HandlerRetry? = null,
+            takesEventless: Boolean = false,
             runHandler: RunHandler,
             handler: suspend (SubscribedEntry) -> Unit,
         ): Subscription {
@@ -288,8 +291,34 @@ class Subscription private constructor(
                 paced = paced,
                 context = context,
                 retry = retry,
+                takesEventless = takesEventless,
             )
         }
+
+        /**
+         * A sink's subscription, of the [FunctionKind.SYSTEM] kind, that writes one entry a call: [takesEventless]
+         * when it publishes every commit (the transport sink's), the streams that change only schedules among them.
+         */
+        internal fun sink(
+            name: String,
+            filter: SubscriptionFilter,
+            startFrom: StartFrom,
+            decoder: EntryDecoder,
+            takesEventless: Boolean,
+            handler: suspend (SubscribedEntry) -> Unit,
+        ): Subscription = Subscription(
+            name,
+            filter,
+            startFrom,
+            decoder,
+            emptyList(),
+            FunctionKind.SYSTEM,
+            EntryHandler { entry ->
+                handler(entry)
+                HandledEntry.NOTHING
+            },
+            takesEventless = takesEventless,
+        )
 
         /**
          * A built-in subscription of the log (the `reservation` and `timers` ones): it takes the streams that change
@@ -315,7 +344,7 @@ class Subscription private constructor(
         )
 
         /**
-         * A subscription of the messages of a topic of commands or receipts (–): it takes every
+         * A subscription of the messages of a topic of commands or receipts: it takes every
          * entry its source reads, whatever aggregate it names, and [handler] gets the message as
          * [SubscribedEntry.message]. It starts from the beginning of the topic, so every message is taken, unless
          * [start] says otherwise.
@@ -434,7 +463,7 @@ data class SubscriptionFilter(
  * events as published. [stream] holds the same facts; [position] is then the record's partition and its offset plus
  * one.
  *
- * An entry of a topic of commands or receipts (–) carries the [message] it was read as: the command
+ * An entry of a topic of commands or receipts carries the [message] it was read as: the command
  * the context's intake executes, or the receipt of a command another context rejected. Its [stream] only names the
  * aggregate whose lane it runs in; nothing was committed.
  *

@@ -83,7 +83,7 @@ class PostgresEventQueryStorage @JvmOverloads constructor(
  * The fields of a log table (`AggregateLogTable`), by physical name: each system field of a stream its
  * column, the operator's three columns as `operatorId`, `operatorTenantId` and `operatorActedElsewhere`, the access
  * attributes the nullable `jsonb` column `access`, and the events
- * the one `jsonb` column `events`, each `{name, revision, payload}`.
+ * the one `jsonb` column `events`, each `{name, revision, body}`.
  */
 internal object PostgresEventQueryExpressions : PostgresQueryExpressions(
     columns = mapOf(
@@ -135,9 +135,6 @@ internal object PostgresEventQueryLayout {
     const val OPERATOR_ID: String = "operatorId"
     const val OPERATOR_TENANT_ID: String = "operatorTenantId"
     const val OPERATOR_ACTED_ELSEWHERE: String = "operatorActedElsewhere"
-
-    /** The key the log stores an event's body under. */
-    const val PAYLOAD: String = "payload"
 
     private const val COLUMNS = "tenant_id, aggregate_id, version, commit_time, command_id, request_id, command_type, " +
         "owner_id, space_id, operator_id, operator_tenant_id, operator_acted_elsewhere, access"
@@ -194,7 +191,7 @@ internal object PostgresEventQueryLayout {
                 events.addObject()
                     .put(EventFields.NAME, event.get(EventFields.NAME).asString())
                     .put(EventFields.REVISION, event.get(EventFields.REVISION).asInt())
-                    .set(EventFields.BODY, event.get(PAYLOAD))
+                    .set(EventFields.BODY, event.get(EventFields.BODY))
             }
         }
     }
@@ -204,21 +201,13 @@ internal object PostgresEventQueryLayout {
  * What a log table proves about an `events` query model, for the table this module creates: each
  * logical path bound to its physical field ([PostgresEventQueryExpressions]): a system field to its column,
  * `operator.id`, `operator.tenantId` and `operator.actedElsewhere` to its columns (`operator` itself to the id,
- * for its presence), and a path below `events[].body` to the stored `payload`. Each path is granted what the snapshot
- * table grants a path of its type ([PostgresSnapshotStorageAdapter.capabilitiesOf]): no full-text search, no sort or
- * aggregation of a multi-valued path, element scopes on `events` and their expansion.
+ * for its presence), and a path below `events[].body` to itself, the log storing an event's data under `body`. Each
+ * path is granted what the snapshot table grants a path of its type ([PostgresSnapshotStorageAdapter.capabilitiesOf]):
+ * no full-text search, no sort or aggregation of a multi-valued path, element scopes on `events` and their expansion.
  */
 internal object PostgresEventStorageAdapter : QueryStorageAdapter {
     private val OPERATOR = QueryPathSegment.Property(EventStreamFields.OPERATOR)
-    private val EVENTS = QueryPathSegment.Property(EventStreamFields.EVENTS)
 
-    /** `events[].body`, which the log stores as `events[].payload`. */
-    private val BODY = listOf(EVENTS, QueryPathSegment.Item, QueryPathSegment.Property(EventFields.BODY))
-    private val PAYLOAD = listOf(
-        EVENTS,
-        QueryPathSegment.Item,
-        QueryPathSegment.Property(PostgresEventQueryLayout.PAYLOAD)
-    )
     private val OPERATOR_COLUMNS = mapOf(
         "id" to PostgresEventQueryLayout.OPERATOR_ID,
         "tenantId" to PostgresEventQueryLayout.OPERATOR_TENANT_ID,
@@ -249,9 +238,6 @@ internal object PostgresEventStorageAdapter : QueryStorageAdapter {
             val column = (segments.getOrNull(1) as? QueryPathSegment.Property)?.name?.let(OPERATOR_COLUMNS::get)
                 ?: PostgresEventQueryLayout.OPERATOR_ID
             return QueryPathTemplate(listOf(QueryPathSegment.Property(column)))
-        }
-        if (segments.take(BODY.size) == BODY) {
-            return QueryPathTemplate(PAYLOAD + segments.drop(BODY.size))
         }
         return path
     }

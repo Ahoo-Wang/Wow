@@ -40,7 +40,7 @@ wow:
 | `wow.stores.<name>.index-prefix` | A prefix for every index name: `shop_wow_snapshot__…`, `shop_wow_events__…` | None |
 | `wow.stores.<name>.refresh` | When a snapshot write becomes searchable: `none` (within the index's refresh interval), `wait-for` (when its write returns) or `immediate` | `none` |
 | `wow.stores.<name>.ddl` | Whether it creates its indices and maps the state's and the events' body fields | `wow.ddl` |
-| `wow.stores.<name>.reindex-requests-per-second` | How fast an index's earlier documents are indexed again for a field mapped later ([below](#field-mapped-later)); `-1` for no limit | `1000` |
+| `wow.stores.<name>.reindex-requests-per-second` | How fast an index's earlier documents are indexed again for a field mapped later ([below](#field-mapped-later)); `0` for no limit | `1000` |
 | `wow.stores.<name>.operation-timeout` | How long the caller of each of its requests waits for an answer ([below](#a-server-that-stops-answering)) | `wow.elasticsearch.operation-timeout`, `30s` |
 | `wow.aggregates.[<context>.<aggregate>].snapshot.store` | The store of an aggregate's snapshots, which its commands load from and its state reads read; Elasticsearch too ([below](#only-snapshot-store)) | `wow.snapshot.store`, else the log's store |
 | `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` | The store its snapshot queries read; another store than its own then keeps a copy of its snapshots for them | Its own snapshot store |
@@ -50,19 +50,19 @@ Each index records its layout in its `_meta` and refuses a store that expects an
 
 ### Indices and their aliases {#indices-and-aliases}
 
-Each index is a pair: a concrete index `<name>--1` behind the alias `<name>`, its write index. The store reads and writes by the name. Every write asks Elasticsearch to refuse it unless the name is an alias (`require_alias`), so a write never creates an index with a mapping Elasticsearch guesses, whatever made the index missing:
+The store's indices are each aggregate's snapshots, `[<prefix>_]wow_snapshot__<context>__<aggregate>`, the event search Sink's events, `[<prefix>_]wow_events__<context>__<aggregate>` ([Event search](#event-search)), and one more, `[<prefix>_]wow_snapshot_table`: a document per snapshot index, the state revision that index holds, as PostgreSQL's and MongoDB's `wow_snapshot_table` record it for their tables. Each index is a pair: a concrete index `<name>--1` behind the alias `<name>`, its write index. The store reads and writes by the name. Every write asks Elasticsearch to refuse it unless the name is an alias (`require_alias`), so a write never creates an index with a mapping Elasticsearch guesses, whatever made the index missing:
 - `ddl: auto` creates the pair, the index and its alias in one request.
 - `ddl: validate` refuses a store whose alias is missing, naming the pair, and checks the layout of the index behind it.
 - `ddl: none` checks nothing, and a write to a missing alias fails, naming it.
 - An alias that points at more than one index, or is not its index's write alias, is refused, naming it. Wow writes through no such alias.
 - **An index deleted under a running node** fails the next write instead of being created again with a guessed mapping. Under `ddl: auto`, the write after it creates the pair again, empty, with a warning naming the alias. What it held comes back from a [rebuild](#rebuild).
-- **An index an earlier pre-release created** is a concrete index of the alias's own name. The store refuses it, naming it: delete it and rebuild it.
+- **An index an earlier pre-release created** is a concrete index of the alias's own name. The store refuses it, naming it: delete it and fill it again from the log ([Rebuild](#rebuild)).
 
 The `--1` leaves room for a later version to reindex behind the same alias; nothing in 10.0 moves it. For a node whose account may not create indices, create the pair once with `ddl: auto` from an account that may. Or create it by hand: `<name>--1` with the mapping `ddl: auto` gives it, and `"aliases": {"<name>": {"is_write_index": true}}`.
 
 ### A server that stops answering {#a-server-that-stops-answering}
 
-Each request of the store, a write, a load or a query, has its caller wait at most `operation-timeout` for an answer, as a MongoDB or PostgreSQL store's calls do: past it the caller fails with a transient error. A command whose load fails replays its log, and a snapshot subscription whose write fails pauses its partition and retries.
+Each request of the store, a write, a load or a query, has its caller wait at most `operation-timeout` for an answer, as a MongoDB or PostgreSQL store's calls do: past it the caller fails with a transient error. A timeout of zero or below refuses the start, naming the key. A command whose load fails replays its log, and a snapshot subscription whose write fails pauses its partition and retries.
 
 The bound is the caller's, not the connection's. The store cancels no request: HttpClient 5 keeps a reused connection whose exchange is cancelled, and it re-runs a request cancelled before its bytes are written on a new connection that nothing then releases. The request runs on in the application's `Rest5Client`, and its connection is freed when the server answers or resets it, or at the client's own response timeout. While a server is paused, the client's pool can fill: later requests wait for a connection while their callers still fail at the bound, and the connections come back once the server answers again.
 
@@ -127,7 +127,7 @@ Marking a field later adds the `text` sub-field to the index and indexes the doc
 
 The state's and the events' body fields are mapped when a query first loads the aggregate's schema (under `ddl: auto`), so a field added to a schema later is mapped on an index that already holds documents. Those documents are indexed again in the background, by an `_update_by_query` task that keeps each document as it is, so that they are found by the new field too. Until the task ends, a query that filters, sorts or groups on the new field misses the documents written before the field was mapped: its results are incomplete.
 
-The task runs at `reindex-requests-per-second` documents a second, 1,000 by default, in as many slices as the index has shards. At the default a million documents take about 17 minutes, and ten million about 3 hours. Lower it for a cluster under load; raise it, or set `-1` for no limit, when the field is needed sooner.
+The task runs at `reindex-requests-per-second` documents a second, 1,000 by default, in as many slices as the index has shards. At the default a million documents take about 17 minutes, and ten million about 3 hours. Lower it for a cluster under load; raise it, or set `0` for no limit, when the field is needed sooner.
 
 The store logs the task's id as it starts, `Elasticsearch index [<index>] mapped [<fields>]: … task [<node>:<id>]`. It does not log the task's end, which only polling the task would tell. Follow the task, and change its rate while it runs, with Elasticsearch's own APIs:
 
@@ -144,7 +144,7 @@ The event search sink writes each commit as one document of `[<prefix>_]wow_even
 
 An aggregate whose `query.events.store` names the Elasticsearch store has its `events` queries served from that index: an event condition is a nested query, an `expand("events")` aggregation a nested aggregation, and a query that names no aggregate searches the index instead of scanning the log. The index shows what the sink has written, a commit becoming searchable once the sink has written it and the index refreshed, one second by default.
 
-Each sink runs as a subscription named `wow.elasticsearch-sink.<aggregate>`, so it resumes from its checkpoint and can start again from the beginning of the log. The host starts the sinks by itself, with no setting of their own: for each Elasticsearch store that an aggregate's `query.events.store` names, it writes exactly those aggregates' streams into that store, whether or not the service publishes them.
+Each sink runs as a subscription named `wow.elasticsearch-sink.<aggregate>`, so it resumes from its checkpoint; a new generation of it, `wow.elasticsearch-sink-g<n>.<aggregate>` once the store's `sink.generation` is raised to n, starts from the beginning of the log ([Rebuild](#rebuild)). The host starts the sinks by itself, with that one setting of the store's: for each Elasticsearch store that an aggregate's `query.events.store` names, it writes exactly those aggregates' streams into that store, whether or not the service publishes them.
 
 ## As an aggregate's only snapshot store {#only-snapshot-store}
 
@@ -186,7 +186,13 @@ Each aggregate type picks its stores: its log on PostgreSQL or MongoDB, its snap
 
 ## Rebuild
 
-Both copies come from the log. A snapshot index is rebuilt by rebuilding the aggregates' snapshots ([Rebuild and Replay](./replay)). The events index is filled again by starting its sink subscription from the beginning of the log. To empty an index first, delete its concrete index, `<name>--1`, since Elasticsearch deletes no index through an alias; under `ddl: auto` the next write creates the pair again. Neither needs a backup of its own ([Backup and Recovery](./backup)).
+Both copies come from the log. A snapshot index is rebuilt by rebuilding the aggregates' snapshots ([Rebuild and Replay](./replay)). An events index is filled again by a new generation of its sink, which starts from the beginning of the log:
+
+1. Empty the index: delete its concrete index, `<name>--1`, since Elasticsearch deletes no index through an alias.
+2. Raise the store's sink generation by one: `wow.stores.<name>.sink.generation`, 1 by default.
+3. Roll the nodes.
+
+The sink then runs as new subscriptions, `wow.elasticsearch-sink-g<n>.<aggregate>`, one for every aggregate that store's sink writes, and writes each from the beginning of the log; under `ddl: auto` its first write creates the pair again. Only raise the generation: a lower one resumes that generation's checkpoints, and what was deleted is not written again. While the nodes roll, the old generation and the new one both write; that is harmless, since a commit's document has one id. The old generation's checkpoints stay, and so do the entries it parked: each node warns of them at its first start under the old name, and `GET /wow/ops/subscriptions` lists them as `orphans` ([Rename and rewind](./ops-console#rename-and-rewind)). Those parked entries belong to a destination that was emptied: skip them in the ops console. A lowered generation shows the higher one as an orphan the same way, which is why the generation is only raised. Neither copy needs a backup of its own ([Backup and Recovery](./backup)).
 
 ## From 9.x
 

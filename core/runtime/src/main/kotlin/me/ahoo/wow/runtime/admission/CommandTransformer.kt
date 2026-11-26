@@ -123,8 +123,8 @@ class CommandInput @InternalWowApi constructor(
  */
 class CommandTarget @InternalWowApi constructor(
     val type: CommandType,
-    val aggregateId: String?,
     val body: Any,
+    val aggregateId: String?,
     val headers: Map<String, String> = emptyMap(),
 ) {
     init {
@@ -140,9 +140,9 @@ class CommandTarget @InternalWowApi constructor(
     override fun hashCode(): Int = valueFields().hashCode()
 
     override fun toString(): String = "CommandTarget(" +
-        "type=$type, aggregateId=$aggregateId, body=$body, headers=$headers)"
+        "type=$type, body=$body, aggregateId=$aggregateId, headers=$headers)"
 
-    private fun valueFields(): List<Any?> = listOf(type, aggregateId, body, headers)
+    private fun valueFields(): List<Any?> = listOf(type, body, aggregateId, headers)
 
     companion object {
         /** A CommandTarget of the given fields; parameters added later come last, with a default. */
@@ -150,10 +150,10 @@ class CommandTarget @InternalWowApi constructor(
         @JvmOverloads
         fun of(
             type: CommandType,
-            aggregateId: String?,
             body: Any,
+            aggregateId: String?,
             headers: Map<String, String> = emptyMap()
-        ): CommandTarget = CommandTarget(type, aggregateId, body, headers)
+        ): CommandTarget = CommandTarget(type, body, aggregateId, headers)
     }
 }
 
@@ -186,7 +186,7 @@ internal class ReservationTargetResolver(
             reservations.find(ReservationScope(aggregate, tenantId, namespace), key)?.owner
                 ?.takeIf { it.type == aggregate && it.tenantId == input.tenantId }?.id
         }
-        return CommandTarget(input.type, id, input.body, input.headers)
+        return CommandTarget(input.type, input.body, id, input.headers)
     }
 }
 

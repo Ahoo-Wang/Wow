@@ -132,7 +132,7 @@ configurations.matching { it.isCanBeResolved && !it.isCanBeConsumed && it.name !
 
 ## 从 10.0.0 预发布版升级 {#from-a-10-0-0-pre-release}
 
-10.0.0 的预发布版（`alpha`、`beta`、`rc`）对它存储的数据与它的 API 都不做兼容承诺。它的存储不会带过来：请在空的存储上启动本版本。预发布版写入的 MongoDB 日志没有按租户限定的访问键，所以在一次盖章重写这些流的属性之前，对 owner 或 space 的相等查不到它们。从 9.x 迁移的服务请按 [从 9.x 迁移](../migrate/) 进行。
+10.0.0 的预发布版（`alpha`、`beta`、`rc`）对它存储的数据与它的 API 都不做兼容承诺。它的存储不会带过来：请在空的存储上启动本版本。预发布版写入的 MongoDB 日志没有按租户限定的访问键，所以在一次盖章重写这些流的属性之前，对 owner 或 space 的相等查不到它们。Elasticsearch 上的检索存储也在这些存储之列：预发布版创建的索引 `[<prefix>_]wow_snapshot__<context>__<aggregate>` 或 `[<prefix>_]wow_events__<context>__<aggregate>` 是一个具体索引，而本版本把这个名字留作别名，存储会拒绝它并指出它的名字（[索引及其别名](./elasticsearch#indices-and-aliases)）。请在本版本启动之前删除这些索引。仍然沿用了日志的部署从日志把它们重新填上：快照副本靠快照重建，事件索引靠它的 Sink 的新一代，即 `wow.stores.<name>.sink.generation`（[重建](./elasticsearch#rebuild)）。从 9.x 迁移的服务请按 [从 9.x 迁移](../migrate/) 进行。
 
 `ddl: validate` 或 `ddl: none` 下的存储（`wow.ddl`，或某个存储的 `wow.stores.<name>.ddl`）会把每个日志或定时器的表或集合记录在登记表 `wow_log_aggregate` 或 `wow_timer_aggregate` 中，缺少这条记录就不再继续。在 PostgreSQL 上，`validate` 下账户无权插入缺失记录的节点在启动时被拒绝，并指明表、登记表和那一行；`none` 下，这张表第一次追加、读取或定时时同样被拒绝。在 MongoDB 上，这样的集合第一次追加或第一次定时会失败，并指明要插入的文档。预发布版则照常启动并丢失投递：别的节点的尾部读不到这张表，它的定时器也永远不会到期。为存储的账户授予两个登记表的 `INSERT`（MongoDB 上是 `insert` 和 `find`），或者插入拒绝信息指明的每条记录；由 `ddl: auto` 创建的 schema 已经有这些记录（[PostgreSQL](./postgresql#manage-the-schema)、[MongoDB](./mongodb#the-collections)）。MongoDB 存储还会在 `ddl: validate` 和 `ddl: auto` 下，把每个与 Wow 的索引同名的索引（`version_key`、`request_key`、`timer_due` 等）与本版本创建的定义比较：手工或由工具建立、键或键的顺序不同、缺少 `unique`、稀疏、部分过滤条件不同或带排序规则的索引会让启动失败，并指明每处差异。删掉它并以 `ddl: auto` 启动一次，或者按消息给出的定义创建它；删掉一个并不唯一的唯一键之前，先检查集合中被它放进来的重复项。
 
@@ -160,17 +160,17 @@ wow-generator 生成的 TypeScript 客户端按 Kotlin 契约的命名给错误�
 
 列出了快照存储的预发布版，要在启动本版本之前修改配置。配置项 `wow.snapshot.stores`、`wow.snapshot.primary`，以及聚合的 `snapshot.stores` 和 `snapshot.primary` 已经移除，每一个都会拒绝启动，并指出它自己。用 `wow.snapshot.store` 或聚合的 `snapshot.store` 为每个类型指定它唯一的存储。保留了检索副本的部署（`snapshot.stores: [main, search]` 加 `query.snapshot.store: search`）去掉 `snapshot.stores`、保留 `query.snapshot.store`：副本的订阅名不变，仍是 `wow.snapshot:search`，所以它的索引和检查点都保留，也不会重新读取任何东西。
 
-提供者的选项，无论在 `wow.<type>` 下（`wow.kafka.*`、`wow.mongo.*`、对等发现的、数据集后端的），还是在 `wow.stores.<name>` 下属于某个存储自己的，现在都按 Spring 绑定的每一种写法读取，与配置键检查的读法一致：环境变量（`WOW_KAFKA_COMMANDINTAKE_ENABLED`）或驼峰写法（`commandIntake.enabled`）与短横线写法的键含义相同，两者同时出现时按环境的顺序决定。预发布版本只按某个文件中的短横线键读取提供者的选项：没有文件设置其短横线写法的环境变量或驼峰键能通过启动检查，却不会被读取。这样的设置现在会生效；请检查部署以这种方式设置了什么。Wow 自带的 eShop 支付服务的 chart 设置了 `WOW_KAFKA_COMMANDINTAKE_ENABLED: "true"`，预发布版本忽略了它：它的命令接收现在会运行。
+提供者的选项，无论在 `wow.<type>` 下（`wow.kafka.*`、`wow.mongo.*`、对等发现的、数据集后端的），还是在 `wow.stores.<name>` 下属于某个存储自己的，现在都按 Spring 绑定的每一种写法读取，与配置键检查的读法一致：环境变量（`WOW_KAFKA_COMMANDINTAKE_ENABLED`）或驼峰写法（`commandIntake.enabled`）与短横线写法的键含义相同，两者同时出现时按环境的顺序决定。预发布版本只按某个文件中的短横线键读取提供者的选项：没有文件设置其短横线写法的环境变量或驼峰键能通过启动检查，却不会被读取。这样的设置现在会生效；请检查部署以这种方式设置了什么。Wow 自带的 eShop 支付服务的 chart 设置了 `WOW_KAFKA_COMMANDINTAKE_ENABLED: "true"`，预发布版本忽略了它：它的命令接收现在会运行。`deploy/` 中 eShop 的购物车、库存、订单、支付服务与 ops 服务的 values 设置了 `WOW_KAFKA_DDL: validate`，预发布版本按 `auto` 运行：本版本的节点不创建主题，缺少主题时不启动，正如这些 README 所说，所以请先创建主题。
 
 `spring.codec.max-in-memory-size` 不再设置内部端口的消息上限：Spring Boot 4 只绑定 `spring.http.codecs.max-in-memory-size`，两个端口都遵循它。
 
 预发布版启动时接受的两个设置，现在会拒绝启动，并说出其配置项和界限。`wow.health.liveness.stall-timeout` 必须长于 `wow.cluster.reconcile-timeout`（默认 `1m`），这样卡住的节点会在其存活检查失败之前离开成员：*wow.health.liveness.stall-timeout is 1m, not longer than wow.cluster.reconcile-timeout.* `wow.query.dataset.max-concurrent` 必须为 `0` 或更大，而预发布版把负值当作不设界限运行：不设界限请设为 `0`（*wow.query.dataset.max-concurrent is -1, below 0.*）。
 
-服务的构建现在可以渲染它的 Kubernetes 清单：`wow { kubernetes { values.from(…); namespace = … } }` 让 `generateWowManifests` 进入 `assemble`，它把插件自带的 `wow-service` chart 渲染成纯 YAML 的 Kustomize base，即 `build/wow/k8s/`，供 `kubectl apply -k` 使用（[配合 Kustomize](./kubernetes#with-kustomize)）。没有任何破坏：安装 chart 的部署无需改动，没有写 values 的构建什么也不渲染。写了 values 的构建第一次渲染时把 Helm v4.3.1 获取到 Gradle 用户目录；`wow.helm.mirror` 与 `wow.helm.executable` 供无法访问 `get.helm.sh` 的构建使用。原先用 `helm template` 手工渲染 chart 的部署，可以改为在构建里写明同样的 values 文件。
+服务的构建现在可以渲染它的 Kubernetes 清单：`wow { kubernetes { values.from(…); namespace = … } }` 让 `generateWowKubernetes` 进入 `assemble`，它把插件自带的 `wow-service` chart 渲染成纯 YAML 的 Kustomize base，即 `build/wow/k8s/`，供 `kubectl apply -k` 使用（[配合 Kustomize](./kubernetes#with-kustomize)）。没有任何破坏：安装 chart 的部署无需改动，没有写 values 的构建什么也不渲染。写了 values 的构建第一次渲染时把 Helm v4.3.1 获取到 Gradle 用户目录；`wow.helm.mirror` 与 `wow.helm.executable` 供无法访问 `get.helm.sh` 的构建使用。原先用 `helm template` 手工渲染 chart 的部署，可以改为在构建里写明同样的 values 文件。
 
 预发布版本拒绝把 Elasticsearch 存储作为聚合类型自己的快照存储；这个版本接受它（[Elasticsearch](./elasticsearch#only-snapshot-store)）。快照留在数据库、在 Elasticsearch 上另有副本的部署无需改动。想让类型的状态只存一份的部署，在类型的 `snapshot.store` 中指定 Elasticsearch 存储。这个存储随后从日志回填，期间该类型答 `rebuilding`（[重建与重放](./replay)）。
 
-在一次处理中向同一目标发多条同类型命令的 Saga，要给每条一个 `CommandRequest.requestId`，即它所涉及的业务键，例如它预留的商品；按事件类型逐个处理的处理函数只在一次调用发多条时才需要键（[向同一目标发多条命令](../guide/sagas#several-commands-to-one-target)）。没有键时，这次处理作为 Saga 自身的错误失败，它的聚合停放，消息会指出处理函数、命令类型与目标。升级之前，先在本版本上运行领域的 `sagaSpec` 与 `scheduleSpec` 测试；但规格只有覆盖到发多条命令的那次处理时才会暴露它，而这可能取决于数据：eShop 的到货作业只有在某次触发读到同一商品的两次到货时（例如补跑错过的早晨），才会向同一库存发两条入库命令。用 `call` 发多条这类命令的处理函数，在第二条被拒绝之前已经发出了第一条，所以加上键之后，第一条会以它的键再执行一次：要在升级之前修好这样的 Saga，而不是等它停放之后。仍然沿用了存储的部署会发现，按事件类型逐个处理的处理函数派生的 ID 变了，所以升级前处理过、升级后又被重新投递的提交，会把它的命令再发送一次。
+在一次处理中向同一目标发多条同类型命令的 Saga，要给每条一个 `CommandRequest.requestId`，即它所涉及的业务键，例如它预留的商品；按事件类型逐个处理的处理函数只在一次调用发多条时才需要键（[向同一目标发多条命令](../guide/sagas#several-commands-to-one-target)）。没有键时，这次处理作为 Saga 自身的错误失败，它的聚合停放，消息会指出处理函数、命令类型与目标。升级之前，先在本版本上运行领域的 `sagaSpec` 与 `scheduleSpec` 测试；但规格只有覆盖到发多条命令的那次处理时才会暴露它，而这可能取决于数据：eShop 的到货作业只有在某次触发读到同一商品的两次到货时（例如补跑错过的早晨），才会向同一库存发两条入库命令。用 `call` 发多条这类命令的处理函数，在第二条被拒绝之前已经发出了第一条，所以加上键之后，第一条会以它的键再执行一次：要在升级之前修好这样的 Saga，而不是等它停放之后。仍然沿用了存储的部署会发现，按事件类型逐个处理的处理函数派生的 ID 变了，所以升级前处理过、升级后又被重新投递的提交，会把它的命令再发送一次。这样的升级之前，要让每个 Saga 与反应器都追上且没有任何停放，读取自己上下文日志的也算在内，而不只是 Kafka 主题的订阅者：它们各自的 `wow.subscription.backlog` 为 0，`wow.subscription.parked.aggregates` 为 0。
 
 决策函数中保留下来的调用，若在命令按更新的状态再次决策时请求了别的东西（同一位置换了目标、命令类型或命令体），现在会让命令以 `wow.command.failed` 失败，过去它被答以第一次调用的提交：撤销这样的调用并改用 `scope.callId()`，或者给它一个业务请求 ID。在 `onAppendFailure` 中撤销 Wow 调用，或作废以 `scope.command.requestId` 为键的第三方动作的决策函数，要用 `scope.callId()` 作为这个动作的键：`CommandRequest.requestId = scope.callId()`，或第三方的幂等键。否则下一次尝试或调用方的重试会被答以已被撤销的动作（[撤销外部动作](../guide/aggregates#undo-an-outside-act)）。
 
@@ -180,15 +180,30 @@ wow-generator 生成的 TypeScript 客户端按 Kotlin 契约的命名给错误�
 - **应用自己的 schema。** springdoc 从应用的类推导出的 schema 可能有变化：以缩写开头的 getter 保留其大小写（`getETag()` 是 `ETag`，不再是 `etag`）；Kotlin 类的非空属性列为 `required`；唯一公开构造函数的、不对应任何属性的参数，成为 `writeOnly` 属性。由 `/v3/api-docs` 生成的客户端会看到这些变化。Wow 路由的文档不变，`/v3/api-docs` 中和 `GET /wow/openapi` 中都一样。
 - **Jackson。** swagger-core 3 要求 Jackson 3.2，高于 Spring Boot 4.2.0 管理的 3.1；用 `platform(...)` 引入 Boot BOM 的 Gradle 构建，在类路径上有 springdoc 的地方会解析为 3.2。Wow 的 JSON 在两者上都能运行；[Jackson](#jackson) 说明构建和启动时检查什么，以及如何只保留一个 Jackson。
 
-本版本使用 CoSec 8.0.0-beta.8 和 CoCache 8.2.0。从 8.0.0-beta.7 升级，全部变化见 CoSec 的[升级：从 8.0.0-beta.7](https://cosec.ahoo.me/operations/upgrading-previews#from-8-0-0-beta-7)；Wow 的部署会遇到的是：
+本版本使用 CoSec 8.0.0-beta.9 和 CoCache 8.2.0。从 8.0.0-beta.8 升级，全部变化见 CoSec 的[升级：从 8.0.0-beta.8](https://cosec.ahoo.me/operations/upgrading-previews#from-8-0-0-beta-8)；Wow 的部署会遇到的是：
 
-- **先升级服务，再升级网关。** 先把每个网关模式（`wow.cosec.mode: gateway`）的 Wow 服务升级到本版本，之后再把 CoSec 网关的镜像升级到 8.0.0-beta.8。8.0.0-beta.8 的网关总是在 `CoSec-Identity` 中写入一个新成员 `memberships`。使用 CoSec 8.0.0-beta.7 的服务严格读取这个请求头，对不认识的成员回答 400 `invalid-request`，所以在新网关之后，每个携带身份的请求都会失败，直到它的服务升级为止。本版本的服务无论有没有 `memberships` 都能读取这个请求头。控制面和其他依据转发身份做决定的宿主按 CoSec 的那一页升级。
+- **先检查已存储的模式。** `[ ] ( ) | ! ^ $ \` 在 CoSec 的文档、路由映射和变更的每个模式中都是保留字符，用反斜杠把它写作字面字符：`http:path:/odata/\$metadata`。升级一个环境之前，趁它还在运行 8.0.0-beta.8，用 [8.0.0-beta.9 发布包](https://github.com/Ahoo-Wang/CoSec/releases/tag/v8.0.0-beta.9)里的 `cosec-migrate check-patterns --to-redis <uri>` 检查它的 CoSec 存储。它只读不写：指出已发布文档和未关闭变更中，本版本拒绝或会读出另一种含义的每个模式，并说明升级前和升级后各要发布什么。留有未转义保留字符的模式会让升级后的实例整份文档失效，读这份文档的每个请求都回答 503；含反斜杠的模式能编译，但含义变了。自己做决定的服务加载 Wow 依据它的 Manifest 生成的路由映射：上下文的名字和服务路由的路径段都不能含这些字符，Wow 自己的路由也一个都没有。
+- **先控制面，再服务，最后网关。** 按 CoSec 给出的顺序升级，每一步完成后再做下一步：
+  1. 控制面宿主，以及内嵌控制面的 IAM 服务。
+  2. 签发 CoSec 令牌的服务（它的所有副本一起），以及每个网关模式（`wow.cosec.mode: gateway`）的 Wow 服务。
+  3. CoSec 网关的镜像，升级到 8.0.0-beta.9，以及其他每个自己校验 CoSec 令牌的宿主，其中包括自己做决定（`cosec.pipeline.mode` 为 `enforce`）的 Wow 服务。
+
+  8.0.0-beta.9 的网关在 `CoSec-Identity` 中写入一个新成员 `auth.kind`，使用 8.0.0-beta.8 的服务对它回答 400 `invalid-request`，所以网关模式的服务要先于网关升级，与升级到 8.0.0-beta.8 时一样。本版本的服务无论有没有这个成员都能读取这个请求头，并且现在会忽略它不认识的成员，除非请求头的 `crit` 指名了它，所以以后的新成员不再需要这样的顺序。
+- **两步之间。** 在 8.0.0-beta.8 网关之后的人，或在第 2 步之前登录的人，会被升级后的宿主读作工作负载：请求照旧决定，但批准变更和紧急授权（break-glass）要等网关升级、此人重新登录之后才行。升级前已批准的变更，升级后要重新批准。Wow 不依据凭据属于谁做任何决定，它的调用方也不记载这一点。
+- **每个凭据都说明它属于谁。** CoSec 的 `Identity.Credential` 在方法之后多了一个必填的 `kind`（`Identity.Credential.Kind.PERSON` 或 `WORKLOAD`），登录的 `TokenSubject` 在 `id` 之后、校验器的 `VerifiedToken` 在 `app` 之后也一样：你自己的 `Authenticator`、登录或 `TokenVerifier` 不说明是哪一种就编译不过。用户的登录属于人；机器出示的任何凭据属于工作负载。现在决定谁可以批准变更、成为控制面的信任根或使用紧急授权的，是这个 kind，而不是方法的名字。你自己的校验器还要拒绝 JWS `crit` 头里指名了它不理解的东西的令牌（`TokenNotUnderstoodException`，回答 503）。Wow 不构造这些对象。
+- **自己写身份或签令牌的测试。** `wow-cosec` 的 `CoSecIdentity` 写入 `auth.kind` 为 `person`，`cosec-testkit` 的 `IdentityHeader.forSubject` 写人的、`forWorkload` 写工作负载的。自己写这个请求头的测试也要写 `auth.kind`，测试为网关签的令牌要带声明 `cosec.kind`：缺了它们，人会被读作工作负载，而且什么都不会失败。请求头里拼错的成员现在被当作不存在，而不再被拒绝。
+- **`@ahoo-wang/cosec-fetcher` 8.0.0-beta.9。** 使用 CoSec 客户端的前端换到 `@beta`。刷新、注销或切换租户现在只发往客户端信任的端点（`isTrusted`，相对 Fetcher 的 `baseURL` 解析），并且不跟随重定向。通过一个 `baseURL` 就是认证服务的独立 Fetcher 发送的，如[认证](../typescript/authentication)的配置，不受影响；在已配置的 Fetcher 上发往另一个源的，需要把那个源加入 `isTrusted`。Wow 的控制台不做刷新，不受影响。
+- **网关模式服务的请求头上限仍是 8 KB。** CoSec 现在为读取 `CoSec-Identity` 的宿主推导 `server.max-http-request-header-size`（16 KB），并在启动时说明，但网关模式来自 `wow.cosec.mode` 的 Wow 服务得不到它：CoSec 在 Wow 设置模式之前就做了决定，所以服务器保持 Spring Boot 的 8 KB，与本版本之前相同，尽管启动日志说推导了 16 KB。请求头合计超过 8 KB 的请求回答 431；本版本的网关最多写 6 KB 的身份。CoSec 的候选发布版会修复它。遇到这种情况的服务设置 `server.max-http-request-header-size: 16KB`，修复之后照样有效。
+
+CoSec 8.0.0-beta.9 的其他变化涉及网关（默认最多写 6 KB 的身份，原来是 8 KB）、控制面和签发 CoSec 令牌的应用：这些按 CoSec 的那一页处理。从 8.0.0-beta.7 升级，全部变化见 CoSec 的[升级：从 8.0.0-beta.7](https://cosec.ahoo.me/operations/upgrading-previews#from-8-0-0-beta-7)；Wow 的部署会遇到的是：
+
+- **先升级服务，再升级网关。** 先把每个网关模式（`wow.cosec.mode: gateway`）的 Wow 服务升级到本版本，之后再升级 CoSec 网关的镜像。8.0.0-beta.8 的网关总是在 `CoSec-Identity` 中写入一个新成员 `memberships`。使用 CoSec 8.0.0-beta.7 的服务严格读取这个请求头，对不认识的成员回答 400 `invalid-request`，所以在新网关之后，每个携带身份的请求都会失败，直到它的服务升级为止。本版本的服务无论有没有 `memberships` 都能读取这个请求头。控制面和其他依据转发身份做决定的宿主按 CoSec 的那一页升级。
 - **主体的标识从不为空白。** CoSec 在服务的任何路由运行之前，就拒绝指明空标识或纯空白标识的凭据：`sub` 为空白的 `CoSec-Identity` 回答 400 `invalid-request`；你自己的认证器若用这样的标识构造 `PrincipalId`，它的请求以 503 失败，应改为回答 `Rejected`。升级之前，按 CoSec 那一页所示，找出空白主体的 API key 和绑定。
 - **路由不带结尾的 `/`。** 自己做决定的服务（`cosec.pipeline.mode` 为 `enforce`）按 Manifest 的路由映射请求，这些路由没有一个以 `/` 结尾。对路径是某条路由加上一个 `/` 的请求，如 `POST /shop/cart/open-cart/`，CoSec 现在回答 400 `invalid-request`，而以前把它当作 `http` 动作来决定。每个路径都按 Manifest 写的那样发送，Wow 的客户端就是这样做的。网关模式服务前面的 CoSec 网关不加载路由映射，所以这一条不适用于它；本版本对网关自己的 DENY 规则和限流规则中以 `/` 结尾的路径做了什么改变，见 [CoSec 的那一页](https://cosec.ahoo.me/operations/upgrading-previews#from-8-0-0-beta-7)。
 - **CoSec 开启时不能没有它的关卡。** 开启了 CoSec（`cosec.enabled`）的节点，若排除了 CoSec 的 `CoSecPipelineWebAutoConfiguration`，或用另一种类型的过滤器取代了它的过滤器，就不再启动。保留这个自动配置，或自己注册 CoSec 的过滤器，或以 `wow.cosec.mode: disabled` 运行节点以关闭 CoSec，Wow 的服务不带 `cosec` profile 时就是这样运行的。
 - **自己构造 CoSec `Identity` 的测试。** 它的构造器新增了 `memberships`，在最后且有默认值，所以这样的测试针对本版本重新构建后无须改动即可编译。`IdentityHeader.forSubject` 把 `memberships` 写为空；`wow-cosec` 的 `CoSecIdentity` 不写它，网关模式的服务把这读作没有其他成员资格。
 
-CoSec 本版本的其他变化涉及网关、控制面、签发 CoSec 令牌的应用，以及读取 CoSec Redis 的宿主的 `cosec.*` 设置，自己做决定的服务就是这样的宿主：这些按 CoSec 的那一页处理。Wow 不签发令牌，不调用控制面，也不设置那些键。从 8.0.0-beta.6 升级再无须做任何事；从 beta.5 升级，全部变化见 CoSec 的[升级：从 8.0.0-beta.5](https://cosec.ahoo.me/operations/upgrading-previews#from-8-0-0-beta-5)；Wow 的部署会遇到的是：
+CoSec 8.0.0-beta.8 的其他变化涉及网关、控制面、签发 CoSec 令牌的应用，以及读取 CoSec Redis 的宿主的 `cosec.*` 设置，自己做决定的服务就是这样的宿主：这些按 CoSec 的那一页处理。Wow 不签发令牌，不调用控制面，也不设置那些键。从 8.0.0-beta.6 升级再无须做任何事；从 beta.5 升级，全部变化见 CoSec 的[升级：从 8.0.0-beta.5](https://cosec.ahoo.me/operations/upgrading-previews#from-8-0-0-beta-5)；Wow 的部署会遇到的是：
 
 - **CoCache 8.1.0 在 Redis Cluster 上的缺陷。** Wow 10.0.0-beta.13 到 beta.16 运行 Spring Boot 4.2，依赖 CoCache 8.1.0。在 Spring Boot 4.2 的 Lettuce 之下，CoCache 8.1.0 的 Redis 后端（`cocache-redis`）连接 Redis Cluster 时，拒绝发往每个主节点的第一条命令：`Currently not connected. Commands are rejected.` 通过 `wow-cocache`（[CoCache](../guide/extensions/cocache)）在 Redis Cluster 上共享状态的服务，缓存最初的几次写入和读取会失败。单机 Redis 和 Sentinel 不受影响。CoCache 8.2.0 先连接每个主节点：`wow-cocache` 现在依赖它；自己声明了 CoCache 的 starter 和 `cocache-redis` 的应用，也把它们升到 8.2.0，修复就在其中。8.2.0 之下，解码为 `null` 的条目读取失败，而不再当作不存在；Wow 不写这样的条目。
 - **十七个 `cosec.*` 键已移除**：各阶段的超时，现在是 `cosec.pipeline.timeout` 的份额；缓存、队列和快照的上限，现在是堆的份额。设了其中任何一个的服务或网关不会启动，并指出这个键和取代它的东西。Wow 一个也没设；把你的配置里设了的删掉。
@@ -224,10 +239,10 @@ CoSec 本版本的其他变化涉及网关、控制面、签发 CoSec 令牌的�
 
 升级前后，一个聚合的下一条记录可能落在与它之前的记录不同的分区。订阅者于是可能先于一条它尚未读到的较早记录处理它，或越过一条它停放着的记录处理它：停放聚合的分区只拦住放在该分区的记录。Wow 无从分辨，因为版本号的空缺不是证据：一次所有事件都已退役的提交没有记录。对每个在升级中保留其主题的发布服务：
 
-1. 停止发往该服务的命令，或停止它的节点。
+1. 停掉让该服务产生提交的一切：发往它的命令，以及它的定时作业（[定时命令](../guide/scheduling)）。只关闭入口是不够的：作业的一次触发、到期的定时器、Saga 为另一个上下文的记录发出的命令仍会产生提交，而每次提交都会发布。不消费其他服务主题的服务，可以改为停止它的节点。
 2. 等到每个消费服务中读取其主题的每个订阅都已追上，且没有任何停放：对主题的每个分区，`wow.subscription.backlog` 为 0，`wow.subscription.progress` 为 1，并且 `wow.subscription.parked.aggregates` 为 0；[ops 服务与控制台](./ops-console)显示的也一样。先重试或跳过每个停放的条目（[失败处理](../guide/failures)）。
-3. 把它分区少于 `wow.log.partitions` 的主题增加到这个数：`kafka-topics.sh --alter --topic <topic> --partitions <count>`。这期间没有发布，所以没有记录移动。
-4. 升级该服务。
+3. 把它分区少于 `wow.log.partitions` 的状态主题增加到这个数：`kafka-topics.sh --alter --topic <topic> --partitions <count>`。
+4. 再检查一次第 2 步，因为这期间可能有定时器到期，然后升级该服务。在这次检查与升级之间发布的记录，就是仍可能被乱序处理的那一条。
 
 主题与存储一样随本版本新建的部署无需做任何事。
 

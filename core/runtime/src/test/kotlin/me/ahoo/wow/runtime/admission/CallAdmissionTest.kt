@@ -82,7 +82,7 @@ class CallAdmissionTest {
         }
         evolve<ItemAdded> { }
     }
-    private val origin = Origin("node-1", "127.0.0.1:9090", "shop")
+    private val origin = Origin("shop", "node-1", "127.0.0.1:9090")
     private val registry = WaitRegistry()
     private val log = InMemoryEventLog(partitions = 2)
 
@@ -162,7 +162,7 @@ class CallAdmissionTest {
         body = CommandBody.of("""{"sku":"mug"}"""),
         caller = caller,
         aggregateId = aggregateId,
-        target = target,
+        targetScope = target,
         requestId = requestId,
         headers = headers,
         call = call,
@@ -206,6 +206,34 @@ class CallAdmissionTest {
         other.status.assert().describedAs(other.toString()).isEqualTo(CommandResult.Status.SUCCEEDED)
     }
 
+    /**
+     * #7064: `wow:` starts the request ids the framework gives its own commands, which anyone can compute. Admission
+     * refuses it from a caller's request, and takes it on a service's call (a decide function's call to a peer carries
+     * its derived id) and on the in-process client's derived id, which alone carries the mark.
+     */
+    @Test
+    fun `a request id the framework's prefix starts should be refused, but on a call or the framework's own`(): Unit =
+        runBlocking {
+            val framework = "wow:call-of-request-1"
+            val refused = gateway().execute(request(buyer, null, requestId = framework))
+            refused.status.assert().isEqualTo(CommandResult.Status.REJECTED)
+            refused.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
+            refused.error!!.message.assert().isEqualTo(
+                "A request id never starts with wow:: the framework gives those to its own commands.",
+            )
+            commands.assert().isEmpty()
+
+            val called = gateway().execute(request(service, call(), requestId = framework))
+            called.status.assert().describedAs(called.toString()).isEqualTo(CommandResult.Status.SUCCEEDED)
+            val derived = gateway().execute(
+                request(buyer, null, aggregateId = "cart-2", requestId = "wow:derived-1").copyWith(
+                    frameworkRequestId = true,
+                ),
+            )
+            derived.status.assert().describedAs(derived.toString()).isEqualTo(CommandResult.Status.SUCCEEDED)
+            commands.map { it.requestId }.assert().containsExactly(framework, "wow:derived-1")
+        }
+
     @Test
     fun `a call should carry its root request's propagating facts, not the calling service's`(): Unit = runBlocking {
         // The edge recorded the calling service's own application; the call carries the root request's.
@@ -236,7 +264,7 @@ class CallAdmissionTest {
     fun `a call should signal the hops of the wait it carries to the wait's origin`(): Unit = runBlocking {
         val wait = WaitContext(
             "wait-1",
-            Origin("basket-1", "127.0.0.1:9191", "basket"),
+            Origin("basket", "basket-1", "127.0.0.1:9191"),
             listOf(Hop.committed(CONTEXT)),
             System.currentTimeMillis() + 60_000,
         )

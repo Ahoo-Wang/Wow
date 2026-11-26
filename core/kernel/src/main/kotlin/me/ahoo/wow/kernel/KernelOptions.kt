@@ -18,7 +18,9 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The tuning of a [Kernel], set in code, not by configuration keys:
+ * The tuning of a [Kernel], internal to Wow: the host builds it, [recentRequests], [maxEarlyWait] and
+ * [snapshotLoadTimeout] from `wow.state-cache.recent-requests`, `wow.timers.max-early-wait` and the snapshot load
+ * timeout of the host's configuration, the rest from Wow's defaults:
  * - [maxAttempts]: the times a command is decided again after a version conflict before it is answered as contended;
  * - [verifyDecidePurity]: whether every decide function is checked not to change the state it was given (the test
  *   DSL turns it on; it costs two serializations of the state per command);
@@ -35,9 +37,10 @@ import kotlin.time.Duration.Companion.seconds
  *   its tail) before it takes it as failed and replays the log: a snapshot is only a cache, so a store that stops
  *   answering costs a replay, not the command's wait.
  *
- * Fields may be added: construct it with named arguments; the constructor is internal to Wow.
+ * Fields may be added.
  */
-class KernelOptions @InternalWowApi constructor(
+@InternalWowApi
+class KernelOptions(
     val maxAttempts: Int = DEFAULT_MAX_ATTEMPTS,
     val verifyDecidePurity: Boolean = false,
     val reservationTtl: Duration = DEFAULT_RESERVATION_TTL,
@@ -75,6 +78,7 @@ class KernelOptions @InternalWowApi constructor(
             snapshotLoadTimeout
         )
 
+    @InternalWowApi
     companion object {
         const val DEFAULT_MAX_ATTEMPTS: Int = 3
         val DEFAULT_RESERVATION_TTL: Duration = 30.seconds

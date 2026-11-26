@@ -148,6 +148,7 @@ class SubscriptionOptions @InternalWowApi constructor(
         initialBackoff = 100.milliseconds,
         maxBackoff = 5.seconds
     ),
+    @property:InternalWowApi
     val starts: Map<SubscriptionId, SubscriptionStart> = emptyMap(),
     val parked: ParkedRetryOptions = ParkedRetryOptions(),
     val retries: Map<SubscriptionId, HandlerRetry> = emptyMap(),
@@ -385,7 +386,7 @@ class ParkedRetryOptions @InternalWowApi constructor(
  * [failed] hears each failure, before the backoff.
  *
  * [RetryPolicy.maxAttempts] is the budget of attempts before the failure is taken as lasting
- * (`wow.subscription.read-retry.error-after`): until it is spent, each failure is a warning and the backoff grows; once
+ * (`wow.subscription.read-retry.error-after-attempts`): until it is spent, each failure is a warning and the backoff grows; once
  * it is, each further failure is an error, for an operator to see, and the call is retried at the maximum backoff. It
  * is never given up: nothing would read the partition again, and the node keeps its lease.
  */

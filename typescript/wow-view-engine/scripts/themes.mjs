@@ -24,7 +24,7 @@ import postcss from 'postcss';
  * is what it is. `src/themes.css` is the index: its header states the rules
  * every preset keeps, and its `@import` lines name the presets in the order
  * they are listed everywhere — the Storybook toolbar, the gallery, the
- * contrast matrix and `BUILT_IN_PRESETS` (which `test/themeFiles.test.ts`
+ * contrast matrix and `BUILTIN_PRESETS` (which `test/themeFiles.test.ts`
  * holds to this order). Storybook imports the index as it is and lets Vite
  * inline it; the package build calls `buildThemes` below.
  *

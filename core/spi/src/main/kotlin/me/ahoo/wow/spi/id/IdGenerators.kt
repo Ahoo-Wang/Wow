@@ -118,6 +118,7 @@ fun interface AggregateIdGeneratorSource {
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
+@WowSpi
 class IdGenerators @InternalWowApi constructor(
     val global: GlobalIdGenerator = GlobalIdGenerator.UUID_V7,
     val aggregates: AggregateIdGenerator = AggregateIdGenerator.UUID_V7,

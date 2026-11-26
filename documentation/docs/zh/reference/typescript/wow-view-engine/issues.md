@@ -526,7 +526,6 @@ export type IssuePath = (string | number)[];
 | `runtime.query.failed.empty-body` | 服务端收到的是空查询：{reason} |
 | `runtime.query.failed.event-projection-type-required` | 事件内容不能脱离它的类型显示；保留事件类型这一列。 |
 | `runtime.query.failed.expensive-operator-disabled` | 服务端在这里不允许这种高代价的查询：{reason} |
-| `runtime.query.failed.explicit-entry-required` | 查询没有指明要在哪个入口上运行：{reason} |
 | `runtime.query.failed.filter-too-large` | 条件超出了服务端一次查询能接受的数量：{reason} |
 | `runtime.query.failed.first-last-requires-order-by` | 「{field}」的「首个值」「最后一个值」在这里要指定排序字段：这个位置没有事件时间可排。 |
 | `runtime.query.failed.first-last-requires-single-value` | 「首个值」「最后一个值」只能用于单值字段，「{field}」可能有多个值。 |

@@ -31,7 +31,7 @@ import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetState
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.CommandRejectedException
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
@@ -192,7 +192,7 @@ class DatasetReferenceActionsTest {
         val commands = mockk<CommandClient> {
             every { of(any()) } returns this
             coEvery { wait(any()) } throws
-                WowProblemException("wow.command.busy", 503, Retry.NONE, null, "Busy.")
+                WowProblemException("wow.command.busy", 503, RetryAdvice.NONE, null, "Busy.")
         }
         val refusal = assertThrownBy<WowProblemException> {
             runBlocking {

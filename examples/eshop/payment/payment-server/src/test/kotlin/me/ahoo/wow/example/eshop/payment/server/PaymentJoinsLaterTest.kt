@@ -11,10 +11,14 @@
  * limitations under the License.
  */
 
+@file:OptIn(WowSpi::class)
+
 package me.ahoo.wow.example.eshop.payment.server
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentStatus
@@ -35,6 +39,7 @@ import tools.jackson.databind.json.JsonMapper
  * The ordering's order stream as it is before the payment service first starts: the stock of an order was already
  * confirmed, so the order waits for its payment. The payment service is given these topics.
  */
+@OptIn(InternalWowApi::class) // writes the order's state record as its service's sink would (EnvelopeCodec)
 object ConfirmedBeforeTopics {
     fun topics(): InMemoryTopics = InMemoryTopics(1).also { topics ->
         val order = PaymentJoinsLaterTest.ORDER

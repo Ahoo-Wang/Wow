@@ -1,0 +1,108 @@
+# The ABI lines a service's contract jar links to (AGENTS.md, "Binary Compatibility"): services on adjacent minors
+# use each other's contract jars, so none of these changes in a minor. A class line alone holds the class; the lines
+# under it hold its members. :architecture fails when one is missing from its dump; a new entry point is added here
+# with its line, one minor before the contract generator uses it.
+
+== api/api/api/api.api
+public final class me/ahoo/wow/api/aggregate/AggregateType {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun ref (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public final fun unassigned (Ljava/lang/String;)Lme/ahoo/wow/api/aggregate/AggregateRef;
+public final class me/ahoo/wow/api/aggregate/AggregateRef {
+public final class me/ahoo/wow/api/aggregate/Ownership : java/lang/Enum {
+	public static final field OWNER Lme/ahoo/wow/api/aggregate/Ownership;
+	public static final field TENANT Lme/ahoo/wow/api/aggregate/Ownership;
+public final class me/ahoo/wow/api/aggregate/AggregateIdSource : java/lang/Enum {
+	public static final field ASSIGNED Lme/ahoo/wow/api/aggregate/AggregateIdSource;
+	public static final field OWNER Lme/ahoo/wow/api/aggregate/AggregateIdSource;
+public abstract interface annotation class me/ahoo/wow/api/annotation/Access : java/lang/annotation/Annotation {
+	public abstract fun name ()Ljava/lang/String;
+public abstract interface annotation class me/ahoo/wow/api/annotation/AggregateId : java/lang/annotation/Annotation {
+public abstract interface annotation class me/ahoo/wow/api/annotation/Alias : java/lang/annotation/Annotation {
+	public abstract fun value ()[Ljava/lang/String;
+public abstract interface annotation class me/ahoo/wow/api/annotation/AllowCreate : java/lang/annotation/Annotation {
+public abstract interface annotation class me/ahoo/wow/api/annotation/CreateAggregate : java/lang/annotation/Annotation {
+public abstract interface annotation class me/ahoo/wow/api/annotation/Description : java/lang/annotation/Annotation {
+	public abstract fun value ()Ljava/lang/String;
+public abstract interface annotation class me/ahoo/wow/api/annotation/ErrorCode : java/lang/annotation/Annotation {
+	public abstract fun description ()Ljava/lang/String;
+	public abstract fun status ()I
+public abstract interface annotation class me/ahoo/wow/api/annotation/InternalCommand : java/lang/annotation/Annotation {
+public abstract interface annotation class me/ahoo/wow/api/annotation/MountedCommand : java/lang/annotation/Annotation {
+	public abstract fun aggregate ()Ljava/lang/String;
+	public abstract fun transformsTo ()[Ljava/lang/Class;
+public abstract interface annotation class me/ahoo/wow/api/annotation/Name : java/lang/annotation/Annotation {
+	public abstract fun value ()Ljava/lang/String;
+public abstract interface annotation class me/ahoo/wow/api/annotation/OccurredAt : java/lang/annotation/Annotation {
+public abstract interface annotation class me/ahoo/wow/api/annotation/Revision : java/lang/annotation/Annotation {
+	public abstract fun value ()I
+public abstract interface annotation class me/ahoo/wow/api/annotation/Summary : java/lang/annotation/Annotation {
+	public abstract fun value ()Ljava/lang/String;
+public abstract interface annotation class me/ahoo/wow/api/annotation/Unaddressed : java/lang/annotation/Annotation {
+public abstract interface annotation class me/ahoo/wow/api/read/StateView : java/lang/annotation/Annotation {
+	public static final field Companion Lme/ahoo/wow/api/read/StateView$Companion;
+	public abstract fun aggregate ()Ljava/lang/String;
+	public static fun typeOf (Ljava/lang/Class;)Lme/ahoo/wow/api/aggregate/AggregateType;
+public final class me/ahoo/wow/api/result/Hop {
+	public static final field Companion Lme/ahoo/wow/api/result/Hop$Companion;
+public final class me/ahoo/wow/api/result/Hop$Companion {
+	public final fun accepted (Ljava/lang/String;)Lme/ahoo/wow/api/result/Hop;
+	public final fun committed (Ljava/lang/String;)Lme/ahoo/wow/api/result/Hop;
+	public final fun handled (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/result/Hop;
+	public final fun queryable (Ljava/lang/String;)Lme/ahoo/wow/api/result/Hop;
+	public final fun snapshot (Ljava/lang/String;)Lme/ahoo/wow/api/result/Hop;
+== api/query-api/api/query-api.api
+public abstract interface class me/ahoo/wow/api/query/QueryField {
+	public static final field Companion Lme/ahoo/wow/api/query/QueryField$Companion;
+	public static fun of (Ljava/lang/String;)Lme/ahoo/wow/api/query/QueryField;
+public final class me/ahoo/wow/api/query/QueryField$Companion {
+	public final fun of (Ljava/lang/String;)Lme/ahoo/wow/api/query/QueryField;
+public class me/ahoo/wow/api/query/SnapshotProperties {
+	public final field ACCESS Lme/ahoo/wow/api/query/QueryField;
+	public final field AGGREGATE_ID Lme/ahoo/wow/api/query/QueryField;
+	public static final field Companion Lme/ahoo/wow/api/query/SnapshotProperties$Companion;
+	public final field DELETED Lme/ahoo/wow/api/query/QueryField;
+	public final field FIRST_EVENT_TIME Lme/ahoo/wow/api/query/QueryField;
+	public final field FIRST_OPERATOR Lme/ahoo/wow/api/query/QueryField;
+	public final field FIRST_OPERATOR__ACTED_ELSEWHERE Lme/ahoo/wow/api/query/QueryField;
+	public final field FIRST_OPERATOR__ID Lme/ahoo/wow/api/query/QueryField;
+	public final field FIRST_OPERATOR__TENANT_ID Lme/ahoo/wow/api/query/QueryField;
+	public final field LAST_EVENT_TIME Lme/ahoo/wow/api/query/QueryField;
+	public final field OPERATOR Lme/ahoo/wow/api/query/QueryField;
+	public final field OPERATOR__ACTED_ELSEWHERE Lme/ahoo/wow/api/query/QueryField;
+	public final field OPERATOR__ID Lme/ahoo/wow/api/query/QueryField;
+	public final field OPERATOR__TENANT_ID Lme/ahoo/wow/api/query/QueryField;
+	public final field OWNER_ID Lme/ahoo/wow/api/query/QueryField;
+	public final field SCHEDULES Lme/ahoo/wow/api/query/QueryField;
+	public final field SPACE_ID Lme/ahoo/wow/api/query/QueryField;
+	public final field STATE Lme/ahoo/wow/api/query/QueryField;
+	public final field TENANT_ID Lme/ahoo/wow/api/query/QueryField;
+	public final field VERSION Lme/ahoo/wow/api/query/QueryField;
+	protected fun <init> ()V
+	public final fun access (Ljava/lang/String;)Lme/ahoo/wow/api/query/QueryField;
+	public final fun schedule (Ljava/lang/String;)Lme/ahoo/wow/api/query/QueryField;
+public abstract interface annotation class me/ahoo/wow/api/query/annotation/QueryAlias : java/lang/annotation/Annotation {
+	public abstract fun value ()[Ljava/lang/String;
+public abstract interface annotation class me/ahoo/wow/api/query/annotation/QueryDecimal : java/lang/annotation/Annotation {
+	public abstract fun scale ()I
+public abstract interface annotation class me/ahoo/wow/api/query/annotation/QueryDuration : java/lang/annotation/Annotation {
+	public abstract fun unit ()Ljava/util/concurrent/TimeUnit;
+public abstract interface annotation class me/ahoo/wow/api/query/annotation/QueryIndex : java/lang/annotation/Annotation {
+	public abstract fun name ()Ljava/lang/String;
+	public abstract fun on ()Ljava/lang/String;
+	public abstract fun with ()[Ljava/lang/String;
+public abstract interface annotation class me/ahoo/wow/api/query/annotation/QueryMoney : java/lang/annotation/Annotation {
+	public abstract fun currency ()Ljava/lang/String;
+	public abstract fun currencyField ()Ljava/lang/String;
+	public abstract fun scale ()I
+public abstract interface annotation class me/ahoo/wow/api/query/annotation/QueryReference : java/lang/annotation/Annotation {
+	public abstract fun aggregate ()Ljava/lang/String;
+	public abstract fun context ()Ljava/lang/String;
+public abstract interface annotation class me/ahoo/wow/api/query/annotation/QueryTemporal : java/lang/annotation/Annotation {
+	public abstract fun pattern ()Ljava/lang/String;
+	public abstract fun unit ()Ljava/util/concurrent/TimeUnit;
+public abstract interface annotation class me/ahoo/wow/api/query/annotation/QueryText : java/lang/annotation/Annotation {
+public abstract interface annotation class me/ahoo/wow/api/query/annotation/Sensitive : java/lang/annotation/Annotation {
+	public abstract fun level ()Lme/ahoo/wow/api/query/annotation/SensitivityLevel;
+	public abstract fun mask ()Lme/ahoo/wow/api/query/annotation/Mask;
+public abstract interface annotation class me/ahoo/wow/api/query/annotation/Mask : java/lang/annotation/Annotation {

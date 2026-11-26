@@ -19,7 +19,7 @@
  *
  * This file is the index. Each preset lives in `themes/<name>.css` with the
  * notes on its values; the lines below name them in the order every list of
- * presets follows — `BUILT_IN_PRESETS`, the Storybook toolbar, the gallery
+ * presets follows — `BUILTIN_PRESETS`, the Storybook toolbar, the gallery
  * and the contrast matrix. The build (`scripts/themes.mjs`) makes both
  * shipped forms from these sources, the values without the notes.
  *

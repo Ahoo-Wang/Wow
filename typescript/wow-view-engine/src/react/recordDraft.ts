@@ -81,8 +81,13 @@ export function recordSort(value: unknown): RecordSort[] {
  */
 export function recordSummaries(value: unknown): RecordSummary[] {
   return entries(value).flatMap(entry =>
-    SUMMARY_FUNCTIONS.includes(entry.fn as SummaryFunction)
-      ? [{ field: entry.field as string, fn: entry.fn as SummaryFunction }]
+    SUMMARY_FUNCTIONS.includes(entry.function as SummaryFunction)
+      ? [
+          {
+            field: entry.field as string,
+            function: entry.function as SummaryFunction,
+          },
+        ]
       : [],
   );
 }

@@ -165,23 +165,23 @@ describe("a board's fixed scope", () => {
 
     // A reader never takes it: outside building the command is refused.
     runtime.setBuilding(false);
-    runtime.removeFixedScope();
+    runtime.removeFixed();
     expect(runtime.getSnapshot().draft.fixed).toEqual(fixed);
     expect(runtime.getSnapshot().dirty).toBe(false);
 
     runtime.setBuilding(true);
-    runtime.removeFixedScope();
+    runtime.removeFixed();
     let state = runtime.getSnapshot();
     expect(state.draft.fixed).toEqual({ op: 'and', children: [] });
     expect(state.applied.fixed).toEqual({ op: 'and', children: [] });
     expect(state.dirty).toBe(true);
     expect(state.history.undo).toEqual({
-      command: 'removeFixedScope',
+      command: 'removeFixed',
       subject: null,
     });
 
     // Undone and redone as the board's other edits are, on both configs.
-    expect(runtime.undo()?.command).toBe('removeFixedScope');
+    expect(runtime.undo()?.command).toBe('removeFixed');
     state = runtime.getSnapshot();
     expect(state.draft.fixed).toEqual(fixed);
     expect(state.applied.fixed).toEqual(fixed);
@@ -191,7 +191,7 @@ describe("a board's fixed scope", () => {
 
     // Taking out an empty scope again changes nothing and is no step.
     const before = runtime.getSnapshot();
-    runtime.removeFixedScope();
+    runtime.removeFixed();
     expect(runtime.getSnapshot()).toBe(before);
 
     const written = await board.engine.save(runtime);
@@ -818,7 +818,7 @@ describe('what stops a save', () => {
           saved('a'),
           {
             ...saved('b'),
-            bindings: [{ globalField: 'ghost', panelField: 'status' }],
+            bindings: [{ dashboardField: 'ghost', panelField: 'status' }],
           } as DashboardPanel,
         ],
       }),

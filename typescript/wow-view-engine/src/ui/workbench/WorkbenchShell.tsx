@@ -44,6 +44,7 @@ import type { ViewDensity, ViewPreset } from '../kit/presets.js';
  */
 export type WorkbenchLandmark = 'main' | 'region';
 
+/** Props of `WorkbenchShell`. */
 export interface WorkbenchShellProps {
   workbench: WorkbenchController;
   /** The definition's title, which names the sidebar and the header. */
@@ -353,7 +354,7 @@ export function WorkbenchShell({
   // of several shows none until a view says which it is.
   const kind =
     runtime?.kind ??
-    (workbench.kinds.length === 1 ? workbench.kinds[0] : undefined);
+    (workbench.viewKinds.length === 1 ? workbench.viewKinds[0] : undefined);
 
   // One dialog behind two ways in — the sidebar's gear and the switcher's
   // last item — so the state is here rather than inside either of them.

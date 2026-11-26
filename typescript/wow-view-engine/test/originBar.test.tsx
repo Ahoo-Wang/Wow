@@ -64,7 +64,7 @@ function Shell({
   hold(workbench: WorkbenchController): void;
 }) {
   const workbench = useWorkbench(engine, 'orders', {
-    kinds: ['record', 'analysis'],
+    viewKinds: ['record', 'analysis'],
     instanceId: 'orders-chart',
     newView: { title: 'Untitled view' },
   });

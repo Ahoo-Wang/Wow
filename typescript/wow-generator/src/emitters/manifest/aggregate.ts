@@ -39,7 +39,7 @@ export function emitAggregate(
     `${doc([
       `The aggregate \`${aggregate.context}.${aggregate.name}\`.`,
       aggregate.description,
-    ])}export const ${name}Aggregate = {\n  context: ${quoteStringLiteral(context.name)},\n  name: ${quoteStringLiteral(aggregate.name)},\n  path: ${quoteStringLiteral(`/${context.name}/${aggregate.name}`)},\n  ownership: ${quoteStringLiteral(aggregate.ownership)},\n${aggregate.idSource === 'assigned' ? '' : `  idSource: ${quoteStringLiteral(aggregate.idSource)},\n`}  snapshot: ${aggregate.snapshot},\n${textNumbersMember(aggregate, { module, outputDir, client: WOW_CLIENT })}${errorsMember(errorsOf(context, aggregate), '  ')}} as const;`,
+    ])}export const ${name}Aggregate = {\n  context: ${quoteStringLiteral(context.name)},\n  name: ${quoteStringLiteral(aggregate.name)},\n  ownership: ${quoteStringLiteral(aggregate.ownership)},\n  idSource: ${quoteStringLiteral(aggregate.idSource)},\n  snapshot: ${aggregate.snapshot},\n${textNumbersMember(aggregate, { module, outputDir, client: WOW_CLIENT })}${errorsMember(errorsOf(context, aggregate), '  ')}} as const;`,
   );
   addStatement(
     module,

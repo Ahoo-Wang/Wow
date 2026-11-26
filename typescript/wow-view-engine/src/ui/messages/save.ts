@@ -117,4 +117,4 @@ export const saveMessages = {
   'label.revert.heading': 'Go back to the saved version?',
   'label.revert.consequence': 'Unsaved changes will be lost.',
   'label.revert.keep': 'Keep editing',
-} as const satisfies Record<string, string>;
+} satisfies Record<string, string>;

@@ -70,6 +70,7 @@ export function EditorFold({ open, onOpenChange, children }: EditorFoldProps) {
   );
 }
 
+/** Props of `EditorBand`. */
 export interface EditorBandProps {
   /** The id the header's toggle points `aria-controls` at. */
   id: string;

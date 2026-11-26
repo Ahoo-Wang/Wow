@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.tck
 
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.SupportMode
 import org.junit.jupiter.api.Assumptions
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.Assumptions
  * `storage.paging.keyset`). The skip says the fact and its value, so a report shows which declaration declined it, and
  * a backend that declined a feature by mistake sees it.
  */
+@WowSpi
 fun assumeSupported(mode: SupportMode, fact: String, feature: String) {
     Assumptions.assumeTrue(mode != SupportMode.NONE) { "Skipped: the storage declares $fact = $mode ($feature)." }
 }
@@ -30,6 +32,7 @@ fun assumeSupported(mode: SupportMode, fact: String, feature: String) {
  * Skips the test unless the storage binds [capability] to [field]: [binding] is that binding, null when it binds none.
  * The skip names the field and the capability, as [assumeSupported] names a storage fact.
  */
+@WowSpi
 fun assumeBound(binding: Any?, field: String, capability: QueryCapability, feature: String) {
     Assumptions.assumeTrue(binding != null) {
         "Skipped: the storage binds no $capability to $field ($feature)."

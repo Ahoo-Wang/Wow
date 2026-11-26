@@ -13,11 +13,14 @@
 
 package me.ahoo.wow.openapi
 
+import me.ahoo.wow.api.annotation.InternalWowApi
+
 /**
  * The names of the public port's routes and headers that the Manifest does not carry and the document describes: the
  * framework's endpoints under `/wow`, the state reads beside the command routes, and the Wow request headers. They are
  * the edge's (`wow-http`'s `WowPaths` and `WowHeaders`), which `wow-http`'s tests hold to these.
  */
+@InternalWowApi
 object WowHttpContract {
     /** Serves the Manifest the routes were built from. */
     const val MANIFEST_PATH: String = "/wow/manifest"
@@ -42,6 +45,12 @@ object WowHttpContract {
     const val IF_MATCH_HEADER: String = "If-Match"
     const val IF_NONE_MATCH_HEADER: String = "If-None-Match"
     const val ETAG_HEADER: String = "ETag"
+
+    /** The `Cache-Control` of a tagged answer: `private, no-cache`. */
+    const val CACHE_CONTROL_HEADER: String = "Cache-Control"
+
+    /** The value of [CACHE_CONTROL_HEADER] on every tagged answer. */
+    const val CACHE_CONTROL: String = "private, no-cache"
     const val RETRY_AFTER_HEADER: String = "Retry-After"
 
     /** On a snapshot model's answers, `true` while its snapshots are being rebuilt or backfilled. */

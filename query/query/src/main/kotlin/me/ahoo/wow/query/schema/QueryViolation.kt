@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.query.error.QueryErrors
@@ -24,12 +25,14 @@ import me.ahoo.wow.query.error.QueryRequestException
  * stable [code], renders its [message] from its facts, and belongs to a [Kind] that decides the error it becomes
  * ([rejection]): the one place a rejection is rendered. Codes are a contract (added, never renamed); texts are not.
  *
- * Both kinds are answered as `wow.query.invalid`, each violation carrying its code. Server faults (a
+ * Both kinds are answered as `wow.query.invalid`, each violation carrying its code, but [TooManyGroups], which is
+ * `wow.query.too-many-groups`. Server faults (a
  * result that breaks integrity, a storage that failed or timed out) are not violations: they are
  * [me.ahoo.wow.query.error.QueryExecutionException]s.
  *
  * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
+@WowSpi
 sealed interface QueryViolation {
     val message: String
 
@@ -966,21 +969,6 @@ sealed interface QueryViolation {
             @JvmStatic
             fun of(limit: Int): TooManyGroups = TooManyGroups(limit)
         }
-    }
-
-    /** The gateway requires every query to state its entry, and this one ran under `UNSPECIFIED`. */
-    data object ExplicitEntryRequired : QueryViolation {
-        override val kind: Kind
-            get() = Kind.REQUEST
-
-        override val location: String
-            get() = QueryRequestException.BODY
-
-        override val code: String
-            get() = QueryErrorCodes.EXPLICIT_ENTRY_REQUIRED
-
-        override val message: String
-            get() = "Query entry must be explicit: run the query under QueryEntry.HTTP or QueryEntry.IN_PROCESS."
     }
 
     /** A cursor token that does not decode for this model and effective sort. */

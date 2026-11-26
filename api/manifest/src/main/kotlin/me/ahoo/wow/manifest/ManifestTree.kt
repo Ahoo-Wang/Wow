@@ -16,7 +16,7 @@ package me.ahoo.wow.manifest
 import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Ownership
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.schedule.JobScope
 import me.ahoo.wow.api.schedule.Misfire
 import me.ahoo.wow.api.wire.WireNames
@@ -111,7 +111,7 @@ object ManifestTree {
             "code" to error.code,
             "status" to error.status,
             "description" to error.description,
-            "retry" to error.retry.takeUnless { it == Retry.NONE }?.let(WireNames::of),
+            "retry" to error.retry.takeUnless { it == RetryAdvice.NONE }?.let(WireNames::of),
             "retryAfter" to error.retryAfter,
         )
 
@@ -301,13 +301,13 @@ object ManifestTree {
     private fun readRoute(node: Node): RouteManifest = RouteManifest(node.string("method"), node.string("path"))
 
     private fun readError(node: Node): ErrorManifest =
-        node.enumOrNull("retry", Retry.entries).let { retry ->
+        node.enumOrNull("retry", RetryAdvice.entries).let { retry ->
             // A retry this reader does not know is none: it never retries what it cannot tell is safe to.
             ErrorManifest(
                 node.string("code"),
                 node.int("status"),
                 node.stringOrNull("description"),
-                retry ?: Retry.NONE,
+                retry ?: RetryAdvice.NONE,
                 node.intOrNull("retryAfter").takeIf { retry != null },
             )
         }

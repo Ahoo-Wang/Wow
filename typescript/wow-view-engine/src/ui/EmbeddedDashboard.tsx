@@ -23,7 +23,6 @@ import type {
 } from '../runtime/index.js';
 import { blocksBoard } from '../runtime/dashboard/panels.js';
 import {
-  useAutoRefresh,
   useDashboard,
   useFilterEditor,
   type DashboardController,
@@ -47,7 +46,7 @@ import {
   holdsGrouping,
   readersOf,
   staticModes,
-  type BoardFilterModes,
+  type DashboardFilterModes,
   type DashboardFilterMode,
 } from './dashboard/filterModes.js';
 import { EmbedFrame } from './embed/EmbedFrame.js';
@@ -64,9 +63,10 @@ import { useRoutedNavigate } from './workbench/ViewEngineProvider.js';
 import { boardKey, useAddressedBoard } from './workbench/address.js';
 import { ErrorStrip, WarningStrip } from './kit/StatusStrip.js';
 import { boardErrorTitle } from './workbench/panelsToFix.js';
+import { useAutoRefresh } from '../react/useAutoRefresh.js';
 
 export type {
-  BoardFilterModes,
+  DashboardFilterModes,
   DashboardFilterMode,
 } from './dashboard/filterModes.js';
 
@@ -119,7 +119,7 @@ export interface EmbeddedDashboardProps extends EmbedBaseProps {
    * they start at their defaults. An entry for a locked or hidden filter is
    * ignored: `pageValues` holds those.
    */
-  initialFilters?: DashboardFilters | null;
+  defaultFilters?: DashboardFilters | null;
   /**
    * Told what the reader's filters hold whenever that changes — the board
    * opening included — so a host can write them into its address. Only the
@@ -129,7 +129,7 @@ export interface EmbeddedDashboardProps extends EmbedBaseProps {
    */
   onFiltersChange?(filters: DashboardFilters): void;
   /** The tab the board opens on, as the host's route has it (D22 E). */
-  initialTab?: string | null;
+  defaultTab?: string | null;
   /** Told which tab is on screen whenever that changes, opening included. */
   onTabChange?(tabId: string | null): void;
   /**
@@ -195,14 +195,14 @@ export function EmbeddedDashboard(given: EmbeddedDashboardProps) {
   const opening = useCallback(() => {
     const {
       pageValues,
-      initialFilters,
+      defaultFilters,
       filterModes: filters,
       groupingMode: grouping,
-      initialTab: tab,
+      defaultTab: tab,
     } = latest.current;
     const modes = { filters, grouping };
     const held = heldOf(modes, pageValues);
-    const reader = initialFilters ? readersOf(modes, initialFilters) : null;
+    const reader = defaultFilters ? readersOf(modes, defaultFilters) : null;
     const named =
       reader !== null &&
       (Object.keys(reader.values).length > 0 || reader.unit !== undefined);
@@ -450,7 +450,7 @@ function ReadBoard({
   grid,
 }: {
   dashboard: DashboardController;
-  modes: BoardFilterModes;
+  modes: DashboardFilterModes;
   refused: readonly Issue[];
   fixed: readonly FilterSummaryItem[];
   /**

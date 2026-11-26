@@ -123,7 +123,7 @@ fun `a problem the server answered should be typed`() {
     rejected.code.assert().isEqualTo("bank.account.insufficient-balance")
     rejected.result!!.status.assert().isEqualTo(CommandResult.Status.REJECTED)
     rejected.version.assert().isEqualTo(1)
-    rejected.retry.assert().isEqualTo(Retry.NONE)
+    rejected.retry.assert().isEqualTo(RetryAdvice.NONE)
 }
 ```
 
@@ -195,6 +195,7 @@ runBlocking { reserve(inventory, "cup") }.assert().isEqualTo("try again later")
 - `call.rejected(code, message, ref, violations, extensions)` is thrown from `send` and `wait` as the `CommandRejectedException` a real client throws.
 - `call.failed(code, message)` is thrown from `send` and `wait` as the `WowProblemException` of a call that failed, which a retry with the same request id may get past. To give another status or retry, the lambda throws a `WowProblemException` of its own.
 - `stream` emits each answer as a result, whatever its status, rejected and failed ones included, as a real client's stream emits every status.
+- `call.requestId` is the request id the call was sent under. A call a decide function sends without one takes the id a node's client derives for it: the same at every attempt of the command, and a call that changes at a later attempt fails the command, as on a node ([Undo an outside act](./aggregates#undo-an-outside-act)). A call sent elsewhere keeps its own, or none.
 
 Against the server, `fakePeer` answers the same three over HTTP, as the peer's routes would, and the server's client reads them back:
 

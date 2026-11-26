@@ -47,7 +47,7 @@ class WaitArrivalTest {
         decide<Reserve>(Creation.ALLOWED) { _, body -> Decision.events(Reserved(body.order)) }
         evolve<Reserved> { }
     }
-    private val origin = Origin("node-2", "10.0.0.2:9090", "sales")
+    private val origin = Origin("sales", "node-2", "10.0.0.2:9090")
     private val sent = CopyOnWriteArrayList<CommandResult>()
     private val directory = object : SubscriptionDirectory {
         override fun kindOf(context: String, subscription: String): FunctionKind? =
@@ -60,7 +60,7 @@ class WaitArrivalTest {
         WaitRegistry(),
         directory,
         LocalSignalSender("node-1", WaitRegistry()) { _, signal, _ -> sent += signal.result },
-        Origin("node-1", "127.0.0.1:9090", "shop"),
+        Origin("shop", "node-1", "127.0.0.1:9090"),
         WaitOptions(),
     )
 

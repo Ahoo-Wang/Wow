@@ -18,6 +18,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CountQuery
@@ -73,6 +74,7 @@ import java.util.UUID
  * class's fixtures, hooks and constants, and the suite's public constants on [EventQueryBackendSpec], never a member
  * of the family it extends, so any order would run the same cases.
  */
+@WowSpi
 abstract class EventQueryFixtures internal constructor() {
     /**
      * Stores [streams], all of [type], where the backend under test reads them, each appended with the transport
@@ -303,7 +305,7 @@ abstract class EventQueryFixtures internal constructor() {
             Transport.of(
                 wait = WaitContext.of(
                     "w-1",
-                    Origin.of("node-1", "10.0.0.7:8081", "order-service"),
+                    Origin.of("order-service", "node-1", "10.0.0.7:8081"),
                     listOf(Hop.handled("projector", "tck"), Hop.snapshot()),
                     1_767_571_210_000L,
                 ),

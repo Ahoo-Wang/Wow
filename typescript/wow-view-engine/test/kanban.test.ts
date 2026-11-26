@@ -13,7 +13,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   compileRecord,
   defaultRecordConfig,
   validateDefinition,
@@ -37,7 +37,7 @@ import { NOW, ordersDefinition, recordConfig } from './fixtures.js';
 import { dealsDefinition, kanbanConfig } from './fixtures/kanban.js';
 import { AggregationFunction, FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
-const kinds = builtinFieldKinds;
+const kinds = builtinFieldKindRegistry;
 const at = { now: NOW, timeZone: 'UTC' };
 
 describe('kanbanLanes', () => {
@@ -114,9 +114,7 @@ describe('laneConfig', () => {
     const query = compileRecord(
       definition,
       laneConfig(definition, folded, other),
-      kinds,
-      at,
-      { cursor: null },
+      { kinds, context: at, page: { cursor: null } },
     );
     expect(JSON.stringify(query.filter)).toContain('"not-in"');
     expect(JSON.stringify(query.filter)).toContain('["LEAD","WON","LOST"]');
@@ -135,7 +133,7 @@ describe('compileKanbanCounts', () => {
       dealsDefinition(),
       kanbanConfig({
         kanban: { lane: 'stage', hidden: ['LOST'] },
-        summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+        summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
       }),
       kinds,
       at,
@@ -168,7 +166,7 @@ describe('compileKanbanCounts', () => {
 describe('projectKanban', () => {
   const definition = dealsDefinition();
   const config = kanbanConfig({
-    summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+    summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
   });
   const lanes = kanbanLanes(definition, config);
   const pages = [

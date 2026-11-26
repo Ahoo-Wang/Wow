@@ -39,12 +39,11 @@ import type {
   RecordViewRuntime,
   ViewRuntime,
 } from '../src/runtime/index.js';
-import { useAutoRefresh, type RefreshController } from '../src/react/index.js';
+import type { RefreshController } from '../src/react/index.js';
 import {
   DataWorkbench,
   DashboardWorkbench,
   MessagesProvider,
-  RefreshControl,
   ViewSurface,
   zhCN,
 } from '../src/ui/index.js';
@@ -61,6 +60,8 @@ import {
   resourcesOf,
 } from './fixtures.js';
 import { describedText, refreshController } from './fixtures/ui.js';
+import { useAutoRefresh } from '../src/react/useAutoRefresh.js';
+import { RefreshControl } from '../src/ui/workbench/RefreshControl.js';
 
 afterEach(() => {
   cleanup();
@@ -177,7 +178,7 @@ function recordRuntime(
 ): RecordViewRuntime {
   return engine.create('orders', {
     title: 'New',
-    scope: 'personal',
+    audience: 'personal',
     config,
   });
 }

@@ -25,7 +25,7 @@ Add the module, the starter of your registry, and the Spring Cloud BOM of the tr
 dependencies {
     implementation(platform("org.springframework.cloud:spring-cloud-dependencies:2026.0.0"))
     implementation("me.ahoo.wow:wow-spring-cloud")
-    implementation("me.ahoo.cosky:cosky-spring-boot-starter:8.0.0-beta.11")
+    implementation("me.ahoo.cosky:cosky-spring-boot-starter:8.0.0-rc.3")
 }
 ```
 
@@ -81,7 +81,7 @@ Spring Cloud announces each registration just before it sends it, once the publi
 
 An instance that a Wow node does not register itself names the three keys in its registry's own metadata settings: `cosky.registry.metadata.*`, `spring.cloud.consul.discovery.metadata.*`, `eureka.instance.metadata-map.*`, `spring.cloud.nacos.discovery.metadata.*` or `spring.cloud.zookeeper.discovery.metadata.*`. The keys have dashes because Consul refuses a dot in a metadata key.
 
-CoSky checks no health: an instance stays registered as long as its process renews its lease. Measured on CoSky 8.0.0-beta.11 with its default lease, a node that stopped cleanly had left the other services' view by the time its stop returned, and a node killed with `SIGKILL` left it about 38 seconds later ([CoSky's leases](https://cosky.ahoo.me/guide/service-discovery#leases)). The client passes over a node that does not answer in the meantime. A registry with health checks (Consul, Eureka, Nacos) checks the public port, as for any Spring Boot application.
+CoSky checks no health: an instance stays registered as long as its process renews its lease. Measured on CoSky 8.0.0-beta.11 with its default lease, a node that stopped cleanly had left the other services' view by the time its stop returned, and a node killed with `SIGKILL` left it about 38 seconds later ([CoSky's leases](https://cosky.ahoo.me/guide/service-discovery#leases)). From 8.0.0-rc.1, CoSky's starter deregisters as the application starts closing, before its web server stops taking requests, so consumers leave a stopping node sooner ([CoSky 8.0.0-rc.1](https://github.com/Ahoo-Wang/CoSky/releases/tag/v8.0.0-rc.1)); the figures above were not measured again on it. The client passes over a node that does not answer in the meantime. A registry with health checks (Consul, Eureka, Nacos) checks the public port, as for any Spring Boot application.
 
 CoSky registers the instance at the first address Spring Cloud finds that is not loopback, and has no setting of its own for it: choose the interface with `spring.cloud.inetutils.preferred-networks` (or `ignored-interfaces`). Only the public port is called at that address; the internal address comes from the metadata.
 

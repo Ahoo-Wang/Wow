@@ -85,7 +85,7 @@ override fun manageIndexes(type: AggregateType, plan: QueryIndexPlan): QueryInde
 
 topic 传输和 Sink 的发现方式与存储相同。`TransportProvider`（`:spi`，`me.ahoo.wow.spi.transport`）打开承载发布事件流、发往其他上下文的命令及其回执的消息代理：它的 `open` 返回一个 `TopicTransport`，即节点使用的 `TopicProducer`、`PartitionedSource` 和 `TopicAdmin`，并且可以在节点就绪后对节点的命令主题给出警告。`SinkProvider`（`me.ahoo.wow.spi.sink`）打开一个目的地的 Sink：`open` 返回一个 `StreamSinks`，每个发布的事件流一个 `Sink`，其订阅命名为 `<processor>.<aggregate>`。宿主通过 `ServiceLoader` 从 `META-INF/services/me.ahoo.wow.spi.transport.TransportProvider` 和 `META-INF/services/me.ahoo.wow.spi.sink.SinkProvider` 中找到它们，也会在应用的 bean 中寻找；宿主自己不构建任何消息代理或数据仓库专有的东西。Wow 的 Kafka 传输（`kafka`）和 ClickHouse Sink（`clickhouse`）与其他提供者没有区别。
 
-类型为 `<type>` 的提供者声明它读取的选项（`options`，与存储提供者相同），宿主把 `wow.<type>` 下它声明的键以相对于该前缀的选项交给它（`bootstrap-servers`、`properties.linger.ms`）；没有任何提供者声明的键会使启动失败。由它的 `available` 说明这些键是否配置了它。主题传输只声明自己的选项：每个主题传输都有的设置（`TopicTransportOptions`：`topics.prefix`、`command-intake.enabled`、`ddl`、`topics.partition-refresh`）会与之合并。一个节点最多运行一个传输，并运行所有已配置的 Sink。提供者以 `IllegalArgumentException` 拒绝的设置会使启动失败，并指出对应的键。`TopicTransportSpec` 和 `SinkSpec` 检查提供者只读取它声明的选项。
+类型为 `<type>` 的提供者声明它读取的选项（`options`，与存储提供者相同），宿主把 `wow.<type>` 下它声明的键以相对于该前缀的选项交给它（`bootstrap-servers`、`properties.linger.ms`）；没有任何提供者声明的键会使启动失败。由它的 `available` 说明这些键是否配置了它。主题传输只声明自己的选项：每个主题传输都有的设置（`TopicTransportOptions`：`topics.prefix`、`command-intake.enabled`、`ddl`、`topics.partition-refresh-interval`）会与之合并。一个节点最多运行一个传输，并运行所有已配置的 Sink。提供者以 `IllegalArgumentException` 拒绝的设置会使启动失败，并指出对应的键。`TopicTransportSpec` 和 `SinkSpec` 检查提供者只读取它声明的选项。
 
 节点发现（`PeerDiscovery`，`me.ahoo.wow.spi.peer`）用于找到对端服务各节点的内部端口，它在 `wow.peer.<type>` 下遵循同样的规则：只能读已声明的选项，并通过配置读取（`PeerDiscoveryConfig.settings.option(option)`）。Wow 的 `dns` 发现声明了 `name-template`、`namespace` 与映射 `namespaces`。
 
@@ -131,9 +131,8 @@ topic 传输和 Sink 的发现方式与存储相同。`TransportProvider`（`:sp
        override val facets: List<Class<*>> = listOf(StoreQueries::class.java, StorePool::class.java)
 
        /** PostgreSQL's jsonb refuses a NUL character. */
-       override fun refused(stream: EventStreamRecord): EventStreamRecord = stream.copyWith(
-           events = listOf(EventRecord("x.aggregate.Named", 1, """{"name":"a\u0000b"}""")),
-       )
+       override fun refused(stream: EventStreamRecord): EventStreamRecord =
+           stream.withEvents(listOf(EventRecord.of("x.aggregate.Named", 1, """{"name":"a\u0000b"}""")))
    }
    ```
 
@@ -151,7 +150,7 @@ topic 传输和 Sink 的发现方式与存储相同。`TransportProvider`（`:sp
    }
    ```
 
-3. **每个端口继承一个 spec。** 每个 spec 都是一个抽象的 JUnit 5 类：实现它的抽象成员，把一个全新的存储交给 spec，别的什么都不用做。它的测试是 final 的，所以后端不能修改或关闭其中某个测试。端口是 `@WowSpi`，编译器会对这种选择加入给出警告，所以测试类用 `@OptIn(WowSpi::class)`（或由测试源码集）选择加入，让构建没有警告。PostgreSQL 日志的测试就是一个日志所需的全部，外加四个可选钩子：同一上下文的第二次 `createLog` 是否打开同一个存储（保留 `false` 时跳过两个写入者的用例）、读取它尾部时所用的快照存储、它一次往返读取两者的方式，以及它拒绝的流：
+3. **每个端口继承一个 spec。** 每个 spec 都是一个抽象的 JUnit 5 类：实现它的抽象成员，把一个全新的存储交给 spec，别的什么都不用做。它的测试是 final 的，所以后端不能修改或关闭其中某个测试。spec 与端口一样是 `@WowSpi`：次版本可能给某个 spec 加一个钩子。端口是 `@WowSpi`，编译器会对这种选择加入给出警告，所以测试类用 `@OptIn(WowSpi::class)`（或由测试源码集）选择加入，让构建没有警告。PostgreSQL 日志的测试就是一个日志所需的全部，外加四个可选钩子：同一上下文的第二次 `createLog` 是否打开同一个存储（保留 `false` 时跳过两个写入者的用例）、读取它尾部时所用的快照存储、它一次往返读取两者的方式，以及它拒绝的流：
 
    <!-- sample: fragment -->
 
@@ -168,9 +167,8 @@ topic 传输和 Sink 的发现方式与存储相同。`TransportProvider`（`:sp
            (log as PostgresEventLog).snapshotTailsWith(snapshots as PostgresSnapshotStore)
 
        /** A `\u0000` in a payload string: PostgreSQL's `jsonb` does not take it. */
-       override fun refused(stream: EventStreamRecord): EventStreamRecord = stream.copyWith(
-           events = listOf(EventRecord("x.aggregate.Named", 1, """{"name":"a\u0000b"}""")),
-       )
+       override fun refused(stream: EventStreamRecord): EventStreamRecord =
+           stream.withEvents(listOf(EventRecord.of("x.aggregate.Named", 1, """{"name":"a\u0000b"}""")))
    }
    ```
 
@@ -204,7 +202,7 @@ topic 传输和 Sink 的发现方式与存储相同。`TransportProvider`（`:sp
 后端在端口本身上声明它能做什么，spec 通过一个说明原因的 JUnit 假设，跳过它不能做的那些测试：
 
 - **存储保存什么。** `Store.holdsLogs` 与 `Store.holdsSnapshots` 默认都为 `true`，说明它打开哪些端口。对不保存日志的存储，`StoreTck` 跳过日志的 spec 和控制面（`Skipped: the <type> store holds no log, so no control plane either.`），对不保存快照的存储跳过快照的 spec，并改为检查这样的存储会拒绝它不保存的东西。测试列出的 `facets` 是断言，从不跳过。
-- **存储的可选能力。** 快照尾读的测试用日志的尾部读取 `createSnapshots` 返回的快照：在 `EventLogSpec` 里经由 `snapshotTailsOf`，在 `StoreTck` 下经由存储的 `openSnapshotTails`，即节点使用的一次往返读取；两者都没有时，spec 像节点那时一样分开读取快照和尾部，没有 `createSnapshots` 时则跳过这些测试。`EventLog.appendsAcrossPartitions` 让跨分区的单次 `appendAll` 测试运行。是 `AccessStamps` 的日志运行盖章的测试，是 `AccessWalks` 的日志还运行分页取聚合与认领遍历的测试。`SnapshotStore.rebuilds`（一个 `SnapshotRebuildStore`）让重建的测试运行。
+- **存储的可选能力。** 快照尾读的测试用日志的尾部读取 `createSnapshots` 返回的快照：在 `EventLogSpec` 里经由 `snapshotTailsOf`，在 `StoreTck` 下经由存储的 `openSnapshotTails`，即节点使用的一次往返读取；两者都没有时，spec 像节点那时一样分开读取快照和尾部，没有 `createSnapshots` 时则跳过这些测试。`EventLog.appendsAcrossPartitions` 让跨分区的单次 `appendAll` 测试运行。是 `AccessStamps` 的日志运行盖章的测试，是 `AccessWalks` 的日志还运行分页取聚合与认领遍历的测试。在 10.0 中两者都是 `@InternalWowApi`，是 Wow 自己的日志的能力（内存日志、MongoDB 与 PostgreSQL 的日志；Elasticsearch 的事件 Sink 也会盖章），这些用例为 Wow 的后端运行：Wow 之外写的日志两者都没有。事件查询按这些属性判定，所以当某个类型的事件模型由无法让它们保持最新的存储提供时，节点拒绝启动，并点名类型、存储和所缺的能力：由该类型的日志提供时，日志须两者兼备；由另一个存储提供时（某个 Sink 写入的事件索引），Sink 须是 `AccessStamps`，日志须是 `AccessWalks`，因为遍历要逐页读日志。事件模型不由这类存储提供的类型照常启动，其历史上的属性也就不再保持最新：没有东西读它们。`SnapshotStore.rebuilds`（一个 `SnapshotRebuildStore`）让重建的测试运行。
 - **提供者。** `SinkSpec` 和 `TopicTransportSpec` 里的 `provided()` 通过提供者、按它声明的选项打开 Sink 或传输，并运行「提供者只读取这些选项」的测试；没有它时跳过这个测试（`No provider opens this sink.`）。
 - **存储拒绝什么。** `refused` 返回一个后端的存储无法保存的流，比如 PostgreSQL `jsonb` 字符串中的 NUL，spec 期望它的追加被拒绝（`AppendOutcome.Rejected`），并且在 `appendAll` 中只有它单独失败；没有它时，spec 跳过这个测试。
 - **查询后端的存储。** 绑定的存储事实（`StorageSupport`）说明存储对哪些特性是原生支持、部分支持还是不支持，声明为 `NONE` 的特性，spec 会跳过它的测试，并说明是哪个事实、取什么值：`Skipped: the storage declares storage.paging.keyset = NONE (keyset pages).` spec 读取的事实有 keyset 分页、无界流、`having`、展开元素后在记录根上的分组，以及去重计数。

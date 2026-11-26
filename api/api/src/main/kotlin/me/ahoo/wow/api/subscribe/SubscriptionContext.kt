@@ -129,8 +129,9 @@ interface SubscriptionContext {
  *
  * - its target is the request's: [CommandRequest.type], else the aggregate type the local Manifest and the peer
  *   contracts on the class path (each api jar's `META-INF/wow/contract.json`) assign the command's class; its tenant
- *   [CommandRequest.targetTenant], else this execution's (the commit's, the receipt's or the job instance's); its id
- *   [CommandRequest.id], else none: a creation whose id the target's admission gives, the id of the aggregate the
+ *   the tenant of [CommandRequest.targetScope], else this execution's (the commit's, the receipt's or the job
+ *   instance's); its id
+ *   [CommandRequest.aggregateId], else none: a creation whose id the target's admission gives, the id of the aggregate the
  *   request already created when it is handled again, so the target keeps the first one;
  * - its id and request id are name-based on [executionId] (and, for a receipt, the receipt's command), the target, the
  *   command's class and, when the request gives a [CommandRequest.requestId], that business key: the order the handler
@@ -139,7 +140,8 @@ interface SubscriptionContext {
  *   it reserves), or the handler fails unrecoverable. A key tells apart the commands of one call of a handler of each
  *   event, of one handling otherwise: each call's commands also carry the index of its event in the stream. A business
  *   key handled again with another body is the same request: its target answers it with the first one's commit;
- * - its scope is [CommandRequest.targetScope], else the commit's (the receipt's command's), so an aggregate it creates
+ * - its scope is the scope of [CommandRequest.targetScope], else the commit's (the receipt's command's): a target that
+ *   names only a tenant, as `to(ref)` does, keeps the commit's, so an aggregate it creates
  *   belongs to the owner the chain acts for; its operator is the commit's, and its causation links it to the commit
  *   (the receipt's command) and to the root of the chain; its [CommandRequest.expectedVersion] is kept;
  * - a request with a [CommandRequest.wait] or a [CommandRequest.timeout] fails the handler unrecoverable, so the
@@ -163,10 +165,15 @@ interface SagaContext : SubscriptionContext {
      * the test DSL.
      *
      * Handling the commit again (a retry, a replay) takes new ones. A derived command's request id comes from its
-     * target, the target's id included, so a command whose target is named by an id drawn here is another request
-     * each time: handling the commit again creates a second aggregate. To create an aggregate once, derive the creation
-     * without an id: its request id is the same every time, and the target's admission gives it the aggregate its
-     * first attempt created.
+     * target, the target's id included, so a command whose target is named by an id drawn here would be another
+     * request each time, to another aggregate. The handling refuses it: a command it returns, schedules, cancels or
+     * calls whose target's id was drawn here in the same handling fails the handler unrecoverable, as a
+     * [me.ahoo.wow.api.decide.Misuse.Argument] that says what to do instead. Name the target by an id computed from
+     * what is handled (the source aggregate's id, a business key of the event), or derive the creation without an id
+     * (its request id is the same every time, and the target's admission gives it the aggregate its first attempt
+     * created) and send the commands that follow it from the `@OnCommitted` handler of its receipt, which names the
+     * aggregate it created. An id drawn here into a command's body is not refused: the command is the same request,
+     * and its target answers it with the first commit.
      */
     val ids: Ids
 

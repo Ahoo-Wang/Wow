@@ -25,10 +25,11 @@ import type { DashboardEditExtensions, NewPanelSpot } from './extensions.js';
 import { NewAnalysisDialog, type NewAnalysis } from './NewAnalysisDialog.js';
 import { PresentationDialog } from './PresentationDialog.js';
 
+/** Options of `useDashboardExtensions`. */
 export interface DashboardExtensionsOptions {
   engine: ViewEngine;
-  /** The board, while one is open. */
-  board: DashboardRuntime | null;
+  /** The board's runtime, while one is open. */
+  runtime: DashboardRuntime | null;
   dashboard: DashboardController;
   /**
    * The wording in force where the board is drawn — the workbench's own,
@@ -42,6 +43,11 @@ export interface DashboardExtensionsOptions {
    * everything else on the board is, never in a second region of its own.
    */
   say(message: string): void;
+  /**
+   * The whole list of options behind a `remote` key, where the host has it
+   * at hand: the value editor filters it as the reader types, rather than
+   * searching the source the engine's `optionSource` answers.
+   */
   optionsFor?: Parameters<typeof NewAnalysisDialog>[0]['optionsFor'];
 }
 
@@ -82,7 +88,7 @@ function opener(): HTMLElement | null {
  */
 export function useDashboardExtensions({
   engine,
-  board,
+  runtime: board,
   dashboard,
   messages,
   tabBar,

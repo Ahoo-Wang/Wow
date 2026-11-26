@@ -22,8 +22,8 @@ export class EshopBasketClient {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     this.commands = new CommandClient(options, {
-      manifest: EshopBasketManifest, bodyNumbers: {
-        'eshop-basket.basket.AddBasketItem': BasketAggregate.textNumbers.commands.AddBasketItem,
+      manifest: EshopBasketManifest, textNumbers: {
+        'eshop-basket.basket.AddBasketItem': BasketAggregate.textNumbers.commands['eshop-basket.basket.AddBasketItem'],
       }
     });
     this.basket = {

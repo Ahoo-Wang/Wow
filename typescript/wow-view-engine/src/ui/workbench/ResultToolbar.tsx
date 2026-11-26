@@ -30,7 +30,7 @@ import { TooltipContent } from '../kit/popups.js';
 import { CardSettings } from '../record/CardSettings.js';
 import { ColumnSettings } from '../columns/ColumnSettings.js';
 import type { ReleasedPins } from '../record/pinCap.js';
-import { ExportButton, type ExportWindowProps } from '../kit/ExportDialog.js';
+import { ExportButton, type ExportWindowOptions } from '../kit/ExportDialog.js';
 import { SortSettings } from '../sort/SortSettings.js';
 import { featuresOf, type WorkbenchFeatures } from '../kit/features.js';
 import { SPACE } from '../kit/layout.js';
@@ -42,6 +42,7 @@ import {
   type SelectionContext,
 } from '../record/SelectionBar.js';
 
+/** Props of `ResultToolbar`. */
 export interface ResultToolbarProps {
   table: RecordTableController;
   /**
@@ -84,7 +85,7 @@ export interface ResultToolbarProps {
    * the rows — and Export in that bar was a control over nothing, which
    * P-17 answers by absence rather than by a disabled button (D4).
    */
-  exporter?: ExportWindowProps;
+  exporter?: ExportWindowOptions;
   /**
    * Which of the toolbar's own controls are there at all (D18 XI). Every one
    * by default; one turned off is absent, not disabled. The export button

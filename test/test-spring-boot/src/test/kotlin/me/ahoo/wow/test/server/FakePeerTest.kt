@@ -21,7 +21,7 @@ import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.decide.Causation
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FrameworkCodes
@@ -88,9 +88,9 @@ class FakePeerTest {
         val call = shipping.called<ShipParcel>()
         call.command.assert().isEqualTo(ShipParcel("1 Main St"))
         call.commandType.assert().isEqualTo("shipping.parcel.ShipParcel")
-        call.aggregateId.assert().isEqualTo("parcel-1")
+        call.ref.id.assert().isEqualTo("parcel-1")
         call.service.assert().isEqualTo("shop-service")
-        call.tenantId.assert().isEqualTo("acme")
+        call.ref.tenantId.assert().isEqualTo("acme")
         call.scope.assert().isEqualTo(Scope(ownerId = "alice"))
         call.operator!!.id.assert().isEqualTo("alice")
         call.requestId.assert().isEqualTo(result.requestId)
@@ -105,7 +105,7 @@ class FakePeerTest {
             val result = runBlocking { commands(Caller.ANONYMOUS).wait(ShipParcel("2 High St")) }
             result.ref.id.assert().isEqualTo("SO-1")
             result.version.assert().isEqualTo(3)
-            shipping.called<ShipParcel>().aggregateId.assert().isNull()
+            shipping.called<ShipParcel>().ref.isAssigned.assert().isFalse()
         } finally {
             shipping.answer { PeerAnswer.succeeded() }
         }
@@ -117,7 +117,7 @@ class FakePeerTest {
     fun `a body that names its aggregate should be the call's aggregate`() {
         val request = CommandRequest.of(ScheduleParcel("parcel-9", "Monday"))
         runBlocking { commands(Caller.ANONYMOUS).wait(request) }.ref.id.assert().isEqualTo("parcel-9")
-        shipping.called<ScheduleParcel>().aggregateId.assert().isEqualTo("parcel-9")
+        shipping.called<ScheduleParcel>().ref.id.assert().isEqualTo("parcel-9")
     }
 
     @Test
@@ -153,7 +153,7 @@ class FakePeerTest {
             rejectedAs(PeerAnswer.rejected("shipping.parcel.lost", status = 409)).status.assert().isEqualTo(409)
             rejectedAs(PeerAnswer.timedOut()).apply {
                 status.assert().isEqualTo(504)
-                problem!!.retry.assert().isEqualTo(Retry.SAME_REQUEST)
+                problem!!.retry.assert().isEqualTo(RetryAdvice.SAME_REQUEST)
             }
         } finally {
             shipping.answer { PeerAnswer.succeeded() }
@@ -222,7 +222,7 @@ class FakePeerTest {
                 runBlocking { commands(Caller.ANONYMOUS).wait(ShipParcel("4 Slow St"), "parcel-3") }
             }
             timedOut.code.assert().isEqualTo("wow.wait.timeout")
-            timedOut.retry.assert().isEqualTo(Retry.SAME_REQUEST)
+            timedOut.retry.assert().isEqualTo(RetryAdvice.SAME_REQUEST)
         } finally {
             shipping.answer { PeerAnswer.succeeded() }
         }

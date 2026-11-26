@@ -14,6 +14,7 @@
 package me.ahoo.wow.spi.log
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 
 /**
@@ -22,6 +23,7 @@ import me.ahoo.wow.spi.snapshot.SnapshotRecord
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
+@WowSpi
 class CommittedRequest @InternalWowApi constructor(
     val version: Int,
     val requestId: String,
@@ -56,6 +58,7 @@ class CommittedRequest @InternalWowApi constructor(
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
+@WowSpi
 class AggregateTail @InternalWowApi constructor(
     val streams: List<EventStreamRecord>,
     val earlier: List<CommittedRequest>,
@@ -81,6 +84,7 @@ class AggregateTail @InternalWowApi constructor(
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
+@WowSpi
 class SnapshotTail @InternalWowApi constructor(
     val snapshot: SnapshotRecord?,
     val tail: AggregateTail,

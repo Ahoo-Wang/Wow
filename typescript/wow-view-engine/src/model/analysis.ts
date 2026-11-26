@@ -45,9 +45,25 @@ import {
  * these rather than for `@ahoo-wang/wow-client`.
  */
 export type AggregationGroupTypeName = `${AggregationGroupType}`;
+/**
+ * An aggregation function a metric applies, as the wire spells it
+ * (`AggregationFunction`).
+ */
 export type AggregationFunctionName = `${AggregationFunction}`;
+/**
+ * A date unit an analysis group truncates to, as the wire spells it
+ * (`AggregationDateUnit`).
+ */
 export type AggregationDateUnitName = `${AggregationDateUnit}`;
+/**
+ * A date part an analysis group extracts, as the wire spells it
+ * (`AggregationDatePart`).
+ */
 export type AggregationDatePartName = `${AggregationDatePart}`;
+/**
+ * A unit a date difference is measured in, as the wire spells it
+ * (`DateDiffUnit`).
+ */
 export type DateDiffUnitName = `${DateDiffUnit}`;
 
 /**
@@ -62,6 +78,10 @@ export const ANALYSIS_DATE_DIFF_UNITS = [
   DateDiffUnits.MINUTE,
   DateDiffUnits.SECOND,
 ] as const satisfies readonly DateDiffUnitName[];
+/**
+ * An operator of a derived metric's expression, as the wire spells it
+ * (`AggregationExpressionOperator`).
+ */
 export type AggregationExpressionOperatorName =
   `${AggregationExpressionOperator}`;
 
@@ -430,6 +450,7 @@ export interface AnalysisElement {
   filter?: FilterTree;
 }
 
+/** One ordering of an analysis result: an alias and its direction. */
 export interface AnalysisSort {
   alias: string;
   direction: SortDirectionName;
@@ -460,6 +481,10 @@ export interface AnalysisColumn {
   width?: number;
 }
 
+/**
+ * How an analysis result is drawn as a table: the order and widths of its
+ * columns.
+ */
 export interface AnalysisTableSpec {
   /**
    * The order and widths of the table's columns — an override, not an
@@ -477,6 +502,7 @@ export interface AnalysisTableSpec {
   totals?: boolean;
 }
 
+/** How an analysis shows its result: as a table or as a chart. */
 export type AnalysisLayout = 'table' | 'chart';
 
 /** Table and chart are stored together, like the two record layouts. */

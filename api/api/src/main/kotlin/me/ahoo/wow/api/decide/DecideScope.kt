@@ -82,24 +82,26 @@ interface DecideScope {
     /**
      * Registers [compensation] to run when this attempt's events are surely not appended.
      *
-     * An act it undoes is keyed on this attempt alone: a Wow call sent with `requestId = callId()`, a third-party
-     * call with [callId] as its idempotency key. A call keyed on the command, as a Wow client keys a call it sends
+     * An act it undoes is keyed on this attempt alone: a Wow call sent with `requestId = attemptKey()`, a third-party
+     * call with [attemptKey] as its idempotency key. A call keyed on the command, as a Wow client keys a call it sends
      * from a decide function by default, is the same request in the next attempt and in a caller's retry, and its
      * target would answer that one with the commit this compensation undid.
      */
     fun onAppendFailure(compensation: suspend () -> Unit)
 
     /**
-     * A request id that no other call, attempt or execution takes, new at every invocation: the id of a call this
-     * attempt undoes in [onAppendFailure], which the next attempt makes again under an id of its own.
+     * A key of this attempt alone, which no other call, attempt or execution takes, new at every invocation: the key
+     * of an act this attempt undoes in [onAppendFailure], a Wow call's `requestId` or a third party's idempotency key,
+     * which the next attempt makes again under a key of its own.
      *
-     * A call that stands takes none: a Wow client keys it on the command, so a decision decided again sends it as the
-     * same request, which its target answers as a repeat rather than running it twice; a call that stands must then
-     * be the same call in every attempt. An undone call whose attempt is lost before its compensation runs (the node
-     * stops, or the append's outcome is unknown) is made again by the retry under another id, and the first one stays
-     * made: such an act needs a clean-up of its own besides, an expiry in the system it reaches or a reconciliation.
+     * An act that stands takes none: it is keyed on the command (a Wow client keys a call so by default), so a
+     * decision decided again sends it as the same request, which its target answers as a repeat rather than running it
+     * twice; a call that stands must then be the same call in every attempt. An undone act whose attempt is lost before
+     * its compensation runs (the node stops, or the append's outcome is unknown) is made again by the retry under
+     * another key, and the first one stays made: such an act needs a clean-up of its own besides, an expiry in the
+     * system it reaches or a reconciliation.
      */
-    fun callId(): String
+    fun attemptKey(): String
 
     /** Registers [action] to run once this attempt's events are appended. A failure of it is logged, not raised. */
     fun afterAppend(action: suspend () -> Unit)

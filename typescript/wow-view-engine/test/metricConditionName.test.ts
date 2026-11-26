@@ -27,7 +27,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   projectAnalysis,
   type AnalysisMetric,
   type DataViewDefinition,
@@ -117,7 +117,7 @@ function sum(filter?: FilterTree, label?: string): AnalysisMetric {
 }
 
 const reading = (filter: FilterTree) =>
-  metricCondition(sum(filter), FIELDS, builtinFieldKinds);
+  metricCondition(sum(filter), FIELDS, builtinFieldKindRegistry);
 
 describe('metricCondition', () => {
   // One value of one field names itself: an option by its label, a piece
@@ -186,7 +186,9 @@ describe('metricCondition', () => {
   // metric and a reading without kinds all count every record as far as a
   // name can tell.
   it('is absent where the metric counts every record', () => {
-    expect(metricCondition(sum(), FIELDS, builtinFieldKinds)).toBeUndefined();
+    expect(
+      metricCondition(sum(), FIELDS, builtinFieldKindRegistry),
+    ).toBeUndefined();
     expect(reading(where())).toBeUndefined();
     expect(
       reading(
@@ -205,7 +207,7 @@ describe('metricCondition', () => {
           },
         },
         FIELDS,
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       ),
     ).toBeUndefined();
   });
@@ -217,8 +219,7 @@ describe('a conditioned column', () => {
       definition(),
       config({ metrics, table: { columns: [] } }),
       [],
-      undefined,
-      builtinFieldKinds,
+      { kinds: builtinFieldKindRegistry },
     );
 
   it('carries its condition, and says it after its title', () => {
@@ -346,7 +347,7 @@ describe('metricReference over a conditioned metric', () => {
     fields: [option],
     metrics,
     conditionFields: FIELDS,
-    kinds: builtinFieldKinds,
+    kinds: builtinFieldKindRegistry,
   });
 
   // The tray names the metric from the draft by the same kernel the result

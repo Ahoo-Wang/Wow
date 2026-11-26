@@ -58,7 +58,7 @@ function readTree(dir: string): Record<string, string> {
  * @param locale - `LANG` and `LC_ALL` of the run
  * @param input - The document, an absolute path
  * @param fromParent - Run from the directory above the project, naming the
- * output and the tsconfig through it, rather than from the project itself
+ * output through it, rather than from the project itself
  * @returns Each file written, by its path under the output directory
  */
 function generate(
@@ -92,8 +92,6 @@ function generate(
     input,
     '-o',
     join(base, 'src', 'generated'),
-    '-t',
-    join(base, 'tsconfig.json'),
     ...(config ? ['-c', config] : []),
   ];
   execFileSync(process.execPath, args, {

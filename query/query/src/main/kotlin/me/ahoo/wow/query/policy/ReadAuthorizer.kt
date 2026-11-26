@@ -20,7 +20,7 @@ import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
-import me.ahoo.wow.query.error.QueryRequestException
+import me.ahoo.wow.query.error.QueryError
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.schema.QueryModel
 
@@ -145,21 +145,22 @@ sealed interface ReadAuthorization {
     }
 }
 
-/** The binding error code of a read a [ReadAuthorizer] refused. */
-internal const val READ_DENIED: String = "READ_DENIED"
+/**
+ * A read a [ReadAuthorizer] refused: the problem of the authorizer's [errorCode] with its [message], and no violation,
+ * since a refusal is about who reads, never about what the request asks (#7029).
+ */
+internal class ReadDeniedException(override val errorCode: String, override val message: String) :
+    RuntimeException(message), QueryError
 
 /**
  * Asks this authorizer whether [caller] may make [read], and throws its refusal as the problem of its code
- * ([QueryRequestException]); trusted in-process code, which reads with no caller, is not asked.
+ * ([ReadDeniedException]); trusted in-process code, which reads with no caller, is not asked.
  */
 internal suspend fun ReadAuthorizer.authorizeOrThrow(caller: QueryCaller, read: () -> ReadAction) {
     if (this === ReadAuthorizer.ALLOW_ALL) return
     val who = caller.caller ?: return
     val decision = authorize(who, read())
     if (decision is ReadAuthorization.Denied) {
-        throw QueryRequestException(decision.message, READ_DENIED, problem = decision.code)
+        throw ReadDeniedException(decision.code, decision.message)
     }
 }
-
-/** This entry as a read names it: an entry nobody stated is in process. */
-internal fun QueryEntry.admitted(): QueryEntry = if (this == QueryEntry.UNSPECIFIED) QueryEntry.IN_PROCESS else this

@@ -119,7 +119,7 @@ export class RuntimeFactory {
     if (config.kind !== 'dashboard')
       return this.buildData(definition, config, identity, scopeFilter);
     // A board takes no outer condition (D26 Q32): one asked for is refused
-    // as a later one would be, and `refusedScope` says so from the start.
+    // as a later one would be, and `refusedScopeFilter` says so from the start.
     const board = this.buildDashboard(definition, config, identity);
     board.setScopeFilter(scopeFilter);
     return board;

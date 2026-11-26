@@ -111,7 +111,7 @@ export function crossFilterChoices(
   groups: readonly PressableGroup[],
 ): { filter: DashboardField; field: string }[] {
   const bound = new Map(
-    bindingsOf(panel).map(binding => [binding.globalField, binding]),
+    bindingsOf(panel).map(binding => [binding.dashboardField, binding]),
   );
   return filters.flatMap(filter => {
     const binding = bound.get(filter.name);
@@ -187,7 +187,7 @@ export function validatePanelClick(
           warn('dashboard.click.filter-unknown', { filter: click.filter }),
         ];
       const binding = bindingsOf(panel).find(
-        entry => entry.globalField === filter.name,
+        entry => entry.dashboardField === filter.name,
       );
       if (!binding)
         return [

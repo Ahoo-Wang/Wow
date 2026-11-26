@@ -121,7 +121,7 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_events`
     `operator_id` String CODEC(ZSTD(1)),
     `operator_tenant_id` String CODEC(ZSTD(1)),
     `operator_acted_elsewhere` Bool,
-    `events` Array(Tuple(name LowCardinality(String), revision UInt32, payload String)) CODEC(ZSTD(1)),
+    `events` Array(Tuple(name LowCardinality(String), revision UInt32, body String)) CODEC(ZSTD(1)),
     `state` String CODEC(ZSTD(1)),
     `state_fingerprint` String CODEC(ZSTD(1)),
     `state_numbers` Map(String, String) CODEC(ZSTD(1))
@@ -180,7 +180,7 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_events`
     `sequence` UInt32,
     `event_name` LowCardinality(String),
     `event_revision` UInt32,
-    `payload` String CODEC(ZSTD(1)),
+    `body` String CODEC(ZSTD(1)),
     `command_id` String CODEC(ZSTD(1)),
     `request_id` String CODEC(ZSTD(1)),
     `command_type` LowCardinality(String),
@@ -202,7 +202,7 @@ FROM `default`.`shop_order_state_events`)
 COMMENT 'wow-sink-format:1';
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS `default`.`shop_order_events_mv` TO `default`.`shop_order_events` AS
-(SELECT id, tenant_id, aggregate_id, version, toUInt32(sequence) AS sequence, event.name AS event_name, event.revision AS event_revision, event.payload AS payload, command_id, request_id, command_type, commit_time, owner_id, space_id, correlation_id, causation_id
+(SELECT id, tenant_id, aggregate_id, version, toUInt32(sequence) AS sequence, event.name AS event_name, event.revision AS event_revision, event.body AS body, command_id, request_id, command_type, commit_time, owner_id, space_id, correlation_id, causation_id
 FROM `default`.`shop_order_state_events`
 ARRAY JOIN events AS event, arrayEnumerate(events) AS sequence)
 COMMENT 'wow-sink-format:1';
@@ -240,11 +240,11 @@ COMMENT 'wow-sink-format:1 wow-sink-flat:abec05d592597f99';
 | `correlation_id`、`causation_id` | 根命令的 id 和直接原因；调用方直接发出的命令则为空 |
 | `headers` | 命令携带的请求事实；仅 `_state_events` 有 |
 | `operator_id`、`operator_tenant_id`、`operator_acted_elsewhere` | 谁提交的；没有时为空和 false |
-| `events` | 这次提交的事件，每个是 `(name, revision, payload)`，payload 为 JSON 文本；仅 `_state_events` 有 |
+| `events` | 这次提交的事件，每个是 `(name, revision, body)`，body 即事件的数据，为 JSON 文本；仅 `_state_events` 有 |
 | `state`、`state_fingerprint` | 提交之后的状态（JSON 文本）和它的 schema 的指纹；不发布状态的聚合为空 |
 | `state_numbers` | 状态每个顶层数字的原文，`_state_flat` 从中读取小数 |
 
-**`_events`**，每个事件一行：`sequence`（事件在它所属提交中的位置，从 1 开始）、`event_name`、`event_revision` 和 `payload`，以及这次提交的 `id`、`tenant_id`、`aggregate_id`、`version`、`command_id`、`request_id`、`command_type`、`commit_time`、`owner_id`、`space_id`、`correlation_id` 和 `causation_id`。
+**`_events`**，每个事件一行：`sequence`（事件在它所属提交中的位置，从 1 开始）、`event_name`、`event_revision` 和 `body`（事件的数据），以及这次提交的 `id`、`tenant_id`、`aggregate_id`、`version`、`command_id`、`request_id`、`command_type`、`commit_time`、`owner_id`、`space_id`、`correlation_id` 和 `causation_id`。
 
 **`_state` 的计算列。** 在存储列之后，`_state` 还有 ClickHouse 在插入一行时由它们计算的列（`MATERIALIZED`）：任何插入都不设置它们，`SELECT *` 也不包含它们，所以要按名字读。每一列的注释记着它的类型与表达式的指纹（`wow:<指纹>`）。它们是：
 
@@ -288,9 +288,11 @@ Sink 不使用 ClickHouse 的 `async_insert`，也不需要它：Sink 自己把�
 
 `wow.clickhouse.ddl` 决定 Sink 在第一次写入之前以及之后不时怎样对待它的表：`auto`（默认）创建缺失的部分并校验其余部分；`validate` 只检查；`none` 两者都不做。被删除或被修改过的表会让写入失败，订阅会重试，直到它恢复成 Sink 期望的样子。
 
-Sink 保有的每张表和每个视图都在注释里写明 Sink 表的格式：`wow-sink-format:1`。Sink 期望的表或视图存在、有上面的列、并写明这个格式，才算 Sink 的；否则 Sink 拒绝写入，逐一指出是哪一个、哪里不对（`<table> is not of format 1`、`<table> has the columns …`）。`auto` 用这个注释创建缺失的部分，已存在的表保持原样：别的格式的表会被拒绝，和列不同的表一样。这些表里没有日志之外的东西：删掉它们，重置 Sink 的订阅即可从日志重新填充（[重建数仓](#rebuild-the-warehouse)）。`none` 什么也不检查。
+Sink 保有的每张表和每个视图都在注释里写明 Sink 表的格式：`wow-sink-format:1`。Sink 期望的表或视图存在、至少有上面的列且各列类型相同（顺序不限）、并写明这个格式，才算 Sink 的：其他列，无论是运维自己加的（普通、`MATERIALIZED` 或 `ALIAS`）还是更新版本在同一格式内加的，都不构成理由。否则 Sink 拒绝写入，逐一指出是哪一个、哪里不对（`<table> is not of format 1`、`<table> has no <column> <type>`、`<table> has <column> <type>, not <type>`）。`auto` 用这个注释创建缺失的部分；对已存在的表，只添加 Wow 在同一格式内新增的列（带默认值：`ALTER TABLE <db>.<table> ADD COLUMN IF NOT EXISTS <column> <type> DEFAULT <default>`；10.0 没有这样的列）以及下面的计算列，`validate` 会给出这些语句。别的格式的表，或缺少格式中其他列、或列类型不同的表，在任何模式下都会被拒绝，并保持原样。这些表里没有日志之外的东西：删掉它们，Sink 的新一代即可从日志重新填充（[重建数仓](#rebuild-the-warehouse)）。`none` 在写入前什么也不检查，但任何写入都不会悄悄丢掉值：每次插入都设置 `input_format_skip_unknown_fields=0` 与 `input_format_json_ignore_unknown_keys_in_named_tuple=0`，所以表里没有对应列、或其具名元组里没有对应元素的字段会让插入被拒绝，并指出该字段；订阅会重试，最终搁置该聚合。搁置条目的原因写的是 ClickHouse 的错误码 `com.clickhouse.client.api.ServerException: clickhouse server error code 117`，不写字段，因为 ClickHouse 的消息还可能接着引用该行；字段见节点搁置时的警告日志 `Subscription wow.clickhouse-sink.<aggregate> parks <context>.<aggregate>/<tenant>/<id> from version <n> after <n> attempts.`，其异常即 ClickHouse 的消息。Sink 不写的列（运维自己的列）取其默认值。
 
-Sink 既不检查也不更改列的编解码器，所以早先版本建的表保留建表时的编解码器。要让它用上面的编解码器，对每一列执行 `ALTER TABLE <db>.<table> MODIFY COLUMN <column> <type> CODEC(<codec>)`，此后写入与合并的部分会用它；或者删掉 Sink 的表并重置它的订阅，让它重新填满。
+10.0 预发布版写的表随升级重建：它们写明格式 1，但事件的数据在那里叫 `payload`，而现在叫 `body`，Sink 会拒绝它们并指出列（`<ctx>_<agg>_events has no body String`，以及历史表 `events` 的类型不同）。删掉它们并提高 Sink 的代数（[重建数仓](#rebuild-the-warehouse)）。在什么都不检查的 `ddl: none` 下，向它们的插入会被拒绝。
+
+Sink 既不检查也不更改列的编解码器，所以早先版本建的表保留建表时的编解码器。要让它用上面的编解码器，对每一列执行 `ALTER TABLE <db>.<table> MODIFY COLUMN <column> <type> CODEC(<codec>)`，此后写入与合并的部分会用它；或者删掉 Sink 的表并调高它的代数，让它重新填满（[重建数仓](#rebuild-the-warehouse)）。
 
 滚动升级期间，一个服务的两个版本可能同时写入两种状态 schema。展平视图在注释里、格式之后，记住创建它所用的定义的指纹（`wow-sink-format:1 wow-sink-flat:<指纹>,…`），写入者只会用更新的定义替换它，所以重启的旧节点不会撤销新节点的视图。
 
@@ -299,7 +301,7 @@ Sink 既不检查也不更改列的编解码器，所以早先版本建的表保
 `_state` 至少有写入者期望的计算列、且每一列的指纹相同，才算 Sink 的。写入者不期望的计算列（别的写入者的）保持原样。
 
 - **新增属性或访问属性。** `auto` 在展平视图选取它之前加上它的列：`ALTER TABLE <db>.<ctx>_<agg>_state ADD COLUMN IF NOT EXISTS <列> <类型> MATERIALIZED <表达式> COMMENT 'wow:<指纹>' AFTER <它前面的列>`。这只改元数据：之前写入的 part 在读取时计算，直到合并重写它，而 `_state` 随写入不断合并。要立即在每个 part 里算出来，可执行 `ALTER TABLE <db>.<ctx>_<agg>_state MATERIALIZE COLUMN <列>`，这是一次 mutation，可选。在 `validate` 下，Sink 拒绝写入，并给出添加这些列的语句。旧的写入者遇到自己不计算的列，照常写入。
-- **属性的类型变了**（字段变为可空、小数的标度变了、字符串变成数字）。这一列的定义不同，ClickHouse 不重写每一行就无法修改它：Sink 拒绝写入，指出这一列、它的类型以及这个版本计算的类型。类型变化不能滚动进行：旧的写入者会一直写到被替换；之后删除这些表并重置 Sink 的订阅（[重建数仓](#rebuild-the-warehouse)）。
+- **属性的类型变了**（字段变为可空、小数的标度变了、字符串变成数字）。这一列的定义不同，ClickHouse 不重写每一行就无法修改它：Sink 拒绝写入，指出这一列、它的类型以及这个版本计算的类型。类型变化不能滚动进行：旧的写入者会一直写到被替换；之后删除这些表并调高 Sink 的代数（[重建数仓](#rebuild-the-warehouse)）。
 - **删除属性。** 它的列保留，每次插入仍然计算，直到你删除它：没有写入者再计算它之后，执行 `ALTER TABLE <db>.<ctx>_<agg>_state DROP COLUMN <列>`。
 - **后来声明的访问属性** 立即有它的列，但每一行保留写入时的属性：聚合最新的一行在它下一次提交之前没有这个属性的值。
 
@@ -346,7 +348,7 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_events_local` ON CLUSTER 
     `operator_id` String CODEC(ZSTD(1)),
     `operator_tenant_id` String CODEC(ZSTD(1)),
     `operator_acted_elsewhere` Bool,
-    `events` Array(Tuple(name LowCardinality(String), revision UInt32, payload String)) CODEC(ZSTD(1)),
+    `events` Array(Tuple(name LowCardinality(String), revision UInt32, body String)) CODEC(ZSTD(1)),
     `state` String CODEC(ZSTD(1)),
     `state_fingerprint` String CODEC(ZSTD(1)),
     `state_numbers` Map(String, String) CODEC(ZSTD(1))
@@ -406,7 +408,7 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_events_local` ON CLUSTER '{clus
     `sequence` UInt32,
     `event_name` LowCardinality(String),
     `event_revision` UInt32,
-    `payload` String CODEC(ZSTD(1)),
+    `body` String CODEC(ZSTD(1)),
     `command_id` String CODEC(ZSTD(1)),
     `request_id` String CODEC(ZSTD(1)),
     `command_type` LowCardinality(String),
@@ -446,7 +448,7 @@ FROM `default`.`shop_order_state_events_local`)
 COMMENT 'wow-sink-format:1';
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS `default`.`shop_order_events_mv` ON CLUSTER '{cluster}' TO `default`.`shop_order_events_local` AS
-(SELECT id, tenant_id, aggregate_id, version, toUInt32(sequence) AS sequence, event.name AS event_name, event.revision AS event_revision, event.payload AS payload, command_id, request_id, command_type, commit_time, owner_id, space_id, correlation_id, causation_id
+(SELECT id, tenant_id, aggregate_id, version, toUInt32(sequence) AS sequence, event.name AS event_name, event.revision AS event_revision, event.body AS body, command_id, request_id, command_type, commit_time, owner_id, space_id, correlation_id, causation_id
 FROM `default`.`shop_order_state_events_local`
 ARRAY JOIN events AS event, arrayEnumerate(events) AS sequence)
 COMMENT 'wow-sink-format:1';
@@ -457,7 +459,7 @@ FROM `default`.`shop_order_state` FINAL
 COMMENT 'wow-sink-format:1 wow-sink-flat:abec05d592597f99';
 ```
 
-- **设置 `wow.clickhouse.ddl: validate`。** 此时 Sink 不创建任何东西，期望的表或视图缺失、列不同或没有写明 Sink 的格式时拒绝写入，并指出是哪一个。分布式表能通过，因为 ClickHouse 报告它们的列与本地表相同。Sink 从分布式表自己的注释读取格式，`AS` 不会复制注释，所以示例给每一张都写了 `COMMENT`。`auto` 会在端点所连的那一个节点上把缺失的表建成单机表；`none` 什么也不检查。
+- **设置 `wow.clickhouse.ddl: validate`。** 此时 Sink 不创建任何东西，期望的表或视图缺失、缺少格式中的列或列类型不同、或没有写明 Sink 的格式时拒绝写入，并指出是哪一个。分布式表能通过，因为 ClickHouse 报告它们的列与本地表相同。Sink 从分布式表自己的注释读取格式，`AS` 不会复制注释，所以示例给每一张都写了 `COMMENT`。`auto` 会在端点所连的那一个节点上把缺失的表建成单机表；`none` 什么也不检查。
 - **按聚合分片。** 分片键是 `sipHash64(tenant_id, aggregate_id)`，与 9.x 相同，所以一个聚合的所有提交都在同一个分片上：`_state` 保留同一个键版本最高的行，历史表按各自的键合并掉重放的行，两者都只在一个分片之内生效。
 - **每个分片一个副本接收写入。** 在集群的分片上设置 `<internal_replication>true</internal_replication>`，与任何复制表一样：分布式插入于是只写分片的一个副本，由副本互相复制。
 - **同步插入。** 默认情况下，ClickHouse 对分布式表的插入在行落到接收节点的磁盘后就应答，之后才把它们发往各分片。Sink 把应答当作提交已在数仓中，并推进它的检查点。让 Sink 的用户同步插入，这样应答就表示各分片已收到这些行：
@@ -474,7 +476,7 @@ COMMENT 'wow-sink-format:1 wow-sink-flat:abec05d592597f99';
 
 ## 命令不写入 {#commands-are-not-written}
 
-Wow 9.x 的 BI 同步还会创建一张命令表 `<ctx>_<agg>_command`，由命令主题填充。Wow 10 不往 ClickHouse 写命令：Sink 复制的是提交，所以被拒绝的命令、或没有产生变化的命令不会留下任何一行。提交对它的命令保留的内容在 `_state_events` 中：`command_id`、`request_id` 和 `command_type`；操作者 `operator_id`、`operator_tenant_id` 和 `operator_acted_elsewhere`；`correlation_id` 和 `causation_id`（Saga 的命令对应它所处理的那次提交）；`headers` 中的请求事实；以及这个命令产生的事件和它们的 payload。命令的正文不保存。要得到命令的历史：
+Wow 9.x 的 BI 同步还会创建一张命令表 `<ctx>_<agg>_command`，由命令主题填充。Wow 10 不往 ClickHouse 写命令：Sink 复制的是提交，所以被拒绝的命令、或没有产生变化的命令不会留下任何一行。提交对它的命令保留的内容在 `_state_events` 中：`command_id`、`request_id` 和 `command_type`；操作者 `operator_id`、`operator_tenant_id` 和 `operator_acted_elsewhere`；`correlation_id` 和 `causation_id`（Saga 的命令对应它所处理的那次提交）；`headers` 中的请求事实；以及这个命令产生的事件和它们的 body。命令的正文不保存。要得到命令的历史：
 
 - **从提交中读取**，看哪个命令在什么时候、为谁改变了一个聚合：
 
@@ -485,12 +487,12 @@ Wow 9.x 的 BI 同步还会创建一张命令表 `<ctx>_<agg>_command`，由命�
   ORDER BY version
   ```
 
-- **把审计需要的命令信息放进事件。** 命令的业务数据通常会进入事件的 payload，`_events.payload` 按事件保存它。
+- **把审计需要的命令信息放进事件。** 命令的业务数据通常会进入事件的 body，`_events.body` 按事件保存它。
 - **拒绝在发生之处读取**，而不是在数仓中：`wow.command.rejections` 统计它们，拒绝日志列出它们（[健康、指标与追踪](./observability)）。
 
 ## wow_catalog {#wow-catalog}
 
-Sink 为它保存的每张表，在数据库的 `wow_catalog` 中追加一行，内容来自 Manifest 而不是表名：表及其角色（`state_events`、`state`、`events`、`state_flat`），它所属的服务、上下文和聚合，聚合的归属以及租户、所有者和空间所在的列，按路径列出的敏感值和引用，它的事件的修订号，以及该聚合的访问策略是否决定它的行（`access`：按服务的访问策略为 `POLICY` 或 `DEFAULT`）。分析工具和分析目录读取它，以了解一张表保存什么、怎样限定范围和脱敏；分析目录的数据集不读取聚合有策略的表。写入它失败只记日志，从不让 Sink 失败。
+Sink 为它保存的每张表，在数据库的 `wow_catalog` 中追加一行，内容来自 Manifest 而不是表名：表及其角色（`state_events`、`state`、`events`、`state_flat`），它所属的服务、上下文和聚合，聚合的归属以及租户、所有者和空间所在的列，按路径列出的敏感值和引用，它的事件的修订号，以及该聚合的访问策略是否决定它的行（`access`：按服务的访问策略为 `policy` 或 `default`；只有 `default` 读作不受策略约束，其他任何值都读作受策略约束）。分析工具和分析目录读取它，以了解一张表保存什么、怎样限定范围和脱敏；分析目录的数据集不读取聚合有策略的表。写入它失败只记日志，从不让 Sink 失败。
 
 ## 数据集 {#datasets}
 
@@ -500,4 +502,10 @@ ClickHouse 无法连接或不能写入时（连接被拒绝或超时、存活副
 
 ## 重建数仓 {#rebuild-the-warehouse}
 
-Sink 是一个有自己检查点的订阅，所以数仓从来不是任何东西唯一的副本：它总能从日志开头重新填充。
+Sink 是一个有自己检查点的订阅，所以数仓从来不是任何东西唯一的副本：Sink 的新一代从日志开头把它重新填满。
+
+1. 删掉要重新填充的聚合类型的 Sink 表与视图（[表](#the-tables)），或者 Sink 的整个数据库。
+2. 把 `wow.clickhouse.sink.generation` 加一，默认 1。
+3. 滚动重启节点。
+
+Sink 随后作为新的订阅 `wow.clickhouse-sink-g<n>.<aggregate>` 运行，它写的每个流一个，各自从日志开头写起；在 `ddl: auto` 下，它在第一次插入之前重新建表。代数只能调高：调低会续用那一代的检查点，已删除的不会再写。节点滚动期间新旧两代都在写，表会像吸收重放一样吸收它：它们的 `ReplacingMergeTree` 引擎以提交的 `ref@version` 为键，每个提交只留一份。不删表就调高代数，新一代会把每个提交再写一遍，表会把第二份合并掉：带 `FINAL` 的读取（扁平视图就是这样读的）立刻只数到每个提交和事件一次，不带 `FINAL` 读表则可能在 ClickHouse 合并分片之前数到两次。旧一代的检查点留着，它停放的条目也留着：每个节点首次启动时以旧名字告警它们，`GET /wow/ops/subscriptions` 把它们列为 `orphans`（[改名与回卷](./ops-console#rename-and-rewind)）。这些停放条目属于已清空的目标：在 ops 控制台里跳过它们。调低代数，较高的那一代也会这样显示为遗留，这正是代数只能调高的原因。

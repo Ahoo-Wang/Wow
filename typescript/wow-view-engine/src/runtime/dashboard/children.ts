@@ -209,7 +209,10 @@ export class PanelChildren {
     // right for a view a host embedded and wrong for a panel of a board: the
     // dashboard's condition is the question the panel was put there to answer,
     // so a panel that cannot carry it shows nothing and says why.
-    const refused = [...runtime.refusedScope, ...runtime.getSnapshot().issues];
+    const refused = [
+      ...runtime.refusedScopeFilter,
+      ...runtime.getSnapshot().issues,
+    ];
     if (hasError(refused)) {
       runtime.dispose();
       return { runtime: null, issues: [...own, ...atPanel(index, refused)] };

@@ -1,6 +1,6 @@
 ---
 title: 'wow-view-store reference'
-description: 'WowViewStore, the @ahoo-wang/wow-view-store package: the view engine''s ViewStore on the Wow view store service, the reserved scopes, the error codes and every request it sends.'
+description: 'WowViewStore, the @ahoo-wang/wow-view-store package: the view engine''s ViewStore on the Wow view store service, its options, the reserved owners, the error codes and every request it sends.'
 ---
 
 # wow-view-store reference
@@ -15,18 +15,17 @@ description: 'WowViewStore, the @ahoo-wang/wow-view-store package: the view engi
 
 | Export | Role |
 |---|---|
-| `WowViewStore` | The store: `new WowViewStore({ fetcher, permissions?, pageSize? })`, handed to `new ViewEngine({ store })` |
-| `WowViewStoreOptions` | `fetcher`, whose interceptors carry the authorization, a token issued for the front end's app; `permissions`, which buttons are enabled; `pageSize`, the views one `list` page holds |
-| `SHARED_SCOPE`, `SYSTEM_SCOPE` | The `Wow-Scope` of the reserved owners: `{ ownerId: '(shared)' }` for shared views and preferences, `{ tenantId: '(platform)', ownerId: '(system)' }` for stored system views |
+| `WowViewStore` | The store: `new WowViewStore({ fetcher, basePath?, defaultWaitMs?, permissions?, pageSize? })`, handed to `new ViewEngine({ store })` |
+| `WowViewStoreOptions` | wow-client's `WowClientOptions`, as every Wow client takes them: `fetcher`, required here, whose interceptors carry the authorization, a token issued for the front end's app; `basePath`, a gateway's prefix before every route; `defaultWaitMs`, the service's default wait. And the store's own: `permissions`, which buttons are enabled; `pageSize`, the views one `list` page holds |
 | `WowViewStoreErrorCodes`, `WowViewStoreErrorCode` | The view store's own problem codes, beside Wow's, and their union type |
 | `datasetCatalogOf(client)` | The view engine's dataset catalog over a `DatasetClient`: the datasets a Wow service serves (`GET /wow/dataset`) and a source for each |
-| `WowDatasetWordings`, `WowDatasetWordingsOptions` | The view engine's `DatasetWordingStore` on the view store: a tenant's wording of each dataset, one per dataset and application; it takes a `fetcher` |
+| `WowDatasetWordings`, `WowDatasetWordingsOptions` | The view engine's `DatasetWordingStore` on the view store: a tenant's wording of each dataset, one per dataset and application; it takes wow-client's options, as `WowViewStore` does, the `fetcher` required |
 
 ```ts
-export interface WowViewStoreOptions {
-  fetcher: Fetcher;
-  permissions?: (definitionId: string) => ViewPermissions;
-  pageSize?: number;
+export interface WowViewStoreOptions extends WowClientOptions {
+  readonly fetcher: Fetcher;
+  readonly permissions?: (definitionId: string) => ViewPermissions;
+  readonly pageSize?: number;
 }
 ```
 
@@ -36,32 +35,28 @@ The view engine's [`ViewStore`](../wow-view-engine/store#api-ViewStore) over the
 
 - `fetcher` goes to a base URL that serves `/view-store/…`: the gateway in front of the view store service. Its interceptors carry who is asking, the authorization; the service takes the tenant and the owner from the principal, and the application every view is kept in from the token (its `aud`) or the gateway's route (`cosec-app-id`): CoSec 8 reads no `CoSec-App-Id`, so a front end needs a token issued for its app, or a route that sets it; and the store adds `Wow-Scope` itself where a view belongs to a reserved owner. No path names a tenant or an owner.
 - `permissions` decides which buttons are enabled for one definition's views, never what a write may do: the service authorizes each write. A host answers it by the roles the caller holds: `createShared` and `changeAudience` by the role that writes the owner `(shared)` (`view-store.shared-writer` as shipped), since creating a shared view, sharing a personal one and claiming a shared one all need it; `editSystem` by the role that writes `(system)` of `(platform)` (`view-store.system-writer`). Left out, everything is allowed but `editSystem`, which stays off unless the answer says `true`.
-- `pageSize` is the most views one `list` page returns, 100 by default, the service's default cursor page. The system views come whole on the first page, so that page may hold more.
+- `basePath` and `defaultWaitMs` are wow-client's, as every Wow client reads them: a gateway that serves the service under a prefix of its own takes `basePath`, rather than a fetcher that rewrites URLs; a deployment whose service waits longer than a minute for a command that states no wait (`wow.wait.default-timeout`) gives that wait, which bounds every write but a share or a claim, whose wait the store states.
+- `pageSize` is the most views one `list` page returns, 100 by default, the service's default cursor page. The service answers the system views whole; the store pages them like the others, so no page holds more. The shared and personal views are read by cursor queries of up to `pageSize` views each, so a `pageSize` above the service's cursor page limit (`wow.query.budgets.http.max-page-size`, 100 as shipped) has the service refuse every list that reaches them, `INVALID`: the limit is the service's configuration, which the store cannot read, so raise both together.
 
 ```ts
 export declare class WowViewStore implements ViewStore {
   constructor(options: WowViewStoreOptions);
-  changeAudience(id: string, audience: ViewAudience, revision: string, context: WriteOptions): Promise<ViewInstance>;
-  create(input: Omit<ViewInstance, 'id' | 'revision'>, context: WriteOptions): Promise<ViewInstance>;
-  delete(id: string, revision: string, context: WriteOptions): Promise<void>;
+  changeAudience(id: string, audience: ViewAudience, revision: string, options: WriteOptions): Promise<ViewInstance>;
+  create(input: Omit<ViewInstance, 'id' | 'revision'>, options: WriteOptions): Promise<ViewInstance>;
+  delete(id: string, revision: string, options: WriteOptions): Promise<void>;
   get(id: string, options?: ReadOptions): Promise<ViewInstance>;
   getPreferences(definitionId: string, options?: ReadOptions): Promise<ViewPreferences>;
   list(definitionId: string, options?: ViewListOptions): Promise<ViewListPage>;
   readonly permissions?: (definitionId: string) => ViewPermissions;
-  rename(id: string, title: string, revision: string, context: WriteOptions): Promise<ViewInstance>;
-  save(id: string, config: ViewConfig, revision: string, context: WriteOptions): Promise<ViewInstance>;
-  setPreferences(definitionId: string, preferences: ViewPreferences, context: WriteOptions): Promise<ViewPreferences>;
+  rename(id: string, title: string, revision: string, options: WriteOptions): Promise<ViewInstance>;
+  save(id: string, config: ViewConfig, revision: string, options: WriteOptions): Promise<ViewInstance>;
+  setPreferences(definitionId: string, preferences: ViewPreferences, options: WriteOptions): Promise<ViewPreferences>;
 }
 ```
 
-### The reserved scopes {#api-SHARED_SCOPE}
+### The reserved owners {#reserved-owners}
 
-A personal view belongs to the caller, so a request for it names no owner. A shared view belongs to the reserved owner `(shared)`, and a stored system view to `(system)` of the tenant `(platform)`, global whatever the caller's tenant. The store acts as those owners by sending `Wow-Scope`, `SHARED_SCOPE` or `SYSTEM_SCOPE`, which the service admits only for a caller holding the role that writes them. The owner ids themselves are the view store contract's and stay internal to the package; a host needs the two scopes only to address those owners through a Wow client of its own.
-
-```ts
-export declare const SHARED_SCOPE: TargetScope;
-export declare const SYSTEM_SCOPE: TargetScope;
-```
+A personal view belongs to the caller, so a request for it names no owner. A shared view belongs to the reserved owner `(shared)`, and a stored system view to `(system)` of the tenant `(platform)`, global whatever the caller's tenant. The store acts as those owners by sending `Wow-Scope` (`owner="(shared)"`, or `tenant="(platform)", owner="(system)"`), which the service admits only for a caller holding the role that writes them. The owner ids and their scopes are the view store contract's and stay inside the package.
 
 ### Error codes {#api-WowViewStoreErrorCodes}
 
@@ -85,7 +80,7 @@ export type WowViewStoreErrorCode = (typeof WowViewStoreErrorCodes)[keyof typeof
 | `view-store.invalid` | 400 | The write is not valid: its config, title, preferences or wording |
 | `view-store.owner-required` | 400 | The write has no owner: a view is saved by a user, by `(shared)`, or by `(system)` under `(platform)` |
 | `view-store.not-found` | 404 | The aggregate belongs to another application, which reads as none |
-| `view-store.referenced-by-shared-dashboard` | 409 | A claim of a view a shared dashboard shows, which stays shared; the problem names the boards in `boards` |
+| `view-store.referenced-by-shared-dashboard` | 409 | A claim of a view a shared dashboard or a stored system dashboard shows, which stays shared; the problem names the boards in `boards` |
 | `view-store.system-view-read-only` | 403 | A share or a claim of a system view, which never moves audience |
 
 ## Contract
@@ -99,7 +94,7 @@ export type WowViewStoreErrorCode = (typeof WowViewStoreErrorCodes)[keyof typeof
 | Errors | By the problem's `code` onto `CONFLICT`, `NOT_FOUND`, `FORBIDDEN`, `INVALID` and `UNAVAILABLE`; by the HTTP status only when no known code came back; `UNSUPPORTED` when the service does not serve the route. The error keeps the code as `detail.code` |
 | List order | System views, then shared, then personal, each audience oldest first; a page at a time, `pageSize` views a page, with one cursor across the audiences |
 | System views | Configured ones are read-only; stored ones carry `stored: true` and are created (published as a copy), saved, renamed and deleted as `(system)` of `(platform)`, never shared or claimed. Their `revision` is a content hash; the store sends the version it read beside it. The engine's `editSystem` is the host's to give, off when unsaid |
-| Shared boards | A view a shared dashboard shows stays shared: the claim is `INVALID`, its `boards` the boards' titles as stored, which the view engine says in its own words |
+| Shared boards | A view a shared dashboard shows stays shared, and so does one a stored system dashboard shows, which every reader sees too: the claim is `INVALID`, its `boards` the boards' titles as stored, which the view engine says in its own words |
 
 ## Requests {#requests}
 
@@ -140,7 +135,7 @@ Every rejection is the engine's `ViewStoreError`, read by the problem's code, an
 
 Every `ViewStoreError` keeps what it was read from: the request's failure as `cause` and the problem's code as `detail.code`, so a host tells `view-store.app-required` from `view-store.invalid`, both `INVALID`.
 
-A claim the service refuses because shared dashboards show the view carries those boards' **titles** in the error's `boards`, as stored, and the view engine says the refusal in its own words around them: a title written as a key stays a key, said where the refusal is shown. The `message` keeps the service's words, for logs.
+A claim the service refuses because shared dashboards (or stored system dashboards) show the view carries those boards' **titles** in the error's `boards`, as stored, and the view engine says the refusal in its own words around them: a title written as a key stays a key, said where the refusal is shown. The `message` keeps the service's words, for logs.
 
 ## Hosts and the gateway
 

@@ -13,7 +13,7 @@
 
 import { SearchIcon, XIcon } from 'lucide-react';
 import { useId, useRef } from 'react';
-import type { SearchBoxController } from '../../react/index.js';
+import type { SearchBoxController } from '../../react/useSearchBox.js';
 import {
   InputGroup,
   InputGroupAddon,

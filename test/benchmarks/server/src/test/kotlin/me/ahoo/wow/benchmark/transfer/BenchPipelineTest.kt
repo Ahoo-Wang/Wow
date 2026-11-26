@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+@file:OptIn(WowSpi::class)
+
 package me.ahoo.wow.benchmark.transfer
 
 import com.mongodb.ServerAddress
@@ -24,6 +26,7 @@ import com.zaxxer.hikari.HikariDataSource
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.mongo.MongoPoolGauge
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.store.HeldStoreCallMarks

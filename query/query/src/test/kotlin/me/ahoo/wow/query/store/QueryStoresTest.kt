@@ -96,7 +96,48 @@ class QueryStoresTest {
             .isEqualTo("wow.query.dataset.max-concurrent is -1, below 0. Set 0 for no bound, or more.")
         val ceiling = runCatching { of(QueryStoreSettings(adaptiveCeiling = 0)) }.exceptionOrNull()
             as WowConfigurationException
-        ceiling.key.assert().isEqualTo("wow.stores.main.query.adaptive.ceiling")
+        // The global setting is named when the store takes it, the store's own when it sets one.
+        ceiling.key.assert().isEqualTo("wow.query.adaptive.ceiling")
+        val own = runCatching { of(QueryStoreSettings(stores = mapOf("main" to QueryStoreLimits(ceiling = 0)))) }
+            .exceptionOrNull() as WowConfigurationException
+        own.key.assert().isEqualTo("wow.stores.main.query.adaptive.ceiling")
+        val global = runCatching { of(QueryStoreSettings(maxConcurrent = -1)) }.exceptionOrNull()
+            as WowConfigurationException
+        global.key.assert().isEqualTo("wow.query.max-concurrent")
+    }
+
+    @Test
+    fun `a negative wait, queue or floor should be refused with the key that sets it`() {
+        fun refused(settings: QueryStoreSettings): String =
+            (runCatching { of(settings) }.exceptionOrNull() as WowConfigurationException).key
+        refused(QueryStoreSettings(maxWait = (-1).milliseconds)).assert().isEqualTo("wow.query.max-wait")
+        refused(QueryStoreSettings(stores = mapOf("main" to QueryStoreLimits(maxWait = (-1).milliseconds))))
+            .assert().isEqualTo("wow.stores.main.query.max-wait")
+        refused(QueryStoreSettings(maxQueued = -1)).assert().isEqualTo("wow.query.max-queued")
+        refused(QueryStoreSettings(stores = mapOf("main" to QueryStoreLimits(maxQueued = -1))))
+            .assert().isEqualTo("wow.stores.main.query.max-queued")
+        refused(QueryStoreSettings(stores = mapOf("main" to QueryStoreLimits(floor = 0))))
+            .assert().isEqualTo("wow.stores.main.query.adaptive.floor")
+    }
+
+    @Test
+    fun `a floor above the ceiling should be refused with the key that sets it, as the bound would never adapt`() {
+        val own = runCatching {
+            of(QueryStoreSettings(stores = mapOf("reports" to QueryStoreLimits(floor = 5, ceiling = 4))))
+        }.exceptionOrNull() as WowConfigurationException
+        own.key.assert().isEqualTo("wow.stores.reports.query.adaptive.floor")
+        own.value.assert().isEqualTo(5)
+        own.fix.assert().contains("4 or less", "wow.stores.reports.query.adaptive.ceiling")
+        // The global floor, above a ceiling the store's pool derives (12 for main).
+        val global = runCatching { of(QueryStoreSettings(adaptive = AdaptiveLimitOptions(floor = 13))) }
+            .exceptionOrNull() as WowConfigurationException
+        global.key.assert().isEqualTo("wow.query.adaptive.floor")
+        global.reason.assert().contains("store main", "12")
+        // A floor at the ceiling holds; a fixed bound has neither, whatever the floor.
+        of(QueryStoreSettings(stores = mapOf("reports" to QueryStoreLimits(floor = 4, ceiling = 4)))).limits
+            .first { it.bulkhead.store == "reports" }.floor.assert().isEqualTo(4)
+        of(QueryStoreSettings(maxConcurrent = 2, adaptive = AdaptiveLimitOptions(floor = 13))).limits.assert()
+            .isEmpty()
     }
 
     @Test

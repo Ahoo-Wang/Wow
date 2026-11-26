@@ -14,7 +14,7 @@
 package me.ahoo.wow.http
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.route.RouteCall
 import me.ahoo.wow.http.problem.GlobalErrors
@@ -51,7 +51,9 @@ class RelayedProblemRetryTest {
     @Test
     fun `a relayed problem should keep its own Retry-After over the catalog's`() {
         val (relayed, application) =
-            answers(WowProblemException("wow.command.busy", 429, Retry.SAME_REQUEST, 30.seconds, "Busy upstream."))
+            answers(
+                WowProblemException("wow.command.busy", 429, RetryAdvice.SAME_REQUEST, 30.seconds, "Busy upstream.")
+            )
         relayed.assert().isEqualTo("same-request" to "30")
         application.assert().isEqualTo(relayed)
     }
@@ -59,7 +61,7 @@ class RelayedProblemRetryTest {
     @Test
     fun `a relayed problem that may not be retried should say so, without Retry-After`() {
         val (relayed, application) =
-            answers(WowProblemException("wow.node.closing", 503, Retry.NONE, null, "Do not repeat this route."))
+            answers(WowProblemException("wow.node.closing", 503, RetryAdvice.NONE, null, "Do not repeat this route."))
         relayed.assert().isEqualTo("none" to null)
         application.assert().isEqualTo(relayed)
     }
@@ -67,7 +69,9 @@ class RelayedProblemRetryTest {
     @Test
     fun `a relayed problem of a code the catalog does not know should keep what a retry may do`() {
         val (relayed, application) =
-            answers(WowProblemException("partner.temporary-busy", 429, Retry.NEW_REQUEST, 1500.milliseconds, "Later."))
+            answers(
+                WowProblemException("partner.temporary-busy", 429, RetryAdvice.NEW_REQUEST, 1500.milliseconds, "Later.")
+            )
         // Retry-After in whole seconds, rounded up.
         relayed.assert().isEqualTo("new-request" to "2")
         application.assert().isEqualTo(relayed)

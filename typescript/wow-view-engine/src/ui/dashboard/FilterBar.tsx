@@ -42,7 +42,7 @@ import { ControlFrame } from '../kit/frames.js';
 import {
   filterModeOf,
   holdsGrouping,
-  type BoardFilterModes,
+  type DashboardFilterModes,
 } from './filterModes.js';
 import {
   useFilterOrder,
@@ -88,7 +88,7 @@ interface FilterBarProps {
    * locked one is drawn as what it holds, without a control; a hidden one
    * not at all. Every filter is adjustable when left out.
    */
-  modes?: BoardFilterModes;
+  modes?: DashboardFilterModes;
   /**
    * While the board is built: the filters put in another order, by a handle
    * on each chip (`useFilterOrder`); left out, the order is read. Never with
@@ -140,7 +140,7 @@ export function drawsFilterBar({
 /** The filters on the bar: what the page hid is not. */
 function shownFields(
   dashboard: DashboardController,
-  modes: BoardFilterModes | undefined,
+  modes: DashboardFilterModes | undefined,
 ) {
   return dashboard.filterFields.filter(
     field => filterModeOf(modes, field.name) !== 'hidden',
@@ -150,7 +150,7 @@ function shownFields(
 /** The time grouping on the bar, unless the page hid it. */
 function shownGrouping(
   dashboard: DashboardController,
-  modes: BoardFilterModes | undefined,
+  modes: DashboardFilterModes | undefined,
 ) {
   return (modes?.grouping ?? 'adjustable') === 'hidden'
     ? null
@@ -420,7 +420,7 @@ export function searchPlaceholder(
  */
 function startOf(
   dashboard: DashboardController,
-  modes: BoardFilterModes | undefined,
+  modes: DashboardFilterModes | undefined,
 ): DashboardFilters {
   const { filters } = dashboard;
   const values: Record<string, FilterValue> = {};

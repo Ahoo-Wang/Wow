@@ -5,7 +5,7 @@
  * Approve the requested publication of a dataset
  * - key: `me.ahoo.wow.analytics.catalog.api.dataset.ApproveDatasetPublication`
  */
-export type ApproveDatasetPublication = Record<string, unknown>;
+export type ApproveDatasetPublication = Record<string, never>;
 
 /**
  * Approve a lower sensitivity of a Wow source
@@ -20,7 +20,7 @@ export interface ApproveSensitivityChange {
  * Approve a source for the datasets
  * - key: `me.ahoo.wow.analytics.catalog.api.source.ApproveSource`
  */
-export type ApproveSource = Record<string, unknown>;
+export type ApproveSource = Record<string, never>;
 
 /** - key: `me.ahoo.wow.analytics.catalog.server.CatalogSettings` */
 export interface CatalogSettings {
@@ -227,13 +227,13 @@ export interface FieldSensitivity {
  * Mark an analyst's source reviewed
  * - key: `me.ahoo.wow.analytics.catalog.api.source.MarkSourceReviewed`
  */
-export type MarkSourceReviewed = Record<string, unknown>;
+export type MarkSourceReviewed = Record<string, never>;
 
 /**
  * Publish the dataset's definition as its next version
  * - key: `me.ahoo.wow.analytics.catalog.api.dataset.PublishDataset`
  */
-export type PublishDataset = Record<string, unknown>;
+export type PublishDataset = Record<string, never>;
 
 /** - key: `me.ahoo.wow.analytics.catalog.server.ReferenceActions` */
 export interface ReferenceActions {
@@ -285,7 +285,7 @@ export interface ResultHop {
  * Retire a dataset
  * - key: `me.ahoo.wow.analytics.catalog.api.dataset.RetireDataset`
  */
-export type RetireDataset = Record<string, unknown>;
+export type RetireDataset = Record<string, never>;
 
 /**
  * Review the sensitivity of a source's values

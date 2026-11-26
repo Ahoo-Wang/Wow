@@ -100,7 +100,7 @@
   }, {
     "name" : "wow.stores.<name>.query.adaptive.floor",
     "type" : "java.lang.Integer",
-    "description" : "The least the store's adaptive query bound goes down to, over `wow.query.adaptive.floor`.",
+    "description" : "The least the store's adaptive query bound goes down to, over `wow.query.adaptive.floor`; above the store's ceiling it refuses the start.",
     "sourceType" : "me.ahoo.wow.spring.boot.store.StoreAdaptiveProperties"
   }, {
     "name" : "wow.stores.<name>.query.events.unpinned",
@@ -151,7 +151,7 @@
   }, {
     "name" : "wow.stores.<name>.reindex-requests-per-second",
     "type" : "java.lang.Integer",
-    "description" : "On elasticsearch: how many documents a second the store indexes again when its queries map a field an index lacks, so that the documents written before it are found by it too; a search of the field misses them until the rewrite ends. 1000 by default (a million documents in about 17 minutes); -1 for no limit.",
+    "description" : "On elasticsearch: how many documents a second the store indexes again when its queries map a field an index lacks, so that the documents written before it are found by it too; a search of the field misses them until the rewrite ends. 1000 by default (a million documents in about 17 minutes); 0 for no limit.",
     "sourceType" : "me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider",
     "defaultValue" : 1000
   }, {
@@ -160,6 +160,12 @@
     "description" : "On elasticsearch: how long the caller of each request of an Elasticsearch store, its writes, loads and queries alike, waits for an answer: a server that stops answering fails the caller instead of holding it. The request and its connection are the client's, freed when the server answers or at the client's own response timeout. On mongo: how long each call of a MongoDB store may take besides appends (append-timeout) and the schema's commands (5 minutes): a reply lost on the way fails the call instead of blocking it forever. On postgres: how long each call of a PostgreSQL store may wait for a reply besides the schema's statements (5 minutes) and the queries (their own statement_timeout): a reply lost on the way fails the call, and its connection, instead of blocking it forever.",
     "sourceType" : "me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider",
     "defaultValue" : "PT30S"
+  }, {
+    "name" : "wow.stores.<name>.sink.generation",
+    "type" : "java.lang.Integer",
+    "description" : "On elasticsearch: the generation of the event search sink that writes into the store, 1 by default: raised, the sink starts again as wow.elasticsearch-sink-g<generation>.<aggregate>, a new subscription, and writes every aggregate it writes into the store again from the beginning of the log, once its events indices (<name>--1) were deleted. Only raise it: a lower one resumes that generation's checkpoints.",
+    "sourceType" : "me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider",
+    "defaultValue" : 1
   }, {
     "name" : "wow.stores.<name>.database",
     "type" : "java.lang.String",
@@ -236,7 +242,7 @@
   }, {
     "name" : "wow.subscriptions.[<context>.<name>].retry.timeout",
     "type" : "java.time.Duration",
-    "description" : "How long one attempt may run before it is cancelled and counts as failed.",
+    "description" : "How long one attempt may run before it is cancelled and counts as failed; `0`, as long as it takes.",
     "sourceType" : "me.ahoo.wow.spring.boot.node.RetrySpecProperties"
   }, {
     "name" : "wow.subscriptions.[<context>.<name>].start",
@@ -297,7 +303,7 @@
   }, {
     "name" : "wow.schedules.<name>.retry.timeout",
     "type" : "java.time.Duration",
-    "description" : "How long one attempt may run before it is cancelled and counts as failed.",
+    "description" : "How long one attempt may run before it is cancelled and counts as failed; `0`, as long as it takes.",
     "sourceType" : "me.ahoo.wow.spring.boot.node.RetrySpecProperties"
   }, {
     "name" : "wow.schedules.<name>.time-zone",

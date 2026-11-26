@@ -90,13 +90,13 @@ export interface ActionRunner {
 // @public
 type ActionTone = 'default' | 'danger';
 
-// @public (undocumented)
+// @public
 type AggregationDatePartName = `${AggregationDatePart}`;
 
-// @public (undocumented)
+// @public
 type AggregationDateUnitName = `${AggregationDateUnit}`;
 
-// @public (undocumented)
+// @public
 type AggregationExpressionOperatorName = `${AggregationExpressionOperator}`;
 
 // @public
@@ -122,13 +122,13 @@ interface AggregationFieldCapability {
     steps?: boolean;
 }
 
-// @public (undocumented)
+// @public
 type AggregationFunctionName = `${AggregationFunction}`;
 
 // @public
 type AggregationGroupTypeName = `${AggregationGroupType}`;
 
-// @public (undocumented)
+// @public
 interface AnalysisCapability {
     approximate?: AnalysisMetric['type'][];
     // (undocumented)
@@ -178,7 +178,6 @@ interface AnalysisColumnView {
     named?: true;
     numberFormat?: NumberFormat;
     numeric?: FieldNumeric;
-    ongoing?: unknown;
     // (undocumented)
     options?: readonly FieldOption[];
     remote?: string;
@@ -187,6 +186,7 @@ interface AnalysisColumnView {
     sortable?: false;
     timeUnit?: EpochTimeUnit;
     timeZone?: string;
+    unfinished?: unknown;
     // (undocumented)
     width?: number;
 }
@@ -205,7 +205,7 @@ type AnalysisDerivedExpression = {
     right: AnalysisDerivedExpression;
 };
 
-// @public (undocumented)
+// @public
 export interface AnalysisEditorController extends QuestionEditing {
     aliases: {
         groups: string[];
@@ -383,7 +383,7 @@ type AnalysisGroup = AnalysisNamed & ({
 // @public
 type AnalysisHavingExpression = LiteralEnums<HavingExpression>;
 
-// @public (undocumented)
+// @public
 type AnalysisLayout = 'table' | 'chart';
 
 // @public
@@ -394,7 +394,7 @@ interface AnalysisLimitBounds {
     max: number;
 }
 
-// @public (undocumented)
+// @public
 interface AnalysisLimits {
     // (undocumented)
     defaultLimit?: number;
@@ -454,7 +454,7 @@ interface AnalysisNamed {
     label?: string;
 }
 
-// @public (undocumented)
+// @public
 interface AnalysisProjection {
     approximate?: readonly string[];
     atLimit?: number;
@@ -469,7 +469,7 @@ interface AnalysisProjection {
     truncated: boolean;
 }
 
-// @public (undocumented)
+// @public
 export interface AnalysisResultController {
     chart: ChartSpec;
     chartData: ChartData | undefined;
@@ -489,13 +489,13 @@ export interface AnalysisResultController {
 // @public
 export type AnalysisResultInput = Pick<AnalysisEditorController, 'aliases' | 'chart' | 'fields' | 'groups' | 'layout' | 'metrics' | 'moments' | 'pending' | 'setChartType' | 'setLayout' | 'submit' | 'updateChart' | 'windows'>;
 
-// @public (undocumented)
+// @public
 export interface AnalysisResultOptions {
     analysis: AnalysisResultInput;
     workbench: FollowUpHost;
 }
 
-// @public (undocumented)
+// @public
 interface AnalysisSort {
     // (undocumented)
     alias: string;
@@ -518,7 +518,7 @@ interface AnalysisSpec {
     rootGroups?: boolean;
 }
 
-// @public (undocumented)
+// @public
 interface AnalysisTableSpec {
     columns: AnalysisColumn[];
     totals?: boolean;
@@ -571,7 +571,7 @@ type AnyViewRuntime = RecordViewRuntime | AnalysisViewRuntime | DashboardRuntime
 // @public
 type Availability = true | string;
 
-// @public (undocumented)
+// @public
 interface AxisSpec {
     // (undocumented)
     format?: ValueFormat;
@@ -583,32 +583,6 @@ interface AxisSpec {
     min?: number;
     scale?: 'linear' | 'log';
 }
-
-// @public
-export interface BoardChoice {
-    // (undocumented)
-    definitionId: string;
-    definitionTitle: string;
-    // (undocumented)
-    id: string;
-    // (undocumented)
-    title: string;
-}
-
-// @public
-interface BoardOrigin {
-    // (undocumented)
-    back: DashboardTarget;
-    // (undocumented)
-    title: string;
-}
-
-// @public
-type BoardValueSource = {
-    dimension: string;
-} | {
-    filter: string;
-};
 
 // @public
 interface BoxplotBox {
@@ -625,7 +599,7 @@ interface BoxplotBox {
     q3: number;
 }
 
-// @public (undocumented)
+// @public
 interface BoxplotData {
     approximate: boolean;
     // (undocumented)
@@ -648,7 +622,7 @@ interface BoxplotSpec {
 // @public
 export function browserRuntimeEnvironment(overrides?: Partial<RuntimeEnvironment>): RuntimeEnvironment;
 
-// @public (undocumented)
+// @public
 type BuiltinFieldKindId = 'string' | 'number' | 'boolean' | 'date' | 'datetime' | 'enum' | 'reference' | 'array' | 'elementMatch' | 'search' | MetadataFieldKindId;
 
 // @public
@@ -728,7 +702,7 @@ export interface BulkSelection {
     select?(keys: readonly RecordKey[]): void;
 }
 
-// @public (undocumented)
+// @public
 interface CalendarData {
     days: CalendarDay[];
     // (undocumented)
@@ -770,7 +744,7 @@ interface Candle {
     x: unknown;
 }
 
-// @public (undocumented)
+// @public
 interface CandlestickData {
     // (undocumented)
     candles: Candle[];
@@ -788,7 +762,7 @@ interface CandlestickSpec {
     x: string;
 }
 
-// @public (undocumented)
+// @public
 interface CartesianData {
     // (undocumented)
     chart: ChartType;
@@ -833,7 +807,7 @@ type CartesianGap = {
 // @public
 type CartesianMissing = 'zero' | 'gap';
 
-// @public (undocumented)
+// @public
 interface CartesianSeries {
     // (undocumented)
     axis?: 'left' | 'right';
@@ -843,7 +817,7 @@ interface CartesianSeries {
     type?: 'bar' | 'line' | 'area';
 }
 
-// @public (undocumented)
+// @public
 interface CartesianSpec {
     derived?: DerivedSeries[];
     extremes?: boolean;
@@ -868,7 +842,7 @@ interface CartesianSpec {
 // @public
 type ChartData = CartesianData | PieData | HeatmapData | ScatterData | FunnelData | MetricCardData | WaterfallData | TreemapData | BoxplotData | CandlestickData | GaugeData | RadarData | ParallelData | HierarchyData | SankeyData | CalendarData | ThemeRiverData | MapData;
 
-// @public (undocumented)
+// @public
 interface ChartFit {
     aside?: ChartUnfit;
     // (undocumented)
@@ -933,7 +907,7 @@ interface ChartSpec {
 // @public
 type ChartStage = 'load' | 'draw';
 
-// @public (undocumented)
+// @public
 type ChartType = 'bar' | 'line' | 'area' | 'combo' | 'waterfall' | 'pie' | 'treemap' | 'heatmap' | 'scatter' | 'funnel' | 'metric' | 'gauge' | 'boxplot' | 'candlestick' | 'radar' | 'parallel' | 'sunburst' | 'tree' | 'sankey' | 'calendar' | 'themeRiver' | 'map';
 
 // @public
@@ -955,14 +929,14 @@ type ColumnEdge = 'left' | 'right';
 // @public
 type ComparisonOperatorName = 'gt' | 'gte' | 'lt' | 'lte' | 'eq' | 'ne';
 
-// @public (undocumented)
+// @public
 type ConflictChoice = 'reload' | 'overwrite';
 
 // @public
 interface CreateInput<C extends ViewConfig> {
+    audience: ViewAudience;
     // (undocumented)
     config: C;
-    scope: ViewAudience;
     scopeFilter?: FilterTree | null;
     // (undocumented)
     title: string;
@@ -1013,6 +987,17 @@ interface CursorPaging {
 }
 
 // @public
+export interface DashboardChoice {
+    // (undocumented)
+    definitionId: string;
+    definitionTitle: string;
+    // (undocumented)
+    id: string;
+    // (undocumented)
+    title: string;
+}
+
+// @public
 type DashboardContentPanel = DashboardPanelBase & ({
     kind: 'heading';
     content: string;
@@ -1030,7 +1015,7 @@ type DashboardContentPanel = DashboardPanelBase & ({
     items: DashboardLink[];
 });
 
-// @public (undocumented)
+// @public
 export interface DashboardController {
     awaiting: readonly string[];
     building: boolean;
@@ -1038,7 +1023,7 @@ export interface DashboardController {
     columns: number;
     crossFilter(panelId: string, row: RecordData): CrossFilterOutcome;
     destination(panelId: string, row: RecordData): Promise<PressDestination | null>;
-    destinationBoard(instanceId: string): Promise<DestinationBoard | null>;
+    destinationDashboard(instanceId: string): Promise<DestinationDashboard | null>;
     // (undocumented)
     dirty: boolean;
     edit: (DashboardEditing & DashboardFilterEditing) | null;
@@ -1052,7 +1037,7 @@ export interface DashboardController {
     handOver(panelId: string): HandOver | null;
     history: EditHistoryState;
     issues: Issue[];
-    kinds: FieldKindRegistry | null;
+    kinds: FieldKindRegistry | undefined;
     // (undocumented)
     panels: DashboardPanelView[];
     place(panelId: string, layout: PanelLayout, grown?: ReadonlyMap<string, number>): void;
@@ -1133,7 +1118,7 @@ interface DashboardFilterEditing {
     bindPanel(name: string, panelId: string, panelField: string): string[];
     moveFilter(name: string, index: number): void;
     removeFilter(name: string): void;
-    removeFixedScope(): void;
+    removeFixed(): void;
     renameFilter(name: string, label: string): void;
     retypeFilter(name: string, type: DashboardFilterType): void;
     setFilterDefault(name: string, value: FilterValue | null): void;
@@ -1159,7 +1144,7 @@ interface DashboardFilters {
 // @public
 type DashboardFilterType = 'date' | 'text' | 'id' | 'number' | 'boolean' | 'search';
 
-// @public (undocumented)
+// @public
 interface DashboardLink {
     // (undocumented)
     description?: string;
@@ -1172,10 +1157,18 @@ interface DashboardLink {
 // @public
 export type DashboardOpening = Pick<OpenOptions, 'tab' | 'filters' | 'held'>;
 
-// @public (undocumented)
+// @public
+interface DashboardOrigin {
+    // (undocumented)
+    back: DashboardTarget;
+    // (undocumented)
+    title: string;
+}
+
+// @public
 type DashboardPanel = DashboardViewPanel | DashboardContentPanel;
 
-// @public (undocumented)
+// @public
 interface DashboardPanelBase {
     // (undocumented)
     id: string;
@@ -1229,7 +1222,7 @@ interface DashboardRuntime extends ViewRuntime<DashboardViewConfig>, DashboardEd
     clearFilters(): void;
     crossFilter(panelId: string, row: RecordData): CrossFilterOutcome;
     destination(panelId: string, row: RecordData): Promise<PressDestination | null>;
-    destinationBoard(instanceId: string): Promise<DestinationBoard | null>;
+    destinationDashboard(instanceId: string): Promise<DestinationDashboard | null>;
     // (undocumented)
     getSnapshot(): DashboardRuntimeState;
     handOver(panelId: string): HandOver | null;
@@ -1251,7 +1244,7 @@ interface DashboardRuntime extends ViewRuntime<DashboardViewConfig>, DashboardEd
     wiredOptions(name: string): FieldOption[] | null;
 }
 
-// @public (undocumented)
+// @public
 interface DashboardRuntimeState extends ViewRuntimeState<DashboardViewConfig> {
     building: boolean;
     filters: DashboardFilters;
@@ -1291,7 +1284,14 @@ interface DashboardTimeGrouping {
     units: AggregationDateUnitName[];
 }
 
-// @public (undocumented)
+// @public
+type DashboardValueSource = {
+    dimension: string;
+} | {
+    filter: string;
+};
+
+// @public
 interface DashboardViewConfig extends ViewConfigBase {
     columns: 24;
     fields: DashboardField[];
@@ -1389,24 +1389,18 @@ interface DatasetResource {
 
 // @public
 class DatasetResources {
-    constructor(engine: DatasetRegistrar, init: DatasetResourcesInit);
+    constructor(engine: DatasetRegistrar, init: DatasetResourcesOptions);
     refresh(options?: ReadOptions): Promise<DatasetRefresh>;
     get resources(): readonly DatasetResource[];
 }
 
 // @public
-interface DatasetResourcesInit {
+interface DatasetResourcesOptions {
     catalogs: DatasetCatalog | readonly DatasetCatalog[];
     onCatalogError?(catalog: number, error: unknown): void;
     onDuplicate?(duplicate: DatasetDuplicate): void;
     onError?(entry: DatasetDirectoryEntry, error: unknown): void;
     onWordingError?(error: unknown): void;
-}
-
-// @public
-export interface DatasetsReading {
-    key?: string;
-    paused?: boolean;
 }
 
 // @public
@@ -1447,7 +1441,7 @@ interface DataViewConfigBase extends ViewConfigBase {
     filterMode: FilterMode;
 }
 
-// @public (undocumented)
+// @public
 interface DataViewDefinition {
     // (undocumented)
     analysis?: AnalysisCapability;
@@ -1469,10 +1463,10 @@ interface DataViewDefinition {
     views?: SystemView[];
 }
 
-// @public (undocumented)
+// @public
 type DateDiffUnitName = `${DateDiffUnit}`;
 
-// @public (undocumented)
+// @public
 interface DateTemporal {
     // (undocumented)
     type: 'date';
@@ -1481,7 +1475,7 @@ interface DateTemporal {
 // @public
 type DateTimePreset = 'today' | 'yesterday' | 'dayBeforeYesterday' | 'tomorrow' | 'thisWeek' | 'lastWeek' | 'nextWeek' | 'thisMonth' | 'lastMonth' | 'nextMonth' | 'thisQuarter' | 'lastQuarter' | 'nextQuarter' | 'thisYear' | 'lastYear' | 'nextYear' | 'weekToDate' | 'lastWeekToDate' | 'monthToDate' | 'lastMonthToDate' | 'quarterToDate' | 'lastQuarterToDate' | 'yearToDate' | 'lastYearToDate';
 
-// @public (undocumented)
+// @public
 interface DecimalNumeric {
     scale: number;
     // (undocumented)
@@ -1548,7 +1542,7 @@ interface DerivedLine {
     window?: number;
 }
 
-// @public (undocumented)
+// @public
 interface DerivedSeries {
     // (undocumented)
     kind: DerivedKind;
@@ -1557,16 +1551,9 @@ interface DerivedSeries {
 }
 
 // @public
-type DestinationBoard = ViewInstance & {
+type DestinationDashboard = ViewInstance & {
     config: DashboardViewConfig;
 };
-
-// @public
-interface DetailSection {
-    fields: RecordCardField[];
-    id: string | null;
-    label: string | null;
-}
 
 // @public
 export function documentVisibility(): VisibilitySource;
@@ -1609,7 +1596,7 @@ interface Dropped {
 }
 
 // @public
-type EditCommand = 'addPanel' | 'removePanel' | 'duplicatePanel' | 'renamePanel' | 'replacePanelView' | 'editPanelContent' | 'movePanelToTab' | 'setPresentation' | 'referToSaved' | 'setPanelClick' | 'place' | 'reorderPanel' | 'addTab' | 'renameTab' | 'moveTab' | 'removeTab' | 'addFilter' | 'renameFilter' | 'retypeFilter' | 'removeFilter' | 'setFilterDefault' | 'setFilterRequired' | 'setFilterMultiple' | 'setFilterOneDay' | 'setFilterOptions' | 'moveFilter' | 'bindPanel' | 'unbindPanels' | 'setTimeGrouping' | 'removeFixedScope' | 'setWidth';
+type EditCommand = 'addPanel' | 'removePanel' | 'duplicatePanel' | 'renamePanel' | 'replacePanelView' | 'editPanelContent' | 'movePanelToTab' | 'setPresentation' | 'referToSaved' | 'setPanelClick' | 'place' | 'reorderPanel' | 'addTab' | 'renameTab' | 'moveTab' | 'removeTab' | 'addFilter' | 'renameFilter' | 'retypeFilter' | 'removeFilter' | 'setFilterDefault' | 'setFilterRequired' | 'setFilterMultiple' | 'setFilterOneDay' | 'setFilterOptions' | 'moveFilter' | 'bindPanel' | 'unbindPanels' | 'setTimeGrouping' | 'removeFixed' | 'setWidth';
 
 // @public
 interface EditHistoryState {
@@ -1633,7 +1620,7 @@ interface EditorDescriptor {
     withTime?: boolean;
 }
 
-// @public (undocumented)
+// @public
 type EditorInput = (typeof EDITOR_INPUTS)[number];
 
 // @public
@@ -1657,7 +1644,7 @@ interface ElementTitleView {
     options?: readonly FieldOption[];
 }
 
-// @public (undocumented)
+// @public
 interface EpochTemporal {
     timeUnit?: EpochTimeUnit;
     // (undocumented)
@@ -1667,7 +1654,7 @@ interface EpochTemporal {
 // @public
 type EpochTimeUnit = `${TimeUnit.MILLISECONDS | TimeUnit.SECONDS}`;
 
-// @public (undocumented)
+// @public
 interface ExportedRows {
     capped: boolean;
     // (undocumented)
@@ -1678,7 +1665,7 @@ interface ExportedRows {
 // @public
 type ExportOperation = 'fetch' | 'deliver' | 'image';
 
-// @public (undocumented)
+// @public
 interface ExportRowsOptions {
     max?: number;
     onProgress?(fetched: number, total?: number): void;
@@ -1778,7 +1765,7 @@ interface FieldKind {
     validate(context: FieldKindValidateContext): Issue[];
 }
 
-// @public (undocumented)
+// @public
 interface FieldKindBlankContext {
     // (undocumented)
     field: FieldDefinition;
@@ -1789,7 +1776,7 @@ interface FieldKindBlankContext {
     value: unknown;
 }
 
-// @public (undocumented)
+// @public
 interface FieldKindCompileContext {
     // (undocumented)
     field: FieldDefinition;
@@ -1801,7 +1788,7 @@ interface FieldKindCompileContext {
     timeZone: string;
 }
 
-// @public (undocumented)
+// @public
 interface FieldKindDescribeContext {
     // (undocumented)
     field: FieldDefinition;
@@ -1828,7 +1815,7 @@ type FieldKindId = BuiltinFieldKindId | (string & {});
 // @public
 type FieldKindRegistry = ReadonlyMap<FieldKindId, FieldKind>;
 
-// @public (undocumented)
+// @public
 interface FieldKindValidateContext {
     // (undocumented)
     field: FieldDefinition;
@@ -1918,7 +1905,7 @@ export interface FilterEditorController extends FilterTreeController {
     unset(paths: readonly FilterPath[]): void;
 }
 
-// @public (undocumented)
+// @public
 interface FilterGroup {
     // (undocumented)
     children: FilterNode[];
@@ -1929,7 +1916,7 @@ interface FilterGroup {
 // @public
 type FilterGroupOperator = `${FilterOperator.AND | FilterOperator.OR | FilterOperator.NOR}`;
 
-// @public (undocumented)
+// @public
 interface FilterLeaf {
     field: string;
     // (undocumented)
@@ -1941,7 +1928,7 @@ interface FilterLeaf {
 // @public
 type FilterMode = 'simple' | 'advanced';
 
-// @public (undocumented)
+// @public
 type FilterNode = FilterGroup | FilterLeaf;
 
 // @public
@@ -2139,7 +2126,7 @@ export interface FilterTreeController {
 // @public
 type FilterValue = JsonValue;
 
-// @public (undocumented)
+// @public
 interface FixedMoneyNumeric {
     currency: string;
     // (undocumented)
@@ -2217,7 +2204,7 @@ export interface FollowUpGroup {
 // @public
 export type FollowUpHost = Pick<WorkbenchController, 'state' | 'canDrill' | 'drill' | 'follow'>;
 
-// @public (undocumented)
+// @public
 interface FunnelData {
     cumulative?: true;
     largestDrop?: number;
@@ -2235,7 +2222,7 @@ interface FunnelSpec {
     stages: FunnelStages;
 }
 
-// @public (undocumented)
+// @public
 interface FunnelStage {
     conversion?: number;
     drop?: number;
@@ -2247,7 +2234,7 @@ interface FunnelStage {
     value: number;
 }
 
-// @public (undocumented)
+// @public
 type FunnelStages = {
     from: 'metrics';
     items: {
@@ -2262,7 +2249,7 @@ type FunnelStages = {
     cumulative?: boolean;
 };
 
-// @public (undocumented)
+// @public
 interface GaugeData {
     beyond?: 'above' | 'below';
     // (undocumented)
@@ -2292,15 +2279,9 @@ interface GroupNaming {
 }
 
 // @public
-export interface HandedRemovalOptions {
-    handed: SavedViewTarget | null;
-    runtime: AnyViewRuntime | null;
-}
-
-// @public
 interface HandOver {
     filter: FilterTree | null;
-    from?: BoardOrigin;
+    from?: DashboardOrigin;
     scopeFilter: FilterTree | null;
 }
 
@@ -2318,7 +2299,7 @@ interface HavingRow {
     value: number | null;
 }
 
-// @public (undocumented)
+// @public
 interface HeatmapData {
     cells: (number | null)[][];
     // (undocumented)
@@ -2330,7 +2311,7 @@ interface HeatmapData {
     ys: unknown[];
 }
 
-// @public (undocumented)
+// @public
 interface HeatmapSpec {
     // (undocumented)
     scale?: 'linear' | 'log';
@@ -2349,7 +2330,7 @@ interface HeldFilters {
 
 // @public
 export interface HeldView {
-    board?: BoardOrigin;
+    dashboardOrigin?: DashboardOrigin;
     // (undocumented)
     draft: ViewConfig;
     from: HeldView | null;
@@ -2360,7 +2341,7 @@ export interface HeldView {
     runtime: AnyViewRuntime;
 }
 
-// @public (undocumented)
+// @public
 interface HierarchyData {
     depth: number;
     nodes: HierarchyNode[];
@@ -2396,16 +2377,6 @@ interface InstancePermissions {
 }
 
 // @public
-export interface InstanceSyncOptions {
-    asking: boolean;
-    choose(id: string | null): void;
-    chosen: string | null;
-    handOver?: ViewHandOver | null;
-    instanceId?: string | null;
-    onInstanceChange?(id: string | null): void;
-}
-
-// @public
 interface Issue {
     code: string;
     // (undocumented)
@@ -2436,7 +2407,7 @@ export interface LeaveGuard {
     saving?: boolean;
 }
 
-// @public (undocumented)
+// @public
 export interface LeaveGuardOptions {
     guardUnload?: boolean;
     onLeave?(): void;
@@ -2475,7 +2446,7 @@ export interface ManagedWording {
     saving: boolean;
 }
 
-// @public (undocumented)
+// @public
 interface MapData {
     // (undocumented)
     high: number;
@@ -2505,10 +2476,10 @@ type MetadataFieldKindId = 'documentId' | 'aggregateId' | 'tenantId' | 'ownerId'
 /** Whether soft-deleted records are shown: Wow's `DELETION` filter (D17-2). */
 | 'deletion';
 
-// @public (undocumented)
+// @public
 type MetricAgainst = 'previous' | 'previous-year';
 
-// @public (undocumented)
+// @public
 interface MetricCardData {
     compare?: {
         value: number | null;
@@ -2532,7 +2503,7 @@ interface MetricCardData {
     whole?: true;
 }
 
-// @public (undocumented)
+// @public
 interface MetricCardSpec {
     compare?: {
         metric: string;
@@ -2555,7 +2526,7 @@ interface MetricCondition {
 // @public
 type MetricFunction = AggregationFunctionName | `${AggregationMetricType.COUNT}` | `${AggregationMetricType.DISTINCT_COUNT}` | `${AggregationMetricType.PERCENTILE}` | `${AggregationMetricType.FIRST}` | `${AggregationMetricType.LAST}` | `${AggregationMetricType.ANY}` | `${AggregationMetricType.DERIVED}`;
 
-// @public (undocumented)
+// @public
 type MetricHeadline = 'last' | 'whole';
 
 // @public
@@ -2581,7 +2552,6 @@ interface MetricPeriod {
         delta: number;
         ratio: number | null;
     } | null;
-    partial?: true;
     previous?: {
         at: unknown;
         value: number | null;
@@ -2592,6 +2562,7 @@ interface MetricPeriod {
         to: number;
         zone: string;
     };
+    unfinished?: true;
     unit: AggregationDateUnitName;
     unmatched?: true;
 }
@@ -2625,7 +2596,7 @@ interface NewFilter {
     type: DashboardFilterType;
 }
 
-// @public (undocumented)
+// @public
 type NewPanel = NewViewPanel | NewContentPanel;
 
 // @public
@@ -2696,7 +2667,7 @@ export interface OpenViewState {
     retry(): void;
     // (undocumented)
     runtime: AnyViewRuntime | null;
-    scopeIssues: Issue[];
+    scopeFilterIssues: Issue[];
     status: QueryStatus;
 }
 
@@ -2740,9 +2711,9 @@ interface PagedPaging {
 // @public
 interface PanelBinding {
     auto?: true;
-    derived?: true;
     // (undocumented)
-    globalField: string;
+    dashboardField: string;
+    derived?: true;
     // (undocumented)
     panelField: string;
 }
@@ -2773,14 +2744,14 @@ type PanelClick =
 * as the author mapped them (D23 Q17, 「另一块仪表盘」): `values` is keyed
 * like the `DashboardFilters.values` it becomes — each of the target's
 * filters the press sets, by name — and says where each one's value comes
-* from (`BoardValueSource`). A filter not named is not carried and starts
+* from (`DashboardValueSource`). A filter not named is not carried and starts
 * at its default. Never matched by name: only what the author mapped goes
 * along.
 */
 | {
     kind: 'dashboard';
     instanceId: string;
-    values: Record<string, BoardValueSource>;
+    values: Record<string, DashboardValueSource>;
     tab?: string;
 }
 /**
@@ -2791,12 +2762,6 @@ type PanelClick =
     kind: 'url';
     url: string;
 };
-
-// @public (undocumented)
-export interface PanelFollowUpsOptions {
-    handOver(): HandOver | null;
-    navigate?: ((to: ViewNavigation) => void) | undefined;
-}
 
 // @public
 type PanelGrouping = 'taken' | 'kept' | null;
@@ -2824,7 +2789,7 @@ interface PanelPresentation {
     table?: AnalysisTableSpec;
 }
 
-// @public (undocumented)
+// @public
 interface ParallelData {
     metrics: string[];
     omitted: number;
@@ -2864,7 +2829,7 @@ export interface PendingAction {
 // @public
 type Picked = ChartType | 'table';
 
-// @public (undocumented)
+// @public
 interface PieData {
     // (undocumented)
     slices: PieSlice[];
@@ -2872,7 +2837,7 @@ interface PieData {
     type: 'pie';
 }
 
-// @public (undocumented)
+// @public
 interface PieSlice {
     // (undocumented)
     category: unknown;
@@ -2881,7 +2846,7 @@ interface PieSlice {
     value: number;
 }
 
-// @public (undocumented)
+// @public
 interface PieSpec {
     category: string;
     // (undocumented)
@@ -2913,7 +2878,7 @@ type PressDestination = {
     fallback: Issue;
 };
 
-// @public (undocumented)
+// @public
 interface ProjectedAnalysis extends ProjectedBase {
     // (undocumented)
     kind: 'analysis';
@@ -2926,7 +2891,7 @@ interface ProjectedBase {
     issues: readonly Issue[];
 }
 
-// @public (undocumented)
+// @public
 interface ProjectedRecord extends ProjectedBase {
     // (undocumented)
     kind: 'record';
@@ -2941,7 +2906,7 @@ type ProjectedView = ProjectedRecord | ProjectedAnalysis;
 // @public
 type QueryOperation = 'query' | 'summaries' | 'totals' | 'split' | 'record' | 'kanban' | 'candidates' | 'labels';
 
-// @public (undocumented)
+// @public
 type QueryStatus = 'idle' | 'loading' | 'success' | 'error';
 
 // @public
@@ -2970,7 +2935,7 @@ export interface QuestionEditing {
     updateMetric(index: number, patch: Partial<AnalysisMetric>): void;
 }
 
-// @public (undocumented)
+// @public
 interface RadarData {
     metrics: string[];
     omitted: number;
@@ -3068,7 +3033,7 @@ export interface RecordActionTable {
     selection: readonly RecordKey[];
 }
 
-// @public (undocumented)
+// @public
 export interface RecordBulkActionContext {
     busy: boolean;
     clearSelection(): void;
@@ -3120,7 +3085,7 @@ interface RecordCardField {
     timeUnit?: EpochTimeUnit;
 }
 
-// @public (undocumented)
+// @public
 interface RecordCardSpec {
     fields: string[];
     // (undocumented)
@@ -3184,23 +3149,7 @@ export interface RecordDetailControl {
     open?: RecordKey | null;
 }
 
-// @public (undocumented)
-export interface RecordDetailController {
-    // (undocumented)
-    close(): void;
-    complete: boolean;
-    error: Issue | null;
-    key: RecordKey | null;
-    missing: boolean;
-    // (undocumented)
-    open(row: RecordRow): void;
-    record: RecordData | null;
-    reload(): void;
-    sections: readonly DetailSection[];
-    status: QueryStatus;
-}
-
-// @public (undocumented)
+// @public
 export type RecordDetailPlacement = 'start' | 'end' | {
     after: string;
 };
@@ -3215,7 +3164,7 @@ export interface RecordDetailSection {
     title: string;
 }
 
-// @public (undocumented)
+// @public
 export interface RecordDetailSectionContext {
     complete: boolean;
     refresh(): void;
@@ -3224,7 +3173,7 @@ export interface RecordDetailSectionContext {
     runtime: RecordViewRuntime;
 }
 
-// @public (undocumented)
+// @public
 export interface RecordExportController {
     cancel(): void;
     error: Issue | null;
@@ -3232,15 +3181,24 @@ export interface RecordExportController {
     // (undocumented)
     progress: RecordExportProgress | null;
     reset(): void;
-    run(scope: RecordExportScope, fileName: string): void;
-    running: RecordExportScope | null;
+    run(scope: RecordExportExtent, fileName: string): void;
+    running: RecordExportExtent | null;
     // (undocumented)
-    scopes: RecordExportScopes;
+    scopes: RecordExportExtents;
 }
 
-// @public (undocumented)
+// @public
+export type RecordExportExtent = 'selected' | 'all';
+
+// @public
+export interface RecordExportExtents {
+    all: number | null;
+    selected?: number;
+}
+
+// @public
 export interface RecordExportOptions {
-    deliver(rows: readonly RecordData[], scope: RecordExportScope, fileName: string): void | Promise<void>;
+    deliver(rows: readonly RecordData[], scope: RecordExportExtent, fileName: string): void | Promise<void>;
     table: RecordExportTable;
 }
 
@@ -3249,31 +3207,22 @@ export interface RecordExportOutcome {
     capped: boolean;
     rows: number;
     // (undocumented)
-    scope: RecordExportScope;
-    total?: number;
-}
-
-// @public (undocumented)
-export interface RecordExportProgress {
-    fetched: number;
-    // (undocumented)
-    scope: RecordExportScope;
+    scope: RecordExportExtent;
     total?: number;
 }
 
 // @public
-export type RecordExportScope = 'selected' | 'all';
-
-// @public (undocumented)
-export interface RecordExportScopes {
-    all: number | null;
-    selected?: number;
+export interface RecordExportProgress {
+    fetched: number;
+    // (undocumented)
+    scope: RecordExportExtent;
+    total?: number;
 }
 
 // @public
 export type RecordExportTable = Pick<RecordTableController, 'paging' | 'selection' | 'selectedRows'>;
 
-// @public (undocumented)
+// @public
 export interface RecordGlobalActionContext {
     // (undocumented)
     refresh(): void;
@@ -3324,13 +3273,13 @@ type RecordPageTarget<P extends RecordPagingMode = RecordPagingMode> = P extends
     cursor: string | null;
 };
 
-// @public (undocumented)
+// @public
 type RecordPaging = PagedPaging | CursorPaging;
 
 // @public
 type RecordPagingMode = 'paged' | 'cursor';
 
-// @public (undocumented)
+// @public
 interface RecordProjection {
     card: RecordCardView;
     // (undocumented)
@@ -3340,14 +3289,14 @@ interface RecordProjection {
     rows: RecordRow[];
 }
 
-// @public (undocumented)
+// @public
 interface RecordRow {
     // (undocumented)
     data: RecordData;
     key: RecordKey;
 }
 
-// @public (undocumented)
+// @public
 export interface RecordRowActionContext {
     busy: boolean;
     // (undocumented)
@@ -3359,7 +3308,7 @@ export interface RecordRowActionContext {
     runtime: RecordViewRuntime;
 }
 
-// @public (undocumented)
+// @public
 interface RecordSort {
     // (undocumented)
     direction: SortDirectionName;
@@ -3367,15 +3316,14 @@ interface RecordSort {
     field: string;
 }
 
-// @public (undocumented)
+// @public
 interface RecordSummary {
     // (undocumented)
     field: string;
-    // (undocumented)
-    fn: SummaryFunction;
+    function: SummaryFunction;
 }
 
-// @public (undocumented)
+// @public
 export interface RecordTableController {
     card: RecordCardView;
     cardSpec: RecordCardSpec;
@@ -3442,7 +3390,7 @@ export interface RecordTableController {
     toggleSort(field: string, options?: ToggleSortOptions): void;
 }
 
-// @public (undocumented)
+// @public
 interface RecordTableSpec {
     // (undocumented)
     columns: RecordColumn[];
@@ -3470,7 +3418,7 @@ interface RecordViewConfig extends DataViewConfigBase {
 // @public
 interface RecordViewRuntime<P extends RecordPagingMode = RecordPagingMode> extends ViewRuntime<RecordViewConfig> {
     exportRows(options?: ExportRowsOptions): Promise<ExportedRows>;
-    fetchRecord(key: RecordKey, signal?: AbortSignal): Promise<RecordData | null>;
+    fetchRecord(key: RecordKey, options?: ReadOptions): Promise<RecordData | null>;
     loadLane(laneId: string): void;
     // (undocumented)
     page(target: RecordPageTarget<P>): void;
@@ -3562,28 +3510,11 @@ interface RefusalGroup {
     reason: string;
 }
 
-// @public (undocumented)
+// @public
 type RelativeDateDirection = 'past' | 'future';
 
-// @public (undocumented)
+// @public
 type RelativeDateUnit = 'hour' | 'day' | 'week' | 'month' | 'quarter' | 'year';
-
-// @public
-export interface ReleaseDeletedOptions {
-    chosen: string | null;
-    opened: OpenViewState;
-    openId: string | null;
-    setChosen: (id: string | null) => void;
-}
-
-// @public
-export type Reshape = (update: (current: AnalysisViewConfig) => ReshapeProposal | undefined, cause?: DropCause) => void;
-
-// @public
-export type ReshapeProposal = Pick<AnalysisViewConfig, 'groups' | 'metrics'> & Partial<Pick<AnalysisViewConfig, 'elements'>> & {
-    dropped?: Dropped;
-    columns?: AnalysisColumn[];
-};
 
 // @public
 interface RiverStream {
@@ -3607,7 +3538,7 @@ export interface RowActionView {
     reason: string | null;
 }
 
-// @public (undocumented)
+// @public
 interface RowMoneyNumeric {
     // (undocumented)
     currency?: undefined;
@@ -3640,15 +3571,15 @@ interface RuntimeLimits {
     defaultCardFields: number;
     defaultColumns: number;
     defaultPageSize: number;
-    exportMax: number;
     exportNeutralizeFormulas: boolean;
-    listedViews: number;
     maxAnalysisRows: number;
     maxConcurrentQueries: number;
     maxDashboardPanels: number;
+    maxExportRows: number;
     maxFilterDepth: number;
     maxFilterNodes: number;
     maxFilterValues: number;
+    maxListedViews: number;
     maxPageSize: number;
     maxPageWindow: number;
     maxQueryFilterNodes: number;
@@ -3662,7 +3593,7 @@ interface RuntimeLimits {
     refreshIntervals: readonly number[];
 }
 
-// @public (undocumented)
+// @public
 interface SankeyData {
     links: SankeyLink[];
     nodes: SankeyNode[];
@@ -3693,7 +3624,7 @@ interface SankeySpec {
     value: string;
 }
 
-// @public (undocumented)
+// @public
 export interface SaveAbilities {
     changeAudience?: boolean;
     createPersonal: boolean;
@@ -3719,14 +3650,14 @@ interface SaveAsInput {
     title: string;
 }
 
-// @public (undocumented)
+// @public
 export interface SaveCommands {
     abandon(write?: WriteState): void;
-    addToDashboard?(boardId: string): Promise<ViewInstance | null>;
-    boards?(): Promise<readonly BoardChoice[]>;
+    addToDashboard?(dashboardId: string): Promise<ViewInstance | null>;
     // (undocumented)
     can: SaveAbilities;
     changeAudience?(audience: ViewAudience): Promise<ViewInstance | null>;
+    dashboards?(): Promise<readonly DashboardChoice[]>;
     // (undocumented)
     delete(): Promise<boolean>;
     // (undocumented)
@@ -3742,7 +3673,7 @@ export interface SaveCommands {
     state: SaveCommandState;
 }
 
-// @public (undocumented)
+// @public
 export interface SaveCommandState {
     applies: boolean;
     audience: ViewAudience | null;
@@ -3767,7 +3698,7 @@ interface SavedViewTarget extends HandOver {
     kind: 'view';
 }
 
-// @public (undocumented)
+// @public
 interface ScatterData {
     // (undocumented)
     points: {
@@ -3780,7 +3711,7 @@ interface ScatterData {
     type: 'scatter';
 }
 
-// @public (undocumented)
+// @public
 interface ScatterSpec {
     category: string;
     // (undocumented)
@@ -3790,17 +3721,6 @@ interface ScatterSpec {
     // (undocumented)
     y: string;
     yAxis?: AxisSpec;
-}
-
-// @public
-export interface SearchBoxController {
-    applied: string;
-    byWords: boolean;
-    clear(): void;
-    field: FieldDefinition;
-    set(text: string): void;
-    submit(): void;
-    value: string;
 }
 
 // @public
@@ -3854,7 +3774,7 @@ type StoreOperation = 'list' | 'get' | 'create' | 'save' | 'rename' | 'delete' |
 // @public
 type StringComparisonName = `${StringComparison}`;
 
-// @public (undocumented)
+// @public
 interface SummaryCell {
     cell?: string;
     currency?: CurrencyReading;
@@ -3874,11 +3794,11 @@ interface SummaryCell {
 // @public
 type SummaryFunction = `${AggregationFunction.SUM | AggregationFunction.AVG | AggregationFunction.MIN | AggregationFunction.MAX | AggregationMetricType.COUNT}`;
 
-// @public (undocumented)
+// @public
 interface SummaryRow {
     // (undocumented)
     cells: SummaryCell[];
-    scope: 'page' | 'total';
+    over: 'page' | 'total';
 }
 
 // @public
@@ -3894,7 +3814,7 @@ interface SystemView {
 // @public
 type TextResolver = (key: string) => string | undefined;
 
-// @public (undocumented)
+// @public
 interface ThemeRiverData {
     streams: RiverStream[];
     times: unknown[];
@@ -3927,7 +3847,7 @@ export interface ToggleSortOptions {
     exclusive?: boolean;
 }
 
-// @public (undocumented)
+// @public
 interface TreemapData {
     nested: boolean;
     omitted: number;
@@ -3952,19 +3872,13 @@ interface TreemapTile {
 }
 
 // @public
-export interface UnavailableController {
-    issues: Issue[];
-    remove(): void;
-}
-
-// @public
 interface UnsavedViewTarget {
     // (undocumented)
     config: RecordViewConfig | AnalysisViewConfig;
     // (undocumented)
     definitionId: string;
     // (undocumented)
-    from?: BoardOrigin;
+    from?: DashboardOrigin;
     // (undocumented)
     kind: 'unsaved';
     named?: GroupNaming;
@@ -3981,16 +3895,19 @@ export function useAnalysisEditor(runtime: AnalysisViewRuntime | null): Analysis
 export function useAnalysisResult(runtime: ViewRuntime<AnalysisViewConfig> | null, input: AnalysisResultOptions): AnalysisResultController;
 
 // @public
-export function useAutoRefresh(runtime: ViewRuntime<ViewConfig> | null): RefreshController;
-
-// @public
 export function useCreateViewEngine(options: ViewEngineOptions): ViewEngine;
 
 // @public
 export function useDashboard(runtime: DashboardRuntime | null): DashboardController;
 
 // @public
-export function useDatasets(resources: Pick<DatasetResources, 'refresh'>, input?: DatasetsReading): DatasetsState;
+export function useDatasets(resources: Pick<DatasetResources, 'refresh'>, input?: UseDatasetsOptions): DatasetsState;
+
+// @public
+export interface UseDatasetsOptions {
+    key?: string;
+    paused?: boolean;
+}
 
 // @public
 export function useEngine(own?: ViewEngine): ViewEngine;
@@ -3999,71 +3916,33 @@ export function useEngine(own?: ViewEngine): ViewEngine;
 export function useFilterEditor(runtime: ViewRuntime | null): FilterEditorController;
 
 // @public
-export function useHandedConditions(handed: SavedViewTarget | null, runtime: AnyViewRuntime | null): ViewConfig | null;
-
-// @public
-export function useHandedRemoval(filter: FilterEditorController, input: HandedRemovalOptions): FilterEditorController;
-
-// @public
-export function useHandOver(handOver: ViewHandOver | null | undefined, context: {
-    engine: ViewEngine;
-    definitionId: string;
-    kinds: readonly ViewKind[];
-    request(proceed: () => void): void;
-    hold(view: HeldView): void;
-    open(target: SavedViewTarget): void;
-}): void;
-
-// @public
-export function useInstanceSync(input: InstanceSyncOptions): void;
-
-// @public
 export function useLeaveGuard(state: LeaveGuardState | null, input?: LeaveGuardOptions): LeaveGuard;
 
 // @public
 export function useOpenView(engine: ViewEngine, instanceId: string | null, input?: OpenViewOptions): OpenViewState;
 
-// @public
-export function usePanelFollowUps(runtime: ViewRuntime<DataViewConfig> | null, input: PanelFollowUpsOptions): FollowUpHost;
-
 // @public (undocumented)
 export function useRecordActions(input: RecordActionsOptions): RecordActionsController;
 
 // @public
-export function useRecordDetail(runtime: RecordViewRuntime | null, control?: RecordDetailControl): RecordDetailController;
-
-// @public
 export function useRecordExport(runtime: RecordViewRuntime | null, input: RecordExportOptions): RecordExportController;
 
-// @public (undocumented)
+// @public
 export function useRecordKanban(runtime: RecordViewRuntime | null): RecordKanbanController;
 
 // @public
 export function useRecordTable(runtime: RecordViewRuntime | null): RecordTableController;
 
 // @public
-export function useReferenceLabels(reader: ReferenceLabelReader | null | undefined): number;
-
-// @public
-export function useRefreshCountdown(refresh: RefreshController): number | null;
-
-// @public
-export function useReleaseDeleted(input: ReleaseDeletedOptions): void;
-
-// @public
 export function useSaveCommands(engine: ViewEngine, runtime: ViewRuntime | null): SaveCommands;
 
-// @public (undocumented)
-export function useSearchBox(runtime: ViewRuntime<DataViewConfig> | null): SearchBoxController | null;
+// @public
+export function useViewList(engine: ViewEngine, definitionId: string, options?: UseViewListOptions): ViewListState;
 
 // @public
-export function useUnavailable(runtime: ViewRuntime<ViewConfig> | null): UnavailableController | null;
-
-// @public
-export function useValueCandidates(source: ValueCandidateSource | null | undefined, input: ValueCandidatesOptions): ValueCandidatesController;
-
-// @public
-export function useViewList(engine: ViewEngine, definitionId: string, options?: ViewListOptions): ViewListState;
+export interface UseViewListOptions {
+    viewKinds?: readonly ViewKind[];
+}
 
 // @public
 export function useViewManager(engine: ViewEngine, definitionId: string, input: ViewManagerOptions): ViewManagerController;
@@ -4088,30 +3967,13 @@ interface ValueCandidates {
     values: ValueCandidate[];
 }
 
-// @public (undocumented)
-export interface ValueCandidatesController {
-    complete: boolean;
-    error: Issue | null;
-    query: string;
-    retry(): void;
-    status: QueryStatus;
-    // (undocumented)
-    values: readonly ValueCandidate[];
-}
-
-// @public
-export interface ValueCandidatesOptions {
-    active: boolean;
-    query: string;
-}
-
 // @public
 interface ValueCandidateSource {
     readonly field: string;
-    search(query: string, signal?: AbortSignal): Promise<ValueCandidates>;
+    search(query: string, options?: ReadOptions): Promise<ValueCandidates>;
 }
 
-// @public (undocumented)
+// @public
 type ValueFormat = 'auto' | 'percent' | 'compact';
 
 // @public
@@ -4130,7 +3992,7 @@ interface ViewChange {
 // @public
 type ViewChangeKind = 'create' | 'save' | 'rename' | 'changeAudience' | 'delete';
 
-// @public (undocumented)
+// @public
 type ViewChangeListener = (change: ViewChange) => void;
 
 // @public
@@ -4149,7 +4011,7 @@ type ViewDefinition = DataViewDefinition | DashboardDefinition;
 class ViewEngine {
     constructor(options: ViewEngineOptions);
     abandonWrite(target: WriteTarget): void;
-    addToDashboard(boardId: string, instanceId: string): Promise<ViewInstance>;
+    addToDashboard(dashboardId: string, instanceId: string): Promise<ViewInstance>;
     changeAudience(id: string, audience: ViewAudience): Promise<ViewInstance>;
     checkBinding(definitionId: string, actions?: readonly RecordAction[]): boolean;
     close(runtime: ViewRuntime): void;
@@ -4171,6 +4033,7 @@ class ViewEngine {
     list(definitionId: string, options?: ReadOptions): Promise<ViewListing>;
     open(instanceId: string, options?: OpenOptions): Promise<AnyViewRuntime>;
     openRuntimes(): readonly ViewRuntime[];
+    optionSource(key: string): OptionSource;
     pendingWrites(): ReadonlyMap<string, WriteState>;
     // (undocumented)
     permissions(definitionId: string): ViewPermissions;
@@ -4183,7 +4046,6 @@ class ViewEngine {
     reorder(definitionId: string, order: string[]): Promise<ViewPreferences>;
     resolveConflict(target: WriteTarget, choice: ConflictChoice): Promise<ViewInstance | ViewPreferences | void>;
     resolveDefault(summaries: readonly ViewInstanceSummary[], preferences: ViewPreferences, explicit?: string): string | null;
-    resolveOptions(key: string): OptionSource;
     retryWrite(target: WriteTarget): Promise<ViewInstance | ViewPreferences | void>;
     save(runtime: ViewRuntime): Promise<ViewInstance>;
     saveAs(runtime: ViewRuntime, input: SaveAsInput): Promise<ViewInstance>;
@@ -4206,9 +4068,9 @@ interface ViewEngineOptions {
     // (undocumented)
     kinds?: FieldKindRegistry;
     limits?: Partial<RuntimeLimits>;
-    newId?(): string;
+    newRequestId?(): string;
     onIssue?(issue: Issue): void;
-    resolveOptions?(key: string): OptionSource;
+    optionSource?(key: string): OptionSource;
     resources: readonly ViewResource[];
     // (undocumented)
     store: ViewStore;
@@ -4233,7 +4095,7 @@ interface ViewErrorContexts {
     query: (ViewErrorPlace & {
         operation: Exclude<QueryOperation, 'labels'>;
         violation?: QueryViolation;
-        errorCode?: string;
+        code?: string;
     }) | (ViewErrorPlace & {
         operation: 'labels';
         remote: string;
@@ -4305,7 +4167,7 @@ interface ViewInstanceSummary {
     title: string;
 }
 
-// @public (undocumented)
+// @public
 type ViewKind = ViewConfig['kind'];
 
 // @public
@@ -4317,13 +4179,8 @@ interface ViewListing {
     items: ViewInstanceSummary[];
 }
 
-// @public (undocumented)
-export interface ViewListOptions {
-    kinds?: readonly ViewKind[];
-}
-
 // @public
-interface ViewListOptions_2 extends ReadOptions {
+interface ViewListOptions extends ReadOptions {
     readonly cursor?: string | null;
 }
 
@@ -4343,7 +4200,7 @@ export interface ViewListPreferences {
 }
 
 // @public
-export interface ViewListReloadOptions {
+export interface ViewListRefreshOptions {
     without?: string;
 }
 
@@ -4360,11 +4217,11 @@ export interface ViewListState {
     // (undocumented)
     preferences: ViewListPreferences;
     // (undocumented)
-    reload(options?: ViewListReloadOptions): void;
+    refresh(options?: ViewListRefreshOptions): void;
     status: QueryStatus;
 }
 
-// @public (undocumented)
+// @public
 export interface ViewManagerAbilities {
     anything: boolean;
     // (undocumented)
@@ -4376,7 +4233,7 @@ export interface ViewManagerAbilities {
     setDefault: boolean;
 }
 
-// @public (undocumented)
+// @public
 export interface ViewManagerController {
     // (undocumented)
     abandon(key: string): void;
@@ -4452,7 +4309,7 @@ interface ViewPreferences {
     revision: string;
 }
 
-// @public (undocumented)
+// @public
 interface ViewQueryState {
     conditionsChanged?: true;
     // (undocumented)
@@ -4471,7 +4328,7 @@ interface ViewResource {
     wording?: DatasetWordingEditor;
 }
 
-// @public (undocumented)
+// @public
 interface ViewResult<C> {
     config: C;
     // (undocumented)
@@ -4505,7 +4362,7 @@ interface ViewRuntime<C extends ViewConfig = ViewConfig> {
     readonly limits: RuntimeLimits;
     optionSource(remote: string): OptionSource | null;
     refresh(): void;
-    readonly refusedScope: Issue[];
+    readonly refusedScopeFilter: Issue[];
     removeUnavailable(): void;
     revert(): void;
     readonly scopeFilter: FilterTree | null;
@@ -4519,7 +4376,7 @@ interface ViewRuntime<C extends ViewConfig = ViewConfig> {
     valueCandidates(field: string): ValueCandidateSource | null;
 }
 
-// @public (undocumented)
+// @public
 interface ViewRuntimeState<C> {
     // (undocumented)
     applied: C;
@@ -4578,7 +4435,7 @@ interface ViewStore {
     get(id: string, options?: ReadOptions): Promise<ViewInstance>;
     // (undocumented)
     getPreferences(definitionId: string, options?: ReadOptions): Promise<ViewPreferences>;
-    list(definitionId: string, options?: ViewListOptions_2): Promise<ViewListPage>;
+    list(definitionId: string, options?: ViewListOptions): Promise<ViewListPage>;
     readonly local?: boolean;
     permissions?(definitionId: string): ViewPermissions;
     rename(id: string, title: string, revision: string, options: WriteOptions): Promise<ViewInstance>;
@@ -4588,7 +4445,7 @@ interface ViewStore {
     setPreferences(definitionId: string, preferences: ViewPreferences, options: WriteOptions): Promise<ViewPreferences>;
 }
 
-// @public (undocumented)
+// @public
 interface VisibilitySource {
     // (undocumented)
     isVisible(): boolean;
@@ -4596,7 +4453,7 @@ interface VisibilitySource {
     subscribe(listener: () => void): () => void;
 }
 
-// @public (undocumented)
+// @public
 interface WaterfallData {
     // (undocumented)
     steps: WaterfallStep[];
@@ -4627,13 +4484,13 @@ type WindowFunctionName = `${WindowFunction}`;
 export interface WorkbenchController {
     autoRun: boolean;
     back(): void;
-    board: BoardOrigin | null;
     canDrill: boolean;
     choose(id: string | null): void;
     // (undocumented)
     commands: SaveCommands;
     creatable: readonly ViewKind[];
     create(kind: ViewKind): void;
+    dashboardOrigin: DashboardOrigin | null;
     declaredAt: number | null;
     definitionIssues: Issue[];
     drill(conditions: readonly FilterNode[], title: string, subject?: string): void;
@@ -4641,7 +4498,6 @@ export interface WorkbenchController {
     follow(config: ViewConfig, title: string, conditions: readonly FilterNode[], subject?: string): void;
     handedOver: boolean;
     held: HeldView | null;
-    kinds: readonly ViewKind[];
     // (undocumented)
     leave: LeaveGuard;
     list: ViewListState;
@@ -4659,8 +4515,9 @@ export interface WorkbenchController {
     // (undocumented)
     setAutoRun(on: boolean): Promise<void>;
     state: ViewRuntimeState<ViewConfig> | null;
-    toBoard(): void;
+    toDashboard(): void;
     unopenable: Issue | null;
+    viewKinds: readonly ViewKind[];
 }
 
 // @public (undocumented)
@@ -4668,15 +4525,15 @@ export interface WorkbenchOptions {
     guardUnload?: boolean;
     handOver?: ViewHandOver | null;
     instanceId?: string | null;
-    kinds: readonly ViewKind[];
     newView?: NewViewOptions;
     onDrilldown?(target: DrillTarget): void;
     onInstanceChange?(id: string | null): void;
     onNavigate?(to: ViewNavigation): void;
     opening?(instanceId: string): DashboardOpening | undefined;
+    viewKinds: readonly ViewKind[];
 }
 
-// @public (undocumented)
+// @public
 type WriteAction = WritePayload['action'];
 
 // @public

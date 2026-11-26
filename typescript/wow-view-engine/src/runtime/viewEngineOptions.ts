@@ -46,7 +46,7 @@ export interface ViewEngineOptions {
   resources: readonly ViewResource[];
   store: ViewStore;
   /** Remote candidates of `reference` fields, by the same key. */
-  resolveOptions?(key: string): OptionSource;
+  optionSource?(key: string): OptionSource;
   kinds?: FieldKindRegistry;
   /**
    * How the definitions' keys (`text(key)`) are said in the language the
@@ -68,8 +68,12 @@ export interface ViewEngineOptions {
    */
   limits?: Partial<RuntimeLimits>;
   environment?: RuntimeEnvironment;
-  /** Idempotency keys; overridden in tests to keep them readable. */
-  newId?(): string;
+  /**
+   * Makes a write's request id, its idempotency key (the port's
+   * `WriteOptions.requestId`, wow-client's `newRequestId`); overridden in
+   * tests to keep them readable.
+   */
+  newRequestId?(): string;
   /**
    * Findings with no caller to reject and nothing thrown behind them: a
    * definition's admission, a list entry that was dropped, a change
@@ -92,7 +96,7 @@ export interface ViewListing {
   items: ViewInstanceSummary[];
   failed: Issue | null;
   /**
-   * Where the list was cut (`RuntimeLimits.listedViews`): this many were
+   * Where the list was cut (`RuntimeLimits.maxListedViews`): this many were
    * read, and there may be more. Absent on a whole list (R2-26).
    */
   cut?: number;

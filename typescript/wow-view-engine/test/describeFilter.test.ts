@@ -13,7 +13,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   withFieldKinds,
   type FieldDefinition,
   type FilterTree,
@@ -78,7 +78,7 @@ describe('describeFilter', () => {
         { field: 'status', operator: FilterOperator.IN, value: ['PENDING'] },
         { field: 'amount', operator: FilterOperator.BETWEEN, value: [1, 9] },
       ),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(items.map(item => item.text)).toEqual([
       'Status is any of Pending',
@@ -100,17 +100,17 @@ describe('describeFilter', () => {
     const [item] = describeFilter(
       [named],
       tree({ field: 'isNew', operator: FilterOperator.EQ, value: false }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(item!.value).toEqual({ kind: 'text', value: false, label: '老客' });
     // Without options, the answer is the catalogue's yes or no.
     const [plain] = describeFilter(
       fields,
       tree({ field: 'paid', operator: FilterOperator.EQ, value: true }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(plain!.value).toEqual({ kind: 'text', value: true });
-    const kind = builtinFieldKinds.get('boolean')!;
+    const kind = builtinFieldKindRegistry.get('boolean')!;
     expect(kind.editor(FilterOperator.EQ, named)).toEqual({
       input: 'boolean',
       options: named.options,
@@ -150,7 +150,7 @@ describe('describeFilter', () => {
           },
         ],
       },
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
 
     // Side by side reads as "all of"; the group keeps its own logic inside.
@@ -171,7 +171,7 @@ describe('describeFilter', () => {
           { field: 'amount', operator: FilterOperator.GT, value: 9 },
         ],
       },
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(items).toHaveLength(1);
     expect(items[0]).toMatchObject({ group: 'or', path: [] });
@@ -193,7 +193,7 @@ describe('describeFilter', () => {
           },
         ],
       },
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(items).toHaveLength(1);
     expect(items[0]).toMatchObject({ group: 'nor', path: [] });
@@ -204,7 +204,7 @@ describe('describeFilter', () => {
     const items = describeFilter(
       fields,
       tree({ field: 'gone', operator: FilterOperator.EQ, value: 'x' }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(items[0]).toMatchObject({ field: 'gone', unresolved: true });
   });
@@ -218,7 +218,7 @@ describe('describeFilter', () => {
     const items = describeFilter(
       fields,
       tree({ field: 'status', operator: FilterOperator.IN, value: 'PENDING' }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
 
     expect(items[0].text).toBe('Status');
@@ -227,9 +227,9 @@ describe('describeFilter', () => {
   it('marks a leaf whose kind threw rather than taking the view down', () => {
     // A kind is an extension point: what a custom one does with a value it
     // cannot read is not this layer's to predict, only to survive.
-    const exploding = withFieldKinds(builtinFieldKinds, [
+    const exploding = withFieldKinds(builtinFieldKindRegistry, [
       {
-        ...builtinFieldKinds.get('enum')!,
+        ...builtinFieldKindRegistry.get('enum')!,
         id: 'exploding',
         describe() {
           throw new Error('boom');
@@ -264,7 +264,7 @@ describe('describeFilter', () => {
  */
 describe('describeFilter parts', () => {
   const partsOf = (leaf: FilterTree['children'][number]) =>
-    describeFilter(fields, tree(leaf), builtinFieldKinds)[0];
+    describeFilter(fields, tree(leaf), builtinFieldKindRegistry)[0];
 
   it('names the field and its kind beside the operator', () => {
     expect(
@@ -431,7 +431,7 @@ describe('describeFilter parts', () => {
       const items = describeFilter(
         fields,
         tree(status, gte, lt),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       );
       expect(items).toHaveLength(2);
       expect(items[1]).toEqual({
@@ -453,7 +453,7 @@ describe('describeFilter parts', () => {
       const items = describeFilter(
         fields,
         tree(lt, status, gte),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       );
       expect(items.map(item => item.value?.kind)).toEqual(['segment', 'list']);
       expect(items[0].paths).toEqual([
@@ -464,7 +464,7 @@ describe('describeFilter parts', () => {
       const [group] = describeFilter(
         fields,
         tree({ op: 'and', children: [gte, lt] }),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       );
       const [inner] = group.items ?? [];
       expect(group.items).toHaveLength(1);
@@ -477,7 +477,7 @@ describe('describeFilter parts', () => {
 
     it('leaves the comparisons as they are where they are not one segment', () => {
       const kinds = (...children: FilterTree['children']) =>
-        describeFilter(fields, tree(...children), builtinFieldKinds).map(
+        describeFilter(fields, tree(...children), builtinFieldKindRegistry).map(
           item => item.value?.kind,
         );
       // Two lower bounds, an empty span, the edge included: no one segment.
@@ -503,7 +503,7 @@ describe('describeFilter parts', () => {
       const [either] = describeFilter(
         fields,
         { op: 'or', children: [gte, lt] },
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       );
       expect(either.items?.map(item => item.value?.kind)).toEqual([
         'text',
@@ -518,7 +518,7 @@ describe('describeFilter parts', () => {
           { field: 'shippedAt', operator: FilterOperator.GTE, value: 1 },
           { field: 'shippedAt', operator: FilterOperator.LT, value: 2 },
         ),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       );
       expect(item).toMatchObject({
         cell: 'date',
@@ -753,7 +753,7 @@ describe('describeFilter parts', () => {
           { field: 'amount', operator: FilterOperator.GT, value: 9 },
         ],
       },
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
 
     expect(items[0].group).toBe('or');
@@ -784,7 +784,7 @@ describe('describeFilter parts', () => {
           ],
         } as never,
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     )[0];
 
     expect(item).toMatchObject({
@@ -824,7 +824,7 @@ describe('describeFilter parts', () => {
           ],
         } as never,
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     )[0];
 
     expect(item.items?.[0]).toMatchObject({ unresolved: true });
@@ -850,7 +850,7 @@ describe('describeFilter parts', () => {
             operator: operator as `${FilterOperator.IN}`,
             value: ['a'],
           }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         )[0],
     );
 
@@ -898,7 +898,7 @@ describe('describeFilter parts', () => {
             })),
           },
         } as never),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       )[0];
 
     const anyOf = predicate('or', 'A', 'B');
@@ -933,7 +933,7 @@ describe('describeFilter parts', () => {
           ],
         },
       } as never),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     )[0];
     expect(nested.items?.map(inner => inner.group)).toEqual([undefined, 'or']);
   });

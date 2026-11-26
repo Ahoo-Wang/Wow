@@ -86,7 +86,7 @@ console.log(page.total, page.list.map(record => record.state.status));
 | `paged` | 一页，`{ total, exact, list }` |
 | `cursor` | 一页，以及下一页的 `nextCursor`，最后一页之后为 `null` |
 | `count` | `{ count, exact }` |
-| `aggregate` | 聚合的行：分组和指标 |
+| `aggregate` | 聚合的行：分组和指标。与 `aggregation.*`、`filter.expression` 一样是实验性的（[实验性声明](./compatibility#experimental-declarations)） |
 | `stream` | 以服务端推送事件逐条返回记录 |
 | `describe` | 查询模型的描述符：字段、每个字段接受的操作符、排序和聚合，以及上限 |
 
@@ -148,7 +148,7 @@ for (;;) {
 }
 ```
 
-客户端无法续读的失败，会以它的 `WowProblemError` 让流出错。续读得到的 `Retry-After` 长于两次重试之间最长的等待（`resume.maxDelayMs`，默认 5 秒）时也是如此，与 Kotlin 客户端的续读一样：不会等它过去。取消读取方（`reader.cancel()`，或提前离开 `for await`）或中止 `signal`，都会让流在任何阶段停下：等待续读的退避结束，正在续读的请求被中止，不再发出任何请求。
+客户端不认识的事件（较新的服务可能发送）被跳过，不论它的数据是什么。客户端无法续读的失败，会以它的 `WowProblemError` 让流出错：被截断或连接丢失、续读次数用尽的流，以 `wow.peer.unavailable`（`retry` 为 `new-request`）出错，网络的错误是它的 `cause`，与 Kotlin 客户端的应答一样。服务结束而不允许续读的流（不可续读的 `end`，或出现在没有位置的记录之后、因而无法再请求的可续读 `end`）以说明原因的 `TypeError` 出错，与 Kotlin 客户端的 `IllegalStateException` 一样。续读得到的 `Retry-After` 长于两次重试之间最长的等待（`resume.maxRetryAfterMs`，默认 5 秒）时也是如此，与 Kotlin 客户端的续读一样：不会等它过去。取消读取方（`reader.cancel()`，或提前离开 `for await`）或中止 `signal`，都会让流在任何阶段停下：等待续读的退避结束，正在续读的请求被中止，不再发出任何请求。
 
 ## 查询事件流 {#query-event-streams}
 
@@ -176,7 +176,7 @@ for (const commit of commits)
 
 ## 查询数据集 {#query-datasets}
 
-数据集是服务为分析而发布的表（[从服务发布数据集](../guide/datasets)）。数据集在运行时注册，所以不在 Manifest 中，也没有生成的客户端：`DatasetClient` 列出调用方能看到的数据集，并按名字查询其中一个：
+数据集是服务为分析而发布的表（[从服务发布数据集](../guide/datasets)）。数据集在运行时注册，所以不在 Manifest 中，也没有生成的客户端：`DatasetClient` 列出调用方能看到的数据集，并按名字查询其中一个。数据集查询是实验性的（[实验性声明](./compatibility#experimental-declarations)）：
 
 ```ts
 import { Fetcher } from '@ahoo-wang/fetcher';

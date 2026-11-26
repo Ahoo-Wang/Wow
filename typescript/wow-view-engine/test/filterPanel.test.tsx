@@ -25,7 +25,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   MemoryViewStore,
   ViewEngine,
   withFieldKinds,
@@ -86,16 +86,16 @@ describe('FilterPanel tree editing', () => {
     /** What the surface around the panel has taken off its hands. */
     props: Partial<FilterPanelProps> = {},
     /** The host's option sources, for a definition with a reference field. */
-    resolveOptions?: () => OptionSource,
+    optionSource?: () => OptionSource,
   ): PanelHarness {
     const engine = new ViewEngine({
       resources: resourcesOf([definition], () => testSource()),
       store: new MemoryViewStore({ instances: [mine] }),
-      ...(resolveOptions ? { resolveOptions } : {}),
+      ...(optionSource ? { optionSource } : {}),
     });
     const runtime = engine.create('orders', {
       title: 'Scratch',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
     // The panel must re-render with the controller on every runtime commit,
@@ -389,7 +389,7 @@ describe('FilterPanel tree editing', () => {
     });
     const runtime = engine.create('orders', {
       title: 'Scratch',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
     function Probe() {
@@ -1156,7 +1156,7 @@ describe('FilterPanel tree editing', () => {
     const { engine } = setup();
     const runtime = engine.create('orders', {
       title: 'Deep',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig({ filter: deep as never }),
     });
     let latest: ReturnType<typeof useFilterEditor> | null = null;
@@ -1191,7 +1191,7 @@ describe('FilterPanel tree editing', () => {
     const { engine } = setup();
     const runtime = engine.create('orders', {
       title: 'Wide',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig({ filter: wide as never }),
     });
     let latest: ReturnType<typeof useFilterEditor> | null = null;
@@ -1230,7 +1230,7 @@ describe('FilterPanel tree editing', () => {
     const { engine } = setup();
     const runtime = engine.create('orders', {
       title: 'Deep',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig({ filter: deep as never }),
     });
     function Probe() {
@@ -1288,11 +1288,11 @@ describe('FilterPanel tree editing', () => {
         () => testSource(),
       ),
       store: new MemoryViewStore({ instances: [mine] }),
-      kinds: withFieldKinds(builtinFieldKinds, [rounded]),
+      kinds: withFieldKinds(builtinFieldKindRegistry, [rounded]),
     });
     const runtime = engine.create('orders', {
       title: 'Scratch',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
     let latest: ReturnType<typeof useFilterEditor> | null = null;

@@ -311,7 +311,7 @@ class CommandGatewayRefusalsTest : CommandGatewayFixtures() {
             override val input = model.commandType(AddItem::class.java)
 
             override suspend fun transform(input: CommandInput): CommandTarget =
-                CommandTarget(input.type, "z".repeat(AdmissionLimits.MAX_ID_LENGTH + 1), input.body, input.headers)
+                CommandTarget(input.type, input.body, "z".repeat(AdmissionLimits.MAX_ID_LENGTH + 1), input.headers)
         }
         gateway(transformers = listOf(long)).execute(request()).assertRefused(FrameworkCodes.COMMAND_MALFORMED)
         decided.assert().isEmpty()
@@ -357,8 +357,8 @@ class CommandGatewayRefusalsTest : CommandGatewayFixtures() {
 
                 override suspend fun transform(input: CommandInput): CommandTarget = CommandTarget(
                     input.type,
-                    input.aggregateId,
                     (input.body as AddItem).copy(quantity = 5),
+                    input.aggregateId,
                     input.headers + ("App" to "web"),
                 )
             }
@@ -442,7 +442,7 @@ class CommandGatewayRefusalsTest : CommandGatewayFixtures() {
             override val input = model.commandType(Checkout::class.java)
 
             override suspend fun transform(input: CommandInput): CommandTarget =
-                CommandTarget(model.commandType(OpenCart::class.java), null, OpenCart("checkout"))
+                CommandTarget(model.commandType(OpenCart::class.java), OpenCart("checkout"), null)
         }
         val actions = CopyOnWriteArrayList<CommandAction>()
         val onlyAliceOpens = CommandAuthorizer { caller, action ->

@@ -20,11 +20,7 @@ import {
   type ValueCandidateSource,
   type ValueCandidates,
 } from '../src/index.js';
-import {
-  useFilterEditor,
-  useOpenView,
-  useValueCandidates,
-} from '../src/react/index.js';
+import { useFilterEditor, useOpenView } from '../src/react/index.js';
 import {
   dashboardConfig,
   ordersDefinition,
@@ -35,6 +31,7 @@ import {
 } from './fixtures.js';
 import { mine, settle } from './fixtures/ui.js';
 import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
+import { useValueCandidates } from '../src/react/useValueCandidates.js';
 
 afterEach(cleanup);
 
@@ -53,7 +50,8 @@ function fakeSource(
     calls,
     source: {
       field,
-      search(query, signal) {
+      search(query, options) {
+        const signal = options?.signal;
         calls.push({ query, signal });
         const answer = answers[query] ?? { values: [], complete: true };
         return answer instanceof Error
@@ -108,7 +106,8 @@ describe('useValueCandidates', () => {
     const calls: Call[] = [];
     const source: ValueCandidateSource = {
       field: 'warehouse',
-      search(query, signal) {
+      search(query, options) {
+        const signal = options?.signal;
         calls.push({ query, signal });
         return new Promise(done => {
           resolve = done;
@@ -203,7 +202,7 @@ describe('the filter editor offers value candidates', () => {
   it('nowhere on a dashboard, which has no data of its own', () => {
     const board = engine().create('overview', {
       title: 'Board',
-      scope: 'personal',
+      audience: 'personal',
       config: dashboardConfig(),
     });
     expect(board.valueCandidates('warehouse')).toBeNull();
@@ -215,7 +214,7 @@ describe('the filter editor offers value candidates', () => {
   it('on a record view opened fresh', () => {
     const runtime = engine().create('orders', {
       title: 'Scratch',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig({
         filter: {
           op: 'and',

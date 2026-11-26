@@ -53,6 +53,8 @@ wow:
 
 聚合默认会被发布；它也可以不发布、发布时不带状态，或者指定另一个主题。`wow.kafka.topics.prefix` 在每个主题名前加一个前缀，例如 `staging.`，写入和读取两侧都加。每条记录都是以聚合为键的信封，所以一个聚合的记录保持顺序（[线上协议](../reference/protocols#kafka-envelope)）。
 
+状态主题为发布的聚合的每个提交都有一条记录，所以一个聚合在其上的版本从它的第一条记录起连续，没有空缺：事件全部被聚合退役的提交以不含事件的记录发布，Wow 的订阅会略过它；只设置或取消调度的提交带着它的调度事件发布（[状态事件](../reference/protocols#state-event)）。只有当你跳过了传输 Sink 停放的提交（例如 broker 永久拒绝的记录）时，才会缺一个版本。读取这个主题的服务随后会把聚合停放在缺失的版本上，在那里运维人员的重试会接受这个缺口（[状态主题没有送达的版本](../guide/failures#version-gap)）。10.0 预发布版写过的状态主题，与每个预发布版的存储一样，要在 10.0 正式版向它发布之前重新创建。
+
 状态主题保存的每个状态和事件里，[`@Sensitive`](../guide/queries#where-masking-stops) 值都已脱敏：transport sink 在写入时脱敏。有两种记录保存原值：
 
 - **属主声明为揭示的事件流**（`@AggregateRoot(revealsDisplay = true)`）按原值保存它的 `DISPLAY` 值，除非属主关掉了 `wow.query.sensitivity.display-shared`。
@@ -69,7 +71,13 @@ wow:
   - **按键的哈希放置的记录：** 没有该头的记录（来自更早版本的发布者，或其他生产者）位于它的键所映射的分区。读取的节点遇到这样的记录时，每个分区警告一次。增加分区会移动这类键，而生产者最晚要到它的 `metadata.max.age.ms`（Kafka 默认五分钟）之后才看到扩容。升级预发布版的发布者之前，请按[Kafka 上的发布流](./upgrades#published-streams-on-kafka)操作。
 - **回执主题**可以有任意数量的分区，按键的哈希放置，服务运行时也可以增加分区。
 
-对这两类主题，读取的节点每隔 `wow.kafka.topics.partition-refresh`（30 秒）查找新分区，并从开头读取它们，不需要重启。对按键的哈希放置的记录，扩容时已被订阅停放的聚合之后无法再重试：它较早的记录在原来的分区，后续记录在新分区。新分区的属主会扣住这些后续记录，并把该条目标为只能跳过（`skipOnly`）：它不再被重试，运维人员也不能重试，原因中写明两个分区。请在增加分区之前处理完这些停放的条目，或者预期在处理完它们较早的记录之后跳过它们（[失败处理](../guide/failures)）。停放在按日志分区放置的记录上的聚合，无论主题增加了多少分区，都在读到它的分区重试。
+对这两类主题，读取的节点每隔 `wow.kafka.topics.partition-refresh-interval`（30 秒）查找新分区，并从开头读取它们，不需要重启。对按键的哈希放置的记录，扩容时已被订阅停放的聚合之后无法再重试：它较早的记录在原来的分区，后续记录在新分区。新分区的属主会扣住这些后续记录，并把该条目标为只能跳过（`skipOnly`）：它不再被重试，运维人员也不能重试，原因中写明两个分区。请在增加分区之前处理完这些停放的条目，或者预期在处理完它们较早的记录之后跳过它们（[失败处理](../guide/failures)）。停放在按日志分区放置的记录上的聚合，无论主题增加了多少分区，都在读到它的分区重试。
+
+### 发布速率 {#publish-rate}
+
+传输 Sink 把一个聚合的记录一条接一条地发布：每条记录单独发送，等生产者发出它并得到确认，所以该聚合的下一个提交在它之后发布，保持版本顺序。因此在默认的生产者设置下，单个聚合每秒约能持续发布 150 条记录。在 Apple M5 Max 上测得（PostgreSQL 与 Kafka 各占一个虚拟 CPU）：一个聚合每秒提交 150 次时发布跟得上；每秒 300 次时，它的流在 30 秒里落后了 19 秒，负载结束 38 秒后才追平。多个聚合不受这个限制：它们的记录并行发布，键分散在 100,000 个聚合上时，Sink 一直跟到节点自身的饱和点，约每秒 25,000 个提交。落后的流只是迟到，从不乱序，聚合的速率降下来后就会追上；其间该聚合的命令照常应答。
+
+在传输 Sink 的订阅 `wow.transport-sink.<aggregate>` 上观察它：该聚合所在分区的 `wow.subscription.backlog` 与 `wow.subscription.progress`（[可观测性](./observability#metrics-and-traces)）。一条记录的时间大半是生产者的 `linger.ms`，Kafka 默认 5 毫秒，`wow.kafka.properties.linger.ms` 为节点的每个生产者设置它（[客户端设置](#client-settings)）；其他取值没有测过。
 
 ### 创建主题 {#creating-topics}
 
@@ -77,7 +85,7 @@ wow:
 
 | `ddl` | 启动时 |
 | --- | --- |
-| `auto`（默认） | 节点先用日志的分区数、`wow.kafka.topics.replication-factor`、`wow.kafka.topics.min-insync-replicas` 和 `wow.kafka.topics.configs.*` 创建缺失的主题，然后校验。它从不修改已存在的主题。 |
+| `auto`（默认） | 节点先用日志的分区数、`wow.kafka.topics.replication-factor`、`wow.kafka.topics.min-insync-replicas` 和 `wow.kafka.topics.configs.*` 创建缺失的主题，然后校验。它从不修改已存在的主题。`min-insync-replicas` 高于 `replication-factor` 会拒绝启动：每一次等待全部副本的写入都会失败。 |
 | `validate` | 只要它的某个主题缺失，或者命令主题的分区数与日志不完全相同，节点就不启动。消息会列出每个这样的主题。发布失败台账的服务即使没有其他上下文调用它，也需要自己的命令主题，用于 ops 的 `wow.ledger.*` 操作。它还需要它发送命令的每个对端上下文的命令主题，它从不创建这些主题；当它的某个 Saga 可能向另一个上下文发送命令时（见上面的主题表），无论 Saga 是否处理这些命令的拒绝，它还需要自己的回执主题：没有处理函数接收的拒绝会停放 Saga 的聚合（[编写 Saga](../guide/sagas#handle-a-rejection)）。 |
 | `none` | 节点不创建也不校验它的主题：主题由别人管理。但接收某个上下文命令的节点，在该命令主题缺失或分区数与日志不同时仍拒绝启动。 |
 
@@ -95,7 +103,7 @@ kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-ordering.o
 
 ## 持久性 {#durability}
 
-命令主题上接收的命令，必须挺过一个 broker 的丢失。只有当主题的副本数和 `min.insync.replicas` 都至少为 2 时才成立。启动时，节点对它的上下文中每个低于此要求的命令主题、以及会创建这种主题的配置发出警告，除非节点处于开发中：`wow.dev-profiles` 中的某个 profile 处于激活状态（默认为 `dev`、`local`、`test` 和 `demo`）。
+命令主题上接收的命令，必须挺过一个 broker 的丢失。只有当主题的副本数和 `min.insync.replicas` 都至少为 2 时才成立。启动时，节点对它的上下文中每个低于此要求的命令主题、以及会创建这种主题的配置发出警告，除非节点处于开发中：`wow.dev-profiles` 中的某个 profile 处于激活状态（默认为 `dev` 和 `local`）。
 
 无论 `wow.kafka.properties` 怎么设，生产者都是幂等的，并等待所有同步副本确认（`acks=all`）。在一次发送中，同一聚合的下一条消息要等前一条被确认后才交给 broker。被 Kafka 永久拒绝的消息，无论是客户端还是 broker 拒绝的，都不会被该聚合之后的消息越过：同一次发送中排在它之后的消息不会写入，这次发送失败。不同聚合的消息一起发送。
 
@@ -127,10 +135,10 @@ kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-ordering.o
 主题里也可能有 Wow 读不了的记录：
 
 - **这个版本读不了的信封**，例如更新的格式。它让自己的聚合停放，等运维处理；如果它的键没有指明聚合，就被跳过；两种情况都计入 `wow.subscription.undecodable.messages`。
-- **根本不是信封的记录。** 说明有别的生产者在写这个主题，最可能是同一个 broker 上的 9.x 服务：它的状态主题名为 `wow.<context>.<aggregate>.state`，与发布的事件流默认的名字相同。这是主题用错了，所以不停放任何东西：读取这个分区会失败，分区上的订阅停在这条记录之前，按退避重试，每次失败都记录主题、分区和偏移量。用 `wow.kafka.topics.prefix` 给 Wow 服务各自的主题（发布方和读取方的服务用同一个前缀），或者给它们单独的 broker，然后重启。
+- **根本不是信封的记录**，没有值的记录（tombstone）也在其内。说明有别的生产者在写这个主题，最可能是同一个 broker 上的 9.x 服务：它的状态主题名为 `wow.<context>.<aggregate>.state`，与发布的事件流默认的名字相同。这是主题用错了，所以不停放任何东西：读取这个分区会失败，分区上的订阅停在这条记录之前，按退避重试，每次失败都记录主题、分区和偏移量。主题的其他分区照常读取。用 `wow.kafka.topics.prefix` 给 Wow 服务各自的主题（发布方和读取方的服务用同一个前缀），或者给它们单独的 broker，然后重启。
 
 ## 客户端设置 {#client-settings}
 
 `wow.kafka.properties.*` 把设置原样传给每个生产者和消费者，例如 `security.protocol` 和 SASL 设置、`client.id` 或 `linger.ms`。少数设置归 Wow 所有、不能覆盖，因为传输的保证建立在它们之上：`acks=all` 的幂等生产者、不使用消费组、不提交任何东西也不自行重置偏移量的消费者，以及读取时不创建主题。
 
-`wow.kafka.*` 只接受 Kafka 传输声明的设置（[配置项](../reference/configuration)列出了它们），以及 `properties` 和 `topics.configs` 下的任意键；其他键会使启动失败，并指出该键。`topics.prefix`、`command-intake.enabled`、`ddl` 和 `topics.partition-refresh` 是每个主题传输都有的设置，因此社区传输在它自己的类型下同样接受它们。
+`wow.kafka.*` 只接受 Kafka 传输声明的设置（[配置项](../reference/configuration)列出了它们），以及 `properties` 和 `topics.configs` 下的任意键；其他键会使启动失败，并指出该键。`topics.prefix`、`command-intake.enabled`、`ddl` 和 `topics.partition-refresh-interval` 是每个主题传输都有的设置，因此社区传输在它自己的类型下同样接受它们。

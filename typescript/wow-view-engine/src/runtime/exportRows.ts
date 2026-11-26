@@ -33,6 +33,10 @@ import type { KernelContext } from './execute.js';
 import { idsOf } from './labelIds.js';
 import type { ReferenceLabels } from './referenceLabels.js';
 
+/**
+ * How `RecordViewRuntime.exportRows` runs: its signal, its progress callback
+ * and its row cap.
+ */
 export interface ExportRowsOptions {
   /** Stops the run; the promise then rejects with an `ExportCancelledError`. */
   signal?: AbortSignal;
@@ -42,10 +46,14 @@ export interface ExportRowsOptions {
    * optional rather than a number nobody can compute.
    */
   onProgress?(fetched: number, total?: number): void;
-  /** The ceiling; `limits.exportMax` when left out. */
+  /** The ceiling; `limits.maxExportRows` when left out. */
   max?: number;
 }
 
+/**
+ * What `RecordViewRuntime.exportRows` answers: the rows read, and the total
+ * when the source says it.
+ */
 export interface ExportedRows {
   rows: RecordData[];
   /** What the source said there are in all, when it says at all. */
@@ -84,7 +92,7 @@ export function isExportCancelledError(
  * How an export pages its source: the size it asks for, and the most rows it
  * may carry away.
  *
- * The ceiling is `limits.exportMax`, and below it a paged source's window
+ * The ceiling is `limits.maxExportRows`, and below it a paged source's window
  * (`pageWindow`: the runtime's `maxPageWindow`, or the definition's
  * `maxWindow` where it is the smaller): a page past the
  * window is refused outright, so an export that went on asking would fail on
@@ -94,7 +102,7 @@ export function isExportCancelledError(
  * stops at. `ExportDialog` states this ceiling before anything is fetched.
  */
 export function exportPlan(
-  limits: Pick<RuntimeLimits, 'exportMax' | 'maxPageSize'> &
+  limits: Pick<RuntimeLimits, 'maxExportRows' | 'maxPageSize'> &
     Partial<Pick<RuntimeLimits, 'maxPageWindow'>>,
   capability?: Partial<Pick<RecordCapability, 'maxWindow' | 'paging'>>,
   asked?: number,
@@ -102,10 +110,10 @@ export function exportPlan(
   // The ceiling is the one number that ends the fetch loop, so a host that
   // built its limits by hand and left it out gets the default rather than a
   // `NaN` that compares false against everything and pages a backend forever.
-  const wanted = asked ?? limits.exportMax;
+  const wanted = asked ?? limits.maxExportRows;
   const max = Number.isFinite(wanted)
     ? Math.floor(wanted)
-    : DEFAULT_RUNTIME_LIMITS.exportMax;
+    : DEFAULT_RUNTIME_LIMITS.maxExportRows;
   const window = pageWindow(capability, limits);
   const size = Math.max(
     1,
@@ -166,13 +174,11 @@ export async function fetchExportRows(
     if (rows.length >= max)
       return done(rows, max, total, counted === undefined || counted > max);
     stopIfCancelled(options.signal);
-    const query = compileRecord(
-      definition,
-      paged,
+    const query = compileRecord(definition, paged, {
       kinds,
-      filterContext,
-      target,
-    );
+      context: filterContext,
+      page: target,
+    });
     const page = await fetchPage(context, query, target, size, options.signal);
     stopIfCancelled(options.signal);
 

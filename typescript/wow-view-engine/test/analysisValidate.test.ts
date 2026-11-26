@@ -34,9 +34,8 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   compileAnalysis,
-  DEFAULT_MISSING_KEY,
   defaultAnalysisConfig,
   validateAnalysis,
   type AnalysisMetric,
@@ -49,9 +48,12 @@ import {
   analysisKernelConfig as config,
   errorCodes as codes,
 } from './fixtures/analysis.js';
+import { DEFAULT_MISSING_KEY } from '../src/analysis/defaults.js';
 
 const check = (overrides: Partial<AnalysisViewConfig>) =>
-  codes(validateAnalysis(definition(), config(overrides), builtinFieldKinds));
+  codes(
+    validateAnalysis(definition(), config(overrides), builtinFieldKindRegistry),
+  );
 
 describe('defaultAnalysisConfig', () => {
   it('starts from COUNT and the first groupable field', () => {
@@ -64,9 +66,9 @@ describe('defaultAnalysisConfig', () => {
       type: AggregationGroupType.TERMS,
       field: 'warehouse',
     });
-    expect(validateAnalysis(definition(), built, builtinFieldKinds)).toEqual(
-      [],
-    );
+    expect(
+      validateAnalysis(definition(), built, builtinFieldKindRegistry),
+    ).toEqual([]);
   });
 
   it('gives a text dimension a bucket for the records with no value', () => {
@@ -178,10 +180,15 @@ describe('defaultAnalysisConfig', () => {
     const built = defaultAnalysisConfig(ungrouped);
     expect(built.groups).toEqual([]);
     expect(built.sort).toEqual([]);
-    expect(validateAnalysis(ungrouped, built, builtinFieldKinds)).toEqual([]);
+    expect(
+      validateAnalysis(ungrouped, built, builtinFieldKindRegistry),
+    ).toEqual([]);
     expect(() =>
       aggregation.query(
-        compileAnalysis(ungrouped, built, builtinFieldKinds, context),
+        compileAnalysis(ungrouped, built, {
+          kinds: builtinFieldKindRegistry,
+          context,
+        }),
       ),
     ).not.toThrow();
 
@@ -192,7 +199,10 @@ describe('defaultAnalysisConfig', () => {
     ]);
     expect(() =>
       aggregation.query(
-        compileAnalysis(definition(), grouped, builtinFieldKinds, context),
+        compileAnalysis(definition(), grouped, {
+          kinds: builtinFieldKindRegistry,
+          context,
+        }),
       ),
     ).not.toThrow();
   });
@@ -211,9 +221,9 @@ describe('defaultAnalysisConfig', () => {
 
 describe('validateAnalysis', () => {
   it('admits a config that matches its capability', () => {
-    expect(validateAnalysis(definition(), config(), builtinFieldKinds)).toEqual(
-      [],
-    );
+    expect(
+      validateAnalysis(definition(), config(), builtinFieldKindRegistry),
+    ).toEqual([]);
   });
 
   it('keeps aliases unique, single-segment and unreserved', () => {
@@ -345,7 +355,7 @@ describe('validateAnalysis', () => {
           cartesian: { x: 'wh', series: [{ metric: 'm0' }] },
         },
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(codes(issues)).toEqual([
       'analysis.metrics.too-many',
@@ -528,7 +538,7 @@ describe('validateAnalysis', () => {
               },
             ],
           }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       );
 
@@ -553,7 +563,7 @@ describe('validateAnalysis', () => {
               } as never,
             ],
           }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual([]);
@@ -614,7 +624,7 @@ describe('validateAnalysis', () => {
         validateAnalysis(
           definition({ analysis: { ...capability, count: false } }),
           config(),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['analysis.count.undeclared']);
@@ -644,7 +654,7 @@ describe('validateAnalysis', () => {
         validateAnalysis(
           without(member),
           config({ metrics: [metric] }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       );
 
@@ -717,7 +727,7 @@ describe('validateAnalysis', () => {
               },
             ],
           }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['analysis.expressions.undeclared']);
@@ -830,7 +840,7 @@ describe('validateAnalysis', () => {
               },
             ],
           }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['analysis.expressions.undeclared']);
@@ -975,7 +985,7 @@ describe('validateAnalysis', () => {
               value: 1,
             },
           }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['analysis.having.undeclared']);
@@ -1019,7 +1029,7 @@ describe('validateAnalysis', () => {
             },
           }),
           config(),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['analysis.groups.too-many', 'analysis.metrics.too-many']);
@@ -1054,7 +1064,7 @@ describe('validateAnalysis', () => {
         ...ungrouped,
         sort: [{ alias: 'orders', direction: SortDirection.DESC }],
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(sorted).toEqual([
       {
@@ -1083,7 +1093,7 @@ describe('validateAnalysis', () => {
           value: 1,
         },
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(having).toEqual([
       {
@@ -1106,7 +1116,7 @@ describe('validateAnalysis', () => {
         validateAnalysis(
           definition({ analysis: undefined }),
           config(),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['analysis.capability.missing']);

@@ -21,9 +21,8 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  resolveDateTimeRange,
   validateFilter,
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   type DateTimePreset,
 } from '../src/index.js';
 import { DATE_TIME_PRESETS } from '../src/filter/values.js';
@@ -34,6 +33,7 @@ import {
   filterFields as fields,
 } from './fixtures/filter.js';
 import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
+import { resolveDateTimeRange } from '../src/filter/time.js';
 
 /** 2026-09-22 10:00 in Shanghai. */
 const NOW = new Date('2026-09-22T02:00:00.000Z');
@@ -175,7 +175,7 @@ describe('a period so far', () => {
               operator: FilterOperator.BETWEEN,
               value: { type: 'preset', preset },
             }),
-            builtinFieldKinds,
+            builtinFieldKindRegistry,
           ),
         ),
       ).toEqual([]);

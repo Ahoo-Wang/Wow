@@ -14,11 +14,13 @@
 package me.ahoo.wow.test
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.kernel.AggregateModel
+import me.ahoo.wow.kernel.CommittedBinding
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.RejectionBinding
@@ -62,6 +64,46 @@ class SagaReceiptsSpecTest {
         ) { event: StateEvent<Order>, _ ->
             val reserve = ReserveStock(event.ref.id, event.state.total - event.state.paid)
             listOf(CommandRequest.to(stock.ref(event.ref.tenantId, "mug"), reserve))
+        }
+    }
+
+    @Test
+    fun `a receipt handler that sends several commands of one type to one target without keys should park (#6820)`() {
+        // As an @OnEvent handler's (#6794): their ids would hang on the order the handler builds them in.
+        fun twice(target: AggregateRef) = listOf("a", "b").map { CommandRequest.to(target, Cancel(it)) }
+        val onRejected = RejectionBinding.of(
+            "OrderSaga",
+            "onRejected",
+            ReserveStock::class.java,
+            derives = listOf(Cancel::class.java),
+        ) { rejected, _ -> twice(rejected.source) }
+        val onCommitted = CommittedBinding.of(
+            "OrderSaga",
+            "onCommitted",
+            ReserveStock::class.java,
+            derives = listOf(Cancel::class.java),
+        ) { committed, _ -> twice(committed.source) }
+        val saga = ProcessorBinding.saga(
+            "OrderSaga",
+            "onOrder",
+            Order::class.java,
+            rejections = listOf(onRejected),
+            commits = listOf(onCommitted),
+            derives = listOf(ReserveStock::class.java),
+        ) { event: StateEvent<Order>, _ ->
+            listOf(CommandRequest.to(stock.ref(event.ref.tenantId, "mug"), ReserveStock(event.ref.id, 1)))
+        }
+        val parksUnkeyed: ProcessorExpectations.() -> Unit = {
+            expectError<IllegalArgumentException> { message.assert().contains(Cancel::class.java.name, "requestId") }
+            expectParked()
+        }
+        sagaSpec(listOf(saga)) {
+            givenAggregate(orderModel, "order-1", OrderPlaced(10))
+            whenEvent(OrderPaid(1)) {
+                val reserve = commands.single()
+                whenRejected(reserve, "insufficient", expect = parksUnkeyed)
+                whenCommitted(reserve, expect = parksUnkeyed)
+            }
         }
     }
 

@@ -21,9 +21,11 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.postgres.PostgresFailures
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.PostgresSchema
+import me.ahoo.wow.postgres.UnknownStoredValues
 import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.jdbc
 import me.ahoo.wow.spi.Ddl
@@ -34,6 +36,9 @@ import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerChange
 import me.ahoo.wow.spi.timer.TimerStatus
 import me.ahoo.wow.spi.timer.TimerStore
+import tools.jackson.core.JacksonException
+import tools.jackson.databind.exc.InvalidFormatException
+import tools.jackson.databind.exc.InvalidTypeIdException
 import java.sql.Connection
 import java.sql.PreparedStatement
 import java.sql.ResultSet
@@ -51,7 +56,9 @@ import javax.sql.DataSource
  * updates per table, each on the row as it was loaded. The due read takes every partition and every table in one
  * statement, a `UNION ALL` of each table's read over its partial index of the PENDING timers, merged by due time; the
  * same statement counts the registry's tables, so a table another node created since this store last read the
- * registry is read again at once.
+ * registry is read again at once. A timer whose rule this version cannot read (a later version's) is skipped and
+ * warned of once per value; only a partition whose page came back full and held such a timer is read on past it, from
+ * the last row read ([PostgresTimerTables.dueAfter]), so those rows never starve the timers behind them.
  *
  * JDBC calls run on [dispatcher], virtual threads by default (JDK 21).
  */
@@ -79,9 +86,12 @@ class PostgresTimerStore(
      */
     fun createSchema() {
         dataSource.autoCommitted { connection ->
-            PostgresFormat.schema(connection, ddl, listOf(PostgresTimerTables.REGISTRY to PostgresTimerTables.FORMAT)) {
-                PostgresSchema.execute(connection, tables.ddl())
-            }
+            PostgresFormat.schema(
+                connection,
+                ddl,
+                listOf(PostgresTimerTables.REGISTRY to PostgresTimerTables.FORMAT),
+                tables.ddl(),
+            )
         }
         registered = null
     }
@@ -99,8 +109,7 @@ class PostgresTimerStore(
      * there.
      */
     private fun ensure(connection: Connection, table: AggregateTimerTable): AggregateTimerTable = table.also {
-        PostgresFormat.schema(connection, ddl, listOf(table.base to PostgresTimerTables.FORMAT)) {
-            PostgresSchema.execute(connection, table.ddl())
+        PostgresFormat.schema(connection, ddl, listOf(table.base to PostgresTimerTables.FORMAT), table.ddl()) {
             record(connection, table)
         }
         if (!ddl.creates) {
@@ -204,10 +213,14 @@ class PostgresTimerStore(
             put.setNullableString(16, timer.causation?.correlationId)
             put.setNullableString(17, timer.causation?.causationId)
             put.setString(18, json.writeValueAsString(timer.headers))
-            put.setNullableString(19, timer.operator?.let(json::writeValueAsString))
-            put.setNullableString(20, timer.scope.takeUnless { it == Scope.NONE }?.let(json::writeValueAsString))
-            put.setLong(21, timer.slotDueAt)
-            put.setLong(22, timer.skipped)
+            put.setNullableString(OPERATOR_ID, timer.operator?.id)
+            put.setNullableString(OPERATOR_ID + 1, timer.operator?.tenantId)
+            timer.operator?.let { put.setBoolean(OPERATOR_ID + 2, it.actedElsewhere) }
+                ?: put.setNull(OPERATOR_ID + 2, Types.BOOLEAN)
+            put.setNullableString(OPERATOR_ID + 3, timer.scope.ownerId)
+            put.setNullableString(OPERATOR_ID + 4, timer.scope.spaceId)
+            put.setLong(OPERATOR_ID + 5, timer.slotDueAt)
+            put.setLong(OPERATOR_ID + 6, timer.skipped)
             put.executeUpdate() == 1
         }
     }
@@ -235,7 +248,7 @@ class PostgresTimerStore(
         connection.prepareStatement(tableOf(connection, owner.type).find).use { query ->
             query.setOwner(1, owner)
             query.setString(3, key)
-            query.executeQuery().use { rows -> if (rows.next()) timerOf(rows, owner.type.name) else null }
+            query.executeQuery().use { rows -> if (rows.next()) refusedTimerOf(rows, owner.type.name) else null }
         }
     }
 
@@ -245,12 +258,57 @@ class PostgresTimerStore(
             return emptyList()
         }
         return jdbc { connection ->
-            unioned(connection, tables::due, perPartition) { query, index ->
+            val rows = unioned(connection, tables::due, perPartition) { query, index ->
                 query.setArray(index, connection.createArrayOf("integer", partitions.toTypedArray()))
                 query.setLong(index + 1, until)
                 query.setInt(index + 2, perPartition)
                 index + DUE_PARAMETERS
             }
+            val timers = rows.mapNotNull { it.timer }
+            // A partition whose page came back full and held rows whose rule this version cannot read: those rows stay
+            // at the head of its due order, so the store reads on past them for the readable timers behind them.
+            val skipping = rows.groupBy { it.partition }
+                .filterValues { page -> page.size == perPartition && page.any { it.timer == null } }
+            if (skipping.isEmpty()) {
+                timers
+            } else {
+                val behind = skipping.flatMap { (partition, page) ->
+                    val wanted = perPartition - page.count { it.timer != null }
+                    readOn(connection, partition, until, perPartition, wanted, page.last())
+                }
+                (timers + behind).sortedWith(DUE)
+            }
+        }
+    }
+
+    /**
+     * Up to [wanted] readable due timers of [partition] after [last], read [page] rows at a time in due order until
+     * there are [wanted] or the due rows end: the due read's continuation past rows it skipped
+     * ([PostgresTimerTables.dueAfter]).
+     */
+    private fun readOn(
+        connection: Connection,
+        partition: Int,
+        until: Long,
+        page: Int,
+        wanted: Int,
+        last: DueRow,
+    ): List<Timer> = buildList {
+        var after = last
+        while (size < wanted) {
+            val rows = unioned(connection, tables::dueAfter, page) { query, index ->
+                query.setInt(index, partition)
+                query.setLong(index + 1, until)
+                query.setLong(index + 2, after.dueAt)
+                query.setString(index + 3, after.timerId)
+                query.setInt(index + 4, page)
+                index + DUE_AFTER_PARAMETERS
+            }
+            rows.forEach { row -> if (row.timer != null && size < wanted) add(row.timer) }
+            if (rows.size < page) {
+                break
+            }
+            after = rows.last()
         }
     }
 
@@ -269,7 +327,7 @@ class PostgresTimerStore(
                     ofType.forEach { (_, change) ->
                         val loaded = change.loaded
                         val next = change.next
-                        settle.setString(1, next.status.name)
+                        settle.setString(1, WireNames.of(next.status))
                         settle.setLong(2, next.slot)
                         settle.setLong(3, next.slotDueAt)
                         settle.setLong(4, next.skipped)
@@ -279,7 +337,7 @@ class PostgresTimerStore(
                         settle.setOwner(8, loaded.owner)
                         settle.setString(10, loaded.key)
                         settle.setString(11, loaded.id)
-                        settle.setString(12, loaded.status.name)
+                        settle.setString(12, WireNames.of(loaded.status))
                         settle.setLong(13, loaded.slot)
                         settle.setLong(14, loaded.slotDueAt)
                         settle.setInt(15, loaded.attempts)
@@ -300,7 +358,7 @@ class PostgresTimerStore(
             query.setString(index + 2, target.tenantId)
             query.setString(index + 3, target.id)
             index + PARKED_PARAMETERS
-        }
+        }.mapNotNull { it.timer }
     }
 
     /**
@@ -313,16 +371,16 @@ class PostgresTimerStore(
         statement: (List<AggregateTimerTable>) -> String,
         limit: Int,
         bind: (PreparedStatement, Int) -> Int,
-    ): List<Timer> {
+    ): List<DueRow> {
         var known = known(connection)
         while (true) {
-            val (count, timers) = read(connection, statement(known), known, limit, bind)
+            val (count, rows) = read(connection, statement(known), known, limit, bind)
             if (count == known.size) {
-                return timers
+                return rows
             }
             val read = register(connection)
             if (read.map { it.base }.toSet() == known.map { it.base }.toSet()) {
-                return timers
+                return rows
             }
             known = read
         }
@@ -338,7 +396,7 @@ class PostgresTimerStore(
         known: List<AggregateTimerTable>,
         limit: Int,
         bind: (PreparedStatement, Int) -> Int,
-    ): Pair<Int, List<Timer>> = connection.prepareStatement(sql).use { query ->
+    ): Pair<Int, List<DueRow>> = connection.prepareStatement(sql).use { query ->
         query.setString(1, ownerContext)
         var index = 2
         known.forEach { _ -> index = bind(query, index) }
@@ -347,26 +405,61 @@ class PostgresTimerStore(
         }
         query.executeQuery().use { rows ->
             var count = 0
-            val timers = buildList {
+            val read = buildList {
                 while (rows.next()) {
                     count = rows.getInt("registered")
-                    if (rows.getString("timer_id") != null) {
-                        add(timerOf(rows, known[rows.getInt("branch")].aggregate))
-                    }
+                    val timerId = rows.getString("timer_id") ?: continue
+                    val timer = readableTimerOf(rows, known[rows.getInt("branch")].aggregate)
+                    add(DueRow(rows.getInt("partition"), rows.getLong("due_at"), timerId, timer))
                 }
             }
-            count to timers
+            count to read
         }
     }
 
-    private fun timerOf(row: ResultSet, aggregate: String) = Timer(
+    /**
+     * One row of a read of many timers: its place in its partition's due order, and its timer, null when this version
+     * cannot read its rule.
+     */
+    private class DueRow(val partition: Int, val dueAt: Long, val timerId: String, val timer: Timer?)
+
+    /**
+     * The timer of [row], or null for one whose rule this version cannot read (a later version's), which a read of many
+     * timers skips, leaving it for a node that can, and warns of once per value. The rule is decoded once.
+     */
+    private fun readableTimerOf(row: ResultSet, aggregate: String): Timer? {
+        val text = row.getString("rule")
+        val rule = try {
+            json.readValue(text, ScheduleRule::class.java)
+        } catch (failure: JacksonException) {
+            val (field, value) = unreadable(failure, text)
+            unknown.warn(field, value)
+            return null
+        }
+        return timerOf(row, aggregate, rule)
+    }
+
+    /** The timer of [row], read alone: one whose rule this version cannot read is refused, naming the value. */
+    private fun refusedTimerOf(row: ResultSet, aggregate: String): Timer {
+        val text = row.getString("rule")
+        val rule = try {
+            json.readValue(text, ScheduleRule::class.java)
+        } catch (failure: JacksonException) {
+            val (field, value) = unreadable(failure, text)
+            val message = "A timer's $field is $value, which this version of Wow does not read: $text."
+            throw IllegalStateException(message, failure)
+        }
+        return timerOf(row, aggregate, rule)
+    }
+
+    private fun timerOf(row: ResultSet, aggregate: String, rule: ScheduleRule) = Timer(
         id = row.getString("timer_id"),
         owner = AggregateType(ownerContext, aggregate)
-            .ref(row.getString("owner_tenant_id"), row.getString("owner_id")),
+            .ref(row.getString("aggregate_tenant_id"), row.getString("aggregate_id")),
         key = row.getString("key"),
         version = row.getInt("version"),
         partition = row.getInt("partition"),
-        rule = json.readValue(row.getString("rule"), ScheduleRule::class.java),
+        rule = rule,
         slot = row.getLong("slot"),
         dueAt = row.getLong("due_at"),
         target = AggregateType(row.getString("target_context"), row.getString("target_aggregate"))
@@ -379,11 +472,17 @@ class PostgresTimerStore(
                 put(name, value.asString())
             }
         },
-        status = TimerStatus.valueOf(row.getString("status")),
+        // By its wire name; a status this node does not know cannot be stored, as every node reads a new one before one
+        // writes it (TimerStatus).
+        status = checkNotNull(WireNames.entryOf<TimerStatus>(row.getString("status"))) {
+            "A timer's status ${row.getString("status")} is not one this version of Wow reads."
+        },
         attempts = row.getInt("attempts"),
         outcome = row.getString("outcome"),
-        operator = row.getString("operator")?.let { json.readValue(it, Operator::class.java) },
-        scope = row.getString("scope")?.let { json.readValue(it, Scope::class.java) } ?: Scope.NONE,
+        operator = row.getString("operator_id")?.let {
+            Operator(it, row.getString("operator_tenant_id"), row.getBoolean("operator_acted_elsewhere"))
+        },
+        scope = Scope(row.getString("owner_id"), row.getString("space_id")),
         slotDueAt = row.getLong("slot_due_at"),
         skipped = row.getLong("skipped"),
     )
@@ -391,11 +490,53 @@ class PostgresTimerStore(
     private suspend fun <T> jdbc(block: (Connection) -> T): T =
         dispatcher.jdbc { dataSource.autoCommitted(block) }
 
-    private companion object {
+    internal companion object {
+        /** The put's parameter of the operator's id, which its tenant, the acted-elsewhere flag and the scope follow. */
+        const val OPERATOR_ID = 19
+
+        /** The rule values of a later version this JVM's timer stores read, each warned of once. */
+        internal val unknown = UnknownStoredValues("the timers")
+
+        /**
+         * The field and the value of [text], a stored rule, that [failure] says this version cannot read: a later
+         * version's rule type (`rule.type`), or a value of an enumeration (`rule.misfire`); the rule itself otherwise.
+         */
+        fun unreadable(failure: JacksonException, text: String): Pair<String, String> = when (failure) {
+            is InvalidTypeIdException -> "rule.type" to failure.typeId.toString()
+            is InvalidFormatException ->
+                failure.path.joinToString(".", prefix = "rule.") { it.propertyName ?: "${it.index}" } to
+                    "${failure.value}"
+            else -> "rule" to text
+        }
+
+        /** The due read's order: the due time, then the timer's id by code point, as `COLLATE "C"` compares it. */
+        val DUE: Comparator<Timer> = Comparator { left, right ->
+            left.dueAt.compareTo(right.dueAt).takeIf { it != 0 } ?: codePoints(left.id, right.id)
+        }
+
+        /** [left] against [right] by code point. */
+        fun codePoints(left: String, right: String): Int {
+            var i = 0
+            var j = 0
+            while (i < left.length && j < right.length) {
+                val a = left.codePointAt(i)
+                val b = right.codePointAt(j)
+                if (a != b) {
+                    return a.compareTo(b)
+                }
+                i += Character.charCount(a)
+                j += Character.charCount(b)
+            }
+            return (left.length - i).compareTo(right.length - j)
+        }
+
         val json = WowJson.mapper
 
         /** The parameters of each table's branch of the due read: the partitions, until, limit. */
         const val DUE_PARAMETERS = 3
+
+        /** Each table's parameters of the due read's continuation: the partition, until, the last read, limit. */
+        const val DUE_AFTER_PARAMETERS = 5
 
         /** The parameters of each table's branch of the parked read: the target's context, aggregate, tenant and id. */
         const val PARKED_PARAMETERS = 4

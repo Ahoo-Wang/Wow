@@ -5,7 +5,7 @@ description: 每组 9.x `wow.*` 配置项在 V10 中的去向，哪些配置项�
 
 # 配置项
 
-V10 的配置项也在 `wow.*` 之下，但大多数 9.x 配置项不沿用：V10 不认识的 9.x 配置项不绑定任何东西，服务会拒绝启动，指出这个配置项并指向本页。少数配置项保留名字和含义：`wow.kafka.bootstrap-servers`、`wow.kafka.properties`、`wow.query.require-explicit-entry`、`wow.query.require-authenticated-scope`、`wow.query.sensitivity.display-comparable`。把 9.x 服务设置的每个配置项映射到 V10 的对应项，或者把它连同它所配置的东西一起记录为已移除。`wow-migrate` Skill 在改写源码时一并完成这件事。[配置项](../reference/configuration)是从代码生成的 V10 配置项完整列表；[配置服务](../operate/configuration)按任务解释它们。
+V10 的配置项也在 `wow.*` 之下，但大多数 9.x 配置项不沿用：V10 不认识的 9.x 配置项不绑定任何东西，服务会拒绝启动，指出这个配置项并指向本页。少数配置项保留名字和含义：`wow.kafka.bootstrap-servers`、`wow.kafka.properties`、`wow.query.sensitivity.display-comparable`。把 9.x 服务设置的每个配置项映射到 V10 的对应项，或者把它连同它所配置的东西一起记录为已移除。`wow-migrate` Skill 在改写源码时一并完成这件事。[配置项](../reference/configuration)是从代码生成的 V10 配置项完整列表；[配置服务](../operate/configuration)按任务解释它们。
 
 ## 服务与节点 {#the-service-and-its-node}
 
@@ -49,7 +49,8 @@ V10 的配置项也在 `wow.*` 之下，但大多数 9.x 配置项不沿用：V1
 | `wow.webflux.command.request.appender.*` | `wow.http.request-facts`：命令保留的请求头 |
 | `wow.query.http.*`（`max-list-size`、`max-page-size`、`max-filter-nodes`、`allow-expensive-operators`……） | `wow.query.budgets.http.*`，名字相同 |
 | `wow.query.abac.*`、`wow.query.sensitivity.*` | `wow.query.sensitivity.*`；`wow.query.abac.*` 已移除，启动时拒绝（由访问属性与访问策略取代：[归属与访问](../guide/ownership#write-an-access-policy)） |
-| `wow.query.require-explicit-entry`、`require-authenticated-scope` | 同名配置项 |
+| `wow.query.require-authenticated-scope` | 已移除：每个查询都限定在服务从请求解析出的已认证调用方的租户内，没有什么需要再要求的。这个配置项的检查读的是查询路由从不设置的范围，打开时会拒绝每个查内置模型的 HTTP 查询。删掉这个配置项，启动时会拒绝它 |
+| `wow.query.require-explicit-entry` | 已移除：每个查询都说明了自己的来源（HTTP 路由说明是 HTTP，进程内代码在进程内运行），没有什么需要再要求的；删掉这个配置项，启动时会拒绝它 |
 | `wow.query.schema.*`（`revalidate-interval`、`legacy-declarations`） | 已移除：查询模型来自 Manifest |
 | `wow.query.datasets`、`wow.query.clickhouse.*` | `wow.query.dataset.*` 和 `wow.clickhouse.*`（[发布数据集](../guide/datasets)） |
 | `wow.openapi.enabled` | `wow.http.openapi.enabled`，springdoc 用 `wow.http.openapi.springdoc.*` |

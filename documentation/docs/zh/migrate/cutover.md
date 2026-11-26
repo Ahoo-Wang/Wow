@@ -230,7 +230,7 @@ The service's contracts do not hold together:
 9.x 服务之外往 Kafka 命令主题写命令的生产者，例如批处理作业、网关或别的系统的连接器，不会随数据一起迁移：V10 不读任何 9.x 的命令记录，9.x 也不读 V10 的。生产者要在同一个窗口里随它的服务一起改，要改四处：
 
 - **主题。** 9.x 的命令主题是每个聚合一个，`wow.<context>.<aggregate>.command`。V10 是每个上下文一个，`wow.<context>.commands`，设置了 `wow.kafka.topics.prefix` 时前面加上主题前缀，分区数与该上下文的日志完全相同。服务在接收其他上下文的命令（`wow.kafka.command-intake.enabled: true`）或把某个聚合类型路由到它时读取这个主题（[Kafka](../operate/kafka#durable-command-intake)）。
-- **记录。** 记录是 `command` 类型的 Kafka 信封 `{format, kind, id, type, payload, transport}`，`payload` 是命令的线路形式 `CommandWire`：命令类型、id 和请求 id、聚合引用、正文、期望版本、作用域、操作者、请求头和因果。[主题上的命令](../reference/protocols#commands-on-a-topic)列出这些字段并给出一条记录。9.x 形式的记录不会被执行：它被记为错误日志；它的键指向某个聚合时，该聚合在失败台账里按这条记录的偏移量被停放，否则这条记录被跳过。
+- **记录。** 记录是 `command` 类型的 Kafka 信封 `{format, kind, id, type, payload, transport}`，`payload` 是命令的线路形式：命令类型、id 和请求 id、聚合引用、正文、期望版本、作用域、操作者、请求头和因果。[主题上的命令](../reference/protocols#commands-on-a-topic)列出这些字段并给出一条记录。9.x 形式的记录不会被执行：它被记为错误日志；它的键指向某个聚合时，该聚合在失败台账里按这条记录的偏移量被停放，否则这条记录被跳过。
 - **键和分区。** 键是聚合引用的文本形式，记录要发到日志的分区器分配给该聚合的分区，而不是 Kafka 默认分区器选的那个：拥有这个分区的节点执行命令，所以落在别的分区里的记录会到达一个并不拥有其聚合的节点。哈希的算法见[主题上的命令](../reference/protocols#commands-on-a-topic)。
 - **没有准入。** 摄入端执行记录所说的内容。操作者、租户和作用域都是生产者自己的声称，不做认证，也不做路由检查，只做命令校验。谁能写这个主题，谁就能冒用任何操作者，所以要限制它（[限制命令主题](../operate/security#restrict-the-command-topics)）。
 - **访问策略。** 有访问策略的聚合的记录要指明调用方（`caller`：主体以及策略比较的声明），并以这个调用方受策略约束；既没有调用方、也没有 `causation` 的记录被拒绝。`causation` 声称这是服务端由某次提交派生的命令，不带调用方也受信任，所以不是 Saga 的生产者不写它。9.x 的生产者不指明调用方：为它的记录写上它所代表的调用方，或者改走命令路由，由路由自己解析调用方。声明随记录传递，主题的 ACL 是唯一的边界。

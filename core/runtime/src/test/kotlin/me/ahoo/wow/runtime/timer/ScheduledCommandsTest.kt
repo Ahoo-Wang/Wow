@@ -96,7 +96,7 @@ class ScheduledCommandsTest {
         timers: TimerOptions = TimerOptions(
             pollInterval = 20.milliseconds,
             lookahead = 1.seconds,
-            claimTimeout = 300.milliseconds
+            claimTtl = 300.milliseconds
         ),
     ): ServiceNode = ServiceNode(
         SHOP_SERVICE,
@@ -150,7 +150,7 @@ class ScheduledCommandsTest {
         streams.eventNames().assert()
             .containsExactly("shop.order.OrderPlaced", Schedules.SCHEDULE_SET, "shop.order.OrderCancelled")
         val cancelled = streams.last()
-        cancelled.requestId.assert().isEqualTo("${timer.id}#1")
+        cancelled.requestId.assert().isEqualTo("wow:${timer.id}#1")
         // The target reads which slot it was sent for (decision D198).
         ScheduleContext.of(cancelled.headers).assert().isEqualTo(ScheduleContext(timer.id, PAY_TIMEOUT, 1, timer.dueAt))
         cancelled.commandType.assert().isEqualTo("shop.order.CancelOrder")
@@ -375,7 +375,7 @@ class ScheduledCommandsTest {
             pollInterval = 20.milliseconds,
             lookahead = 1.seconds,
             retry = RetryPolicy(maxAttempts = 100, initialBackoff = 50.milliseconds, maxBackoff = 100.milliseconds),
-            claimTimeout = 1.seconds,
+            claimTtl = 1.seconds,
             maxEarlyWait = 300.milliseconds,
         )
         val node = node("node-1", TimedBackends(), clock = skewed, timers = timers).also { it.start() }
@@ -450,7 +450,7 @@ class ScheduledCommandsTest {
         eventually { shop.timer(order("o-1"), "reserve")?.status == TimerStatus.FIRED }
         shop.timer(order("o-1"), "reserve")?.outcome.assert().isEqualTo(TimerOutcomes.SENT)
         eventually { stock.decided.size == 1 }
-        stock.decided.single().assert().isEqualTo("${order("o-1")}#reserve@1#1")
+        stock.decided.single().assert().isEqualTo("wow:${order("o-1")}#reserve@1#1")
         topics.messages(STOCK_COMMANDS).single().key.assert().isEqualTo(ITEM.ref(TENANT, "o-1").toString())
         // Sent for the order that scheduled it: the stock intake decides its type's tenant from it (#6556).
         CommandMessages.commandOf(EnvelopeCodec.decode(topics.messages(STOCK_COMMANDS).single().value))

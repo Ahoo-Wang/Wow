@@ -52,4 +52,4 @@ export const scopeMessages = {
   // Not an audience: the host asked to narrow this view and the view would
   // not take it. It is keyed here because it is the same `label.scope` family.
   'label.scope.refused': 'This page could not narrow this view',
-} as const satisfies Record<string, string>;
+} satisfies Record<string, string>;

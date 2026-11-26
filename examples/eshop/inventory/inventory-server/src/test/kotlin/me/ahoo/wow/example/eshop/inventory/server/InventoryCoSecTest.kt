@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.example.eshop.inventory.server
 
-import me.ahoo.cosec.annotations.ExperimentalCoSecApi
 import me.ahoo.cosec.testkit.IdentityHeader
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
@@ -60,7 +59,6 @@ class InventoryCoSecTest {
  * gateway mode of the `cosec` profile asks of every host: a test is reached by its own client alone. A deployment
  * states it with the wow-service chart's NetworkPolicy.
  */
-@OptIn(ExperimentalCoSecApi::class) // CoSec's test kit is experimental in 8.0.
 private val ONLY_GATEWAY_CAN_REACH: Map<String, Any> = mapOf(IdentityHeader.ONLY_GATEWAY_CAN_REACH_KEY to "true")
 
 /**

@@ -14,20 +14,23 @@
 package me.ahoo.wow.spring.boot.query
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.manifest.PublishedManifest
 import me.ahoo.wow.query.admission.QueryBulkhead
-import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
+import me.ahoo.wow.query.store.EventStoreQueries
 import me.ahoo.wow.query.store.QueryStores
 import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.query.store.StoreQueryOptions
+import me.ahoo.wow.spi.access.AccessStamps
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.sink.Sink
 import me.ahoo.wow.spi.sink.SinkConfig
 import me.ahoo.wow.spi.sink.SinkProvider
 import me.ahoo.wow.spi.sink.StreamSinks
+import me.ahoo.wow.spi.state.StateEventRecord
 import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.spi.store.StorePool
@@ -75,9 +78,11 @@ open class SearchStore(config: StoreConfig) : AcmeStore(config) {
 
 /** The queries of a `search` store: `events` only, over an index of their own, counting the bindings they give. */
 class SearchQueries : StoreQueries {
-    override fun events(options: StoreQueryOptions): QueryBindings<AggregateType> {
+    override fun events(options: StoreQueryOptions): EventStoreQueries {
         val index = InMemoryEventQueryStorage.of(InMemoryEventLog(1))
-        return QueryBindings { type -> index.binding(type).also { bindings.incrementAndGet() } }
+        return object : EventStoreQueries {
+            override fun binding(key: AggregateType) = index.binding(key).also { bindings.incrementAndGet() }
+        }
     }
 
     companion object {
@@ -96,7 +101,10 @@ class SearchSinks {
     fun searchSinkProvider(): SinkProvider = SearchSinkProvider()
 }
 
-/** A Sink into a `search` store, as Wow's Elasticsearch event search Sink is: available over the store alone. */
+/**
+ * A Sink into a `search` store, as Wow's Elasticsearch event search Sink is: available over the store alone, and it
+ * stamps the histories it indexes, so the store may serve their `events` model.
+ */
 class SearchSinkProvider : SinkProvider {
     override val type: String = "search"
 
@@ -107,8 +115,15 @@ class SearchSinkProvider : SinkProvider {
         return object : StreamSinks {
             override val processor: String = "search-sink"
 
-            override fun sinkOf(context: String, aggregate: String): Sink = Sink { }
+            override fun sinkOf(context: String, aggregate: String): Sink = StampingSink()
         }
+    }
+
+    /** Writes nothing, and stamps nothing it has not written. */
+    private class StampingSink : Sink, AccessStamps {
+        override suspend fun write(records: List<StateEventRecord>) = Unit
+
+        override suspend fun stamp(ref: AggregateRef, access: Map<String, Any?>, asOf: Int, from: Int, until: Int) = 0
     }
 
     companion object {
@@ -129,7 +144,7 @@ class HostEventStoresTest {
             "wow.stores.search.type" to "search",
             "wow.log.store" to "main",
             "wow.aggregates.[bank.account].query.events.store" to "search",
-            sources = sources,
+            sources = sources + SearchSinks::class.java,
         )
         host.use {
             val events = host.context.getBean(EventQueryBackend::class.java)
@@ -171,21 +186,23 @@ class HostEventStoresTest {
     }
 
     @Test
-    fun `a store's Sink that is unavailable opens nothing`() {
+    fun `a store's Sink that is unavailable opens nothing, and the store may not serve the events then`() {
         SearchSinkProvider.opened.clear()
         SearchSinkProvider.available = false
         try {
-            val host = startHost(
-                "wow.stores.main.type" to "memory",
-                "wow.stores.search.type" to "search",
-                "wow.log.store" to "main",
-                "wow.aggregates.[bank.account].query.events.store" to "search",
-                sources = sources + SearchSinks::class.java,
-            )
-            host.use {
-                host.context.getBean(ProvidedSinks::class.java).sinks.assert().isEmpty()
-                SearchSinkProvider.opened.assert().isEmpty()
+            // No Sink stamps the index the store would serve the events from: its access attributes would go stale.
+            val failure = assertThrows<Exception> {
+                startHost(
+                    "wow.stores.main.type" to "memory",
+                    "wow.stores.search.type" to "search",
+                    "wow.log.store" to "main",
+                    "wow.aggregates.[bank.account].query.events.store" to "search",
+                    sources = sources + SearchSinks::class.java,
+                ).close()
             }
+            generateSequence<Throwable>(failure) { it.cause?.takeIf { cause -> cause !== it } }.last().message.assert()
+                .contains("bank.account", "the store 'search'", "whose Sink", "no AccessStamps")
+            SearchSinkProvider.opened.assert().isEmpty()
         } finally {
             SearchSinkProvider.available = true
         }

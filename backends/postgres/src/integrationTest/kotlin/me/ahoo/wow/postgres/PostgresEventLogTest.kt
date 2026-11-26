@@ -94,9 +94,8 @@ class PostgresEventLogTest : EventLogSpec() {
     )
 
     /** A `\u0000` in a payload string: PostgreSQL's `jsonb` does not take it (finding A2-7). */
-    override fun refused(stream: EventStreamRecord): EventStreamRecord = stream.copyWith(
-        events = listOf(EventRecord("x.aggregate.Named", 1, """{"name":"a\u0000b"}""")),
-    )
+    override fun refused(stream: EventStreamRecord): EventStreamRecord =
+        stream.withEvents(listOf(EventRecord.of("x.aggregate.Named", 1, """{"name":"a\u0000b"}""")))
 
     @Test
     fun `a commit of this log costs its idle tail one read`(): Unit = runBlocking {
@@ -116,9 +115,9 @@ class PostgresEventLogTest : EventLogSpec() {
         val received = Channel<LogEntry>(Channel.UNLIMITED)
         val tail = launch(Dispatchers.Default) { log.tail(0).collect { received.send(it) } }
         try {
-            withTimeout(TAIL_TIMEOUT_MS) { received.receive() }
+            withTimeout(tailTimeout) { received.receive() }
             // Twelve empty polls back the tail off to seconds between polls.
-            withTimeout(TAIL_TIMEOUT_MS) {
+            withTimeout(tailTimeout) {
                 while (reads(start) < IDLE_POLLS) {
                     delay(10)
                 }
@@ -126,7 +125,7 @@ class PostgresEventLogTest : EventLogSpec() {
             val mark = counted.begin()
             for (version in 2..COMMITS + 1) {
                 log.append(stream("a", version, aggregate = type))
-                withTimeout(TAIL_TIMEOUT_MS) { received.receive() }.stream.version.assert().isEqualTo(version)
+                withTimeout(tailTimeout) { received.receive() }.stream.version.assert().isEqualTo(version)
             }
             delay(SETTLE_MS)
             reads(mark).assert().isEqualTo(COMMITS)

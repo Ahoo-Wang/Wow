@@ -5,7 +5,7 @@ description: 'Generator reference — @ahoo-wang/wow-generator'
 
 # wow-generator reference
 
-Generate TypeScript from a Wow Manifest (`GET /wow/manifest`), the typed clients on `@ahoo-wang/wow-client`, or from an OpenAPI 3 document, its models and decorator API clients. The package root exports CodeGenerator, its configuration default, loggers, errors and option types; see the [symbol index](./symbols.md).
+Generate TypeScript from a Wow Manifest (the `manifest/baseline.json` a service commits, or its `GET /wow/manifest`, which it serves only with `wow.http.manifest.enabled: true`), the typed clients on `@ahoo-wang/wow-client`, or from an OpenAPI 3 document, its models and decorator API clients. The package root exports CodeGenerator, its configuration default, loggers, errors and option types; see the [symbol index](./symbols.md).
 
 ## Install
 
@@ -20,7 +20,7 @@ The package version follows Wow, and `@ahoo-wang/wow-client` must be on the same
 ## Minimal example
 
 ```bash
-pnpm exec wow-generator generate -i ./openapi.json -o ./src/generated -t ./tsconfig.json
+pnpm exec wow-generator generate -i ./openapi.json -o ./src/generated
 ```
 
 ## Choose an entry point

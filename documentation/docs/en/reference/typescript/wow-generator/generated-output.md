@@ -23,14 +23,14 @@ For each bounded context, a directory named after it:
 
 | Output | Holds |
 | --- | --- |
-| `contract.ts` | `<Context>Contract`: the context's name, its context-level error codes and its aggregates, each with its error codes; the `<Context>ErrorCode` union, `<Context>Subscription` and the `<context>Wait` hops |
+| `contract.ts` | `<Context>Contract`: the context's name, its context-level error codes, its wait hops (`Wait`) and its aggregates, each with its error codes; the `<Context>ErrorCode` union and `<Context>Subscription` |
 | `manifest.ts` | `<Context>Manifest`, a `RoutingManifest`: the routes of every command the context lists (each aggregate's domain and system commands, by their names and former names, and the context's own, a job's; an internal command left out) and of its service routes, and the property of the body that names the aggregate of a command whose body does (`idProperty`), with no schema. The command clients send by it, as a `CommandClient` over the whole Manifest does |
 | `client.ts` | `<Context>Client`: the context's `CommandClient` (`commands`), which writes every command's exact numbers unquoted as the aggregate's command client does, and, per aggregate, its command, snapshot, event and state clients; its service routes (`routes`) when it has any |
 | `routes.ts` | `<Context>Routes`: a method per service route, on `ServiceRoutes` of `@ahoo-wang/wow-client/routes`; written only when the Manifest lists service routes |
 | `textNumbers.ts` | Where a recursive type holds exact numbers, marked once; written only when one does |
 | `types.ts` | The commands, events and states of the Manifest's schemas, each named after its class's simple name; a name two classes share, or one the generated modules already bind, is qualified by the class's package. A computed property (`readOnly` in its schema) is `readonly`. A type a caller sends (a command's or a lifecycle command's body, a service route's request or parameter) that holds a computed property, at any depth, is declared again as `<Name>Input`, numbered when the Manifest already uses the name: the type the method takes, in which that property is optional |
 | `<aggregate>/aggregate.ts` | `<Aggregate>Aggregate`, the aggregate's descriptor; `<Aggregate>StateField`, the `state.*` fields a query names, those the Kotlin contract names, within arrays and nullable objects included; `<Aggregate>Access`, its access attributes; `<Aggregate>Event`, the union of its events |
-| `<aggregate>/commandClient.ts` | `<Aggregate>CommandClient`: a method per command, a `…Stream` twin of each answering each hop, and the lifecycle commands the aggregate lists, sending through its `client`, a `CommandClient` over the context's `manifest.ts` |
+| `<aggregate>/commandClient.ts` | `<Aggregate>CommandClient`: a method per command, a `…Stream` twin of each answering each hop, and the lifecycle commands the aggregate lists, sending through its `commands`, a `CommandClient` over the context's `manifest.ts` |
 | `<aggregate>/queryClient.ts` | `<Aggregate>SnapshotQueryClient`, `<Aggregate>EventQueryClient` and `<Aggregate>StateClient` |
 | `index.ts` | Recursive exports for the .ts files of this run and nonempty subdirectories |
 | `.wow-generator.json` | Version 1 ownership manifest with SHA-256 hashes of generated .ts files |
@@ -108,7 +108,7 @@ The return type comes from the success response: `200`, else the lowest other 2x
 
 ```bash
 pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
-pnpm exec wow-generator generate -i ./manifest.json -o ./src/generated -t ./tsconfig.json
+pnpm exec wow-generator generate -i ./manifest.json -o ./src/generated
 pnpm exec tsc --noEmit -p ./tsconfig.json
 ```
 
@@ -145,8 +145,8 @@ export class EshopBasketClient {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     this.commands = new CommandClient(options, {
-      manifest: EshopBasketManifest, bodyNumbers: {
-        'eshop-basket.basket.AddBasketItem': BasketAggregate.textNumbers.commands.AddBasketItem,
+      manifest: EshopBasketManifest, textNumbers: {
+        'eshop-basket.basket.AddBasketItem': BasketAggregate.textNumbers.commands['eshop-basket.basket.AddBasketItem'],
       }
     });
     this.basket = {

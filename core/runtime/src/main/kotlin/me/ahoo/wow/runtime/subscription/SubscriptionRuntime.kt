@@ -461,7 +461,8 @@ class SubscriptionRuntime internal constructor(
         val worker = checkNotNull(workerOf(subscription, ref)) {
             "Subscription $subscription of group $group is not running the partition of $ref here."
         }
-        return worker.retry(ref)
+        // An operator's retry: on a state topic, it accepts a version the topic did not deliver and goes on past it.
+        return worker.retry(ref, acceptGaps = true)
     }
 
     /**
@@ -558,8 +559,8 @@ class SubscriptionRuntime internal constructor(
     }
 
     /**
-     * Saves the checkpoints of [workers] that moved since their last save, in one call of the store (B.D diagnostics:
-     * one round trip a tick, not one per subscription and partition); a failed save is retried on the next tick.
+     * Saves the checkpoints of [workers] that moved since their last save, in one call of the store (one
+     * round trip a tick, not one per subscription and partition); a failed save is retried on the next tick.
      */
     @Suppress("TooGenericExceptionCaught") // A failed save is retried on the next tick.
     private suspend fun flushQuietly(workers: Collection<SubscriptionWorker>) {

@@ -13,7 +13,6 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  fitChartSlots,
   projectAnalysis,
   type AnalysisGroup,
   type AnalysisMetric,
@@ -43,6 +42,7 @@ import {
   AggregationMetricType,
   FilterOperator,
 } from '@ahoo-wang/wow-client/dsl';
+import { fitChartSlots } from '../src/analysis/chartSlots.js';
 
 /**
  * What a cartesian chart draws over its marks (D33 batch B), all computed
@@ -446,14 +446,9 @@ describe('derived series', () => {
       ...config({ derived: [{ kind: 'cumulative', metric: 'orders' }] }),
       limit: 2,
     };
-    const view = projectAnalysis(
-      ordersDefinition(),
-      cfg,
-      rows.slice(0, 3),
-      undefined,
-      undefined,
-      { timeZone: 'UTC' },
-    );
+    const view = projectAnalysis(ordersDefinition(), cfg, rows.slice(0, 3), {
+      context: { timeZone: 'UTC' },
+    });
     expect(view.truncated).toBe(true);
     expect((view.chart as CartesianData).gaps).toEqual([
       { kind: 'cumulative', metric: 'orders', gap: 'cut-short', limit: 2 },

@@ -16,12 +16,14 @@ package me.ahoo.wow.gradle
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.logging.Logging
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import org.gradle.workers.WorkAction
 import org.gradle.workers.WorkParameters
 import java.io.File
 import java.lang.reflect.InvocationTargetException
+import java.util.function.Consumer
 
 /**
  * The work the plugin hands to its isolated workers. The tools (`wow-manifest-tools`: `me.ahoo.wow.manifest.tools.ManifestTools`,
@@ -39,6 +41,15 @@ internal object ManifestToolsWork {
         } catch (failure: InvocationTargetException) {
             throw failure.targetException
         }
+    }
+
+    /**
+     * What the tools tell of a peer contract they read leniently (a value of a newer Wow left out), as a JDK type the
+     * worker's class loader shares: each a warning of the build's log, under [action]'s name.
+     */
+    private fun warnings(action: Class<*>): Consumer<String> {
+        val logger = Logging.getLogger(action)
+        return Consumer { logger.warn(it) }
     }
 
     /** Completes one fragment of the compiler with the schemas of the module's classes. */
@@ -84,6 +95,7 @@ internal object ManifestToolsWork {
                 parameters.defaultServiceName.get(),
                 parameters.serviceVersion.orNull,
                 parameters.output.get().asFile,
+                warnings(Merge::class.java),
             )
             parameters.serviceBuild.orNull?.let { serviceBuild ->
                 call(javaClass.classLoader, "writeServiceBuild", parameters.output.get().asFile, serviceBuild.asFile)
@@ -175,6 +187,7 @@ internal object ManifestToolsWork {
                 parameters.manifest.get().asFile,
                 parameters.classpath.files.toList<File>(),
                 parameters.output.get().asFile,
+                warnings(GenerateHelmValues::class.java),
             )
         }
     }

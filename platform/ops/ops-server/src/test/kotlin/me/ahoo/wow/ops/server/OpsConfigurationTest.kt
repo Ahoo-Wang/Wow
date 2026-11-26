@@ -11,13 +11,14 @@
  * limitations under the License.
  */
 
+@file:OptIn(WowSpi::class)
+
 package me.ahoo.wow.ops.server
 
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.reactor.mono
 import kotlinx.coroutines.runBlocking
-import me.ahoo.cosec.annotations.ExperimentalCoSecApi
 import me.ahoo.cosec.api.context.SecurityContext
 import me.ahoo.cosec.runtime.AuthorizationChecker
 import me.ahoo.cosec.testkit.PermittedRequest
@@ -28,6 +29,7 @@ import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.cosec.CoSecCommandAuthorizer
@@ -53,7 +55,6 @@ import java.util.function.Supplier
 
 @OptIn(
     InternalWowApi::class, // The host's settings, as the configuration reads them.
-    ExperimentalCoSecApi::class, // CoSec's test kit and its test bindings, which are experimental in 8.0.
 )
 class OpsConfigurationTest {
     private val retry = CommandAction(

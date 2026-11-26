@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.tck
 
+import me.ahoo.wow.api.annotation.WowSpi
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
@@ -21,6 +22,7 @@ import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.Duration
 
 /** A clock that stands still until a test moves it, so a test decides when leases and reservations expire. */
+@WowSpi
 class MutableClock(startMillis: Long = START) : Clock() {
     private val millis = AtomicLong(startMillis)
 

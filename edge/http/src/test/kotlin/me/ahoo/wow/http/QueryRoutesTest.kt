@@ -34,6 +34,7 @@ import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.admission.QueryBudget
 import me.ahoo.wow.query.error.QueryExecutionException
+import me.ahoo.wow.query.error.QueryOutOfRangeException
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.spi.tenant.TenantPolicy
@@ -96,7 +97,7 @@ class QueryRoutesTest {
             ),
         ).assert().containsExactly("c-1", "c-2")
         node.query("""{"kind":"list","filter":{"op":"match-all"}}""", headers = mapOf(WowHeaders.SCOPE to "owner"))
-            .assertQueryProblem(400, FrameworkCodes.QUERY_MALFORMED)
+            .assertQueryProblem(400, FrameworkCodes.REQUEST_MALFORMED)
     }
 
     @Test
@@ -129,7 +130,7 @@ class QueryRoutesTest {
         ids(across.query(list, headers = mapOf(WowHeaders.SCOPE to "tenant=*, owner=bob", "X-Admin" to "yes")))
             .assert().containsExactly("c-3")
         across.query(list, headers = mapOf(WowHeaders.SCOPE to "tenant=()", "X-Admin" to "yes"))
-            .assertQueryProblem(400, FrameworkCodes.QUERY_MALFORMED)
+            .assertQueryProblem(400, FrameworkCodes.REQUEST_MALFORMED)
     }
 
     @Test
@@ -302,6 +303,19 @@ class QueryRoutesTest {
     }
 
     @Test
+    fun `a computed value its backend cannot hold should be answered as a 400 out-of-range problem (#7012)`() {
+        // A store's own failure (PostgreSQL's 22003), which the query routes answer by the error catalog's status.
+        val outOfRange = QueryNode(snapshots = { OutOfRange(it) })
+        listOf(
+            """{"kind":"count","filter":{"op":"match-all"}}""",
+            """{"kind":"list","filter":{"op":"match-all"}}""",
+            """{"kind":"paged","filter":{"op":"match-all"}}""",
+        ).forEach { body ->
+            outOfRange.query(body).assertQueryProblem(400, FrameworkCodes.QUERY_OUT_OF_RANGE)
+        }
+    }
+
+    @Test
     fun `only a list should be answered as an event stream`() {
         node.http.client.post().uri("/shop/cart/snapshot/query")
             .header("X-User", "alice")
@@ -428,11 +442,14 @@ class QueryRoutesTest {
         val version = described.body!!["version"].asString()
         version.assert().startsWith("sha256:")
         described.headers.eTag.assert().isEqualTo("\"$version\"")
+        // Who may read it is the caller's: a shared cache must not answer another caller.
+        described.headers.cacheControl.assert().isEqualTo("private, no-cache")
         described.body!!["limits"]["defaultListSize"].asInt().assert().isEqualTo(HttpQueries.DEFAULT_LIST_SIZE)
         described.body!!["fields"].values().map { it["path"].asString() }.assert().contains("state.items", "ownerId")
         node.describe(headers = mapOf("If-None-Match" to "\"$version\"")).let {
             it.status.assert().isEqualTo(304)
             it.headers.eTag.assert().isEqualTo("\"$version\"")
+            it.headers.cacheControl.assert().isEqualTo("private, no-cache")
         }
         node.describe(headers = mapOf("If-None-Match" to "\"sha256:other\", W/\"$version\"")).status.assert()
             .isEqualTo(304)
@@ -464,6 +481,18 @@ fun Answer.assertQueryProblem(status: Int, code: String): Answer {
 }
 
 /** A gateway whose list fails after its first record, whose page fails as the backend, and whose count crashes. */
+/** A backend whose computed value went beyond a double's range, as PostgreSQL fails such a statement. */
+private class OutOfRange(private val delegate: QueryGateway) : QueryGateway by delegate {
+    override suspend fun count(query: CountQuery, caller: QueryCaller): CountResult = throw QueryOutOfRangeException()
+
+    override suspend fun resumes(query: ListQuery): Boolean = false
+
+    override fun list(query: ListQuery, caller: QueryCaller): Flow<ObjectNode> = flow { throw QueryOutOfRangeException() }
+
+    override suspend fun paged(query: PagedQuery, caller: QueryCaller): PagedList<ObjectNode> =
+        throw QueryOutOfRangeException()
+}
+
 private class FailingList(private val delegate: QueryGateway) : QueryGateway by delegate {
     override suspend fun resumes(query: ListQuery): Boolean = false
 

@@ -201,14 +201,14 @@ export function PaidOrderFeed({
 }
 ```
 
-| Field      | Meaning                                                                                                                         |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `items`    | The records of the current query received so far, in order. A new query starts empty; `reset()` empties it.                     |
-| `position` | The position of the last record received that had one; a new query and `reset()` clear it.                                      |
-| `done`     | The stream ended normally: `items` holds every record. The same as `status === 'success'`.                                      |
-| `loading`  | From the request until the stream ends, fails or is aborted.                                                                    |
-| `problem`  | The `WowProblemError` of a failed request, or of the error event the service sends midway.                                      |
-| `abort()`  | Stops the stream and keeps the rows received. `reset()` stops it and empties `items`. `execute()` runs the current query again. |
+| Field      | Meaning                                                                                                                              |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `items`    | The records of the current query received so far, in order. A new query starts empty; `reset()` empties it.                          |
+| `position` | The position of the last record received that had one; a new query and `reset()` clear it.                                           |
+| `done`     | The stream ended normally: `items` holds every record. The same as `status === 'success'`.                                           |
+| `loading`  | From the request until the stream ends, fails or is aborted.                                                                         |
+| `problem`  | The RFC 9457 problem a failed request, or the error event the service sends midway, carries: the `error`'s, as the service wrote it. |
+| `abort()`  | Stops the stream and keeps the rows received. `reset()` stops it and empties `items`. `execute()` runs the current query again.      |
 
 The hook owns the stream: it reads it, renders the records at most about once
 a frame (every 16 ms) however many arrive, and cancels it when a newer query
@@ -228,7 +228,8 @@ Every hook runs its query on mount and whenever `query` or `requestOptions`
 counts because the scope, the space and the headers can change the answer: a
 header whose value changes on every render runs the query again on every
 render, so keep such values stable. A newer query aborts the request in
-flight, so a late response never overwrites a newer result. A controlled
+flight, `autoExecute` or not, so a late response never overwrites a newer
+result. A controlled
 `query` set back to `undefined` (`id ? singleQuery(…) : undefined`) aborts the
 request in flight and goes `idle`, keeping the last result; nothing runs until
 a query is given again. `onSuccess` and `onError` are called with the result
@@ -250,14 +251,17 @@ the plain string union `'idle' | 'loading' | 'success' | 'error'`, so a
 component's props or a test can write a literal.
 
 `error` is an `Error`: what the run failed with, a thrown value that is not an
-`Error` wrapped in one with the value as its `cause`. `problem` is that same
-error when a Wow service answered with a problem, a `WowProblemError` with the
-service's `code`, its `status` and retry hint, and `undefined` for a failure no
-service answered, such as a network error:
+`Error` wrapped in one with the value as its `cause`; an `AbortError` that is
+not the run's own signal's (a newer query, `abort()`, `reset()`, an unmount)
+is a failure too. When a Wow service answered with a problem, `error` is a
+`WowProblemError`, with the retry hint, and `problem` is its RFC 9457 body, as
+in `@ahoo-wang/wow-client`: the service's `code`, its `status`, `detail` and
+`violations`; `undefined` for a failure no service answered, such as a network
+error:
 
 ```tsx
 import type { SnapshotQueryClient } from '@ahoo-wang/wow-client';
-import { FrameworkErrorCodes } from '@ahoo-wang/wow-client';
+import { FrameworkErrorCodes, WowProblemError } from '@ahoo-wang/wow-client';
 import { filter } from '@ahoo-wang/wow-client/dsl';
 import { useCountQuery } from '@ahoo-wang/wow-react';
 
@@ -266,8 +270,12 @@ export function OrderCount({ client }: { client: SnapshotQueryClient }) {
     query: { filter: filter.matchAll() },
     execute: (query, options) => client.count(query, options),
   });
-  if (problem?.code === FrameworkErrorCodes.QUERY_BUSY)
-    return <p>Busy, retry in {problem.retry.afterMs} ms</p>;
+  if (
+    error instanceof WowProblemError &&
+    error.code === FrameworkErrorCodes.QUERY_BUSY
+  )
+    return <p>Busy, retry in {error.retryAfterMs ?? 1000} ms</p>;
+  if (problem) return <p role="alert">{problem.detail ?? problem.title}</p>;
   if (error) return <p role="alert">{error.message}</p>;
   return <p>{result?.count ?? '…'} orders</p>;
 }

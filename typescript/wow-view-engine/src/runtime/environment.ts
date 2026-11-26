@@ -109,9 +109,10 @@ export interface ViewErrorContexts {
         /**
          * The Wow `code` of the problem the service answered with, as it
          * gave it — `wow.query.invalid`, `wow.aggregate.forbidden`, an
-         * application's own — when it gave one.
+         * application's own — when it gave one: wow-client's
+         * `WowProblemError.code`.
          */
-        errorCode?: string;
+        code?: string;
       })
     | (ViewErrorPlace & {
         operation: 'labels';
@@ -169,6 +170,7 @@ export type ViewErrorEvent<K extends ViewErrorKind = ViewErrorKind> = {
   };
 }[K];
 
+/** Whether the page is visible, and a way to hear when that changes. */
 export interface VisibilitySource {
   isVisible(): boolean;
   subscribe(listener: () => void): () => void;

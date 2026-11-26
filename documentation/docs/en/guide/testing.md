@@ -91,7 +91,7 @@ A spec needs the aggregate's access policy whenever the service registers one fo
 | `expectEvents(vararg events)` | The command committed exactly these events, in order. |
 | `expectEventTypes(vararg types)` | It committed events of exactly these classes, in order. |
 | `expectEvent<E> { … }` | It committed exactly one event, an `E`, and the block's checks hold on it. |
-| `expectEventEnvelope<E> { … }` | The same, with the stream's envelope beside the event (`body`): `aggregateId`, `tenantId`, `version`, `commandId`, `requestId`, `headers`. |
+| `expectEventEnvelope<E> { … }` | The same, with the stream's envelope beside the event (`body`): `ref` (the aggregate's type, tenant and id), `version`, `commandId`, `requestId`, `headers`. |
 | `expectEventCount(n)` | It committed exactly `n` events. |
 | `expectUnchanged()` | It was accepted and changed nothing. |
 | `expectVersion(n)` | The aggregate is at version `n` after the command: the committed stream's, or the one it stayed at when the command appended nothing. |
@@ -311,7 +311,7 @@ fun `an order awaiting validation should reserve each product's stock in the inv
 }
 ```
 
-`expectDeterministic()` handles the commit again, with a fresh context as the runtime gives each handling, and checks that the saga sends the same commands with the same ids. That is what makes a redelivered commit safe: the target decides each request once. The fresh context draws new ids from `context.ids`, as a node's does, so a command that holds a drawn id fails the check. A command whose target is named by one is another request, which would create a second aggregate ([Build the commands](./sagas#build-the-commands)). A projection or a reactor has no such check: handling a commit again would run its side effects again.
+`expectDeterministic()` handles the commit again, with a fresh context as the runtime gives each handling, and checks that the saga sends the same commands with the same ids. That is what makes a redelivered commit safe: the target decides each request once. The fresh context draws new ids from `context.ids`, as a node's does, so a command that holds a drawn id in its body fails the check. A command whose target is named by one fails already on the first handling, as on a node ([Build the commands](./sagas#build-the-commands)). A projection or a reactor has no such check: handling a commit again would run its side effects again.
 
 ### Steps
 

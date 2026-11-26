@@ -30,6 +30,7 @@ import org.springframework.web.method.annotation.HandlerMethodValidationExceptio
 import org.springframework.web.server.MissingRequestValueException
 import org.springframework.web.server.ResponseStatusException
 import org.springframework.web.server.ServerWebInputException
+import reactor.netty.channel.AbortedException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.cancellation.CancellationException
@@ -45,8 +46,10 @@ import kotlin.coroutines.cancellation.CancellationException
  *    body's, a method's) as `wow.request.invalid` with its violations ([RequestViolations]), a request that cannot be read
  *    ([ServerWebInputException]: a body the codecs cannot read, a parameter missing or of the wrong type) as
  *    `wow.request.malformed` naming what does not read, any other [ResponseStatusException] as its status alone, a
- *    store that is unavailable (or a failure caused by one) as 503 `wow.storage.unavailable`, and a body larger than
- *    the codecs take as 413.
+ *    store that is unavailable (or a failure caused by one) as 503 `wow.storage.unavailable`, a body larger than
+ *    the codecs take as 413, and a request whose connection closed before it was answered (Reactor Netty's
+ *    `AbortedException`: a client that went away, a body that stalled past the read timeout, [ReadTimeouts]) as 400,
+ *    logged at debug alone: no one reads that answer, and nothing failed on the server's side.
  * 2. Then the application's [mappers], in order, for the failure and then each of its causes, but a cause that is
  *    one of the framework's own (the kinds of 1. it answers by themselves, `frameworkOf`): a mapper never sees one,
  *    even wrapped. The first problem one gives is the answer, as the host configures its code's status, once it
@@ -108,7 +111,14 @@ class FailureProblems(
             val status = HttpStatus.resolve(failure.statusCode.value()) ?: HttpStatus.INTERNAL_SERVER_ERROR
             Problem.ofStatus(status, failure.reason.takeIf { status.is4xxClientError })
         }
+        is AbortedException -> closed(failure)
         else -> null
+    }
+
+    /** The problem of a request whose connection closed before it was answered, which no one reads. */
+    private fun closed(failure: AbortedException): Problem {
+        logger.debug { "A request's connection closed before it was answered: ${failure.message}" }
+        return Problem.ofStatus(HttpStatus.BAD_REQUEST, "The connection closed before the request was answered.")
     }
 
     /**

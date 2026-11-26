@@ -20,7 +20,7 @@ import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Misuse
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.schedule.ScheduleRule
@@ -53,7 +53,7 @@ class FailureClassificationTest {
         classification.classify(IllegalStateException("wrapped", StorageUnavailableException("down")), null).assert()
             .isEqualTo(FailureClass.SYSTEMIC)
         classification.classify(StorageBusyException("busy"), null).assert().isEqualTo(FailureClass.BACKPRESSURE)
-        val busy = WowProblemException(FrameworkCodes.COMMAND_BUSY, 429, Retry.SAME_REQUEST, 1.seconds, "busy")
+        val busy = WowProblemException(FrameworkCodes.COMMAND_BUSY, 429, RetryAdvice.SAME_REQUEST, 1.seconds, "busy")
         classification.classify(busy, null).assert().isEqualTo(FailureClass.BACKPRESSURE)
         FailureClassification.retryAfterOf(IllegalStateException("x", busy)).assert().isEqualTo(1.seconds)
         classification.classify(StorageRefusedException("refused"), null).assert().isEqualTo(FailureClass.UNRECOVERABLE)

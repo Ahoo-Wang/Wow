@@ -178,7 +178,8 @@ export async function failureOf(error: unknown): Promise<Failure> {
 }
 
 /**
- * The titles of the shared dashboards a claim refusal names: the problem's
+ * The titles of the dashboards a claim refusal names, shared or stored
+ * system ones: the problem's
  * `boards` extension member, a list of `{ id, title }`. A
  * board without a title is named by its id; anything else is skipped.
  */

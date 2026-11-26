@@ -14,9 +14,9 @@
 import { Fetcher } from '@ahoo-wang/fetcher';
 import {
   CommandClient,
+  Hop,
   MANIFEST_FORMAT,
   type RoutingManifest,
-  wait,
   WaitPlan,
 } from '@ahoo-wang/wow-client';
 import { queryRoute, routeSource } from './recordedWowService.js';
@@ -325,7 +325,10 @@ export const executionFailedDefinition: DataViewDefinition = {
         [{ field: 'state.status', operator: FilterOperator.IN, value: ACTIVE }],
         {
           summaries: [
-            { field: 'state.retryState.retries', fn: AggregationFunction.SUM },
+            {
+              field: 'state.retryState.retries',
+              function: AggregationFunction.SUM,
+            },
           ],
         },
       ),
@@ -501,8 +504,8 @@ export function compensationCommands(fetcher: Fetcher) {
     await commands.wait({
       command: `${CONTEXT}.${AGGREGATE}.${command}`,
       body,
-      id,
-      wait: WaitPlan.of(wait.snapshot(CONTEXT)),
+      aggregateId: id,
+      wait: WaitPlan.of(Hop.snapshot(CONTEXT)),
     });
   };
   return {

@@ -28,6 +28,7 @@ import { useViewMessages } from '../kit/MessagesProvider.js';
 import { STALE, staleProps } from '../kit/stale.js';
 import { cn } from 'cn';
 
+/** Props of `RecordCards`. */
 export interface RecordCardsProps {
   table: RecordTableController;
   /** As the table's: the cards answer an older question, and are faded. */

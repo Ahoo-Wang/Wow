@@ -58,6 +58,7 @@ export interface RenderFailure {
   componentStack?: string;
 }
 
+/** Told when a part fails to draw. */
 export type RenderFailureHandler = (failure: RenderFailure) => void;
 
 export interface RenderBoundaryProps {

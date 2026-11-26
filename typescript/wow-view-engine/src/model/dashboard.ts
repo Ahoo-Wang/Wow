@@ -146,7 +146,7 @@ export interface DashboardTimeGrouping {
 /**
  * What a board's filters hold right now: the reader's, never the config's
  * (「筛选值写进地址，不写进配置」). A host keeps it in its address
- * through `DashboardWorkbench`'s `initialFilters` / `onFiltersChange`.
+ * through `DashboardWorkbench`'s `defaultFilters` / `onFiltersChange`.
  */
 export interface DashboardFilters {
   /** Each filter's value by its name; a filter not here holds nothing. */
@@ -162,6 +162,9 @@ export interface DashboardFilters {
   from?: Record<string, string>;
 }
 
+/**
+ * What every panel of a board has: its id, title, place on the grid and tab.
+ */
 export interface DashboardPanelBase {
   id: string;
   title?: string;
@@ -344,14 +347,14 @@ export type PanelClick =
    * as the author mapped them (D23 Q17, 「另一块仪表盘」): `values` is keyed
    * like the `DashboardFilters.values` it becomes — each of the target's
    * filters the press sets, by name — and says where each one's value comes
-   * from (`BoardValueSource`). A filter not named is not carried and starts
+   * from (`DashboardValueSource`). A filter not named is not carried and starts
    * at its default. Never matched by name: only what the author mapped goes
    * along.
    */
   | {
       kind: 'dashboard';
       instanceId: string;
-      values: Record<string, BoardValueSource>;
+      values: Record<string, DashboardValueSource>;
       /**
        * The tab it opens on, by id (D39); absent, where its reader last read
        * it. A tab the board no longer has is let go at the press, and the
@@ -374,7 +377,7 @@ export type PanelClick =
  *   the press (「这块板的〈筛选〉」, approved 2026-09-23): its value, which is
  *   its default until a reader sets another; one left blank sends nothing.
  */
-export type BoardValueSource = { dimension: string } | { filter: string };
+export type DashboardValueSource = { dimension: string } | { filter: string };
 
 /**
  * Data panel: shows a record or analysis view and is filtered by the board.
@@ -399,7 +402,7 @@ export type DashboardViewPanel = DashboardViewPanelBase &
  * narrowed by it, and says so (D22 F「不受此筛选影响」).
  */
 export interface PanelBinding {
-  globalField: string;
+  dashboardField: string;
   panelField: string;
   /**
    * Made by auto-connect — the field has the name and the type of one the
@@ -437,14 +440,20 @@ export type DashboardContentPanel = DashboardPanelBase &
 
 export type ContentPanelKind = DashboardContentPanel['kind'];
 
+/**
+ * One link of a links panel: its label, its address and an optional
+ * description.
+ */
 export interface DashboardLink {
   label: string;
   href: string;
   description?: string;
 }
 
+/** A panel of a board: one that shows a view, or a content panel. */
 export type DashboardPanel = DashboardViewPanel | DashboardContentPanel;
 
+/** A board's config: its panels, tabs, filters and layout. */
 export interface DashboardViewConfig extends ViewConfigBase {
   kind: 'dashboard';
   /**

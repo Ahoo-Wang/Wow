@@ -15,13 +15,13 @@ import {
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { fetcherFloor, peerFetchers } from './fetcher-floor.mjs';
-import { ROOT, readProjectVersion } from './project-version.mjs';
 import {
-  tarballUrl,
-  waitForRegistry,
-  waitForTarballs,
-} from './registry-wait.mjs';
+  FETCHER_VERSION,
+  fetcherFloor,
+  peerFetchers,
+} from './fetcher-floor.mjs';
+import { ROOT, readProjectVersion } from './project-version.mjs';
+import { tarballUrl, waitForRegistry, waitForFiles } from './registry-wait.mjs';
 import {
   HELD_BACK,
   PUBLISHED,
@@ -37,6 +37,7 @@ import {
 //   node .github/scripts/package-check.mjs [--tarballs <dir>]
 //   node .github/scripts/package-check.mjs --registry
 //   node .github/scripts/package-check.mjs --fetcher-floor
+//   node .github/scripts/package-check.mjs --fetcher <version>
 //
 // Without --tarballs it packs the PUBLISHED packages itself.
 //
@@ -146,14 +147,39 @@ export const TYPESCRIPT_VERSIONS = {
 const typescriptAlias = label => `typescript-${label}`;
 
 /**
- * The fetcher peers at the floor of their `peers` range, for --fetcher-floor:
- * npm would otherwise install the newest fetcher the range allows. The
- * `fetcher-floor` job runs the check this way, the `package` job without.
+ * The fetcher peers the consumer installs explicitly, from the command line:
+ * none without `--fetcher-floor` or `--fetcher <version>` (npm then installs
+ * the newest fetcher in range, as the `package` job and the release checks
+ * run it), the floor with `--fetcher-floor`, `version` with `--fetcher`.
  */
-export function floorPeers(workspaceYaml) {
-  const floor = fetcherFloor(workspaceYaml);
+export function fetcherPeers(args, workspaceYaml) {
+  const at = args.indexOf('--fetcher');
+  if (at === -1)
+    return args.includes('--fetcher-floor') ? floorPeers(workspaceYaml) : [];
+  const version = args[at + 1];
+  if (version === undefined || !FETCHER_VERSION.test(version))
+    throw new Error(
+      '--fetcher takes an exact fetcher version: --fetcher 6.1.1',
+    );
+  if (args.includes('--fetcher-floor'))
+    throw new Error(
+      '--fetcher and --fetcher-floor each choose the fetcher: pass one',
+    );
+  return floorPeers(workspaceYaml, version);
+}
+
+/**
+ * The fetcher peers at the floor of their `peers` range, for --fetcher-floor,
+ * or at `version`, for --fetcher <version>: npm would otherwise install the
+ * newest fetcher the range allows. The `fetcher-floor` job runs the check at
+ * the floor, the `package` job without either.
+ */
+export function floorPeers(
+  workspaceYaml,
+  version = fetcherFloor(workspaceYaml),
+) {
   return Object.keys(peerFetchers(workspaceYaml)).map(
-    name => `${name}@${floor}`,
+    name => `${name}@${version}`,
   );
 }
 
@@ -592,9 +618,10 @@ if (
   const given = index === -1 ? undefined : resolve(args[index + 1]);
   const version = readProjectVersion();
   const plan = publishPlan(ROOT, version);
-  const peers = args.includes('--fetcher-floor')
-    ? floorPeers(readFileSync(join(ROOT, 'pnpm-workspace.yaml'), 'utf8'))
-    : [];
+  const peers = fetcherPeers(
+    args,
+    readFileSync(join(ROOT, 'pnpm-workspace.yaml'), 'utf8'),
+  );
   if (peers.length > 0) console.log(`peers: ${peers.join(', ')}`);
 
   try {
@@ -604,7 +631,7 @@ if (
         version,
       );
       // The tarballs too, before any install: npm can serve a version's metadata before its tarball.
-      await waitForTarballs(
+      await waitForFiles(
         plan.map(({ name }) => [name, tarballUrl(name, version)]),
       );
       checkDistTags(plan, version);

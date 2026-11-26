@@ -24,6 +24,7 @@ import me.ahoo.wow.api.naming.Escapes.typeText
 import me.ahoo.wow.api.schedule.ScheduleContext
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.ScheduleSet
+import me.ahoo.wow.spi.id.DerivedIds
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.Partitioner
@@ -58,6 +59,7 @@ import me.ahoo.wow.spi.log.Partitioner
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
+@WowSpi
 class Timer @InternalWowApi constructor(
     val id: String,
     val owner: AggregateRef,
@@ -90,8 +92,11 @@ class Timer @InternalWowApi constructor(
         require(skipped in 0 until slot) { "A slot skips only the slots before it." }
     }
 
-    /** The request id the command of the current [slot] is sent with: `id#slot`. */
-    val requestId: String get() = "$id#$slot"
+    /**
+     * The request id the command of the current [slot] is sent with: `wow:id#slot`, its prefix one no caller's request
+     * id may take ([DerivedIds.PREFIX]).
+     */
+    val requestId: String get() = "${DerivedIds.PREFIX}$id#$slot"
 
     /**
      * Which time of the schedule the command of the current [slot] is sent for, as its target reads it: due at
@@ -264,6 +269,7 @@ enum class TimerStatus {
  * The [Timer.outcome]s the runtime records. A firing's is the value of its observed outcome
  * ([me.ahoo.wow.spi.observation.ObservedOutcome]), so a timer, its span and its metrics name one outcome alike.
  */
+@WowSpi
 object TimerOutcomes {
     const val COMMITTED = "committed"
 
@@ -281,6 +287,7 @@ object TimerOutcomes {
 }
 
 /** How timers are named and derived from the log. */
+@InternalWowApi
 object Timers {
     /**
      * The id of the schedule [ref] set under [key] in its stream at [version]: `context.aggregate/tenant/id#key@version`,

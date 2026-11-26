@@ -91,7 +91,7 @@ abstract class TimerRunnerFixtures {
             retry = RetryPolicy(maxAttempts = maxAttempts, initialBackoff = 1.seconds, maxBackoff = 1.minutes),
             expiresAfter = expiresAfter,
             maxFireRate = maxFireRate,
-            claimTimeout = CLAIM,
+            claimTtl = CLAIM,
             maxBusyRetries = maxBusyRetries,
         ),
         clock,

@@ -20,6 +20,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.problem.WowProblemException
@@ -114,7 +115,10 @@ class RouteCallsTest {
             // A target tenant first, then the caller's, then the default tenant.
             CommandCall(null, CommandRequest.of(Reserve("mug"), "mug", type = stock)).ref.assert()
                 .isEqualTo(stock.ref(Caller.DEFAULT_TENANT, "mug"))
-            CommandCall(mary, CommandRequest.of(Reserve("mug"), "mug", type = stock, targetTenant = "t2")).ref.assert()
+            CommandCall(
+                mary,
+                CommandRequest.of(Reserve("mug"), "mug", type = stock, targetScope = TargetScope.of("t2"))
+            ).ref.assert()
                 .isEqualTo(stock.ref("t2", "mug"))
             // A request id the request gives is the result's; it reads in a failure message.
             val given = CommandCall(mary, CommandRequest.of(Reserve("mug"), "mug", type = stock, requestId = "r-9"))

@@ -136,7 +136,8 @@ class LedgerPublisherTest {
                 me.ahoo.wow.api.aggregate.AggregateType("ops", "parked").ref(Caller.DEFAULT_TENANT, target)
             )
             wire.operator.assert().isEqualTo(LedgerPublisher.OPERATOR)
-            wire.requestId.assert().startsWith("wow.ledger:")
+            // The framework's own request id, which no caller's may start with (#7064).
+            wire.requestId.assert().startsWith("wow:ledger:")
             val record = ClusterCodec.mapper.treeToValue(wire.record, LedgerEntry::class.java)
             record.service.assert().isEqualTo(SERVICE)
             record.context.assert().isEqualTo("shop")

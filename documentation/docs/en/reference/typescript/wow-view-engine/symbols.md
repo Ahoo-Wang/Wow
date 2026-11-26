@@ -9,13 +9,12 @@ description: 'Every name @ahoo-wang/wow-view-engine exports, generated from its 
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine` exports — 455 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 45 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine` exports — 432 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 45 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
 | Symbol | Kind | Summary | Covered in |
 |---|---|---|---|
-| `AbsoluteDateTimeValue` | interface | ISO 8601 instants or dates; `to` is omitted for an open upper bound. | — |
 | `ActionConfirm` | interface | The question an action asks before it runs. | [Host Wiring](./host#api-actions) |
 | `ActionContext` | interface | What an action's rules are asked with: the time they are asked at — the engine's clock, a harness's own in a test — and, where one is known, the input the command would run with (a choice's option, a filled form). | — |
 | `ActionForm` | type | An action's form, by field name: what `run` receives as its input. | — |
@@ -26,13 +25,13 @@ Every name `@ahoo-wang/wow-view-engine` exports — 455 — with its kind and th
 | `ActionRefusal` | interface | One record the command will not be sent to, and why. | — |
 | `ActionRow` | type | A record as an action is handed it: its key and its data. | — |
 | `ActionTone` | type | How much an action costs: `danger` draws it (and its confirmation) red. | — |
-| `AggregationDatePartName` | type | — | — |
-| `AggregationDateUnitName` | type | — | — |
-| `AggregationExpressionOperatorName` | type | — | — |
+| `AggregationDatePartName` | type | A date part an analysis group extracts, as the wire spells it (`AggregationDatePart`). | — |
+| `AggregationDateUnitName` | type | A date unit an analysis group truncates to, as the wire spells it (`AggregationDateUnit`). | — |
+| `AggregationExpressionOperatorName` | type | An operator of a derived metric's expression, as the wire spells it (`AggregationExpressionOperator`). | — |
 | `AggregationFieldCapability` | interface | How one field may be aggregated; shared by root and element fields. | — |
-| `AggregationFunctionName` | type | — | — |
+| `AggregationFunctionName` | type | An aggregation function a metric applies, as the wire spells it (`AggregationFunction`). | — |
 | `AggregationGroupTypeName` | type | The Wow aggregation enums as the string literals a config stores. | — |
-| `AnalysisCapability` | interface | — | — |
+| `AnalysisCapability` | interface | What a definition lets an analysis ask for: counting, the fields and how each groups and aggregates, derived expressions, having, windows and the limits. | — |
 | `AnalysisColumn` | interface | One column of the result table. | — |
 | `AnalysisColumnView` | interface | A column of the result table; groups come first, then metrics. | — |
 | `AnalysisDerivedExpression` | type | A derived metric's arithmetic: references to earlier metrics, numbers and the four operators. | — |
@@ -41,65 +40,57 @@ Every name `@ahoo-wang/wow-view-engine` exports — 455 — with its kind and th
 | `AnalysisExpression` | type | Isomorphic to Wow's `AggregationExpression`. | — |
 | `AnalysisGroup` | type | Isomorphic to Wow's `AggregationGroup`: fields are validated against the definition and enums are stored as literals. | — |
 | `AnalysisHavingExpression` | type | Wow's having/derived trees only reference aliases and numbers. | — |
-| `AnalysisLayout` | type | — | — |
+| `AnalysisLayout` | type | How an analysis shows its result: as a table or as a chart. | — |
 | `AnalysisLimitBounds` | interface | The range 「前 N 组」 may take, and the N it stands for when nobody said one. | — |
-| `AnalysisLimits` | interface | — | — |
+| `AnalysisLimits` | interface | A definition's bounds on an analysis: how many groups, metrics and elements it may hold, and its row limit and default. | — |
 | `AnalysisMetric` | type | Isomorphic to Wow's `AggregationMetric`. | — |
 | `AnalysisNamed` | interface | What a dimension or a metric is called on screen, when the analyst gave it a name: the column header, the legend and the reading say this instead of what the field and the summary would compose. | — |
-| `AnalysisProjection` | interface | — | — |
-| `AnalysisSort` | interface | — | — |
+| `AnalysisProjection` | interface | An analysis result shaped for the screen: its columns, rows and totals, and the chart data when the view is a chart. | — |
+| `AnalysisSort` | interface | One ordering of an analysis result: an alias and its direction. | — |
 | `AnalysisSpec` | interface | The analyses a host offers, narrowed from what the model grants. | — |
-| `AnalysisTableSpec` | interface | — | — |
+| `AnalysisTableSpec` | interface | How an analysis result is drawn as a table: the order and widths of its columns. | — |
 | `AnalysisTop` | interface | 「每个省只留 GMV 前三的城市」: within each value of the `within` dimension, keep the first `count` groups by `metric` — highest first, or lowest with `ASC`. | — |
 | `AnalysisViewConfig` | interface | Table and chart are stored together, like the two record layouts. | — |
 | `AnalysisViewRuntime` | type | An analysis view: a question asked of one source, and its answer. | — |
 | `AnyViewRuntime` | type | What opening an instance returns; narrow it by `runtime.kind`. | — |
-| `ArrangeStep` | type | One keyboard command: a step of one grid cell, or a size one cell bigger or smaller. | — |
-| `ArrayFilterValue` | type | What one entry of an array field may be. | — |
 | `Availability` | type | `true`, or why not — a key (`text(…)`) or words, said where shown. | — |
-| `AxisSpec` | interface | — | — |
+| `AxisSpec` | interface | One axis of a cartesian chart: its label, range, format and scale. | — |
 | `BUILTIN_FIELD_KINDS` | const | The kinds this package ships, in the order `FieldKindId` lists them. | [Definitions and Field Kinds](./definitions#api-FieldKindRegistry) |
-| `BoardOrigin` | interface | The board a view was opened from: what 「返回〈仪表盘〉」 names, and where it goes — the board on the tab and under the filters it was left on. | — |
-| `BoardValueSource` | type | Where one of another board's filters takes its value from, when a press opens that board: - `dimension` — the group pressed, on this panel's dimension over that field (「这一组的〈维度〉」); - `filter` — this board's filter of that name, as the reader has it at the press (「这块板的〈筛选〉」, approved 2026-09-23): its value, which is its default until a reader sets another; one left blank sends nothing. | — |
-| `BooleanFilterValue` | type | — | — |
 | `BoxplotBox` | interface | One box: a group and its five numbers, lowest first. | — |
-| `BoxplotData` | interface | — | — |
+| `BoxplotData` | interface | What a box plot draws: one box per category, from the shaped result. | — |
 | `BoxplotSpec` | interface | A boxplot: how a number is spread within each group — its lowest and highest value, its lower and upper quartile and its median, one box per value of one dimension. | — |
-| `BuiltinFieldKindId` | type | — | — |
-| `CHART_TYPES` | const | Every type, in the order the picker lays them out: the everyday ones first, each new one beside the one it is read against — the gauge after the metric card, whose number it places on a scale; the boxplot, the radar and the parallel axes after the scatter, the other charts of several metrics per group; the sunburst and the tree after the treemap, the other parts of a whole, and the sankey beside them; the calendar after the heatmap, whose cells it lays out as days, and the theme river after the area, whose stack it lets flow; the candlestick after the boxplot, the other chart that draws several numbers of one field as one mark. | — |
-| `CalendarData` | interface | — | — |
+| `BuiltinFieldKindId` | type | The id of a field kind the engine ships. | — |
+| `CalendarData` | interface | What a calendar heatmap draws: one value per day, a block per year. | — |
 | `CalendarDay` | interface | One day of a calendar: its bucket, its date in the zone, its number. | — |
 | `CalendarSpec` | interface | A calendar heatmap: a number a day, laid out as the calendar lays the days out — weeks across, weekdays down, a year a block — so a season, a weekday rhythm and a single odd day are seen at once. | — |
 | `Candle` | interface | One candle: a period and its four numbers. | — |
-| `CandlestickData` | interface | — | — |
+| `CandlestickData` | interface | What a candlestick chart draws: one candle per period, from the shaped result. | — |
 | `CandlestickSpec` | interface | A candlestick (K 线): how one number moved within each period — where it opened and closed, and how high and low it went — one candle per bucket of one time dimension. | — |
-| `CartesianData` | interface | — | — |
+| `CartesianData` | interface | What a bar, line, area or combo chart draws: the categories, each series' values and the derived lines. | — |
 | `CartesianGap` | type | Something the spec asked the chart to draw that the kernel left out, and why: a derived line (`DerivedGap`), or a statistic reference line over a split or over no measured value. | — |
 | `CartesianMissing` | type | How a missing point reads: as 0, or as a gap in the line. | — |
-| `CartesianSeries` | interface | — | — |
-| `CartesianSpec` | interface | — | — |
+| `CartesianSeries` | interface | One series of a cartesian chart: the metric it plots and how. | — |
+| `CartesianSpec` | interface | A bar, line, area or combo chart's config: the group on the x axis, its series, axes and reference lines. | — |
 | `ChartData` | type | What a renderer receives. | — |
-| `ChartFamily` | type | The families a chart type belongs to, each the name of the sub-object of `ChartSpec` its types share: four cartesian types draw one kind of spec, every other type is a family of its own. | — |
-| `ChartFit` | interface | — | — |
+| `ChartFit` | interface | Whether a chart type can draw the analysis as it stands, and why not when it cannot. | — |
 | `ChartProfile` | interface | A group's profile: its value on each of several metrics, in the order the spec lists them — one shape of a radar, one line of parallel axes. | — |
 | `ChartSpec` | interface | Charts are stored per family: the sub-object of the current `type` is required and the others are kept, so switching families loses nothing. | — |
 | `ChartStage` | type | Where a chart failed: its library never arrived, or it threw drawing. | — |
-| `ChartType` | type | — | — |
+| `ChartType` | type | Every chart type an analysis can be drawn as. | — |
 | `ChartUnfit` | type | Why a chart type cannot draw the shape on hand, as a catalogue key. | — |
 | `ColumnCurrency` | interface | How a metric column of money in a currency each record holds is read, row by row: the companions telling each row's currency (`CurrencyCompanion`) — its own, or a derived metric's operands' — and whether its number is written in that currency. | — |
 | `ColumnEdge` | type | Which edge the table holds a column against. | — |
 | `ComparisonOperatorName` | type | A comparison a time since another moment may make. | — |
-| `ConfigOfKind` | type | Narrows a config union member by its kind. | — |
-| `ConflictChoice` | type | — | — |
+| `CompileAnalysisOptions` | interface | How `compileAnalysis` compiles a config, beside the config itself. | — |
+| `CompileRecordOptions` | interface | How `compileRecord` compiles a config, beside the config itself. | — |
+| `ConflictChoice` | type | What the reader chose when a save met a newer version: reload it, or overwrite it. | — |
 | `ConflictingState` | interface | What the server holds, said by which of the two it is. | — |
-| `ContentPanelKind` | type | — | — |
 | `CreateInput` | interface | What `ViewEngine.create` makes a view from: nothing is saved until `save`. | [Engine and Resources](./engine#api-OpenOptions) |
 | `CrossFilterOutcome` | type | What a press that sets a filter did. | — |
 | `CsvOptions` | interface | How a CSV is written. | — |
 | `CurrencyReading` | type | What currency an amount — one record's, or an aggregate over several — is in, for money whose currency each record holds (`RowMoneyNumeric`): | — |
 | `CursorPaging` | interface | A cursor result: the one way on, when there is one. | — |
-| `DEFAULT_MISSING_KEY` | const | The bucket key records with no value of the dimension land in. | — |
-| `DEFAULT_RUNTIME_LIMITS` | const | — | — |
+| `DEFAULT_RUNTIME_LIMITS` | const | The runtime limits in force where a host sets none. | — |
 | `DashboardContentPanel` | type | Content panels are static: no query, no global filter, no child runtime. | — |
 | `DashboardDefinition` | interface | Dashboards own no data; the definition is their catalogue entry. | — |
 | `DashboardEditing` | interface | Building the board (batch B1). | — |
@@ -107,22 +98,24 @@ Every name `@ahoo-wang/wow-view-engine` exports — 455 — with its kind and th
 | `DashboardFilterEditing` | interface | Setting up the board's filters, through the draft like every other edit of the board: each goes into the draft and onto the screen at once, and is saved with the board. | — |
 | `DashboardFilterType` | type | The six kinds of board filter, each a family of the field kinds it can be wired to: a date filter reaches a `date` or a `datetime`, a text one a `string` or an `enum`, an id one a `reference`, a number and a yes-or-no their own, and a search one a record view's search box — a `search` field, whose `searchFields` say where it looks. | — |
 | `DashboardFilters` | interface | What a board's filters hold right now: the reader's, never the config's (「筛选值写进地址，不写进配置」). | — |
-| `DashboardLink` | interface | — | — |
-| `DashboardPanel` | type | — | — |
-| `DashboardPanelBase` | interface | — | — |
+| `DashboardLink` | interface | One link of a links panel: its label, its address and an optional description. | — |
+| `DashboardOrigin` | interface | The board a view was opened from: what 「返回〈仪表盘〉」 names, and where it goes — the board on the tab and under the filters it was left on. | — |
+| `DashboardPanel` | type | A panel of a board: one that shows a view, or a content panel. | — |
+| `DashboardPanelBase` | interface | What every panel of a board has: its id, title, place on the grid and tab. | — |
 | `DashboardPanelState` | interface | One panel as the grid renders it. | — |
 | `DashboardRuntime` | interface | The public face of a dashboard runtime: a view runtime whose snapshot also carries the panels. | — |
-| `DashboardRuntimeState` | interface | — | — |
+| `DashboardRuntimeState` | interface | A board's runtime state: the saved and draft config, and each panel's own state. | — |
 | `DashboardTab` | interface | One tab of a board: panels are grouped under it, and the global filter sits above them all. | — |
-| `DashboardTarget` | interface | A dashboard, opened with `filters` as its reader's values — the host hands them to `DashboardWorkbench`'s `initialFilters` (or `OpenOptions.filters`), never into the board's config. | — |
+| `DashboardTarget` | interface | A dashboard, opened with `filters` as its reader's values — the host hands them to `DashboardWorkbench`'s `defaultFilters` (or `OpenOptions.filters`), never into the board's config. | — |
 | `DashboardTimeGrouping` | interface | The board's time grouping (整板 按日／周／月): one choice among `units` that sets the date unit of every panel's time dimension, where the panel's definition allows that unit. | — |
-| `DashboardViewConfig` | interface | — | — |
+| `DashboardValueSource` | type | Where one of another board's filters takes its value from, when a press opens that board: - `dimension` — the group pressed, on this panel's dimension over that field (「这一组的〈维度〉」); - `filter` — this board's filter of that name, as the reader has it at the press (「这块板的〈筛选〉」, approved 2026-09-23): its value, which is its default until a reader sets another; one left blank sends nothing. | — |
+| `DashboardViewConfig` | interface | A board's config: its panels, tabs, filters and layout. | — |
 | `DashboardViewPanel` | type | Data panel: shows a record or analysis view and is filtered by the board. | — |
 | `DashboardViewPanelBase` | interface | What a data panel holds whichever view it shows; see `DashboardViewPanel`. | — |
 | `DashboardWidth` | type | How wide a board is laid out: its 24 columns spread across whatever holds it (`full`), or held to a fixed width and centred (`fixed`), as Metabase's 「固定宽度／全宽」 is the dashboard's own setting. | — |
 | `DataViewConfig` | type | The two kinds that ask a question of their own (`DataViewConfigBase`) and that a `ViewRuntime` executes; a dashboard owns child runtimes. | — |
 | `DataViewConfigBase` | interface | What a view that asks one question of its own — a record view, an analysis — stores besides: its conditions, and the editor mode they are shown in. | — |
-| `DataViewDefinition` | interface | — | — |
+| `DataViewDefinition` | interface | A data view's definition: its source, fields, capabilities and the views it ships. | — |
 | `DatasetCatalog` | interface | What `DatasetResources` reads: the dataset directory, and each dataset's source. | — |
 | `DatasetDirectoryEntry` | interface | One dataset of a service's directory, named as wow-client's `DatasetEntry` names it: the bounded context it lives in, its name there, and its title. | — |
 | `DatasetDuplicate` | interface | A dataset a catalog listed under an id an earlier catalog serves: left out, the earlier one's kept. | — |
@@ -131,14 +124,13 @@ Every name `@ahoo-wang/wow-view-engine` exports — 455 — with its kind and th
 | `DatasetRegistrar` | interface | The part of an engine `DatasetResources` drives (`ViewEngine` is one). | — |
 | `DatasetResource` | interface | A dataset served, as registered: its directory entry and its definition id. | — |
 | `DatasetResources` | class | Keeps an engine's datasets in step with services' directories: each `refresh` registers a dataset a directory newly lists, registers again one whose version changed, and removes one no directory lists any more. | — |
-| `DatasetResourcesInit` | interface | What `DatasetResources` reads and whom it tells: the catalogs, and the callbacks for what it cannot serve. | — |
+| `DatasetResourcesOptions` | interface | What `DatasetResources` reads and whom it tells: the catalogs, and the callbacks for what it cannot serve. | — |
 | `DatasetWordingEditor` | interface | What a dataset's wording editor reads and writes: the fields the descriptor derives, the wording in force, and a save that stores it and registers the dataset again in the new words. | — |
 | `DatasetWordingStore` | interface | Where a dataset's wording is kept; see `DatasetCatalog.wordings`. | — |
-| `DateDiffUnitName` | type | — | — |
-| `DateTemporal` | interface | — | — |
-| `DateTimeFilterValue` | type | — | — |
+| `DateDiffUnitName` | type | A unit a date difference is measured in, as the wire spells it (`DateDiffUnit`). | — |
+| `DateTemporal` | interface | A field that holds a calendar date with no time. | — |
 | `DateTimePreset` | type | Named calendar windows, in three directions. | — |
-| `DecimalNumeric` | interface | — | — |
+| `DecimalNumeric` | interface | A field whose number is a decimal, with the digits it keeps after the point. | — |
 | `DefineDatasetSpec` | interface | What a host says of a dataset beyond its descriptor. | — |
 | `DefineViewOptions` | interface | What `defineView` needs beyond the snapshot and the host's choices: the field kinds the host registers (`ViewEngineOptions.kinds`) — the snapshot's comparisons are written on a field of a host's own kind only when its kind is known here, since it is built before any engine is. | [Definitions and Field Kinds](./definitions#api-DefineViewOptions) |
 | `DefineViewSpec` | interface | One data definition's choices over its descriptor. | [Definitions and Field Kinds](./definitions#api-DefineViewSpec) |
@@ -150,51 +142,47 @@ Every name `@ahoo-wang/wow-view-engine` exports — 455 — with its kind and th
 | `DerivedGap` | type | Why a derived series cannot be computed over this result. | — |
 | `DerivedKind` | type | What a derived series computes: the least-squares line through the measured points (`trend`), the mean of each point and the ones before it (`moving-average`, over `window` points), the running total (`cumulative`, a metric that adds up only), and the running total as a share of the whole (`cumulative-share`, 累计占比). | — |
 | `DerivedLine` | interface | One computed line, as the drawing takes it: a value per point or none. | — |
-| `DerivedSeries` | interface | — | — |
-| `DestinationBoard` | type | Another board as a click reads it: the instance, its config a board's. | — |
-| `DetailSection` | interface | One titled part of a record's detail: the fields a group gathers. | — |
+| `DerivedSeries` | interface | A line derived from a cartesian chart's series, such as a trend, a moving average or a cumulative share. | — |
+| `DestinationDashboard` | type | Another board as a click reads it: the instance, its config a board's. | — |
 | `Dropped` | interface | What a step of the chain took out of the question. | — |
-| `DurationFilterValue` | interface | A time since another moment (N3): the leaf's field is the later moment, `from` the earlier one, and the condition compares the time between them — 「发货时间 距 付款时间 &gt; 48 小时」 — in `unit`, a day being 24 hours. | — |
 | `EDITOR_INPUTS` | const | Every input shape the engine can draw, as values and not as a type alone. | [Definitions and Field Kinds](./definitions#api-EditorDescriptor) |
 | `EditCommand` | type | The edits building a board is made of, by the command that makes each — `DashboardEditing` and `DashboardFilterEditing` less the undoing itself. | — |
 | `EditHistoryState` | interface | What the history offers now: the step an undo would take back, and a redo. | — |
 | `EditStep` | interface | One step of the board's history: the command, and what it was about — a panel's id, a tab's id or a filter's name; `null` for the time grouping, the fixed scope and the board's width. | — |
 | `EditorDescriptor` | interface | Shape of the input an editor should render; never a component name. | [Definitions and Field Kinds](./definitions#api-EditorDescriptor) |
-| `EditorInput` | type | — | — |
+| `EditorInput` | type | An input control a field kind's filter editor may ask for (`EDITOR_INPUTS`). | — |
 | `ElementTitleView` | interface | The element field an array of objects is read by, one element at a time (`FieldDefinition.elementTitle`), resolved to what reading it takes: where it sits within an element, and how it reads. | — |
-| `EnumFilterValue` | type | — | — |
-| `EpochTemporal` | interface | — | — |
+| `EpochTemporal` | interface | A field that holds a time as a number since the epoch, in its unit. | — |
 | `EpochTimeUnit` | type | The units of `TimeUnit` an epoch time is kept in, as Wow spells them. | — |
 | `ExportCancelledError` | class | What a cancelled export rejects with. | — |
 | `ExportColumn` | interface | The least an export needs of a column: where to read it, what to call it. | — |
 | `ExportFormat` | type | How one value is written. | — |
 | `ExportOperation` | type | A file or a picture made of a view: the rows read for a file, the file handed over, a chart drawn as an image. | — |
-| `ExportRowsOptions` | interface | — | — |
-| `ExportedRows` | interface | — | — |
+| `ExportRowsOptions` | interface | How `RecordViewRuntime.exportRows` runs: its signal, its progress callback and its row cap. | — |
+| `ExportedRows` | interface | What `RecordViewRuntime.exportRows` answers: the rows read, and the total when the source says it. | — |
 | `FieldAnalysisSpec` | interface | How one field analyses, as a host narrows it (`defineView`): each member given is a subset of what the path offers, each left out is whatever the source grants. | — |
 | `FieldCellId` | type | How a cell reads. | — |
 | `FieldDefinition` | interface | One queryable field of a definition. | — |
 | `FieldGroupDefinition` | interface | One group of a field picker: a stable id, a label, and its fields in order. | — |
 | `FieldKind` | interface | Everything the engine needs to know about one field type. | [Definitions and Field Kinds](./definitions#api-FieldKind) |
-| `FieldKindBlankContext` | interface | — | — |
-| `FieldKindCompileContext` | interface | — | — |
-| `FieldKindDescribeContext` | interface | — | — |
+| `FieldKindBlankContext` | interface | What a field kind reads to say whether a filter value is blank. | — |
+| `FieldKindCompileContext` | interface | What a field kind reads to compile a filter leaf into a query. | — |
+| `FieldKindDescribeContext` | interface | What a field kind reads to describe a filter leaf in words. | — |
 | `FieldKindDescription` | interface | What a `FieldKind` says about one applied condition. | — |
 | `FieldKindId` | type | Identifies a `FieldKind`: the package registers the built-in ones and an application may register its own, so this stays an open string union. | — |
 | `FieldKindRegistry` | type | Kinds available to the kernels, keyed by id. | [Definitions and Field Kinds](./definitions#api-FieldKindRegistry) |
-| `FieldKindValidateContext` | interface | — | — |
-| `FieldMetricType` | type | The metric types that measure one field: a function of its values, how many distinct values it holds, a percentile of them, its value on the earliest or the latest record (期初值／期末值), or any one of them. | — |
+| `FieldKindValidateContext` | interface | What a field kind reads to validate a filter value. | — |
 | `FieldNumeric` | type | What a number field's value is, beyond a number — Wow's numeric `QuerySemanticType` (#3552), named as the engine names things: how many digits it is kept to, and for an amount of money, whose money it is. | — |
 | `FieldOption` | interface | A selectable value: static for `enum`, resolved for `reference`. | — |
 | `FieldSpec` | interface | One field: what the host says of it, over what its path is. | [Definitions and Field Kinds](./definitions#api-FieldSpec) |
 | `FieldTemporal` | type | How a time field keeps its time, which is how a condition on it has to write one — Wow's own `QuerySemanticType` for time, named as Wow names it. | — |
 | `FieldTone` | type | What a badge says about the value it wraps, beyond naming it. | — |
 | `FilterCompileContext` | interface | When a filter is evaluated, and in which zone. | — |
-| `FilterGroup` | interface | — | — |
+| `FilterGroup` | interface | A group of filter nodes joined by one operator. | — |
 | `FilterGroupOperator` | type | How a group combines its children: Wow's `AND`, `OR` and `NOR`, as the values it spells them with. | — |
-| `FilterLeaf` | interface | — | — |
+| `FilterLeaf` | interface | One filter condition: a field, an operator and a value. | — |
 | `FilterMode` | type | `simple` mode only admits a single AND group whose children are all leaves. | — |
-| `FilterNode` | type | — | — |
+| `FilterNode` | type | A node of a filter tree: a group or a leaf. | — |
 | `FilterOperatorName` | type | Operator name as stored in a configuration: the same values as Wow's `FilterOperator`, as string literals, so a config stays plain JSON. | — |
 | `FilterPath` | type | Where a node sits: child indexes from the root outwards, so `[1, 0]` is the first child of the second child. | — |
 | `FilterReach` | type | What one filter does to one data panel: wired, through which field, and whether auto-connect made the wire; or not wired, and why — its view has no field of the filter's type (「没有可接的字段」), or it has one nobody chose (`unwired`). | — |
@@ -203,25 +191,24 @@ Every name `@ahoo-wang/wow-view-engine` exports — 455 — with its kind and th
 | `FilterSummaryValue` | type | What a condition compares against, as its kind read it. | — |
 | `FilterTree` | type | The scope of a view, shared by all three kinds. | — |
 | `FilterValue` | type | The semantic value of a leaf. | — |
-| `FixedMoneyNumeric` | interface | — | — |
-| `FunnelData` | interface | — | — |
+| `FixedMoneyNumeric` | interface | A money field whose currency is fixed by the definition. | — |
+| `FunnelData` | interface | What a funnel chart draws: its stages and their values. | — |
 | `FunnelSpec` | interface | A funnel: its stages in the business's order. | — |
-| `FunnelStage` | interface | — | — |
-| `FunnelStages` | type | — | — |
-| `GaugeData` | interface | — | — |
+| `FunnelStage` | interface | One stage of a funnel: its label and value. | — |
+| `FunnelStages` | type | Where a funnel's stages come from: a list of metrics, or the values of a group. | — |
+| `GaugeData` | interface | What a gauge draws: one value against its range. | — |
 | `GaugeSpec` | interface | A gauge: one number placed on a scale, and how far it is from a target — 「离目标多远」 on a wall screen. | — |
 | `GroupNaming` | interface | What a name 「{subject} · {group}」 claims: the conditions that select the group, and what the view is without them. | — |
 | `HandOver` | interface | What a view takes with it when it leaves a board, in its own field names — the same two parts through every way off it: 「在工作台中打开」, a click's view destination, the follow-up menu and a board's own analysis. | — |
 | `HavingOperator` | type | The comparisons one row may make: the model's, never listed again. | — |
 | `HavingRow` | interface | One row of the editor: keep the groups whose metric compares so. | — |
-| `HeatmapData` | interface | — | — |
-| `HeatmapSpec` | interface | — | — |
+| `HeatmapData` | interface | What a heatmap draws: a value per cell of two groups. | — |
+| `HeatmapSpec` | interface | A heatmap's config: the two groups on its axes and the metric that colours each cell. | — |
 | `HeldFilters` | interface | What a host holds of a board's filters (`DashboardRuntime.holdFilters`): each filter named, at the value given — `null` for its default — and, with `unit` present, the time grouping at that unit (`null` for its default). | — |
-| `HierarchyData` | interface | — | — |
+| `HierarchyData` | interface | What a sunburst or tree chart draws: the nested groups and their values. | — |
 | `HierarchyNode` | interface | One part of a hierarchy: a value of its level's dimension, its number — a leaf's own row's, a parent's the sum of its parts — and the group values from the outermost level down to it. | — |
 | `HierarchySpec` | interface | A sunburst or a tree: a whole broken down level by level, one dimension a level, outermost first — 品类 → 子类. | — |
 | `InstancePermissions` | interface | — | [Persistence Port](./store#api-ViewPermissions) |
-| `InstantRange` | interface | Resolving a relative or preset value happens at compile time against the injected moment: the kernel never reads the system clock, and the same config run tomorrow produces a different window on purpose. | — |
 | `Issue` | interface | A validation finding. | [Issue Codes](./issues#api-Issue) |
 | `IssuePath` | type | — | [Issue Codes](./issues#api-Issue) |
 | `IssueSeverity` | type | `error` blocks apply and save; `warning` is reported without blocking — something is wrong, or the answer could be misread; `note` is something true about the answer a reader should know, and nothing is wrong: the groups a view's own limit left out, when every row shown is whole. | [Issue Codes](./issues#api-Issue) |
@@ -230,20 +217,20 @@ Every name `@ahoo-wang/wow-view-engine` exports — 455 — with its kind and th
 | `LocalStorageSnapshotOptions` | interface | Where a `localStorageSnapshot` reads and writes. | — |
 | `MAX_VIEW_CONFIG_BYTES` | const | The largest config a saved view may store, in UTF-8 bytes of its JSON: the server's `ViewConfigs.MAX_CONFIG_BYTES`, mirrored as the title's limit is — below the 256 KB request body a WebFlux server buffers by default, so the server's refusal is the one a larger config meets. | — |
 | `MAX_VIEW_TITLE_LENGTH` | const | The longest title a saved view may have, counted in UTF-16 code units after trimming. | — |
-| `MapData` | interface | — | — |
+| `MapData` | interface | What a map chart draws: a value per region. | — |
 | `MapRegion` | interface | One region of a map: a value of the region dimension and its number. | — |
 | `MapSpec` | interface | A map: a number per region, each region shaded by it — 按地区看. | — |
 | `MemorySnapshot` | interface | Where a `MemoryViewStore` keeps its state between page loads: the whole state, read and written as one document, synchronously. | [Persistence Port](./store#api-localStorageSnapshot) |
-| `MemoryState` | interface | — | — |
+| `MemoryState` | interface | What a `MemoryViewStore` holds and a snapshot saves: the instances and each definition's preferences. | — |
 | `MemoryViewStore` | class | The one implementation this package ships: a synchronous map behind the port, for tests, examples and query-only use. | [Persistence Port](./store#api-MemoryViewStore) |
 | `MemoryViewStoreOptions` | interface | — | [Persistence Port](./store#api-MemoryViewStore) |
 | `MetadataFieldKindId` | type | Kinds backed by Wow's metadata filters rather than by a document field. | — |
-| `MetricAgainst` | type | — | — |
-| `MetricCardData` | interface | — | — |
-| `MetricCardSpec` | interface | — | — |
+| `MetricAgainst` | type | What a metric card compares its value with: the previous period, or the same period a year before. | — |
+| `MetricCardData` | interface | What a metric card draws: its value, its change, its target and its trend. | — |
+| `MetricCardSpec` | interface | A metric card's config: its metric, what it compares against and its trend. | — |
 | `MetricCondition` | interface | What a metric's own condition (「只算满足条件的记录」) does to the way the metric reads. | — |
 | `MetricFunction` | type | Which summary a metric is, in one token. | — |
-| `MetricHeadline` | type | — | — |
+| `MetricHeadline` | type | Which value a metric card shows: the last period's, or the whole span's. | — |
 | `MetricMove` | interface | A metric moved in the list, as far as the rule lets it go. | — |
 | `MetricMoveStop` | interface | Why a metric could not go as far as it was asked: the metric it reads, which it must stay after (`after`), or the derived metric that reads it, which it must stay before (`before`). | — |
 | `MetricPeriod` | interface | The period a trend card's headline is, as its bucket key — a key the card prints the way its column does. | — |
@@ -251,12 +238,10 @@ Every name `@ahoo-wang/wow-view-engine` exports — 455 — with its kind and th
 | `NestedTree` | interface | A tree held inside a leaf's value, and the fields it is written against. | — |
 | `NewContentPanel` | type | A content panel as it is added: what it holds, and optionally a title. | — |
 | `NewFilter` | interface | A filter as it is added: its type and its name on the bar. | — |
-| `NewPanel` | type | — | — |
+| `NewPanel` | type | A panel to add to a board: a view panel or a content panel. | — |
 | `NewPanelPlacement` | interface | Where a new panel goes; every member has a default. | — |
 | `NewViewPanel` | type | A data panel as it is added: a saved view, or one the board owns. | — |
-| `NumberFilterValue` | type | — | — |
 | `NumberFormat` | type | Formatting shared by cells, summaries and chart axes. | — |
-| `NumberRange` | type | Inclusive bounds of a `BETWEEN`. | — |
 | `OpenCapabilities` | interface | What a `defineView` definition leaves to its source; see `DefinitionDescribed.open`. | — |
 | `OpenOptions` | interface | How `ViewEngine.open` opens a view, beyond which one. | [Engine and Resources](./engine#api-OpenOptions) |
 | `OptionSource` | interface | Remote candidates of a `reference` field: a paged search, and a lookup by id that says the values rows and saved configs hold as their labels. | — |
@@ -272,29 +257,30 @@ Every name `@ahoo-wang/wow-view-engine` exports — 455 — with its kind and th
 | `PanelReference` | interface | What a panel refers to, once the engine has loaded it. | — |
 | `PanelReferences` | type | References by instance id. | — |
 | `PanelSize` | type | A panel's size without a place: what `inRows` lays out. | — |
-| `ParallelData` | interface | — | — |
+| `ParallelData` | interface | What a parallel coordinates chart draws: one line per item across its metrics. | — |
 | `ParallelSpec` | interface | Parallel coordinates: several metrics per group as one line across as many upright axes, each on its own scale — where a group stands on each, and which move together. | — |
 | `Picked` | type | What the panel shows as chosen: a chart type, or the table. | — |
-| `PieData` | interface | — | — |
-| `PieSlice` | interface | — | — |
-| `PieSpec` | interface | — | — |
+| `PieData` | interface | What a pie chart draws: its slices. | — |
+| `PieSlice` | interface | One slice of a pie: its category and value. | — |
+| `PieSpec` | interface | A pie chart's config: the group that makes the slices and the metric that sizes them. | — |
 | `PlacedLine` | interface | A reference line where the kernel placed it: a constant as written, a statistic at the number it came to. | — |
-| `PresetDateTimeValue` | interface | A named calendar window, resolved against the evaluation moment. | — |
 | `PressDestination` | type | Where a press on a custom destination goes, or why it goes nowhere. | — |
-| `ProjectedAnalysis` | interface | — | — |
+| `ProjectAnalysisOptions` | interface | How `projectAnalysis` reads a result, beside the result itself. | — |
+| `ProjectRecordOptions` | interface | How `projectRecord` reads a page, beside the page itself. | — |
+| `ProjectedAnalysis` | interface | A source's analysis result, shaped by the kernel. | — |
 | `ProjectedBase` | interface | What both kinds carry besides their view: what is wrong with *these numbers*, as opposed to what is wrong with the config. | — |
-| `ProjectedRecord` | interface | — | — |
+| `ProjectedRecord` | interface | A source's page of records, shaped by the kernel. | — |
 | `ProjectedView` | type | What one execution produced, already shaped by its kernel. | — |
 | `QueryOperation` | type | A query the engine ran, by what it asked for. | — |
-| `QueryStatus` | type | — | — |
-| `RadarData` | interface | — | — |
+| `QueryStatus` | type | Where a view's query stands. | — |
+| `RadarData` | interface | What a radar chart draws: one profile per item across its metrics. | — |
 | `RadarSpec` | interface | A radar: several metrics per group as one closed shape, an axis per metric each on its own scale — the outline of each group against the others. | — |
 | `ReadOptions` | interface | What every read of a store takes: the signal that cancels it. | — |
 | `RecordAction` | interface | One declared command on a record. | [Host Wiring](./host#api-actions) |
 | `RecordActions` | type | A binding's declared actions, as `actions()` hands them back. | — |
 | `RecordCapability` | interface | — | [Definitions and Field Kinds](./definitions#api-RecordCapability) |
 | `RecordCardField` | interface | One field of a card. | — |
-| `RecordCardSpec` | interface | — | — |
+| `RecordCardSpec` | interface | How a record view draws its rows as cards: the title, the fields and the image. | — |
 | `RecordCardView` | interface | The card layout of the result, resolved against the definition. | — |
 | `RecordColumn` | interface | One column of the table layout. | — |
 | `RecordColumnView` | interface | A column as the table should render it, with its semantics resolved. | — |
@@ -304,19 +290,17 @@ Every name `@ahoo-wang/wow-view-engine` exports — 455 — with its kind and th
 | `RecordLaneView` | interface | One lane of a kanban result: one option of the lane field, or the 「其他」lane of every record whose value is none of them. | — |
 | `RecordLayout` | type | How a record view draws its rows: a table, a grid of cards, or the cards laid out in one lane per stage (`kanban`). | — |
 | `RecordPageTarget` | type | Where to read from. | — |
-| `RecordPaging` | type | — | — |
+| `RecordPaging` | type | How a record result pages: by page number, or by cursor. | — |
 | `RecordPagingMode` | type | Which paging protocol the source offers; declared by the definition. | — |
-| `RecordProjection` | interface | — | — |
-| `RecordRow` | interface | — | — |
-| `RecordSort` | interface | — | — |
-| `RecordSummary` | interface | — | — |
-| `RecordTableSpec` | interface | — | — |
+| `RecordProjection` | interface | A page of records shaped for the screen: its columns, rows and paging, and the card and lanes when it is drawn so. | — |
+| `RecordRow` | interface | One record on screen: its key and its values. | — |
+| `RecordSort` | interface | One ordering of a record view: a field and its direction. | — |
+| `RecordSummary` | interface | A summary under a record view's column: a field and the function over it. | — |
+| `RecordTableSpec` | interface | How a record view draws its rows as a table: its columns. | — |
 | `RecordViewConfig` | interface | Every layout's settings are stored together, so switching between them keeps the others'; `layout` only records the current choice. | — |
 | `RecordViewRuntime` | interface | Paging and selection belong to Record alone. | — |
 | `ReferenceBand` | interface | A stretch of one value axis, `from` below `to`, shaded behind the marks. | — |
-| `ReferenceFilterValue` | interface | — | — |
 | `ReferenceId` | type | A reference id, as a row holds it and `OptionSource.resolve` is asked. | — |
-| `ReferenceItem` | interface | — | — |
 | `ReferenceLabel` | type | What a reference id reads as right now. | — |
 | `ReferenceLabelReader` | interface | How a view reads reference ids as names: what one id reads as now, and a subscription that says when that may have changed. | — |
 | `ReferenceLabelTimeoutError` | class | A lookup that took longer than `RuntimeLimits.referenceTimeout`. | — |
@@ -324,23 +308,22 @@ Every name `@ahoo-wang/wow-view-engine` exports — 455 — with its kind and th
 | `ReferenceStatistic` | type | Where a statistic reference line stands: the mean, or the middle value. | — |
 | `RefreshConfig` | interface | Auto-refresh interval in seconds, or `null` when off. | — |
 | `RefusalGroup` | interface | The refused, by reason, the commonest first; ties keep their order. | — |
-| `RelativeDateDirection` | type | — | — |
-| `RelativeDateTimeValue` | interface | A window measured from the evaluation moment: "the last 7 days", or "the next 7 days". | — |
-| `RelativeDateUnit` | type | — | — |
+| `RelativeDateDirection` | type | Which way a relative date range runs from now. | — |
+| `RelativeDateUnit` | type | The unit of a relative date range. | — |
 | `RiverStream` | interface | One stream of a theme river: a split value, or the folded rest. | — |
 | `RoutedTarget` | type | A way off a board or a view that leads to one of the host's resources. | — |
-| `RowMoneyNumeric` | interface | — | — |
+| `RowMoneyNumeric` | interface | A money field whose currency is read from another field of the same row. | — |
 | `RuntimeEnvironment` | interface | The only interface between a runtime and its host. | [Engine and Resources](./engine#api-RuntimeEnvironment) |
 | `RuntimeFor` | type | Keeps the narrow type through `create`, which knows its config statically — and, for a config whose kind only the value knows (a union), is what `open` hands back (`AnyViewRuntime`), so no caller has to say it again. | — |
 | `RuntimeLimits` | interface | Admission and scheduling budgets. | — |
-| `SankeyData` | interface | — | — |
+| `SankeyData` | interface | What a sankey chart draws: its nodes and the links between them. | — |
 | `SankeyLink` | interface | One band of a sankey, between two nodes of neighbouring levels. | — |
 | `SankeyNode` | interface | One node of a sankey: a value of one level's dimension. | — |
 | `SankeySpec` | interface | A sankey: how an amount flows from one dimension's values to the next's — 渠道 → 支付方式 — each band as wide as the metric over the rows of that pair. | — |
 | `SaveAsInput` | interface | Where a copy of a view is saved: its title and the scope it is saved into (`ViewEngine.saveAs`, and a board panel's view saved as its own). | — |
 | `SavedViewTarget` | interface | A saved record or analysis view, opened on its own conditions with `filter` added to them — so it opens 「已修改」 and 「还原」 takes them back off — under `scopeFilter` as its scope. | — |
-| `ScatterData` | interface | — | — |
-| `ScatterSpec` | interface | — | — |
+| `ScatterData` | interface | What a scatter chart draws: one point per value of a group. | — |
+| `ScatterSpec` | interface | A scatter chart's config: the group that makes the points and the metrics on its axes. | — |
 | `SearchModeName` | type | Wow's `SearchMode`, as the literal a definition writes. | — |
 | `SeriesExtremes` | type | Each series' highest and lowest measured value, as point indexes. | — |
 | `ShapeContext` | interface | What shaping reads besides the config and the rows. | — |
@@ -350,36 +333,33 @@ Every name `@ahoo-wang/wow-view-engine` exports — 455 — with its kind and th
 | `StoreOperation` | type | A `ViewStore` method, as the engine called it. | — |
 | `StoredDatasetWording` | interface | A dataset's wording as stored, and the revision a write expects. | — |
 | `StringComparisonName` | type | Wow's `StringComparison`, as the literal a definition writes. | — |
-| `StringFilterValue` | type | — | — |
-| `SummaryCell` | interface | — | — |
+| `SummaryCell` | interface | One summary's value under a column. | — |
 | `SummaryFunction` | type | Row-level aggregations a record view may show under a column: four of Wow's `AggregationFunction`s and its `COUNT` metric. | — |
-| `SummaryRow` | interface | — | — |
+| `SummaryRow` | interface | A row of summaries under a record view: over the page, or over the whole result. | — |
 | `SystemView` | interface | A baseline view shipped with the definition. | [Definitions and Field Kinds](./definitions#api-SystemView) |
 | `Text` | type | A key standing where a label goes; a string, so it goes anywhere one does. | [Definitions and Field Kinds](./definitions#api-text) |
 | `TextResolver` | type | How a host says a key in the language in force; `undefined` for none. | — |
-| `TextWords` | type | The words keys are said in: a resolver, or a catalogue by key. | — |
-| `ThemeRiverData` | interface | — | — |
+| `ThemeRiverData` | interface | What a theme river draws: each stream's values over time. | — |
 | `ThemeRiverSpec` | interface | A theme river: a stacked stream over time, one stream per value of a second dimension, each as wide as its number — how a whole's make-up flows. | — |
 | `TimePrecision` | type | How finely a table cell writes a time of day (`FieldDefinition.timePrecision`). | — |
-| `TreemapData` | interface | — | — |
+| `TreemapData` | interface | What a treemap draws: its tiles and their sizes. | — |
 | `TreemapSpec` | interface | A treemap: a whole cut into tiles whose areas are the groups' shares of it — the reading for a composition of more categories than the palette has colours, since every tile carries its own name. | — |
 | `TreemapTile` | interface | One tile: a group value and its number. | — |
 | `UnsavedViewTarget` | interface | A view nobody saved: a follow-up on a group — its records, the same question split by another dimension or of the group alone — or an analysis the board owns. | — |
 | `VIEW_STORE_ERROR_CODES` | const | — | [Persistence Port](./store#api-ViewStoreError) |
-| `ValidateAnalysisOptions` | interface | — | — |
-| `ValidateDashboardOptions` | interface | — | — |
-| `ValidateDefinitionOptions` | interface | — | — |
-| `ValidateFilterOptions` | interface | — | — |
-| `ValidateRecordOptions` | interface | — | — |
+| `ValidateAnalysisOptions` | interface | Options of `validateAnalysis`: the limits to hold the config to. | — |
+| `ValidateDashboardOptions` | interface | Options of `validateDashboard`: the limits, and the definitions its panels name. | — |
+| `ValidateDefinitionOptions` | interface | Options of `validateDefinition`: the limits to hold the definition to. | — |
+| `ValidateFilterOptions` | interface | Options of `validateFilter`: the limits to hold the filter to. | — |
+| `ValidateRecordOptions` | interface | Options of `validateRecord`: the limits to hold the config to. | — |
 | `ValueCandidate` | interface | One value the data holds, and how many records hold it. | — |
 | `ValueCandidateSource` | interface | The values a condition on one field may be picked from, counted from the data (`valueCandidatesConfig`). | — |
 | `ValueCandidates` | interface | What one candidate query answered. | — |
-| `ValueFormat` | type | — | — |
-| `ValueMetric` | type | A metric whose value is one record's value (`VALUE_METRIC_TYPES`). | — |
+| `ValueFormat` | type | How a chart writes its values: automatically, as a percentage, or compact. | — |
 | `ViewAudience` | type | Who a view is for. | — |
 | `ViewChange` | interface | What a confirmed write changed about one definition's list of views. | — |
 | `ViewChangeKind` | type | The write that changed a list — **not** the kind of the view it changed. | — |
-| `ViewChangeListener` | type | — | — |
+| `ViewChangeListener` | type | Told of each change to the engine's saved views (`ViewEngine.subscribe`). | — |
 | `ViewCommandError` | class | A command the engine refused before dispatching it: a missing definition, an empty title, a permission the user does not hold, a config that still has an error. | — |
 | `ViewConfig` | type | What a user saves: the way of observing, never a data snapshot. | — |
 | `ViewConfigBase` | interface | What every view kind stores. | — |
@@ -387,7 +367,6 @@ Every name `@ahoo-wang/wow-view-engine` exports — 455 — with its kind and th
 | `ViewDestination` | type | What the host's `navigate` is handed: a route, where the target's definition has one; otherwise the target as it came — a URL, or a definition the host bound no route for. | — |
 | `ViewEngine` | class | The registry and the command entry point: definitions in, runtimes and writes out. | [Engine and Resources](./engine#api-ViewEngine) |
 | `ViewEngineOptions` | interface | — | [Engine and Resources](./engine#api-ViewEngineOptions) |
-| `ViewErrorContext` | type | Where a failure of any kind happened. | — |
 | `ViewErrorContexts` | interface | What each kind of failure says of where it happened. | — |
 | `ViewErrorEvent` | type | One failure, as `RuntimeEnvironment.onError` is told of it: a union on `kind`, each kind with its own context. | — |
 | `ViewErrorKind` | type | What failed, by the part of the engine it failed in. | — |
@@ -395,7 +374,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 455 — with its kind and th
 | `ViewHandOver` | type | The two a workbench opens (`DataWorkbench`'s `handOver`). | — |
 | `ViewInstance` | interface | A saved config plus its identity. | — |
 | `ViewInstanceSummary` | interface | What a list returns: enough to render the sidebar, without the config. | — |
-| `ViewKind` | type | — | — |
+| `ViewKind` | type | The kind of a view: record, analysis or dashboard. | — |
 | `ViewListOptions` | interface | One page of `ViewStore.list` to read. | — |
 | `ViewListPage` | interface | One page of a definition's views, in the port's order. | — |
 | `ViewListing` | interface | What a definition's list is right now: every view that could be read, and the reason the rest could not. | [Engine and Resources](./engine#api-ViewListing) |
@@ -403,34 +382,34 @@ Every name `@ahoo-wang/wow-view-engine` exports — 455 — with its kind and th
 | `ViewNavigation` | type | Where a way off the board goes, for the host's route. | — |
 | `ViewPermissions` | interface | What the current user may do with one definition's views. | [Persistence Port](./store#api-ViewPermissions) |
 | `ViewPreferences` | interface | One user's ordering and default view for one definition. | — |
-| `ViewQueryState` | interface | — | — |
+| `ViewQueryState` | interface | Where a view's query stands, and its error when it failed. | — |
 | `ViewResource` | interface | One thing a host registers (host-integration.md 4): a definition, and where its data comes from. | [Engine and Resources](./engine#api-ViewResource) |
-| `ViewResult` | interface | — | — |
+| `ViewResult` | interface | A view's result: the data, and the config that produced it. | — |
 | `ViewRoute` | interface | A way off a board or a view, resolved through its definition's `route`: the host's path, and what the page there is handed. | — |
 | `ViewRouteOf` | type | Where a view or a board of a definition lives in the host's address. | — |
 | `ViewRouteState` | interface | What the page a route opens is handed with it, as history state. | — |
 | `ViewRouter` | interface | The router port (host-integration.md 4.2): the host's router as the engine reads and moves it — the one bridge to it, whichever library it is. | [Host Wiring](./host#api-ViewRouter) |
 | `ViewRuntime` | interface | One open view. | — |
-| `ViewRuntimeState` | interface | — | — |
+| `ViewRuntimeState` | interface | A view runtime's state: the saved view, the draft, the applied config and its result. | — |
 | `ViewScope` | type | Who configured a view, who sees it and who may change it. | — |
 | `ViewSource` | interface | Where a definition's data comes from: the reads of one Wow query route, in wow-client's own shapes, so any `QueryModelClient` — a generated `…SnapshotQueryClient`, a dataset's `DatasetClient.dataset(…)` — is a source as it is, with no adapter (`test/architecture.test.ts` holds both to it). | [Engine and Resources](./engine#api-ViewSource) |
 | `ViewStore` | interface | The only port a backend must satisfy. | [Persistence Port](./store#api-ViewStore) |
 | `ViewStoreError` | class | The single failure type of the persistence port. | [Persistence Port](./store#api-ViewStoreError) |
 | `ViewStoreErrorCode` | type | — | [Persistence Port](./store#api-ViewStoreError) |
 | `ViewWriteError` | class | How every write command rejects. | — |
-| `VisibilitySource` | interface | — | — |
-| `WaterfallData` | interface | — | — |
+| `VisibilitySource` | interface | Whether the page is visible, and a way to hear when that changes. | — |
+| `WaterfallData` | interface | What a waterfall chart draws: its steps and their running total. | — |
 | `WaterfallSpec` | interface | A waterfall: how a total is built up step by step. | — |
 | `WaterfallStep` | interface | One step of a waterfall: its group, its change, and where it floats. | — |
 | `WindowFunctionName` | type | A window function of Wow's derived expressions. | — |
-| `WriteAction` | type | — | — |
+| `WriteAction` | type | Which write a pending write is: a save, a create, a rename, a change of audience, a delete or the preferences. | — |
 | `WriteHandle` | interface | Addresses a write that no open runtime owns, such as renaming a view from the list. | — |
 | `WriteOptions` | interface | One logical write. | [Persistence Port](./store#api-ViewStore) |
 | `WritePayload` | type | The body of a write, kept as it was sent. | — |
 | `WriteState` | type | An outcome that is not success. | — |
 | `WriteTarget` | type | What a write command is addressed to: an open view, or a handle. | — |
 | `actions` | function | A binding's actions, checked: every one has an id no other has, a label and a `run`. | [Host Wiring](./host#api-actions) |
-| `builtinFieldKinds` | const | Ready-to-use registry; extend it with `withFieldKinds`. | [Definitions and Field Kinds](./definitions#api-FieldKindRegistry) |
+| `builtinFieldKindRegistry` | const | Ready-to-use registry; extend it with `withFieldKinds`. | [Definitions and Field Kinds](./definitions#api-FieldKindRegistry) |
 | `compileAnalysis` | function | Compilation is a mapping, not a translation: the configuration is isomorphic to the Wow aggregation protocol and differs only in storing enum values as literals and filters as trees. | — |
 | `compileFilter` | function | Compiles an admitted tree into a Wow filter expression. | — |
 | `compileRecord` | function | Compiles the applied config into the query its source understands. | — |
@@ -442,23 +421,21 @@ Every name `@ahoo-wang/wow-view-engine` exports — 455 — with its kind and th
 | `defineView` | function | A data definition built from its source's descriptor (host-integration.md 3): the descriptor gives the facts — which paths there are, what each is, what it sorts and feeds — as an upper bound, and `spec` picks, names and narrows within it. | [Definitions and Field Kinds](./definitions#api-defineView) |
 | `emptyDashboardConfig` | function | A complete starting config, the dashboard counterpart of the two `default*Config` functions. | — |
 | `emptyPreferences` | function | An empty preference record, which is what an untouched definition has. | — |
-| `fitChartSlots` | function | The chart, with the family its `type` asks for filled in from the groups and metrics the analysis actually has. | — |
 | `hasAsked` | function | Whether this view has put a question to its source: a result came back, one is on its way, or the last one failed. | — |
 | `hasResult` | function | Whether this view ever got a result, even one that is now out of date. | — |
 | `inRows` | function | Panels laid out row by row, so a board written in code says only how big each panel is: each row starts under the tallest panel of the row above, and its panels go left to right from the first column, each `w` wide. | — |
-| `isAnalysisRuntime` | function | Whether `runtime` is an analysis view, read off its `kind`: what narrows a runtime held as any data view (a board panel's, say) to one, where `isRecordRuntime` narrows it to a record view. | — |
-| `isDateTimeFilterValue` | function | — | — |
+| `isActionInputError` | function | By name and shape, as every guard of the engine's errors (`isViewStoreError`): an `ActionInputError` a host's action throws from another copy of this package, or one it builds itself, is the same refusal of the form. | — |
 | `isExportCancelledError` | function | By name, as every guard of the engine's errors (`isViewStoreError`). | — |
 | `isRecordRuntime` | function | Whether a data view's runtime is a Record view's, with its rows' commands: a dashboard panel's runtime (`DashboardPanelState.runtime`) is either kind. | — |
+| `isReferenceLabelTimeoutError` | function | Whether `error` is a `ReferenceLabelTimeoutError`: what `onError` receives for a lookup that ran past `RuntimeLimits.referenceTimeout`, and what the lookup's signal is aborted with. | — |
 | `isSystemInstanceId` | function | True for any id in the namespace a `ViewStore` must not issue. | — |
 | `isViewCommandError` | function | By name, as every guard of the engine's errors (`isViewStoreError`). | — |
 | `isViewStoreError` | function | Structural, so an error raised by a second copy of this package, or by a store that builds the shape itself, is still recognised: an `Error` named `ViewStoreError` with one of the port's codes. | [Persistence Port](./store#api-ViewStoreError) |
 | `isViewWriteError` | function | By name, as every guard of the engine's errors (`isViewStoreError`). | — |
-| `issue` | function | — | — |
+| `issue` | function | Makes an `Issue` with this code, path and params. | — |
 | `localStorageSnapshot` | function | A `MemoryViewStore` snapshot kept in `localStorage` under `key`: the whole store as one JSON document, `{ instances, preferences }`. | [Persistence Port](./store#api-localStorageSnapshot) |
 | `projectAnalysis` | function | Turns aggregation rows into table columns plus whatever the chart family needs. | — |
 | `projectRecord` | function | Turns a page of rows into what a table or a card list renders. | — |
-| `resolveDateTimeRange` | function | The range a value names: `from` on its start edge, `to` on its end edge, so a date-only `to` reaches the end of that day. | — |
 | `serializeCsv` | function | The rows as a CSV, RFC 4180 with a BOM in front. | — |
 | `systemInstanceId` | function | Instance id of a code-declared system view. | — |
 | `text` | function | The key `key`, to stand where a label goes. | [Definitions and Field Kinds](./definitions#api-text) |

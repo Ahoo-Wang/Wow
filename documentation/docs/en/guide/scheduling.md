@@ -57,7 +57,7 @@ fun onCommand(command: ConfirmOrderStock, paymentPolicy: PaymentPolicy, scope: D
 }
 ```
 
-- `scope.schedule(key, rule, command, target)` sends `command` to `target`, this aggregate unless another ref is given. The schedule is committed with the decision's events, as the system event `wow.schedule.ScheduleSet`; a decision that only schedules commits just that. A cron rule whose expression or time zone cannot be read, or that names no time that ever comes (`0 0 0 30 2 *`), fails the command (`wow.command.failed`), and nothing is committed: a rule from input is checked by the domain before it is scheduled, so that it rejects it with a code of its own.
+- `scope.schedule(key, rule, command, target)` sends `command` to `target`, this aggregate unless another ref is given. The schedule is committed with the decision's events, as the system event `wow.schedule.ScheduleSet`; a decision that only schedules commits just that. The event holds the command until it is sent, and wherever the event is read (a trace, an events query) or published, the command is masked as a body of its command type is ([Where masking stops](./queries#where-masking-stops)). A cron rule whose expression or time zone cannot be read, or that names no time that ever comes (`0 0 0 30 2 *`), fails the command (`wow.command.failed`), and nothing is committed: a rule from input is checked by the domain before it is scheduled, so that it rejects it with a code of its own.
 - `scope.cancelSchedule(key)` cancels it; for a key the aggregate keeps no schedule of, it changes nothing, as `wow.schedule.CancelSchedule` does. The order cancels `payment-grace-period` when it is paid. A command already sent is not recalled: its target's state guards it.
 - The function declares the scheduled commands' classes in `@OnCommand(schedules = [...])`. The compiler cannot read the calls in a function's body, and the Manifest lists them by full type name. The declaration is what the Manifest says; the kernel does not refuse a schedule it leaves out.
 
@@ -68,7 +68,7 @@ A saga records the schedule in its `SagaContext`, from any of its handlers: `con
 ## How a scheduled command is delivered
 
 - It is sent **at least once, never early**, possibly a little late: after a handover or a backlog, and within the timers' poll interval, `wow.timers.poll-interval` (1 second by default).
-- It is **decided once**. Its request id is the timer and the slot (`timer#slot`), so sending it again is a duplicate the target recognizes. The target reads which slot it was sent for from `command.schedule`.
+- It is **decided once**. Its request id is the timer and the slot (`wow:timer#slot`), so sending it again is a duplicate the target recognizes. No caller's request id starts with `wow:`, so none can be committed first under a timer's. The target reads which slot it was sent for from `command.schedule`.
 - The target **decides it on its state then**. A rejection is a normal guard, not a failure: a cancellation that arrives after the order was paid is rejected, the timer is done, and the rejection goes to no `@OnRejected` handler.
 - A **technical failure** to send it is retried, `wow.timers.max-attempts` times (10 by default), then parked under `wow.timers.sends`, where an operator retries or skips it ([Parked aggregates](./failures#parked-aggregates)). A busy target is tried again a second later without spending an attempt ([How a command is retried](./failures#how-a-command-is-retried)).
 - It carries the scope of the commit that scheduled it, and that commit as its causation.

@@ -18,13 +18,17 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.CursorQuery
+import me.ahoo.wow.api.query.OwnerIdFilter
+import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.RowQueries
 import me.ahoo.wow.query.read.QueryNotServedException
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.viewstore.api.ViewStoreContext
 import me.ahoo.wow.viewstore.api.ViewStoreContract
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -32,19 +36,33 @@ import tools.jackson.databind.node.ObjectNode
 
 /**
  * The shared-dashboard check of a claim reads every dashboard, a keyset page at a time, and only their panels
- * (review A3-18): a reference on the last page of many is found.
+ * (review A3-18): a reference on the last page of many is found. The stored system dashboards are read too: every
+ * reader sees them, as a shared one (D486 ④).
  */
 class QueriedBoardReferencesTest {
     private val asked = mutableListOf<CursorQuery>()
 
     private val view = ViewStoreContract.View.TYPE
 
-    /** [total] dashboards, the last one referencing `v-1`, served [QueriedBoardReferences.PAGE] at a time. */
-    private fun dashboards(total: Int): NodeQueryApi {
+    /** The tenant and the owner [this] query's filter names. */
+    private fun CursorQuery.scope(): Pair<String, String> {
+        val operands = (filter as AndFilter).operands
+        return operands.filterIsInstance<TenantIdFilter>().single().value to
+            operands.filterIsInstance<OwnerIdFilter>().single().value
+    }
+
+    /**
+     * [total] shared dashboards, the last one referencing `v-1`, served [QueriedBoardReferences.PAGE] at a time; and
+     * the stored system dashboards [system], served in one page.
+     */
+    private fun dashboards(total: Int, system: List<ObjectNode> = emptyList()): NodeQueryApi {
         val rows = mockk<RowQueries<ObjectNode>> {
             coEvery { cursor(any()) } answers {
                 val query = firstArg<CursorQuery>()
                 asked += query
+                if (query.scope().first == ViewStoreContext.SYSTEM_TENANT_ID) {
+                    return@answers CursorPage.of(system, null)
+                }
                 val from = query.cursor?.toInt() ?: 0
                 val until = minOf(total, from + checkNotNull(query.size))
                 val list = (from until until).map { board(it, referencing = if (it == total - 1) "v-1" else "v-other") }
@@ -70,12 +88,25 @@ class QueriedBoardReferencesTest {
             val found = references.referencingBoards("t", "app", "v-1")
             found.map { it.id }.assert().containsExactly("b-${total - 1}")
             found.single().title.assert().isEqualTo("Board ${total - 1}")
-            asked.size.assert().isEqualTo(3)
+            // Three pages of shared dashboards, then the stored system ones.
+            asked.size.assert().isEqualTo(4)
             asked.map { it.size }.toSet().assert().containsExactly(QueriedBoardReferences.PAGE)
             asked.first().projection.include.map { it.path }.assert()
                 .containsExactly("aggregateId", "state.title", "state.config")
             references.referencingBoards("t", "app", "v-none").assert().isEmpty()
         }
+
+    @Test
+    fun `a stored system dashboard should count as a shared one`(): Unit = runBlocking {
+        val system = board(0, referencing = "v-1").put("aggregateId", "s-0")
+        val api = dashboards(1, system = listOf(system, board(1, referencing = "v-other")))
+        val found = QueriedBoardReferences { api }.referencingBoards("t", "app", "v-1")
+        found.map { it.id to it.title }.assert().containsExactly("b-0" to "Board 0", "s-0" to "Board 0")
+        asked.map { it.scope() }.assert().containsExactly(
+            "t" to ViewStoreContext.SHARED_OWNER_ID,
+            ViewStoreContext.SYSTEM_TENANT_ID to ViewStoreContext.SYSTEM_OWNER_ID,
+        )
+    }
 
     @Test
     fun `a node without snapshot queries should know of no reference`(): Unit = runBlocking {

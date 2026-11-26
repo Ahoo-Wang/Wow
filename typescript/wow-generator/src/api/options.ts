@@ -35,11 +35,6 @@ export interface GeneratorOptions {
    * reads `./wow-generator.config.json` if it exists.
    */
   readonly configPath?: string;
-  /**
-   * The project's `tsconfig.json`. Its compiler options decide how the
-   * generator resolves the modules it imports while it tidies the output.
-   */
-  readonly tsConfigFilePath?: string;
   /** Receives progress, warnings and errors. Defaults to a `ConsoleLogger` at the `normal` level. */
   readonly logger?: Logger;
   /** Request headers used when `inputPath` or `configPath` is an http(s) URL. */

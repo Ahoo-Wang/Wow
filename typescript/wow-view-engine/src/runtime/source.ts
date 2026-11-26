@@ -148,6 +148,7 @@ export interface ProjectedBase {
   issues: readonly Issue[];
 }
 
+/** A source's page of records, shaped by the kernel. */
 export interface ProjectedRecord extends ProjectedBase {
   kind: 'record';
   view: RecordProjection;
@@ -160,6 +161,7 @@ export interface ProjectedRecord extends ProjectedBase {
   summaries: SummaryRow | null;
 }
 
+/** A source's analysis result, shaped by the kernel. */
 export interface ProjectedAnalysis extends ProjectedBase {
   kind: 'analysis';
   view: AnalysisProjection;

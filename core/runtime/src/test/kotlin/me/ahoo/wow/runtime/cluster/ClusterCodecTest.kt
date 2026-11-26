@@ -35,10 +35,12 @@ import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.ValueSerializer
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.databind.module.SimpleModule
+import tools.jackson.databind.node.ObjectNode
 import tools.jackson.databind.ser.std.ToStringSerializer
 import tools.jackson.module.kotlin.KotlinModule
 import java.math.BigDecimal
@@ -81,7 +83,7 @@ class ClusterCodecTest {
     )
     private val wait = WaitContext(
         "w-1",
-        Origin("node-1", "10.0.0.1:7070", "bank-service"),
+        Origin("bank-service", "node-1", "10.0.0.1:7070"),
         listOf(Hop.handled("bank.projector", "bank")),
         1_000L,
     )
@@ -224,7 +226,7 @@ class ClusterCodecTest {
     fun `a message of the next minor version is read, its unknown fields ignored`() {
         val json = """
             {
-              "v": 2, "priority": "high",
+              "format": 1, "priority": "high",
               "command": {
                 "type": "bank.account.Deposit", "id": "c-1", "requestId": "r-1", "trace": {"a": 1},
                 "ref": {"type": {"context": "bank", "name": "account", "kind": "x"}, "tenantId": "t1", "id": "acc-1"},
@@ -242,13 +244,13 @@ class ClusterCodecTest {
             }
         """.trimIndent()
         val read = ClusterCodec.decodeCommand(json.encodeToByteArray())
-        read.v.assert().isEqualTo(2)
+        read.format.assert().isEqualTo(ForwardCommand.FORMAT)
         read.transport!!.wait.assert().isEqualTo(wait)
         ClusterCodec.command(model, read.command).assert().isEqualTo(
             Command("c-1", "r-1", ref, Deposit(5, "salary")),
         )
         val reply = """
-            {"v": 2, "extra": true, "result": {"format": 1, "commandId": "c-1", "requestId": "r-1",
+            {"format": 1, "extra": true, "result": {"format": 1, "commandId": "c-1", "requestId": "r-1",
              "correlationId": "root", "ref": {"type": {"context": "bank", "name": "account"}, "tenantId": "t1",
              "id": "acc-1"}, "hop": {"stage": "committed", "context": "bank"}, "function": {"kind": "command",
              "context": "bank", "processor": "account", "name": "Deposit", "module": "m"}, "status": "succeeded",
@@ -256,6 +258,43 @@ class ClusterCodecTest {
         """.trimIndent()
         ClusterCodec.decodeReply(reply.encodeToByteArray()).result.assert().isEqualTo(result)
     }
+
+    @Test
+    fun `each message should carry its format, and a reader refuse one of another, its results' included`() {
+        val request = ForwardCommand(command = ClusterCodec.wire(model, command), deadline = 1L)
+        val written = ClusterCodec.mapper.readTree(ClusterCodec.encode(request)) as ObjectNode
+        written["format"].asInt().assert().isEqualTo(ForwardCommand.FORMAT)
+        written.has("v").assert().isFalse()
+        refused { ClusterCodec.decodeCommand(written.put("format", 2).bytes()) }
+            .assert().isEqualTo("A forward is of format 2; this node reads format 1.")
+
+        val reply = ClusterCodec.mapper.readTree(ClusterCodec.encode(ForwardReply(result = result))) as ObjectNode
+        refused { ClusterCodec.decodeReply(reply.deepCopy().put("format", 2).bytes()) }
+            .assert().isEqualTo("A forward's reply is of format 2; this node reads format 1.")
+        val laterResult = reply.deepCopy().also { (it["result"] as ObjectNode).put("format", 2) }
+        refused { ClusterCodec.decodeReply(laterResult.bytes()) }
+            .assert().isEqualTo("A command result is of format 2; this node reads format 1.")
+        val laterReached = reply.deepCopy().also { it.putArray("reached").add(laterResult["result"]) }
+        refused { ClusterCodec.decodeReply(laterReached.bytes()) }
+            .assert().isEqualTo("A command result is of format 2; this node reads format 1.")
+
+        val signal = ClusterCodec.mapper.readTree(ClusterCodec.encode(WaitSignal(waitId = "w-1", result = result)))
+            as ObjectNode
+        val laterSignal = signal.deepCopy().put("format", 2)
+        refused { ClusterCodec.decodeSignal(laterSignal.bytes()) }
+            .assert().isEqualTo("A wait signal is of format 2; this node reads format 1.")
+        refused { ClusterCodec.decodeSignals("[$signal,$laterSignal]".toByteArray()) }
+            .assert().isEqualTo("A wait signal is of format 2; this node reads format 1.")
+        val signalLaterResult = signal.deepCopy().also { (it["result"] as ObjectNode).put("format", 2) }
+        refused { ClusterCodec.decodeSignals(signalLaterResult.bytes()) }
+            .assert().isEqualTo("A command result is of format 2; this node reads format 1.")
+    }
+
+    private fun ObjectNode.bytes(): ByteArray = toString().toByteArray()
+
+    /** The message of the [UnknownFormatException] [read] throws. */
+    private fun refused(read: () -> Any): String? =
+        assertThrows<UnknownFormatException> { read() }.message
 
     @Test
     fun `the loopback channel goes through the wire form`(): Unit = runBlocking {

@@ -16,7 +16,7 @@ import { Combobox as ComboboxPrimitive } from '@base-ui/react';
 import { XIcon } from 'lucide-react';
 import type { FilterValue } from '../../../model/index.js';
 import type { ValueCandidateSource } from '../../../runtime/index.js';
-import { useValueCandidates } from '../../../react/index.js';
+import { useValueCandidates } from '../../../react/useValueCandidates.js';
 import { Button } from '../../components/button.js';
 import {
   Combobox,

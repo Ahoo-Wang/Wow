@@ -38,7 +38,7 @@ import type {
   DashboardFilterEditing,
   DashboardPanelState,
   DashboardRuntime,
-  DestinationBoard,
+  DestinationDashboard,
   EditHistoryState,
   HandOver,
   OptionSource,
@@ -81,6 +81,7 @@ export interface DashboardPanelView {
   click: PanelClick | null;
 }
 
+/** What `useDashboard` answers: a board's panels, layout, filters and edits. */
 export interface DashboardController {
   panels: DashboardPanelView[];
   /** Columns a layout is placed in; the kernel admits against the same number. */
@@ -207,8 +208,11 @@ export interface DashboardController {
   filterChoices(name: string): FieldOption[] | null;
   /** An id filter's candidates, by the host's source key (`optionSource`). */
   filterOptions(remote: string): OptionSource | null;
-  /** The field kinds the board's filters are edited with; `null` without a board. */
-  kinds: FieldKindRegistry | null;
+  /**
+   * The field kinds the board's filters are edited with; `undefined` without
+   * a board, as the other controllers say it.
+   */
+  kinds: FieldKindRegistry | undefined;
   /**
    * The board's tabs in the order of its bar, as they are on screen (D22
    * E); none on a board without. Fewer than two draw no bar.
@@ -252,9 +256,11 @@ export interface DashboardController {
   ): Promise<PressDestination | null>;
   /**
    * Another board a click opens, read for 「点击时…」 to list its filters
-   * (`DashboardRuntime.destinationBoard`); `null` for one gone or unreadable.
+   * (`DashboardRuntime.destinationDashboard`); `null` for one gone or unreadable.
    */
-  destinationBoard(instanceId: string): Promise<DestinationBoard | null>;
+  destinationDashboard(
+    instanceId: string,
+  ): Promise<DestinationDashboard | null>;
   /**
    * What one data panel's view takes off the board as it stands
    * (`DashboardRuntime.handOver`, D26 Q30): every way off it — 「在工作台中
@@ -404,7 +410,7 @@ export function useDashboard(
       (remote: string) => runtime?.optionSource(remote) ?? null,
       [runtime],
     ),
-    kinds: runtime?.kinds ?? null,
+    kinds: runtime?.kinds,
     // What is on screen: an edit writes the draft and the applied config
     // alike, so the two agree on the tabs whenever a panel is drawn.
     tabs: useMemo(() => tabsOf({ tabs: appliedTabs ?? [] }), [appliedTabs]),
@@ -447,9 +453,9 @@ export function useDashboard(
         runtime ? runtime.destination(panelId, row) : null,
       [runtime],
     ),
-    destinationBoard: useCallback(
+    destinationDashboard: useCallback(
       async (instanceId: string) =>
-        runtime ? runtime.destinationBoard(instanceId) : null,
+        runtime ? runtime.destinationDashboard(instanceId) : null,
       [runtime],
     ),
     handOver: useCallback(

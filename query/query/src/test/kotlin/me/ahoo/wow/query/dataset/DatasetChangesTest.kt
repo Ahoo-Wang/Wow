@@ -198,7 +198,7 @@ internal class DatasetChangesTest : DatasetQueryGatewayFixtures() {
         failures.forEach { query ->
             val failure = assertThrows<QueryDatasetUnavailableException> { query() }
             failure.errorCode.assert().isEqualTo(QueryErrors.DATASET_UNAVAILABLE)
-            failure.errorMsg.assert().isEqualTo("Dataset [${orders.name}] cannot be queried now: needs revision.")
+            failure.message.assert().isEqualTo("Dataset [${orders.name}] cannot be queried now: needs revision.")
             failure.reason.assert().isEqualTo("needs revision")
             failure.dataset.assert().isEqualTo(orders.name)
         }

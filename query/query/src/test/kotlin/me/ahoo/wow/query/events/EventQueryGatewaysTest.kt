@@ -127,7 +127,7 @@ class EventQueryGatewaysTest {
         runBlocking { gateway.list(ListQuery(filter, limit = 10), caller).toList() }.map { it["version"].asInt() }
 
     private fun code(block: suspend () -> Unit): String =
-        (runCatching { runBlocking { block() } }.exceptionOrNull() as QueryError).bindingErrors.single().code
+        (runCatching { runBlocking { block() } }.exceptionOrNull() as QueryError).violations.single().code
 
     @Test
     fun `a list streams every stream of the aggregate in version order`() {

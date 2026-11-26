@@ -155,6 +155,19 @@ class HostRouteProblemsTest {
         postJson("/app/fn/items", """{"name":""").assertMalformed("body", "Failed to read HTTP message")
     }
 
+    /**
+     * #7053: a command route takes no query parameter, so one (a client's typo, or a parameter a proxy appends to the
+     * URL) is refused naming it on the real server, and the command does not run; before, it was dropped and the
+     * command ran.
+     */
+    @Test
+    fun `a command with a query parameter is wow-request-malformed naming it`() {
+        postJson("/bank/account/open-account?x=1", """{"owner":"gina"}""").assertMalformed(
+            "x",
+            "'x' is a query parameter, which no command route takes: a command reads its body and its headers alone.",
+        )
+    }
+
     @Test
     fun `a missing parameter is wow-request-malformed naming it`() {
         get("/app/count").assertMalformed("n", "Required query parameter 'n' is not present.")

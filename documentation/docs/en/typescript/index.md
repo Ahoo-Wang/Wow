@@ -29,7 +29,7 @@ The packages are released with Wow, from the same tag and with the same version:
 | --- | --- |
 | Node.js, for the generator and server rendering | `>=22.12.0` |
 | TypeScript | 6 or later; CI checks the packages on 6.0 and the latest 7.x |
-| `@ahoo-wang/fetcher`, `fetcher-eventstream` (and `fetcher-decorator` for OpenAPI clients) | `^5.1.5 \|\| ^6.0.0` |
+| `@ahoo-wang/fetcher`, `fetcher-eventstream` (and `fetcher-decorator` for OpenAPI clients) | `^5.1.5 \|\| ^6.0.0 \|\| ^8.0.0-rc.1` |
 | React and React DOM, for `wow-react` and the view engine's UI | `^19.0.0` |
 | `@ahoo-wang/wow-client`, for the other Wow packages | the same minor, `~x.y.z` |
 

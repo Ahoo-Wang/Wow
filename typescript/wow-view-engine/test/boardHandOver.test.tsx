@@ -77,8 +77,8 @@ const views: ViewInstance[] = [
 ];
 
 const BINDINGS = [
-  { globalField: 'region', panelField: 'warehouse' },
-  { globalField: 'state', panelField: 'status' },
+  { dashboardField: 'region', panelField: 'warehouse' },
+  { dashboardField: 'state', panelField: 'status' },
 ];
 
 function panel(
@@ -207,7 +207,7 @@ function Host({
       interaction="interactive"
       filterModes={{ region: 'locked' }}
       pageValues={{ values: { region: ['CN'] } }}
-      initialFilters={filters}
+      defaultFilters={filters}
       onNavigate={go}
     />
   );

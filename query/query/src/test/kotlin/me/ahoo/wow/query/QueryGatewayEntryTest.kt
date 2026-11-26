@@ -23,18 +23,15 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CountResult
 import me.ahoo.wow.api.query.CursorQuery
-import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.QueryErrorCodes
-import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.TotalMode
@@ -42,7 +39,6 @@ import me.ahoo.wow.query.QueryGatewayFixtures.AGGREGATE
 import me.ahoo.wow.query.QueryGatewayFixtures.GatewayBackend
 import me.ahoo.wow.query.QueryGatewayFixtures.SCHEMA
 import me.ahoo.wow.query.QueryGatewayFixtures.gateway
-import me.ahoo.wow.query.QueryGatewayFixtures.recordPrepare
 import me.ahoo.wow.query.QueryGatewayFixtures.snapshotNode
 import me.ahoo.wow.query.admission.AdmittedQuery
 import me.ahoo.wow.query.admission.QueryBudget
@@ -54,15 +50,12 @@ import me.ahoo.wow.query.backend.paged
 import me.ahoo.wow.query.backend.single
 import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.error.QueryRequestException
-import me.ahoo.wow.query.error.QueryScopeRequiredException
 import me.ahoo.wow.query.error.QueryTimeoutException
-import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.observe.QueryAudit
 import me.ahoo.wow.query.observe.QueryObserver
 import me.ahoo.wow.query.observe.audits
 import me.ahoo.wow.query.policy.QueryEntryPolicy
-import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QueryViolation
@@ -77,68 +70,15 @@ import kotlin.time.toKotlinDuration
 /** What the entry of a call decides at the gateway: its requirements, the HTTP budget, and the D150 bounded counts, totals and timeouts. */
 class QueryGatewayEntryTest {
     @Test
-    fun `required explicit entry rejects unspecified queries before touching the schema or backend`() {
+    fun `every entry is a stated one, and a caller that names none runs in process`() {
         runTest {
             val backend = GatewayBackend()
-            val gateway = gateway(backend, entryPolicy = QueryEntryPolicy(requireExplicitEntry = true))
-            assertThrows<QueryRequestException> { gateway.single(SingleQuery(MatchAllFilter), QueryCaller.UNSPECIFIED) }
-                .code.assert().isEqualTo(QueryErrorCodes.EXPLICIT_ENTRY_REQUIRED)
-            assertThrows<QueryRequestException> { gateway.count(CountQuery(MatchAllFilter), QueryCaller.UNSPECIFIED) }
-            backend.filters.assert().isEmpty()
-
-            QueryEntry.entries.filter { it != QueryEntry.UNSPECIFIED }.forEach { entry ->
+            val gateway = gateway(backend)
+            QueryEntry.entries.forEach { entry ->
                 gateway.single(SingleQuery(MatchAllFilter), QueryCaller(entry = entry)).assert().isNull()
             }
-            backend.filters.assert().hasSize(QueryEntry.entries.size - 1)
-        }
-    }
-
-    @Test
-    fun `required authenticated scope counts only an authenticated tenant, and only for HTTP`() {
-        runTest {
-            val received = mutableListOf<QueryContext<*>>()
-            val gateway = gateway(
-                GatewayBackend(),
-                filters = listOf(recordPrepare { received += it }),
-                entryPolicy = QueryEntryPolicy(requireAuthenticatedScope = true),
-            )
-            val tenant = TenantIdFilter("tenant")
-            listOf(
-                QueryScope.NONE,
-                QueryScope(declared = tenant),
-                QueryScope(authenticated = OwnerIdFilter("owner")),
-                QueryScope(authenticated = EqualFilter(QueryField("tenantId"), null)),
-            ).forEach { scope ->
-                assertThrows<QueryScopeRequiredException> {
-                    gateway.count(CountQuery(MatchAllFilter), QueryCaller(entry = QueryEntry.HTTP, scope = scope))
-                }.apply {
-                    message.assert().isEqualTo("Query on [snapshot] requires an authenticated [tenantId] scope.")
-                    errorCode.assert().isEqualTo(QueryErrors.FORBIDDEN)
-                    errorMsg.assert().isEqualTo(message)
-                    model.assert().isEqualTo(QueryModel.SNAPSHOT)
-                    field.assert().isEqualTo(QueryField("tenantId"))
-                }
-            }
-            received.assert().isEmpty()
-
-            listOf(
-                QueryScope(authenticated = tenant),
-                QueryScope(authenticated = AndFilter(listOf(OwnerIdFilter("owner"), tenant)), declared = tenant),
-                QueryScope(authenticated = EqualFilter(QueryField("tenantId"), "tenant")),
-            ).forEach { scope ->
-                gateway.count(
-                    CountQuery(MatchAllFilter),
-                    QueryCaller(entry = QueryEntry.HTTP, scope = scope)
-                ).count.assert().isZero()
-            }
-            QueryEntry.entries.filter { it != QueryEntry.HTTP }.forEach { entry ->
-                gateway.count(
-                    CountQuery(MatchAllFilter),
-                    QueryCaller(entry = entry, scope = QueryScope(declared = tenant))
-                )
-                    .count.assert().isZero()
-            }
-            received.assert().hasSize(3 + QueryEntry.entries.size - 1)
+            backend.filters.assert().hasSize(QueryEntry.entries.size)
+            QueryCaller().entry.assert().isEqualTo(QueryEntry.IN_PROCESS)
         }
     }
 
@@ -193,7 +133,7 @@ class QueryGatewayEntryTest {
     fun `unspecified entries are admitted by default`() {
         runTest {
             val gateway = gateway(GatewayBackend())
-            gateway.single(SingleQuery(MatchAllFilter), QueryCaller.UNSPECIFIED).assert().isNull()
+            gateway.single(SingleQuery(MatchAllFilter), QueryCaller.IN_PROCESS).assert().isNull()
             gateway.entryPolicy.assert().isEqualTo(QueryEntryPolicy.DEFAULT)
             gateway.aggregateType.assert().isEqualTo(AGGREGATE)
         }
@@ -361,7 +301,7 @@ class QueryGatewayEntryTest {
         val policy =
             QueryEntryPolicy(inProcess = inProcess, inProcessTimeout = Duration.ofSeconds(1).toKotlinDuration())
         policy.budget(QueryEntry.HTTP).assert().isSameAs(QueryBudget.HTTP_DEFAULT)
-        policy.budget(QueryEntry.UNSPECIFIED).assert().isSameAs(inProcess)
+        policy.budget(QueryEntry.IN_PROCESS).assert().isSameAs(inProcess)
         policy.timeout(QueryEntry.IN_PROCESS).assert().isEqualTo(Duration.ofSeconds(5).toKotlinDuration())
         policy.timeout(QueryEntry.HTTP).assert().isEqualTo(QueryBudget.DEFAULT_TIMEOUT)
         QueryEntryPolicy().timeout(QueryEntry.IN_PROCESS).assert().isEqualTo(QueryBudget.DEFAULT_TIMEOUT)

@@ -60,7 +60,9 @@ pass the version you hold and a 304 answers `{ notModified: true, version }`.
 datasets (`GET /wow/dataset`).
 
 Every method takes `RequestOptions` last: the `scope` and `space` to act in,
-more `headers`, and the `signal` that cancels the request.
+more `headers` (never one the client writes from a request's own fields,
+such as `Wow-Request-Id`: set the field), and the `signal` that cancels the
+request.
 
 Relative time is resolved by the server, never by the browser's clock:
 
@@ -85,7 +87,7 @@ const commands = new CommandClient({ fetcher });
 const result = await commands.wait({
   command: 'shop.cart.AddCartItem',
   body: { productId: 'p-1', quantity: 1 },
-  id: 'cart-42',
+  aggregateId: 'cart-42',
   wait: WaitPlan.SNAPSHOT,
   timeout: 10_000,
 });
@@ -98,14 +100,16 @@ generated client's `manifest.ts`, its routes alone), else the service's,
 fetched once (`GET /wow/manifest`) for every command waiting on it; a
 command's `signal` ends its own wait, and a failed fetch rejects each command
 with an error of its own, carrying its request id. A command that
-may create its aggregate leaves `id` out and goes by the route without one. As with Kotlin's `CommandClient`,
+may create its aggregate leaves `aggregateId` out and goes by the route without one. As with Kotlin's `CommandClient`,
 `send` answers once the command is accepted, `wait` with the result its plan
 ends with (the server's default plan when there is none), and `stream` one
 `CommandResult` per hop. `wait` is a `WaitPlan`, as Kotlin's:
-`WaitPlan.ACCEPTED`, `COMMITTED`, `SNAPSHOT`, or `WaitPlan.of(...hops)` of the
-`wait` hops (`accepted`, `committed`, `snapshot`, `queryable`, or a subscription's
-`handled`, also across a saga's derived commands), `.within(ms)` its timeout;
-`timeout` is in milliseconds and overrides it. `parseWaitPlan` and
+`WaitPlan.ACCEPTED`, `COMMITTED`, `SNAPSHOT`, or `WaitPlan.of(...hops)` of
+`Hop`s, built as Kotlin's are (`Hop.accepted()`, `committed`, `snapshot`,
+`queryable`, or a subscription's `handled`, also across a saga's derived
+commands), `.within(ms)` its timeout;
+`timeout` is in milliseconds and overrides it; every plan states its timeout
+(`Wow-Wait-Timeout`), as Kotlin's client does. `parseWaitPlan` and
 `formatWaitPlan` read and write the `Wow-Wait` header. `targetTenant` and `targetScope`
 (`{ ownerId?, spaceId? }`) act in another tenant, owner or space. Every command carries a request id
 (`Wow-Request-Id`), given or generated: a retry with the same one is answered
@@ -113,7 +117,7 @@ as the first commit's duplicate, and `requestIdOf(error)` hands back the one
 a failure was sent with. A system command, such as a lifecycle
 command an aggregate lists (`LifecycleCommands.DELETE_AGGREGATE`, …), also
 names the aggregate's `type: { context, name }`, and a lifecycle command its
-`id`.
+`aggregateId`.
 
 `StateClient` reads an aggregate's state, at a version or a time, and its
 trace; `find(id, options?)` answers `undefined` for an aggregate that does

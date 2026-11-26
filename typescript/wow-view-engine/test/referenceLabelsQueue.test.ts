@@ -16,6 +16,7 @@ import type { FieldOption, OptionSource } from '../src/index.js';
 import {
   ReferenceLabels,
   ReferenceLabelTimeoutError,
+  isReferenceLabelTimeoutError,
   type ReferenceId,
 } from '../src/runtime/referenceLabels.js';
 import { nextTask } from './fixtures.js';
@@ -92,7 +93,7 @@ function labelsOver(
   const failed = vi.fn();
   const timers = clock();
   const labels = new ReferenceLabels({
-    resolveOptions: () => options,
+    optionSource: () => options,
     batch: more.batch ?? 1,
     concurrency: more.concurrency ?? 2,
     ...(more.timeout === undefined ? {} : { timeout: more.timeout }),
@@ -192,6 +193,14 @@ describe('ReferenceLabels never lets a source hold a slot', () => {
       expect.any(ReferenceLabelTimeoutError),
     );
     expect(customers.signals[0]?.aborted).toBe(true);
+    // The host tells it apart by its guard, from `onError` and from the
+    // signal's reason alike, and reads which remote and how long.
+    const reported: unknown = failed.mock.calls[0]?.[1];
+    expect(isReferenceLabelTimeoutError(reported)).toBe(true);
+    expect(isReferenceLabelTimeoutError(customers.signals[0]?.reason)).toBe(
+      true,
+    );
+    expect(reported).toMatchObject({ remote: 'customers', timeout: 50 });
     expect(customers.asked).toEqual([['s1'], ['n1']]);
 
     // The late answer is dropped, and nothing was remembered: s1 is asked
@@ -220,5 +229,22 @@ describe('ReferenceLabels never lets a source hold a slot', () => {
     await timers.fire();
     expect(failed).not.toHaveBeenCalled();
     expect(labels.text('customers', 'q1')).toBe('Customer q1');
+  });
+});
+
+describe('isReferenceLabelTimeoutError', () => {
+  it('tells the timeout apart by name, so a second install of the package passes', () => {
+    expect(
+      isReferenceLabelTimeoutError(new ReferenceLabelTimeoutError('c', 1)),
+    ).toBe(true);
+    const copy = Object.assign(new Error('late'), {
+      name: 'ReferenceLabelTimeoutError',
+    });
+    expect(isReferenceLabelTimeoutError(copy)).toBe(true);
+    expect(isReferenceLabelTimeoutError(new Error('late'))).toBe(false);
+    expect(isReferenceLabelTimeoutError('ReferenceLabelTimeoutError')).toBe(
+      false,
+    );
+    expect(isReferenceLabelTimeoutError(null)).toBe(false);
   });
 });

@@ -26,9 +26,8 @@ import {
 import { describe, expect, it } from 'vitest';
 import type { FilterOperatorName } from '../src/model/index.js';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   compileFilter,
-  resolveDateTimeRange,
   validateFilter,
   type FieldDefinition,
 } from '../src/index.js';
@@ -45,6 +44,7 @@ import {
   filterContext as context,
   filterFields as fields,
 } from './fixtures/filter.js';
+import { resolveDateTimeRange } from '../src/filter/time.js';
 
 describe('relative and preset dates', () => {
   const now = new Date('2026-09-16T10:30:00.000Z');
@@ -206,7 +206,7 @@ describe('relative and preset dates', () => {
         operator: FilterOperator.BETWEEN,
         value: { type: 'absolute', from: '2026-01-01T00:00:00.000Z' },
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
       context,
     );
     expect(open).toMatchObject({ op: FilterOperator.GTE, field: 'createdAt' });
@@ -218,7 +218,7 @@ describe('relative and preset dates', () => {
         operator: FilterOperator.BETWEEN,
         value: { type: 'preset', preset: 'today' },
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
       context,
     );
     expect(closed).toMatchObject({
@@ -244,7 +244,7 @@ describe('relative windows and named periods', () => {
         operator: `${FilterOperator.BETWEEN}`,
         value: value as never,
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
       context,
     ) as { lowerBound: string; upperBound: string };
 
@@ -335,7 +335,7 @@ describe('relative windows and named periods', () => {
               direction: 'sideways',
             } as never,
           }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['filter.value.expected-date']);
@@ -383,7 +383,7 @@ describe('relative windows and named periods', () => {
             ...(direction === undefined ? {} : { direction }),
           } as never,
         }),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       )[0].text,
     ).toContain(want);
   });
@@ -397,7 +397,7 @@ describe('relative windows and named periods', () => {
           operator: `${FilterOperator.BETWEEN}`,
           value: { type: 'preset', preset: 'nextQuarter' } as never,
         }),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       )[0].text,
     ).toContain('next quarter');
   });
@@ -433,7 +433,7 @@ describe('a relative value as a single bound', () => {
       compileFilter(
         fields,
         tree({ field: 'createdAt', operator, value: value as never }),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
         context,
       ) as { value: string }
     ).value;
@@ -441,7 +441,7 @@ describe('a relative value as a single bound', () => {
     describeFilter(
       fields,
       tree({ field: 'createdAt', operator, value } as never),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     )[0].text;
 
   it('stands on the edge that is not now', () => {
@@ -515,7 +515,7 @@ describe('an unbounded relative amount', () => {
       validateFilter(
         fields,
         at(FilterOperator.BETWEEN, huge),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       ),
     ).toEqual([
       {
@@ -540,7 +540,7 @@ describe('an unbounded relative amount', () => {
           validateFilter(
             fields,
             at(FilterOperator.BETWEEN, value),
-            builtinFieldKinds,
+            builtinFieldKindRegistry,
           ),
         ).toEqual([]);
         const range = resolveDateTimeRange(value as never, context.now, 'UTC');
@@ -557,7 +557,7 @@ describe('an unbounded relative amount', () => {
       compileFilter(
         fields,
         at(FilterOperator.BETWEEN, huge),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
         context,
       ),
     ).not.toThrow();
@@ -565,7 +565,7 @@ describe('an unbounded relative amount', () => {
       compileFilter(
         fields,
         at(FilterOperator.LTE, ahead),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
         context,
       ),
     ).not.toThrow();
@@ -601,7 +601,7 @@ describe('absolute dates and their zone', () => {
           ...(timeZone ? { timeZone } : {}),
         },
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
       context,
     );
 
@@ -638,7 +638,7 @@ describe('absolute dates and their zone', () => {
         operator: `${FilterOperator.GTE}`,
         value: { type: 'absolute', from: '2026-01-01', timeZone: 'Not/AZone' },
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
 
     // Without this the compiler throws a RangeError where a query was due.
@@ -673,7 +673,7 @@ describe('a calendar day as a bound', () => {
         operator,
         value: { type: 'absolute', ...value },
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
       shanghai,
     );
 
@@ -791,7 +791,7 @@ describe('a bound with a time of day', () => {
         operator,
         value: { type: 'absolute', ...value },
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
       shanghai,
     ) as unknown as { lowerBound: string; upperBound: string; value: string };
 
@@ -887,7 +887,7 @@ describe('a bound with a time of day', () => {
           operator: FilterOperator.BETWEEN,
           value: { type: 'absolute', ...value },
         }),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       )[0].text;
 
     expect(said({ from: '2026-01-01', to: '2026-01-31' })).toBe(

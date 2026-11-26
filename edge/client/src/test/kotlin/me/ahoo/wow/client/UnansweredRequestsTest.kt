@@ -20,7 +20,7 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
@@ -101,7 +101,7 @@ class UnansweredRequestsTest {
             // The command was taken: whether it committed is unknown, and a retry keeps its request id, not
             // `wow.peer.unavailable`'s new request, which could commit it twice (#6806).
             failure.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNKNOWN)
-            failure.retry.assert().isEqualTo(Retry.SAME_REQUEST)
+            failure.retry.assert().isEqualTo(RetryAdvice.SAME_REQUEST)
         }
     }
 
@@ -119,7 +119,7 @@ class UnansweredRequestsTest {
             peer.taken.assert().hasSize(2)
             // Not "nothing was done, send a new request": the first attempt was taken and may have committed (#6806).
             failure.code.assert().describedAs("after a cut, %s", reply).isEqualTo(FrameworkCodes.COMMAND_UNKNOWN)
-            failure.retry.assert().isEqualTo(Retry.SAME_REQUEST)
+            failure.retry.assert().isEqualTo(RetryAdvice.SAME_REQUEST)
         }
     }
 

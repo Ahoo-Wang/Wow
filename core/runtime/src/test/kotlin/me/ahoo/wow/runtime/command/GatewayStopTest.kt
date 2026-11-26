@@ -95,15 +95,19 @@ class GatewayStopTest {
     )
 
     /** A peer's stock reservation, ACCEPTED only. */
-    private fun request() = ServerCommandRequest.builder(Reserve(2), ITEM.ref(TENANT, "i-1"))
-        .caller(clerk)
-        .wait(WaitPlan.ACCEPTED)
-        .build()
+    private fun request() = ServerCommandRequest.of(
+        Reserve(2),
+        ITEM.ref(TENANT, "i-1"),
+        caller = clerk,
+        wait = WaitPlan.ACCEPTED,
+    )
 
-    private fun reserve(item: String) = ServerCommandRequest.builder(Reserve(1), ITEM.ref(TENANT, item))
-        .caller(clerk)
-        .wait(WaitPlan.ACCEPTED)
-        .build()
+    private fun reserve(item: String) = ServerCommandRequest.of(
+        Reserve(1),
+        ITEM.ref(TENANT, item),
+        caller = clerk,
+        wait = WaitPlan.ACCEPTED,
+    )
 
     /** What the gateway warns of while [block] runs. */
     private suspend fun gatewayWarnings(block: suspend () -> Unit): List<String> {

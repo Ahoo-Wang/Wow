@@ -91,7 +91,7 @@ class AccountSpec {
 | `expectEvents(vararg events)` | 命令恰好按顺序提交了这些事件。 |
 | `expectEventTypes(vararg types)` | 恰好按顺序提交了这些类的事件。 |
 | `expectEvent<E> { … }` | 恰好提交了一个事件，它是 `E`，且块中的检查在它上面成立。 |
-| `expectEventEnvelope<E> { … }` | 同上，并在事件（`body`）旁给出事件流的信封：`aggregateId`、`tenantId`、`version`、`commandId`、`requestId`、`headers`。 |
+| `expectEventEnvelope<E> { … }` | 同上，并在事件（`body`）旁给出事件流的信封：`ref`（聚合的类型、租户与 ID）、`version`、`commandId`、`requestId`、`headers`。 |
 | `expectEventCount(n)` | 恰好提交了 `n` 个事件。 |
 | `expectUnchanged()` | 被接受，且没有改变任何东西。 |
 | `expectVersion(n)` | 命令之后聚合处于版本 `n`：已提交事件流的版本，或命令什么都没追加时聚合停留的版本。 |
@@ -311,7 +311,7 @@ fun `an order awaiting validation should reserve each product's stock in the inv
 }
 ```
 
-`expectDeterministic()` 再处理一次这次提交，像运行时那样给每次处理一个新的上下文，并检查 Saga 发出相同的命令、带相同的 ID。正是这一点让重新投递的提交是安全的：目标对每个请求只决定一次。新的上下文像节点那样从 `context.ids` 生成新的 ID，所以带有生成 ID 的命令无法通过这项检查。用生成的 ID 指定目标的命令是另一个请求，会创建第二个聚合（[构建命令](./sagas#build-the-commands)）。投影和反应器没有这项检查：再处理一次提交会让它们的副作用再执行一次。
+`expectDeterministic()` 再处理一次这次提交，像运行时那样给每次处理一个新的上下文，并检查 Saga 发出相同的命令、带相同的 ID。正是这一点让重新投递的提交是安全的：目标对每个请求只决定一次。新的上下文像节点那样从 `context.ids` 生成新的 ID，所以命令体里带有生成 ID 的命令无法通过这项检查。用生成的 ID 指定目标的命令在第一次处理时就失败，与节点上一样（[构建命令](./sagas#build-the-commands)）。投影和反应器没有这项检查：再处理一次提交会让它们的副作用再执行一次。
 
 ### 步骤 {#steps}
 

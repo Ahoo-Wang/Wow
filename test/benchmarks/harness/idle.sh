@@ -69,7 +69,7 @@ idle_machine() {
 idle_chip() { idle_machine | sed -n 's/^machine\.chip=//p'; }
 
 # Runs JavaScript $1 in MongoDB's shell, on the benchmark's database.
-idle_mongo() { docker exec wow-e2e-bench-mongo mongosh --quiet transfer --eval "$1"; }
+idle_mongo() { docker exec wow-e2e-bench-mongo mongosh --quiet --port "$MONGO_PORT" transfer --eval "$1"; }
 
 # MongoDB: the opcounters a second over the window (and the CPU meanwhile), then the profiler's operations, by
 # namespace and command, over --profile seconds.

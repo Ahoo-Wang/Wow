@@ -8,6 +8,12 @@ import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { annotationsOf, markedDeclarations } from './docs-reference-kotlin.mjs';
 import { HEADLINES, performancePages } from './docs-performance.mjs';
+import {
+  experimentalOf,
+  typescriptPackageDeclarations,
+  unmarkedCounterparts,
+  withExperimental,
+} from './docs-reference-typescript.mjs';
 
 // The reference pages generated from the sources of truth, in English and
 // Chinese (the descriptions stay in the sources' English):
@@ -19,6 +25,10 @@ import { HEADLINES, performancePages } from './docs-performance.mjs';
 //   and the codes of rejected query requests (api/query-api QueryErrorCodes).
 // - reference/annotations: the annotations of the programming model
 //   (api/api me.ahoo.wow.api.annotation), from their declarations and KDoc.
+// - reference/api-levels: the published modules' `@ExperimentalWowApi` and
+//   `@WowSpi` declarations; and the block of typescript/compatibility that
+//   lists the TypeScript packages' `@experimental` declarations, the
+//   counterparts of the Kotlin ones (docs-reference-typescript.mjs).
 //
 // `node .github/scripts/docs-reference.mjs` fails when a committed page is not
 // what the sources give; `--write` (`pnpm docs:reference`) writes them.
@@ -86,6 +96,7 @@ const WORDS = {
       query: 'Query request codes',
       queryIntro: `A rejected query request (\`wow.query.malformed\` or \`wow.query.invalid\`) lists what it rejects, each with one of these codes and the part of the request it names, generated from [\`QueryErrorCodes\`](${SOURCE}${QUERY_ERROR_CODES}). Codes are added, never renamed or reused.`,
       queryHead: '| Code | Group |',
+      experimentalCode: 'Experimental: only an aggregation query gives it.',
     },
     annotations: {
       title: 'Annotations',
@@ -167,6 +178,7 @@ const WORDS = {
       query: '查询请求的代码',
       queryIntro: `被拒绝的查询请求（\`wow.query.malformed\` 或 \`wow.query.invalid\`）会列出它拒绝的每一处，各带下列一个代码与它所指的请求部分，由 [\`QueryErrorCodes\`](${SOURCE}${QUERY_ERROR_CODES}) 生成。代码只增不改，也不复用。`,
       queryHead: '| 代码 | 分组 |',
+      experimentalCode: '实验性：只有聚合查询会给出。',
     },
     annotations: {
       title: '注解',
@@ -413,11 +425,15 @@ export function frameworkErrors(snapshot) {
   }));
 }
 
-/** The query request codes from QueryErrorCodes.kt, each with the comment of its group: `[{ code, group }]`. */
+/**
+ * The query request codes from QueryErrorCodes.kt, each with the comment of its group and whether it is marked
+ * `@ExperimentalWowApi`: `[{ code, group, experimental }]`.
+ */
 export function queryErrorCodes(source) {
   const codes = [];
   let group = '';
   let comment = [];
+  let experimental = false;
   for (const line of source
     .slice(source.indexOf('object QueryErrorCodes'))
     .split('\n')) {
@@ -430,8 +446,15 @@ export function queryErrorCodes(source) {
       group = plain(firstSentence(comment.join(' ')).replace(/;.*$/, '.'));
       comment = [];
     }
+    if (text === '@ExperimentalWowApi') {
+      experimental = true;
+      continue;
+    }
     const constant = /^const val \w+ = "([\w-]+)"/.exec(text);
-    if (constant) codes.push({ code: constant[1], group });
+    if (constant) {
+      codes.push({ code: constant[1], group, experimental });
+      experimental = false;
+    }
   }
   return codes;
 }
@@ -456,7 +479,10 @@ export function errorCodesPage(locale, framework, query) {
     '',
     words.queryHead,
     '| --- | --- |',
-    ...query.map(({ code, group }) => `| \`${code}\` | ${cell(group)} |`),
+    ...query.map(
+      ({ code, group, experimental }) =>
+        `| \`${code}\` | ${cell(experimental ? `${group} ${words.experimentalCode}` : group)} |`,
+    ),
     '',
   ];
   return page(
@@ -800,6 +826,17 @@ export function referencePages(root = ROOT) {
   const modules = publishedModules(read);
   const experimental = marked(root, read, modules, 'ExperimentalWowApi');
   const spi = marked(root, read, modules, 'WowSpi');
+  const typescript = typescriptPackageDeclarations(root, read);
+  const unmarked = unmarkedCounterparts(experimental, typescript);
+  if (unmarked.length > 0)
+    throw new Error(
+      [
+        'These TypeScript declarations mirror an @ExperimentalWowApi Kotlin declaration but are not @experimental:',
+        ...unmarked.map(({ name, entry }) => `  ${name} (${entry})`),
+        'Add `@experimental` to their TSDoc (D486 ②).',
+      ].join('\n'),
+    );
+  const typescriptExperimental = experimentalOf(typescript);
   const tree = read(MANIFEST_TREE);
   const manifest = manifestObjects(tree);
   const pages = {};
@@ -818,6 +855,13 @@ export function referencePages(root = ROOT) {
     pages[`${dir}/annotations.md`] = annotationsPage(locale, annotations);
     pages[`${dir}/modules.md`] = modulesPage(locale, modules);
     pages[`${dir}/api-levels.md`] = levelsPage(locale, experimental, spi);
+    const compatibility = `documentation/docs/${locale}/typescript/compatibility.md`;
+    pages[compatibility] = withExperimental(
+      read(compatibility),
+      locale,
+      typescriptExperimental,
+      compatibility,
+    );
     pages[`${dir}/manifest.md`] = manifestPage(
       locale,
       manifest,
@@ -845,6 +889,9 @@ export const SOURCES = {
   ],
   'api-levels.md': [
     "the @ExperimentalWowApi and @WowSpi declarations of the published modules' src/main/kotlin",
+  ],
+  'compatibility.md': [
+    "the @experimental declarations of typescript/wow-client and typescript/wow-react's src, by the entry their test/api reports export them from",
   ],
 };
 

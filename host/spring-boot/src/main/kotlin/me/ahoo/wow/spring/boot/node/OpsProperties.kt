@@ -16,8 +16,10 @@ package me.ahoo.wow.spring.boot.node
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.http.ops.WebhookNotifier
+import me.ahoo.wow.manifest.ContextName
 import me.ahoo.wow.runtime.ledger.LedgerPublishing
 import me.ahoo.wow.runtime.subscription.ParkedNotice
+import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spring.boot.WowProperties.Switch
 import java.net.URI
 import java.time.Duration
@@ -46,22 +48,38 @@ class PublishProperties {
     /**
      * Whether the node publishes its failure ledger to the ops context: `auto` (the default) while the ops context's
      * command topic exists on the node's transport, which the ops service creates once it is deployed, checked at
-     * start and every `wow.kafka.topics.partition-refresh`, and not at all without a transport; `true` always, which
+     * start and every `wow.kafka.topics.partition-refresh-interval`, and not at all without a transport; `true` always, which
      * needs a transport; `false` never.
      */
     var enabled: Switch = Switch.AUTO
 
-    /** The ops context the ledger is published to. */
+    /**
+     * The ops context the ledger is published to, a context name (lower-case letters, digits and hyphens, starting with
+     * a letter): its command topic is named after it, so another name would never be found, and `auto` would never
+     * publish. Another name refuses the start.
+     */
     var context: String = Ledger.OPS_CONTEXT
 
     /** How often the node scans its ledger and publishes it; an entry is also published at once when it parks. */
     var interval: Duration = LedgerPublishing.DEFAULT_INTERVAL.toJavaDuration()
 
-    /** Where the node publishes its ledger, null when it does not; [transport] is whether it has one. */
-    fun options(transport: Boolean): LedgerPublishing? = when (enabled) {
-        Switch.TRUE -> LedgerPublishing(context, interval.toKotlinDuration())
-        Switch.AUTO -> LedgerPublishing(context, interval.toKotlinDuration(), automatic = true).takeIf { transport }
-        Switch.FALSE -> null
+    /**
+     * Where the node publishes its ledger, null when it does not; [transport] is whether it has one. A [context] that is
+     * no context name refuses the start, whether the node publishes or not.
+     */
+    fun options(transport: Boolean): LedgerPublishing? {
+        configCheck(
+            ContextName.isValid(context),
+            "wow.ops.publish.context",
+            context,
+            "Set the ops service's context name, such as ${Ledger.OPS_CONTEXT}: lower-case letters, digits and " +
+                "hyphens, starting with a letter.",
+        ) { "The failure ledger would be published to the topics of the context \"$context\", which no context has." }
+        return when (enabled) {
+            Switch.TRUE -> LedgerPublishing(context, interval.toKotlinDuration())
+            Switch.AUTO -> LedgerPublishing(context, interval.toKotlinDuration(), automatic = true).takeIf { transport }
+            Switch.FALSE -> null
+        }
     }
 }
 

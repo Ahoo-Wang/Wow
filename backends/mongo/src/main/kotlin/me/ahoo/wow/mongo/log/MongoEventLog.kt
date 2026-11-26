@@ -194,9 +194,6 @@ class MongoEventLog(
         DoneBlocks(options.doneGrace),
     )
 
-    /** The other nodes' blocks the partitions' counters list, against those the last probe saw. */
-    private val foreignBlocks = MongoForeignBlocks(committedCounters, sequencer, context, partitions)
-
     /** Where an aggregate's streams are found. */
     private val lookups = MongoLogLookups(partitions, documents)
 
@@ -212,6 +209,9 @@ class MongoEventLog(
 
     /** The placeholders of the sequences no stream took. */
     private val placeholders = MongoLogPlaceholders(sequencer, collections)
+
+    /** Other nodes' blocks the counters list, against those the last probe saw, and this node's they overtake. */
+    private val foreignBlocks = MongoForeignBlocks(committedCounters, sequencer, placeholders, context, partitions)
 
     /** The appends, alone or in groups. */
     private val appender = MongoLogAppender(
@@ -611,7 +611,9 @@ class MongoEventLog(
         const val EVENTS = "events"
         const val NAME = "name"
         const val REVISION = "revision"
-        const val PAYLOAD = "payload"
+
+        /** An event's data in a log document's `events`, `body` as the events query model names it. */
+        const val BODY = "body"
         const val VERSION_KEY = "version_key"
         const val REQUEST_KEY = "request_key"
 

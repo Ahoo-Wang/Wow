@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.openapi
 
-import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.problem.RetryAdvice
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.FrameworkErrors
@@ -117,9 +117,13 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
             }
     }
 
-    /** The statuses without a Wow code a route answers: 406, and 413 and 415 when it reads a [body]. */
+    /**
+     * The statuses without a Wow code a route answers: 406, the server's own 414 and 431, met before any route reads
+     * the request, and 413 and 415 when it reads a [body].
+     */
     private fun http(body: Boolean): List<Pair<Int, String>> =
-        listOf(NOT_ACCEPTABLE) + if (body) listOf(CONTENT_TOO_LARGE, UNSUPPORTED_MEDIA_TYPE) else emptyList()
+        listOf(NOT_ACCEPTABLE, URI_TOO_LONG, HEADERS_TOO_LARGE) +
+            if (body) listOf(CONTENT_TOO_LARGE, UNSUPPORTED_MEDIA_TYPE) else emptyList()
 
     /** What a framework code means for a service route, which sends no command. */
     private fun routeWords(error: ErrorManifest): String? = ROUTE_WORDS[error.code] ?: error.description
@@ -152,7 +156,9 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
      * retry of the code is not none ([FrameworkErrors.BY_CODE]); a code the catalog does not list, a domain's, carries
      * none.
      */
-    private fun retried(code: String): Boolean = (FrameworkErrors.BY_CODE[code]?.retry ?: Retry.NONE) != Retry.NONE
+    private fun retried(
+        code: String
+    ): Boolean = (FrameworkErrors.BY_CODE[code]?.retry ?: RetryAdvice.NONE) != RetryAdvice.NONE
 
     companion object {
         const val PROBLEM_JSON: String = "application/problem+json"
@@ -227,22 +233,22 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
         )
 
         /**
-         * The codes a dataset's descriptor answers: a model's, a `Wow-Scope` that does not parse
-         * (`wow.query.malformed`: its caller reads in the scope it names), and the dataset's own: not served to the
-         * caller, or served but not queryable now.
+         * The codes a dataset's descriptor answers: a model's, and the dataset's own: not served to the caller, or
+         * served but not queryable now. A `Wow-Scope` that does not parse is the public port's
+         * `wow.request.malformed`, as on every route ([PUBLIC]).
          */
-        val DATASET_DESCRIPTOR: List<String> = DESCRIPTOR + FrameworkCodes.QUERY_MALFORMED + DATASET_ONLY
+        val DATASET_DESCRIPTOR: List<String> = DESCRIPTOR + DATASET_ONLY
 
-        /** The codes the dataset list answers. */
+        /** The codes the dataset list answers: a `Wow-Scope` that does not parse among the public port's ([PUBLIC]). */
         val DATASET_LIST: List<String> = listOf(
             FrameworkCodes.AUTH_UNAUTHENTICATED,
             FrameworkCodes.AUTH_FORBIDDEN,
-            FrameworkCodes.QUERY_MALFORMED,
         )
 
         /**
          * What the public port answers any request with before its route reads it: an unknown `Wow-` header, one given
-         * twice, or matrix parameters in the path (400 `wow.request.malformed`); `Wow-Call` or `Wow-Reveal`, a space
+         * twice, or matrix parameters in the path (400 `wow.request.malformed`, as is a `Wow-Scope` that does not parse,
+         * on every route that reads it); `Wow-Call` or `Wow-Reveal`, a space
          * the caller does not act in (`Wow-Space`), or a service identity (403 `wow.auth.forbidden`); and no
          * credentials (401 `wow.auth.unauthenticated`). Every route lists them.
          */
@@ -272,6 +278,15 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
 
         /** A route that answers no type the request accepts. */
         val NOT_ACCEPTABLE: Pair<Int, String> = 406 to "Not Acceptable: the route answers in none of the types Accept names."
+
+        /** A request line longer than the server takes (`server.netty.max-initial-line-length`), before any route. */
+        val URI_TOO_LONG: Pair<Int, String> = 414 to "URI Too Long: the request line is longer than this server takes."
+
+        /** A header block larger than the server takes (`server.max-http-request-header-size`), before any route. */
+        val HEADERS_TOO_LARGE: Pair<Int, String> = 431 to HEADERS_TOO_LARGE_TEXT
+
+        private const val HEADERS_TOO_LARGE_TEXT =
+            "Request Header Fields Too Large: the request's headers are larger than this server takes."
 
         /** A body larger than the server takes in memory (`spring.http.codecs.max-in-memory-size`). */
         val CONTENT_TOO_LARGE: Pair<Int, String> = 413 to "Content Too Large: the body is larger than this server takes."

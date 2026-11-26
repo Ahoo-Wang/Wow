@@ -14,7 +14,8 @@
 /**
  * The routing part a generated client carries (`manifest.ts`), and the
  * context's command client that sends by it: it routes and writes a command
- * as a `CommandClient` over the whole Manifest does (#6897, #6898).
+ * as a `CommandClient` over the whole Manifest does (#6897, #6898), a former
+ * name listed as a full type name too (#7054).
  */
 
 import { afterAll, describe, expect, it } from 'vitest';
@@ -91,15 +92,15 @@ describe("the context client's command client", () => {
       `import { ProbeClient, type Pay } from './out/index.js';
        declare const probe: ProbeClient;
        const body: Pay = { amount: '1.50' };
-       void probe.commands.wait({ command: 'probe.thing.Pay', id: 't1', body });`,
+       void probe.commands.wait({ command: 'probe.thing.Pay', aggregateId: 't1', body });`,
     );
     directories.push(generation.dir);
     const printed = runGenerated(
       generation.output,
       `${sending(`[
-  { command: 'probe.thing.Pay', id: 't1', body: { amount: '${DECIMAL}' } },
-  { command: 'probe.thing.Settle', id: 't1', body: { amount: '${DECIMAL}' } },
-  { command: 'probe.thing.Adjust', id: 't1', body: { amount: '${DECIMAL}' } },
+  { command: 'probe.thing.Pay', aggregateId: 't1', body: { amount: '${DECIMAL}' } },
+  { command: 'probe.thing.Settle', aggregateId: 't1', body: { amount: '${DECIMAL}' } },
+  { command: 'probe.thing.Adjust', aggregateId: 't1', body: { amount: '${DECIMAL}' } },
 ]`)}
 await probe.thing.commands.pay('t1', { amount: '${DECIMAL}' });
 console.log(JSON.stringify(requests.at(-1).body));`,
@@ -115,6 +116,28 @@ console.log(JSON.stringify(requests.at(-1).body));`,
       "'probe.thing.Adjust'",
     );
     expect(JSON.parse(aggregate)).toBe(body);
+  });
+
+  it('routes and marks a command by a former name the Manifest lists as a full type name, as the Kotlin client does', async () => {
+    // The compiler writes `@Alias("probe.thing.Settle")` as written, and the
+    // Kotlin client matches it (`ManifestPeers.declared`,
+    // `command.type in it.aliases`).
+    const generation = await generateCompiling(
+      manifest({ commands: [pay('probe.thing.Settle')] }, DEFS),
+    );
+    directories.push(generation.dir);
+    const printed = runGenerated(
+      generation.output,
+      sending(
+        `[{ command: 'probe.thing.Settle', aggregateId: 't1', body: { amount: '${DECIMAL}' } }]`,
+      ),
+    );
+    expect(JSON.parse(printed)).toEqual([
+      ['/probe/thing/t1/pay', `{"amount":${DECIMAL}}`],
+    ]);
+    expect(generation.read('probe/client.ts')).toContain(
+      "'probe.thing.Settle': ThingAggregate.textNumbers.commands['probe.thing.Pay'],",
+    );
   });
 
   it("routes a command by a former name, every system command its aggregate lists, and its context's own, but no internal one", async () => {
@@ -150,10 +173,10 @@ console.log(JSON.stringify(requests.at(-1).body));`,
     const printed = runGenerated(
       generation.output,
       sending(`[
-  { command: 'probe.thing.Settle', id: 't1', body: { amount: '1' } },
+  { command: 'probe.thing.Settle', aggregateId: 't1', body: { amount: '1' } },
   { command: 'wow.lifecycle.DeleteAggregate', ${type} },
   { command: 'wow.snapshot.RebuildSnapshot', ${type} },
-  { command: 'wow.schedule.EnableJob', id: 'nightly', type: { context: 'probe', name: 'wow.schedule' } },
+  { command: 'wow.schedule.EnableJob', aggregateId: 'nightly', type: { context: 'probe', name: 'wow.schedule' } },
   { command: 'wow.probe.Sweep', ${type} },
 ]`),
     );

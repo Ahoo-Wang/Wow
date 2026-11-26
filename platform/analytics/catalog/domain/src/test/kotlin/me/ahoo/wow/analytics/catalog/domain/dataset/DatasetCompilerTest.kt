@@ -167,11 +167,11 @@ class DatasetCompilerTest {
             "n.a in (1, 2)" to "`n`.`a` IN (1, 2)",
             "n.a between 1 and 2" to "(`n`.`a` BETWEEN 1 AND 2)",
             "contains(n.note, 'x')" to "(position(`n`.`note`, 'x') > 0)",
-            "containsIgnoreCase(n.note, 'x')" to "(positionCaseInsensitiveUTF8(`n`.`note`, 'x') > 0)",
+            "containsIgnoreCase(n.note, 'x')" to "match(`n`.`note`, '[Xx]')",
             "startsWith(n.note, 'x')" to "startsWith(`n`.`note`, 'x')",
-            "startsWithIgnoreCase(n.note, 'x')" to "startsWith(lowerUTF8(`n`.`note`), lowerUTF8('x'))",
+            "startsWithIgnoreCase(n.note, 'x')" to "match(`n`.`note`, '^[Xx]')",
             "endsWith(n.note, 'x')" to "endsWith(`n`.`note`, 'x')",
-            "endsWithIgnoreCase(n.note, 'x')" to "endsWith(lowerUTF8(`n`.`note`), lowerUTF8('x'))",
+            "endsWithIgnoreCase(n.note, 'x')" to "match(`n`.`note`, '[Xx]$')",
         )
         table.forEach { (filter, sql) ->
             val definition = DatasetDefinition(

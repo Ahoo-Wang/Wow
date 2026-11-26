@@ -8,6 +8,6 @@ Judge only the agent's final answer. It worked in an empty, read-only directory 
 PASS only if the answer does all of these:
 
 1. Uses the generated CartCommandClient (or CommandGateway) and CartStateClient (or CartSnapshotQueryClient) from the service's Manifest, with no tenant or owner in any path: the service takes them from the caller
-2. Waits with wait.snapshot() (the default plan) before reading, or reads the state with minVersion set to the command result's version
+2. Waits with Hop.snapshot() (the default plan) before reading, or reads the state with minVersion set to the command result's version
 3. Handles a refusal as a rejected promise: catches CommandRejectedError and reads its code (WowProblemError for any other failure), rather than inspecting a resolved result
 4. Retries only as error.retry says, with the same request id

@@ -96,7 +96,7 @@ function open(
 ) {
   return renderHook(() =>
     useWorkbench(engine, 'orders', {
-      kinds: ['record'],
+      viewKinds: ['record'],
       instanceId,
       ...options,
     }),
@@ -589,7 +589,7 @@ describe('a workbench a host routes', () => {
     return renderHook(
       ({ id }: { id: string | null }) =>
         useWorkbench(engine, 'orders', {
-          kinds: ['record'],
+          viewKinds: ['record'],
           instanceId: id,
           onInstanceChange,
         }),
@@ -823,7 +823,7 @@ describe('a workbench a host routes', () => {
     const engine = engineWith([mine, second]);
     const { result } = renderHook(() =>
       useWorkbench(engine, 'orders', {
-        kinds: ['record'],
+        viewKinds: ['record'],
         onInstanceChange: told,
       }),
     );

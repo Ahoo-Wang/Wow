@@ -232,9 +232,9 @@ class HostStoresTest {
             rebuild.pageSize = 7
             rebuild.maxPages = 3
         }.options()
-        options.interval.inWholeSeconds.assert().isEqualTo(60)
-        options.batch.assert().isEqualTo(7)
-        options.pages.assert().isEqualTo(3)
+        options.maintenanceInterval.inWholeSeconds.assert().isEqualTo(60)
+        options.rebuildPageSize.assert().isEqualTo(7)
+        options.rebuildMaxPages.assert().isEqualTo(3)
         options.leaseTtl.inWholeMinutes.assert().isEqualTo(3)
         SnapshotProperties().options().leaseTtl.assert().isEqualTo(SnapshotOptions.DEFAULT_TTL)
     }

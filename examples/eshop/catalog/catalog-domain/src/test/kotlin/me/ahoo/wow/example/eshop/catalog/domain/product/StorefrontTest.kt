@@ -11,10 +11,13 @@
  * limitations under the License.
  */
 
+@file:OptIn(WowSpi::class)
+
 package me.ahoo.wow.example.eshop.catalog.domain.product
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.route.RouteRefusal
 import me.ahoo.wow.example.eshop.catalog.api.product.ProductCreated

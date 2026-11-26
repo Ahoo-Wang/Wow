@@ -31,11 +31,11 @@ const customers: OptionSource = {
   resolve: () => Promise.resolve([]),
 };
 
-function engineWith(resolveOptions?: () => OptionSource) {
+function engineWith(optionSource?: () => OptionSource) {
   return new ViewEngine({
     resources: resourcesOf([ordersDefinition()], () => testSource()),
     store: new MemoryViewStore({ instances: [mine] }),
-    ...(resolveOptions ? { resolveOptions } : {}),
+    ...(optionSource ? { optionSource } : {}),
   });
 }
 
@@ -48,14 +48,14 @@ describe('a runtime carries its option sources', () => {
   it("hands the engine's source to the runtime, and null without one", () => {
     const wired = engineWith(() => customers).create('orders', {
       title: 'Scratch',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
     expect(wired.optionSource('customers')).toBe(customers);
 
     const bare = engineWith().create('orders', {
       title: 'Scratch',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
     expect(bare.optionSource('customers')).toBeNull();

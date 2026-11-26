@@ -29,7 +29,7 @@ import {
 import { describe, expect, it } from 'vitest';
 import { narrowDefinition } from '../src/capabilities/index.js';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   defineView,
   validateDefinition,
   type DefineViewSpec,
@@ -190,7 +190,8 @@ describe('defineView', () => {
     expect(field('counts.a')?.kind).toBe('number');
     expect(
       codes(
-        narrowDefinition(definition, described, builtinFieldKinds).findings,
+        narrowDefinition(definition, described, builtinFieldKindRegistry)
+          .findings,
       ),
     ).not.toContain('capability.field.temporal-mismatch');
   });
@@ -507,9 +508,9 @@ describe('defineView', () => {
       timeField: 'createdAt',
     });
     expect(definition.timeField).toBe('createdAt');
-    expect(codes(validateDefinition(definition, builtinFieldKinds))).toEqual([
-      'definition.field.undescribed',
-    ]);
+    expect(
+      codes(validateDefinition(definition, builtinFieldKindRegistry)),
+    ).toEqual(['definition.field.undescribed']);
     expect(
       codes(
         validateDefinition(
@@ -525,7 +526,7 @@ describe('defineView', () => {
               },
             ],
           }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ).filter(code => code.startsWith('definition.timeField')),
     ).toEqual([

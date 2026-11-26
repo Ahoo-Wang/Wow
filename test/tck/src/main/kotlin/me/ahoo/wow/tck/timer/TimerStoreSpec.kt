@@ -22,6 +22,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.schedule.Misfire
@@ -42,6 +43,7 @@ import java.util.UUID
  * every aggregate type of the context. Each call gives a store over the same storage, as another node's. Each timer is
  * in its owner's partition.
  */
+@WowSpi
 abstract class TimerStoreSpec {
     protected abstract fun createStore(): TimerStore
 
@@ -130,7 +132,7 @@ abstract class TimerStoreSpec {
         store.find(owner, "after").assert().isEqualTo(after)
         store.find(owner, "cron").assert().isEqualTo(cron)
         store.find(owner, "utc").assert().isEqualTo(utc)
-        after.requestId.assert().isEqualTo("${after.id}#3")
+        after.requestId.assert().isEqualTo("wow:${after.id}#3")
     }
 
     @Test
@@ -340,7 +342,7 @@ abstract class TimerStoreSpec {
         settle(timer, next).assert().isTrue()
         store.find(owner, "pay").assert().isEqualTo(next)
         next.context.due.assert().isEqualTo(DUE + HOUR)
-        next.requestId.assert().isEqualTo("${timer.id}#2")
+        next.requestId.assert().isEqualTo("wow:${timer.id}#2")
         store.due(partitions, DUE, LIMIT).assert().isEmpty()
         store.due(partitions, DUE + HOUR, LIMIT).assert().containsExactly(next)
         // The slot fired already cannot be fired again.
@@ -404,7 +406,7 @@ abstract class TimerStoreSpec {
                 loaded = store.due(partitions, nextDue, LIMIT).single()
                 loaded.assert().isEqualTo(advanced)
                 loaded.slot.assert().isEqualTo(index + 2L)
-                loaded.requestId.assert().isEqualTo("${timer.id}#${index + 2}")
+                loaded.requestId.assert().isEqualTo("wow:${timer.id}#${index + 2}")
                 loaded.context.due.assert().isEqualTo(nextDue)
             }
             loaded.status.assert().isEqualTo(TimerStatus.PENDING)

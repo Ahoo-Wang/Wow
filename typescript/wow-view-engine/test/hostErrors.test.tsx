@@ -39,7 +39,7 @@ import {
   useRecordExport,
   useRecordTable,
 } from '../src/react/index.js';
-import { DataWorkbench, RenderBoundary, ViewSurface } from '../src/ui/index.js';
+import { DataWorkbench, ViewSurface } from '../src/ui/index.js';
 import type { RenderFailure } from '../src/ui/index.js';
 import { EChart } from '../src/ui/charts/EChart.js';
 import { watchSize } from '../src/ui/charts/sizes.js';
@@ -65,6 +65,7 @@ import {
   resourcesOf,
 } from './fixtures.js';
 import { AggregationFunction } from '@ahoo-wang/wow-client/dsl';
+import { RenderBoundary } from '../src/ui/kit/RenderBoundary.js';
 
 afterEach(cleanup);
 
@@ -157,7 +158,7 @@ describe('query failures reach onError', () => {
         {
           ...mine,
           config: recordConfig({
-            summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+            summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
           }),
         },
       ],

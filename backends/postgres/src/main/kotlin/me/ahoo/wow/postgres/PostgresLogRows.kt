@@ -125,14 +125,20 @@ internal class PostgresLogRows(private val context: String) {
         /** Wow's mapper: its trees keep every number exact, as `jsonb` stores them (`numeric`), so `2.50` stays. */
         val json: JsonMapper = WowJson.mapper
 
-        /** Events as one JSON array; each payload is stored as JSON, so the log can be queried in place. */
+        /** The key an event's data is stored under in the `events` array. */
+        const val BODY: String = "body"
+
+        /**
+         * Events as one JSON array of `{name, revision, body}`, `body` as the events query model and the Elasticsearch
+         * events index name an event's data; each body is stored as JSON, so the log can be queried in place.
+         */
         fun encodeEvents(events: List<EventRecord>): String {
             val array = json.createArrayNode()
             events.forEach { event ->
                 array.addObject()
                     .put("name", event.name)
                     .put("revision", event.revision)
-                    .set("payload", json.readTree(event.payload))
+                    .set(BODY, json.readTree(event.payload))
             }
             return json.writeValueAsString(array)
         }
@@ -151,7 +157,7 @@ internal class PostgresLogRows(private val context: String) {
                     EventRecord(
                         name = event.get("name").asString(),
                         revision = event.get("revision").asInt(),
-                        payload = json.writeValueAsString(event.get("payload")),
+                        payload = json.writeValueAsString(event.get(BODY)),
                     ),
                 )
             }

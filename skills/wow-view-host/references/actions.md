@@ -50,7 +50,7 @@ export function orderCommands(fetcher: Fetcher): OrderCommands {
     // The route, `/sales/order/{id}/ship-order`, is derived from the full type name and the
     // service's Manifest, which the client fetches once; it encodes the id. A refused command rejects; the engine reports the service's
     // reason and leaves the order selected.
-    await commands.wait({ command: `sales.order.${name}`, body, id, wait: plan });
+    await commands.wait({ command: `sales.order.${name}`, body, aggregateId: id, wait: plan });
   };
   return {
     ship: id => send('ShipOrder', id),
@@ -209,7 +209,7 @@ const commands: OrderCommands = {
 const orders = actionHarness(
   orderActions(commands),
   [row('O-1', 'PAID'), row('O-2', 'SHIPPED')],
-  { now: new Date('2026-09-30T00:00:00Z') },
+  { now: () => new Date('2026-09-30T00:00:00Z') },
 );
 
 // Where each is offered, and why a record does not take one.

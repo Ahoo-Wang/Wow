@@ -23,6 +23,7 @@ import me.ahoo.wow.runtime.subscription.SystemicFailureOptions
 import me.ahoo.wow.spi.config.configNotNull
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.subscription.SubscriptionId
+import me.ahoo.wow.spring.boot.transport.PortProviders.Companion.configured
 import java.time.Duration
 import kotlin.time.toJavaDuration
 import kotlin.time.toKotlinDuration
@@ -59,7 +60,7 @@ class SubscriptionProperties {
 
     /**
      * How a failing read of the log, or write of a store, is retried: until the node stops, the backoff growing
-     * for `error-after` (5) attempts, after which each failure is logged as an error and retried at
+     * for `error-after-attempts` (5) attempts, after which each failure is logged as an error and retried at
      * `max-backoff`, so a long outage does not stop the subscription.
      */
     var readRetry: ReadRetryProperties = ReadRetryProperties.of(DEFAULT_SUBSCRIPTION.readRetry)
@@ -88,25 +89,31 @@ class SubscriptionProperties {
     /** These options, with the starts, the parked retry specs and the retry budgets [subscriptions] configure. */
     fun options(subscriptions: Map<String, SubscriptionSettingsProperties> = emptyMap()): SubscriptionOptions {
         val spec = parked.spec()
-        val configured = subscriptions.mapKeys { (key, _) -> subscriptionOf(key) }
+        val global = retry.policy()
+        val byId = subscriptions.mapKeys { (key, _) -> subscriptionOf(key) }
+        // Each entry's settings are read under its own key, so a value one refuses names it, not wow.subscription.
+        val entries = subscriptions.map { (key, settings) ->
+            configured("wow.subscriptions.[$key]") {
+                // The budget over the global one, as each subscription's is: a conflict of the two is this entry's.
+                val retry = settings.retry.handlerRetry()?.also { global.with(it) }
+                Triple(subscriptionOf(key), settings.parked.specOver(spec), retry)
+            }
+        }
         return SubscriptionOptions(
             maxInFlight = maxInFlight,
-            retry = retry.policy(),
+            retry = global,
             checkpointInterval = checkpointInterval.toKotlinDuration(),
             stopTimeout = stopTimeout.toKotlinDuration(),
             readRetry = readRetry.policy(),
-            starts = configured.mapNotNull { (id, settings) ->
+            starts = byId.mapNotNull { (id, settings) ->
                 settings.start?.takeIf { it.isNotBlank() }?.let { id to SubscriptionStart.parse(it) }
             }.toMap(),
             parked = ParkedRetryOptions(
                 spec = spec,
-                specs = configured.mapNotNull { (id, settings) -> settings.parked.specOver(spec)?.let { id to it } }
-                    .toMap(),
+                specs = entries.mapNotNull { (id, parked, _) -> parked?.let { id to it } }.toMap(),
                 scanInterval = parked.scanInterval.toKotlinDuration(),
             ),
-            retries = configured.mapNotNull { (id, settings) ->
-                settings.retry.handlerRetry()?.let { id to it }
-            }.toMap(),
+            retries = entries.mapNotNull { (id, _, retry) -> retry?.let { id to it } }.toMap(),
             systemic = systemic.options(),
             backpressure = backpressure.options(),
             maxCatchUps = maxCatchUps,
@@ -280,7 +287,7 @@ class RetrySpecProperties {
     /** How many times longer each wait is than the one before; at least 1. */
     var multiplier: Double? = null
 
-    /** How long one attempt may run before it is cancelled and counts as failed. */
+    /** How long one attempt may run before it is cancelled and counts as failed; `0`, as long as it takes. */
     var timeout: Duration? = null
 
     /** The budget these settings give, null when none is given. */
@@ -289,6 +296,6 @@ class RetrySpecProperties {
         initialBackoff = initialBackoff?.toKotlinDuration(),
         maxBackoff = maxBackoff?.toKotlinDuration(),
         multiplier = multiplier,
-        timeout = timeout?.toKotlinDuration(),
+        timeout = timeout?.let { if (it.isZero) kotlin.time.Duration.INFINITE else it.toKotlinDuration() },
     ).takeUnless { it.isEmpty }
 }

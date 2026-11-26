@@ -28,7 +28,8 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { RecordColumnView } from '../src/record/index.js';
 import type { RecordExportController } from '../src/react/index.js';
-import { ExportButton, ViewSurface } from '../src/ui/index.js';
+import { ViewSurface } from '../src/ui/index.js';
+import { ExportButton } from '../src/ui/kit/ExportDialog.js';
 
 afterEach(cleanup);
 

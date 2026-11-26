@@ -15,6 +15,7 @@ package me.ahoo.wow.spi.log
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.WowSpi
 
 /**
  * Assigns an aggregate to a partition. The hash is part of the storage format: it is fixed across JVMs, processes and
@@ -36,6 +37,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
  * UUIDs, snowflakes) the slots and partitions stay uniform; [PartitionerTest] checks it. A mixer would fix the low
  * bits, but it would change every assignment: a new format, not this one.
  */
+@WowSpi
 object Partitioner {
     /** The fixed number of slots aggregates hash to; a valid partition count divides it. */
     const val SLOTS: Int = 4096

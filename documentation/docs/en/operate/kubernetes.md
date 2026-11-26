@@ -568,7 +568,7 @@ wow {
 }
 ```
 
-`generateWowManifests` renders it, and is part of `assemble` once `values` names a file. The values files come after the build's own (`generateWowHelmValues`), each over the one before, as `-f` arguments do. It writes `build/wow/k8s/`:
+`generateWowKubernetes` renders it, and is part of `assemble` once `values` names a file. The values files come after the build's own (`generateWowHelmValues`), each over the one before, as `-f` arguments do. It writes `build/wow/k8s/`:
 
 ```text
 build/wow/k8s/
@@ -587,8 +587,8 @@ The task is cached: the same values, namespace and Wow version render the same b
 
 | Mistake | The build says |
 | --- | --- |
-| No values named | `generateWowManifests renders the wow-service chart with the deployment's values, which the build names: wow { kubernetes { values.from("deploy/<service>/values.yaml") } }.` |
-| No namespace | `generateWowManifests renders the service for the namespace it is deployed to, which the chart derives from (…): set wow { kubernetes { namespace = "<namespace>" } }.` |
+| No values named | `generateWowKubernetes renders the wow-service chart with the deployment's values, which the build names: wow { kubernetes { values.from("deploy/<service>/values.yaml") } }.` |
+| No namespace | `generateWowKubernetes renders the service for the namespace it is deployed to, which the chart derives from (…): set wow { kubernetes { namespace = "<namespace>" } }.` |
 | A values file that does not exist | `wow { kubernetes { values.from(…) } } names "…/deploy/eshop-basket/valeus.yaml", which does not exist: correct the path in values.from(…), or remove it.` |
 | A value the schema refuses | `Helm refused to render the wow-service chart:`, then the chart's own message, such as `additional properties 'replicaz' not allowed` |
 
@@ -641,13 +641,13 @@ Anything else is an overlay's: the image, the replicas, the resources, extra env
 **An overlay must not move the base to another namespace.** The chart derives from the namespace (whether a peer is in another one, the autoscaler's query), so a base moved by an overlay's `namespace:` is wrong without any error. An environment whose namespace, or another value of the list above, differs is a render of its own: the basket's build takes both from properties, as the GA end-to-end run renders it for its cluster:
 
 ```bash
-./gradlew :eshop-basket-server:generateWowManifests -Peshop.kubernetes.namespace=default \
+./gradlew :eshop-basket-server:generateWowKubernetes -Peshop.kubernetes.namespace=default \
   -Peshop.kubernetes.values=.github/ga-e2e/services/values.yaml
 ```
 
 ### Helm, fetched by the build
 
-The operator needs `kubectl` alone; the build renders with Helm v4.3.1, the version the plugin pins. It is fetched when `generateWowManifests` runs, never while a build is configured, from `https://get.helm.sh` into the Gradle user home (`wow/helm/v4.3.1/<os>-<arch>/`), once per machine. Its archive is refused unless its SHA-256 is the one the plugin holds, whatever served it. The plugin fetches it for Linux, macOS and Windows, on amd64 and arm64. Two Gradle properties (in `gradle.properties` of the user home, or `-P`) change where it comes from:
+The operator needs `kubectl` alone; the build renders with Helm v4.3.1, the version the plugin pins. It is fetched when `generateWowKubernetes` runs, never while a build is configured, from `https://get.helm.sh` into the Gradle user home (`wow/helm/v4.3.1/<os>-<arch>/`), once per machine. Its archive is refused unless its SHA-256 is the one the plugin holds, whatever served it. The plugin fetches it for Linux, macOS and Windows, on amd64 and arm64. Two Gradle properties (in `gradle.properties` of the user home, or `-P`) change where it comes from:
 
 | Property | Means |
 | --- | --- |

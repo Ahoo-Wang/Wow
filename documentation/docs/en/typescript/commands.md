@@ -31,7 +31,7 @@ export const orderStates = new OrderStateClient(ordering);
 
 Each route starts with its context, `/eshop-ordering/order/…`, so one Fetcher at a gateway that routes by that prefix serves every service; `basePath` puts a prefix of the gateway's own before every route.
 
-The generated clients send by the routes of their context's `manifest.ts`, the `<Context>Manifest` the generator writes from the service's Manifest, so they never fetch it at run time. A `CommandClient` you build yourself, `new CommandClient(options, { manifest })`, takes such a Manifest too; without one it fetches `GET /wow/manifest` once for every command waiting on it, and again only after a fetch that failed. Each command's wait is its own: its `signal` ends it while the fetch goes on for the others, and a failed fetch rejects each command with an error of its own (the same problem, or an `Error` that names the fetch and keeps its cause), carrying that command's request id. `CommandClient` is the client's name, as in Kotlin: the server's admission is what Wow calls the command gateway.
+The generated clients send by the routes of their context's `manifest.ts`, the `<Context>Manifest` the generator writes from the service's Manifest, so they never fetch it at run time. A `CommandClient` you build yourself, `new CommandClient(options, { manifest })`, takes such a Manifest too; without one it fetches `GET /wow/manifest` once for every command waiting on it, and again only after a fetch that failed, which the service answers only when it sets `wow.http.manifest.enabled: true` (off by default): give the client the generated Manifest otherwise. Each command's wait is its own: its `signal` ends it while the fetch goes on for the others, and a failed fetch rejects each command with an error of its own (the same problem, or an `Error` that names the fetch and keeps its cause), carrying that command's request id. `CommandClient` is the client's name, as in Kotlin: the server's admission is what Wow calls the command gateway.
 
 ## Send a command
 
@@ -47,7 +47,7 @@ const result = await orders.submitOrder({
 console.log(result.ref.id, result.version, result.status);
 ```
 
-`SubmitOrder` creates its aggregate, so its method takes no id: the service generates one, and `result.ref.id` names it. Pass `{ id }` in the options to choose it. A command on an existing aggregate takes its id first, `orders.payOrder(id, body)`. An aggregate whose id is its owner's, such as a shopper's basket, also has an `…Own` method without the id, `baskets.checkoutBasketOwn(body)`, which acts on the caller's own aggregate; its method by id is for a caller with no owner, such as a back office acting for a shopper. `unitPrice` is a `BigDecimal` on the server, so its type is `string`, written into the body as an exact number.
+`SubmitOrder` creates its aggregate, so its method takes no id: the service generates one, and `result.ref.id` names it. Pass `{ aggregateId }` in the options to choose it. A command on an existing aggregate takes its id first, `orders.payOrder(id, body)`. An aggregate whose id is its owner's, such as a shopper's basket, also has an `…Own` method without the id, `baskets.checkoutBasketOwn(body)`, which acts on the caller's own aggregate; its method by id is for a caller with no owner, such as a back office acting for a shopper. `unitPrice` is a `BigDecimal` on the server, so its type is `string`, written into the body as an exact number.
 
 The result says where the command got to:
 
@@ -63,7 +63,7 @@ The result says where the command got to:
 
 ### A body that names its aggregate
 
-A command whose body names its aggregate (its class's `@AggregateId`, the Manifest's `idProperty`) has no id parameter and no `id` option. Its method sends the body to the route without `{id}`, and the service acts on the aggregate the body names. When that property is computed from the other fields, the body may leave it out and the service computes the id, as for any [computed property](#a-computed-property).
+A command whose body names its aggregate (its class's `@AggregateId`, the Manifest's `idProperty`) has no id parameter and no `aggregateId` option. Its method sends the body to the route without `{id}`, and the service acts on the aggregate the body names. When that property is computed from the other fields, the body may leave it out and the service computes the id, as for any [computed property](#a-computed-property).
 
 A `CommandClient` request written by hand sends such a command by the same route. The eShop has none, so this one sends the `RestockProduct` of [Name the aggregate in the body](../guide/aggregates#name-the-aggregate-in-the-body):
 
@@ -79,7 +79,7 @@ await commands.wait({
 });
 ```
 
-An `id` given with such a request must be the one its body names: the client writes it into a body that names none, and a body that names another id throws a `TypeError` before anything is sent. A computed id is the service's: an `id` given for it is ignored, because the service computes the id from the fields, so leave `id` out.
+An `aggregateId` given with such a request must be the one its body names: the client writes it into a body that names none, and a body that names another id throws a `TypeError` before anything is sent. A computed id is the service's: an `aggregateId` given for it is ignored, because the service computes the id from the fields, so leave `aggregateId` out.
 
 ### A computed property
 
@@ -108,13 +108,13 @@ The hops a plan is made of:
 
 | Hop | Answers once |
 | --- | --- |
-| `wait.accepted()` | The command passed admission; the route answers 202 |
-| `wait.committed()` | Its events are in the log |
-| `wait.snapshot()` | The snapshot holds the commit, so a read sees it |
-| `wait.queryable()` | The store the aggregate's snapshot queries read holds the commit, so a list reloaded next sees it; later than `snapshot` where those queries read a copy |
-| `wait.handled('Processor.function')` | That subscription handled the commit |
+| `Hop.accepted()` | The command passed admission; the route answers 202 |
+| `Hop.committed()` | Its events are in the log |
+| `Hop.snapshot()` | The snapshot holds the commit, so a read sees it |
+| `Hop.queryable()` | The store the aggregate's snapshot queries read holds the commit, so a list reloaded next sees it; later than `snapshot` where those queries read a copy |
+| `Hop.handled('Processor.function')` | That subscription handled the commit |
 
-A plan follows the command further: through a saga's `handled` hop to the commands the saga sent, in their own contexts. Each context's `contract.ts` holds its hops, typed with the names of its subscriptions. Checking a basket out, waiting until the order it submits is committed in the ordering context:
+A plan follows the command further: through a saga's `handled` hop to the commands the saga sent, in their own contexts. Each context's contract holds its hops, `<Context>Contract.Wait`, typed with the names of its subscriptions. Checking a basket out, waiting until the order it submits is committed in the ordering context:
 
 <!-- typecheck-context
 import { BasketCommandClient } from './generated/basket/index.js';
@@ -123,16 +123,16 @@ declare const baskets: BasketCommandClient;
 
 ```ts
 import { WaitPlan } from '@ahoo-wang/wow-client';
-import { eshopBasketWait } from './generated/basket/index.js';
-import { eshopOrderingWait } from './generated/ordering/index.js';
+import { EshopBasketContract } from './generated/basket/index.js';
+import { EshopOrderingContract } from './generated/ordering/index.js';
 
 const placed = await baskets.checkoutBasketOwn(
   {},
   {
     wait: WaitPlan.of(
-      eshopBasketWait.committed(),
-      eshopBasketWait.handled('BasketCheckoutSaga.onBasketCheckedOut'),
-      eshopOrderingWait.committed(),
+      EshopBasketContract.Wait.committed(),
+      EshopBasketContract.Wait.handled('BasketCheckoutSaga.onBasketCheckedOut'),
+      EshopOrderingContract.Wait.committed(),
     ),
     timeout: 10_000,
   },
@@ -140,7 +140,7 @@ const placed = await baskets.checkoutBasketOwn(
 console.log(`order ${placed.ref.id} at version ${placed.version}`);
 ```
 
-The call answers with the last hop's result: here the order's commit, so `placed.ref` is the order. `timeout` is in milliseconds, over the plan's own (10 seconds unless `.within` says otherwise). `parseWaitPlan` reads a `Wow-Wait` value, and `formatWaitPlan` writes one. A wait that runs out rejects with 504 `wow.wait.timeout`; the command may still have committed. [Waits](../concepts/waits) explains how the service follows a chain.
+The call answers with the last hop's result: here the order's commit, so `placed.ref` is the order. `timeout` is in milliseconds, over the plan's own (10 seconds unless `.within` says otherwise), and every plan states its timeout as `Wow-Wait-Timeout`, as the Kotlin client does; `send` states its acceptance's, 10 seconds unless `timeout` says otherwise. `parseWaitPlan` reads a `Wow-Wait` value as the service reads it, refusing one longer than 4,096 characters or of more than 32 hops, and `formatWaitPlan` writes one. A wait that runs out rejects with 504 `wow.wait.timeout`; the command may still have committed. [Waits](../concepts/waits) explains how the service follows a chain.
 
 ## Follow the wait as a stream
 
@@ -148,8 +148,8 @@ Each command method has a `…Stream` twin that answers one result per hop as th
 
 <!-- typecheck-context
 import { WaitPlan } from '@ahoo-wang/wow-client';
-import { BasketCommandClient, eshopBasketWait } from './generated/basket/index.js';
-import { eshopOrderingWait } from './generated/ordering/index.js';
+import { BasketCommandClient, EshopBasketContract } from './generated/basket/index.js';
+import { EshopOrderingContract } from './generated/ordering/index.js';
 declare const baskets: BasketCommandClient;
 -->
 
@@ -158,9 +158,9 @@ const stream = await baskets.checkoutBasketOwnStream(
   {},
   {
     wait: WaitPlan.of(
-      eshopBasketWait.committed(),
-      eshopBasketWait.handled('BasketCheckoutSaga.onBasketCheckedOut'),
-      eshopOrderingWait.committed(),
+      EshopBasketContract.Wait.committed(),
+      EshopBasketContract.Wait.handled('BasketCheckoutSaga.onBasketCheckedOut'),
+      EshopOrderingContract.Wait.committed(),
     ),
   },
 );
@@ -173,7 +173,7 @@ for (;;) {
 }
 ```
 
-A command refused at admission rejects the call before any result streams, with a `WowProblemError` whose `result.status` is `rejected`: a stream call does not turn it into a `CommandRejectedError` as `wait` does, so check `error.result?.status`. A rejection after admission is the stream's last result, with its `status` and `error`. When a saga sent nothing further, the chain ends before the plan does: that result has `chainEnded`, and `pending` names the hops that will not come. The eShop's checkout page follows its fifteen-hop chain to the payment this way (`examples/eshop/web/src/shop/checkout.ts`). The stream closes on the service's `end` event, after the last result, which is no result. A stream that ends without it, however cleanly, one whose connection breaks after it began, and one that sends what is no result reject the read with a `WowProblemError` of `wow.command.unknown` (`retry` `same-request`), the network's error its `cause`: the command may have been committed, so send it again with the request id it was sent with, which `requestIdOf(error)` hands back.
+A command refused at admission rejects the call before any result streams, with a `WowProblemError` whose `result.status` is `rejected`: a stream call does not turn it into a `CommandRejectedError` as `wait` does, so check `error.result?.status`. A rejection after admission is the stream's last result, with its `status` and `error`. When a saga sent nothing further, the chain ends before the plan does: that result has `chainEnded`, and `pending` names the hops that will not come. The eShop's checkout page follows its fifteen-hop chain to the payment this way (`examples/eshop/web/src/shop/checkout.ts`). The stream closes on the service's `end` event of reason `complete`, after the last result, which is no result. An event the client does not know, which a newer service may send, is skipped; a result of a stage it does not know is still a result, its `hop.stage` as the service wrote it. A stream that ends without `end`, however cleanly, one whose `end` gives another reason, one whose connection breaks after it began, and one whose result is no JSON reject the read with a `WowProblemError` of `wow.command.unknown` (`retry` `same-request`), the network's error its `cause`: the command may have been committed, so send it again with the request id it was sent with, which `requestIdOf(error)` hands back.
 
 ## When a command fails
 
@@ -218,9 +218,9 @@ try {
 }
 ```
 
-A command's whole answer is bounded: by the `timeout` it states (or its plan's) and 5 seconds more, as the Kotlin client's is. One that states none waits the service's default (`wow.wait.default-timeout`), which the client does not know, so it is bounded by the client options' `defaultWaitMs` and the same 5 seconds: a minute when absent, the longest default a service takes unless its `wow.wait.max-timeout` is raised. A deployment whose services wait longer by default sets `defaultWaitMs` in the options it builds its clients with (`new OrderCommandClient({ fetcher, defaultWaitMs: 120_000 })`), or states each command's wait. The service answers `wow.wait.timeout` at the wait's end, so a node that has not answered by then never will: the request is aborted, its connection closed, and the call rejects with `wow.command.unknown`. So does a `wait` or `send` whose answer is lost, or cannot be read, after it began. An abort of the request's own `signal` rejects with the abort's reason, which `requestIdOf` reads too.
+A command's whole answer is bounded: by the wait its plan states and 5 seconds more, as the Kotlin client's is. One with no plan, neither `wait` nor `timeout`, states no wait and waits the service's default (`wow.wait.default-timeout`), which the client does not know, so it is bounded by the client options' `defaultWaitMs` and the same 5 seconds: a minute when absent, the longest default a service takes unless its `wow.wait.max-timeout` is raised. A deployment whose services wait longer by default sets `defaultWaitMs` in the options it builds its clients with (`new OrderCommandClient({ fetcher, defaultWaitMs: 120_000 })`), or states each command's wait. The service answers `wow.wait.timeout` at the wait's end, so a node that has not answered by then never will: the request is aborted, its connection closed, and the call rejects with `wow.command.unknown`. So does a `wait` or `send` whose answer is lost, or cannot be read, after it began. An abort of the request's own `signal` rejects with the abort's reason, which `requestIdOf` reads too.
 
-A `WowProblemError`'s `retry` says what a retry may do, as the error catalog declares it for its code: `none`, a retry fails alike; `same-request`, send it again with the same request id; `new-request`, send it again as it is. `retryAfterMs` says how long to wait first (`Retry-After`). Every command carries a request id (`Wow-Request-Id`): the one in the options, or one the client generates, a UUIDv7 (`newRequestId`, ordered by the millisecond it was made in, as the Kotlin client's are), which either error's `requestId` hands back. A retry with the same id is answered as the first commit's duplicate, never applied twice, so retry `wow.command.unknown` and `wow.wait.timeout` with it. Pass `requestId` from the start when the retry may come from elsewhere, a page reload say:
+A `WowProblemError`'s `retry` says what a retry may do, as the error catalog declares it for its code: `none`, a retry fails alike; `same-request`, send it again with the same request id; `new-request`, send it again as it is. A `retry` value this client does not know, a newer service's, reads as absent: the catalog's for the code, as the Kotlin client reads it. `retryAfterMs` says how long to wait first (`Retry-After`, delay seconds or an HTTP date; anything else reads as absent, so the catalog's wait applies). Every command carries a request id (`Wow-Request-Id`): the one in the options, or one the client generates, a UUIDv7 (`newRequestId`, ordered by the millisecond it was made in, as the Kotlin client's are), which either error's `requestId` hands back. A retry with the same id is answered as the first commit's duplicate, never applied twice, so retry `wow.command.unknown` and `wow.wait.timeout` with it. Pass `requestId` from the start when the retry may come from elsewhere, a page reload say:
 
 <!-- typecheck-context
 import { OrderCommandClient } from './generated/ordering/index.js';
@@ -249,4 +249,4 @@ A 10.0.0 pre-release's clients had `applyTags`, and its records `tags`. To move 
 3. Where it read `tags`, read `access.<name>`. An integer attribute is a `string`, its exact text.
 4. Where a query filtered on `tags`, filter on `access.<name>`, and on event streams on `access.owner` and `access.space`.
 
-Every method takes the request options last. `space` picks one of the caller's spaces (`Wow-Space`; a CoSec service reads `CoSec-Space-Id` instead); `targetTenant` and `targetScope` (`{ ownerId?, spaceId? }`) act in another tenant, owner or space (`Wow-Scope`), for a caller allowed to act across scopes; `headers` adds headers of your own; `signal` cancels the request. Which caller a request is, and what it may do, is the service's to decide from its credentials ([Identity](../concepts/identity)).
+Every method takes the request options last. `space` picks one of the caller's spaces (`Wow-Space`; a CoSec service reads `CoSec-Space-Id` instead); `targetTenant` and `targetScope` (`{ ownerId?, spaceId? }`) act in another tenant, owner or space (`Wow-Scope`), for a caller allowed to act across scopes; `headers` adds headers of your own, and refuses, before anything is sent, one the client writes from the request's own fields (`Wow-Request-Id`, `Wow-Wait`, `Wow-Wait-Timeout`, `Wow-Scope`, `Wow-Space`, `If-Match`, `If-None-Match`, `Last-Event-ID`, in any case): set the field, so the request id `requestIdOf` hands back is the one sent; `signal` cancels the request. Which caller a request is, and what it may do, is the service's to decide from its credentials ([Identity](../concepts/identity)).

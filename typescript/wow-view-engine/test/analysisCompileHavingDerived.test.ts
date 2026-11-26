@@ -30,7 +30,7 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   compileAnalysis,
   type AnalysisHavingExpression,
   type AnalysisViewConfig,
@@ -44,12 +44,10 @@ import {
 const { having } = aggregation;
 
 function compile(overrides: Partial<AnalysisViewConfig>): AggregationQuery {
-  return compileAnalysis(
-    definition(),
-    config(overrides),
-    builtinFieldKinds,
+  return compileAnalysis(definition(), config(overrides), {
+    kinds: builtinFieldKindRegistry,
     context,
-  );
+  });
 }
 
 function compileHaving(stored: AnalysisHavingExpression) {

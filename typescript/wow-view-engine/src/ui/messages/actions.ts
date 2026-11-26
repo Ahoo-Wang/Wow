@@ -59,4 +59,4 @@ export const actionsMessages = {
   // a field the rows of the view do not ask the source for.
   'record.action.unfetched':
     'Action “{action}” reads {field}, which is not fetched for the rows of this view. List it in the definition’s record.rowFields.',
-} as const;
+} satisfies Record<string, string>;

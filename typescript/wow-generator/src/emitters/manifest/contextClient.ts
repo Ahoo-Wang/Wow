@@ -15,9 +15,13 @@ import { join } from 'node:path';
 import { relativeModuleSpecifier } from '../../emit/imports';
 import type { ModuleSet } from '../../emit/moduleBuilder';
 import type { ContextModel } from '../../manifest/model';
-import { CONTEXT_CLIENT_MEMBERS, classMembers } from '../../manifest/names';
-import { camelCase, resolvePropertyName } from '../../naming/naming';
-import { bodyNumbersOption } from './commandClient';
+import {
+  CONTEXT_CLIENT_MEMBERS,
+  classMembers,
+  memberName,
+} from '../../manifest/names';
+import { resolvePropertyName } from '../../naming/naming';
+import { textNumbersOption } from './commandClient';
 import { addStatement, doc, WOW_CLIENT } from './generatedModule';
 
 /**
@@ -38,7 +42,7 @@ export function emitContextClient(
   const assignments: string[] = [];
   // An aggregate `commands` or `routes` takes `commandsAggregate`, apart from the context's own members.
   const properties = classMembers(
-    context.aggregates.map(aggregate => camelCase(aggregate.name)),
+    context.aggregates.map(aggregate => memberName(aggregate.name)),
     CONTEXT_CLIENT_MEMBERS,
     'Aggregate',
   );
@@ -66,8 +70,12 @@ export function emitContextClient(
     fields.push(
       `${doc([`The clients of \`${aggregate.context}.${aggregate.name}\`.`], '  ')}  readonly ${property}: {\n${members.map(([member, client]) => `    readonly ${member}: ${client};`).join('\n')}\n  };`,
     );
+    // An aggregate whose member is no identifier (`2fa`) is assigned by its
+    // quoted name, as it is declared.
+    const target =
+      property === properties[index] ? `this.${property}` : `this[${property}]`;
     assignments.push(
-      `    this.${property} = {\n${members.map(([member, client]) => `      ${member}: new ${client}(options),`).join('\n')}\n    };`,
+      `    ${target} = {\n${members.map(([member, client]) => `      ${member}: new ${client}(options),`).join('\n')}\n    };`,
     );
   }
   if (context.routes.length > 0) {
@@ -80,7 +88,7 @@ export function emitContextClient(
     );
   }
   // The context's command client writes the exact numbers of every command's body unquoted, as each aggregate's does.
-  const bodyNumbers = bodyNumbersOption(context.aggregates, module, aggregate =>
+  const bodyNumbers = textNumbersOption(context.aggregates, module, aggregate =>
     relativeModuleSpecifier(
       module.directoryPath,
       join(outputDir, aggregate.directory, 'aggregate.ts'),

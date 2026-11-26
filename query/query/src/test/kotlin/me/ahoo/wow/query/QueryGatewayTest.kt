@@ -99,10 +99,10 @@ class QueryGatewayTest {
             }
             val gateway = gateway(GatewayBackend(), policies = listOf(policy))
             gateway.count(CountQuery(MatchAllFilter), QueryCaller(entry = QueryEntry.HTTP))
-            gateway.single(SingleQuery(MatchAllFilter), QueryCaller.UNSPECIFIED)
+            gateway.single(SingleQuery(MatchAllFilter), QueryCaller.IN_PROCESS)
             contexts.map { it.queryType to it.entry }.assert().containsExactly(
                 QueryType.COUNT to QueryEntry.HTTP,
-                QueryType.SINGLE to QueryEntry.UNSPECIFIED,
+                QueryType.SINGLE to QueryEntry.IN_PROCESS,
             )
             contexts.map { it.aggregateType }.distinct().assert().containsExactly(AGGREGATE)
         }
@@ -145,7 +145,7 @@ class QueryGatewayTest {
         runTest {
             val backend = GatewayBackend()
             val policy = QueryPolicy { _, _ -> DeletionFilter(DeletionState.DELETED) }
-            gateway(backend, policies = listOf(policy)).single(SingleQuery(MatchAllFilter), QueryCaller.UNSPECIFIED)
+            gateway(backend, policies = listOf(policy)).single(SingleQuery(MatchAllFilter), QueryCaller.IN_PROCESS)
             backend.filters.single().assert().isEqualTo(DeletionFilter(DeletionState.DELETED))
         }
     }
@@ -159,7 +159,7 @@ class QueryGatewayTest {
             val conjunction = TenantIdFilter("tenant").appendFilter(explicit)
             val disjunction = OrFilter(listOf(TenantIdFilter("tenant"), explicit))
             listOf(MatchAllFilter, explicit, conjunction, disjunction).forEach {
-                gateway.single(SingleQuery(it), QueryCaller.UNSPECIFIED)
+                gateway.single(SingleQuery(it), QueryCaller.IN_PROCESS)
             }
             backend.filters.assert().isEqualTo(
                 listOf(
@@ -188,7 +188,7 @@ class QueryGatewayTest {
             val prepared = CopyOnWriteArrayList<QueryModelSchema>()
             val backend = GatewayBackend(row = ::snapshotNode)
             val gateway = gateway(backend, provider, filters = listOf(recordPrepare { prepared += it.schema }))
-            repeat(2) { gateway.single(SingleQuery(MatchAllFilter), QueryCaller.UNSPECIFIED).assert().isNotNull() }
+            repeat(2) { gateway.single(SingleQuery(MatchAllFilter), QueryCaller.IN_PROCESS).assert().isNotNull() }
             providerCalls.get().assert().isEqualTo(2)
             val executed = backend.admitted.map { it.schema }
             prepared.zip(executed).forEach { (left, right) -> left.assert().isSameAs(right) }
@@ -214,10 +214,10 @@ class QueryGatewayTest {
                 observer = errorObserver { observed += it },
             )
             assertThrows<QuerySchemaUnavailableException> {
-                gateway.single(SingleQuery(MatchAllFilter), QueryCaller.UNSPECIFIED)
+                gateway.single(SingleQuery(MatchAllFilter), QueryCaller.IN_PROCESS)
             }.assert().isSameAs(original)
             assertThrows<QuerySchemaUnavailableException> {
-                gateway.list(ListQuery(MatchAllFilter), QueryCaller.UNSPECIFIED).toList()
+                gateway.list(ListQuery(MatchAllFilter), QueryCaller.IN_PROCESS).toList()
             }.assert().isSameAs(original)
             prepares.get().assert().isZero()
             backend.admitted.assert().isEmpty()
@@ -232,7 +232,7 @@ class QueryGatewayTest {
             val backend = GatewayBackend()
             val gateway = gateway(backend, policies = policies)
             policies += QueryPolicy { _, _ -> error("added after assembly") }
-            gateway.single(SingleQuery(MatchAllFilter), QueryCaller.UNSPECIFIED)
+            gateway.single(SingleQuery(MatchAllFilter), QueryCaller.IN_PROCESS)
             backend.filters.single().assert().isEqualTo(DeletionFilter(DeletionState.ACTIVE))
         }
     }
@@ -246,8 +246,8 @@ class QueryGatewayTest {
                 GatewayBackend(row = { snapshotNode().also { nodes += it } }),
                 filters = listOf(recordPrepare { contexts += it }),
             )
-            val results = List(2) { async { gateway.single(SingleQuery(MatchAllFilter), QueryCaller.UNSPECIFIED) } }
-                .awaitAll() + gateway.single(SingleQuery(MatchAllFilter), QueryCaller.UNSPECIFIED)
+            val results = List(2) { async { gateway.single(SingleQuery(MatchAllFilter), QueryCaller.IN_PROCESS) } }
+                .awaitAll() + gateway.single(SingleQuery(MatchAllFilter), QueryCaller.IN_PROCESS)
             contexts.map(System::identityHashCode).toSet().assert().hasSize(3)
             nodes.map(System::identityHashCode).toSet().assert().hasSize(3)
             results.map(System::identityHashCode).toSet().assert().hasSize(3)
@@ -262,7 +262,7 @@ class QueryGatewayTest {
                 GatewayBackend(rows = { flowOf(snapshotNode()) }),
                 filters = listOf(recordPrepare { contexts += it }),
             )
-            val rows = gateway.list(ListQuery(MatchAllFilter), QueryCaller.UNSPECIFIED)
+            val rows = gateway.list(ListQuery(MatchAllFilter), QueryCaller.IN_PROCESS)
             contexts.assert().isEmpty()
             val first = rows.toList().single()
             val second = rows.toList().single()
@@ -277,7 +277,7 @@ class QueryGatewayTest {
             val backend = GatewayBackend()
             val provider = FixedQueryModelSchemaProvider(gatewaySchema(QueryModel("custom")))
             assertThrows<QuerySchemaValidationException> {
-                gateway(backend, provider).cursor(CursorQuery(MatchAllFilter), QueryCaller.UNSPECIFIED)
+                gateway(backend, provider).cursor(CursorQuery(MatchAllFilter), QueryCaller.IN_PROCESS)
             }.violation.assert().isEqualTo(QueryViolation.IdentityUndefined(QueryModel("custom")))
             backend.admitted.assert().isEmpty()
         }
@@ -289,9 +289,9 @@ class QueryGatewayTest {
             val backend = GatewayBackend()
             val gateway = gateway(backend)
             val original = CursorQuery(MatchAllFilter)
-            gateway.cursor(original, QueryCaller.UNSPECIFIED)
+            gateway.cursor(original, QueryCaller.IN_PROCESS)
             val explicit = Sort(QueryField("aggregateId"), Sort.Direction.DESC)
-            gateway.cursor(CursorQuery(MatchAllFilter, sort = listOf(explicit)), QueryCaller.UNSPECIFIED)
+            gateway.cursor(CursorQuery(MatchAllFilter, sort = listOf(explicit)), QueryCaller.IN_PROCESS)
             original.sort.assert().isEmpty()
             val received = backend.admitted.map { it.query as CursorQuery }
             received[0].sort.assert().containsExactly(
@@ -315,7 +315,7 @@ class QueryGatewayTest {
                 }),
                 filters = listOf(OrderedPrepare(calls, "late", 2), OrderedPrepare(calls, "early", 1)),
             )
-            gateway.single(SingleQuery(MatchAllFilter), QueryCaller.UNSPECIFIED)
+            gateway.single(SingleQuery(MatchAllFilter), QueryCaller.IN_PROCESS)
             calls.assert().isEqualTo(listOf("early", "late", "backend"))
         }
     }

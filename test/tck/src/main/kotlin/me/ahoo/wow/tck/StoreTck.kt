@@ -15,9 +15,11 @@ package me.ahoo.wow.tck
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.spi.Closing
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.reservation.ReservationStore
@@ -72,6 +74,7 @@ import java.util.concurrent.CopyOnWriteArrayList
  * own). The report names the backend's class and the port: `PostgresStoreTck > EventLog > ...` ([PortNames]).
  */
 @DisplayNameGeneration(StoreTck.PortNames::class)
+@WowSpi
 abstract class StoreTck {
     /**
      * The configuration of the store under test: its type names the provider ([provider]), and its options and
@@ -87,6 +90,12 @@ abstract class StoreTck {
 
     /** A stream [EventLogSpec.refused] changes so that the store refuses it, or null when it stores every stream. */
     protected open fun refused(stream: EventStreamRecord): EventStreamRecord? = null
+
+    /**
+     * This stream with [events] in place of its own, every other fact kept: what [refused] returns for a value the
+     * backend cannot store in an event. The record may gain fields in a minor release; this helper keeps them.
+     */
+    protected fun EventStreamRecord.withEvents(events: List<EventRecord>): EventStreamRecord = copyWith(events = events)
 
     /**
      * The facets the store says it has ([Store.facet]): its query side (`me.ahoo.wow.query.store.StoreQueries`) when
@@ -165,7 +174,8 @@ abstract class StoreTck {
             resources = config().resources
         )
         val provider = provider(config.type)
-        provider.open(config)
+        // Kept with the stores the test opened, so it is closed once the test ran, as each of them is.
+        opened += provider.open(config)
         val declared = provider.options.map { it.key }
         declared.assert().describedAs("option keys").doesNotHaveDuplicates()
         config.settings.read.assert().describedAs("the options the store read").isSubsetOf(declared)

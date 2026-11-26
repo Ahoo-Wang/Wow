@@ -43,7 +43,7 @@ outline: deep
 
 | 方法和路径 | 返回 |
 | --- | --- |
-| `GET /wow/manifest` | 服务合并后的 Manifest（`wow.http.manifest.enabled`），其中包括内部命令，标注为 `internal` |
+| `GET /wow/manifest` | 服务合并后的 Manifest，其中包括内部命令，标注为 `internal`；公开端口只在 `wow.http.manifest.enabled: true` 时提供（默认关闭），内部端口总是提供给集群中的服务 |
 | `GET /wow/openapi` | 这些路由的 OpenAPI 3.1 文档（`wow.http.openapi.enabled`）：其中没有内部命令；每个聚合的记录按它的 Manifest 给出类型，`state` 按状态的 schema，`access` 按它声明的访问属性 |
 
 上下文自己的服务路由（它的代码声明的处理函数）按 Manifest 列出的样子提供。`wow.http.ops.enabled: true`（默认关闭）还提供运维人员的路由：`/wow/ops/parked` 下的停放条目，以及读取节点订阅的 `GET /wow/ops/subscriptions`（[运维控制台](../operate/ops-console)）。
@@ -54,15 +54,16 @@ outline: deep
 
 | 请求头 | 用于 | 含义 |
 | --- | --- | --- |
-| `Wow-Request-Id` | 命令 | 调用方给请求的 ID：用同一个 ID 重试会被当作已完成来回答（`duplicate`），绝不会决定两次；同一个 ID 用于另一条命令时是 `wow.command.request-id-reused` |
+| `Wow-Request-Id` | 命令 | 调用方给请求的 ID：用同一个 ID 重试会被当作已完成来回答（`duplicate`），绝不会决定两次；同一个 ID 用于另一条命令时是 `wow.command.request-id-reused`。它从不以 `wow:` 开头：框架给自己的命令（定时器的、Saga 的）的请求 ID 以它开头；以它开头的请求 ID 是 `400 wow.command.malformed` |
 | `Wow-Wait` | 命令 | 回答之前要等到哪里（见下文）；默认 `snapshot`，没有快照的聚合为 `committed`，在那里显式的 `snapshot` 是 `wow.wait.invalid` |
 | `Wow-Wait-Timeout` | 命令 | 等待多久：`500ms`、`10s`、`1m`（单位紧跟数字）或 ISO-8601，至少 1 毫秒（`10 s` 和 `PT0.0001S` 是 `wow.wait.invalid`）；默认 `wow.wait.default-timeout`（10 秒）。更长的会被截到 `wow.wait.max-timeout`（1 分钟）：超时是客户端给自己的等待设的上限，节点的最大值再给它设上限 |
 | `If-Match` | 命令 | 聚合必须所处的版本，写成强标签：`"3"`，或状态读取写出的 `"3-…"`，其中的摘要不做比较；聚合处于其他版本时返回 `412 wow.aggregate.version-mismatch`。不指版本的标签（`W/"3"`、`"03"`、`"2147483648"`）或指两个版本时返回 `400 wow.request.malformed`。它的多行是一个列表（[实体标签](./protocols#entity-tags)） |
 | `If-None-Match` | 状态读取、能力描述 | 上一次的 `ETag`；仍然有效时返回 `304`。无法解析的会被忽略：缓存条件失败时放行（[实体标签](./protocols#entity-tags)） |
 | `Accept: text/event-stream` | 命令、`list` 查询 | 服务端推送事件（见下文） |
 | `Last-Event-ID` | 流式的 `list` 查询 | 从哪个位置之后续读 |
-| `Wow-Scope` | 每个路由 | 对被允许跨作用域行事的调用方：要在其中行事的租户、所有者和空间，一个 RFC 8941 字典，`tenant="t1", owner="u1", space="s1"`。在查询路由上，打开 `wow.query.allow-cross-tenant` 时，`tenant=*` 或 `tenant=("t1" "t2")` 可以跨租户读取。它的多行用逗号连成一个字典；同一个成员给出两次是格式错误（`wow.command.malformed`，读取时为 `wow.query.malformed`） |
+| `Wow-Scope` | 每个路由 | 对被允许跨作用域行事的调用方：要在其中行事的租户、所有者和空间，一个 RFC 8941 字典，`tenant="t1", owner="u1", space="s1"`。它总是指明一个作用域：不写的所有者或空间就是没有，所以只写 `tenant="t1"` 在 `t1` 里行事、不检查所有者与空间；只写了租户的请求，Wow 的客户端会写出调用方自己的作用域，从而保留它。在查询路由上，打开 `wow.query.allow-cross-tenant` 时，`tenant=*` 或 `tenant=("t1" "t2")` 可以跨租户读取。它的多行用逗号连成一个字典。无法解析的（包括同一个成员给出两次），或在查询以外的路由上指明多个租户的，在每个路由上都是 `400 wow.request.malformed` |
 | `Wow-Space` | 每个路由 | 在调用方自己的空间中，要在其中行事的那个 |
+| `traceparent`、`tracestate`、`baggage` | 命令 | W3C 追踪上下文，保存为命令的追踪；没有 `traceparent` 时不读取另外两个 |
 
 `wow.http.request-facts` 列出的请求头会复制进命令，并写进它的事件流。
 
@@ -77,12 +78,15 @@ outline: deep
 | 端口不接收的 `Wow-` 请求头（`Wow-Wiat`，`Wow-Wait` 的拼写错误） | `400 wow.request.malformed`，指出它 |
 | 分两行或更多行给出的 Wow 请求头（`Wow-Request-Id: r1` 和 `Wow-Request-Id: r2`），`Wow-Scope` 除外 | `400 wow.request.malformed`，指出它：追加一行的代理不能决定取值 |
 | 任何路由上的 `Wow-Call`（服务同步调用的请求头）：命令、查询、状态读取、服务路由 | `403 wow.auth.forbidden`，无论凭据如何：调用只在内部端口上接收 |
-| 路径中的矩阵参数（`/shop/cart/c-1;x=1/add-item`），包括不带参数名的 `;`（`c-1;`、`c-1;=v`） | `400 wow.request.malformed`：没有路由接收它们 |
+| 任何路由上的 `Wow-Reveal`（服务读取对端 `DISPLAY` 值的请求头） | `403 wow.auth.forbidden`，无论凭据如何：公共端口上的读取是调用方的读取，`DISPLAY` 值会被掩码 |
+| 路径中的矩阵参数（`/shop/cart/c-1;x=1/add-item`），包括不带参数名的 `;`（`c-1;`、`c-1;=v`），内部端口的调用路由也一样 | `400 wow.request.malformed`：没有路由接收它们 |
 | 类型不是 `application/json` 或 `application/<name>+json` 的请求体，参数不计（`*/*`、`application/*`、`image/x+json`） | `415` |
 | [ID 规则](#aggregate-ids)拒绝的聚合 ID：含控制字符（`a%00b`）、两端有空白（`%20c-1`）、`.` 或 `..`、含 `/`、`;` 或 `\`（`a%2Fb`）、长于 256 个字符，或者 UTF-8 编码后长于 512 字节 | `400 wow.command.malformed`。Unicode ID（`%E8%B4%AD`）按原样接收：客户端会编码它发送的 ID。长到使请求行超过其上限的 ID 会先被拒绝：`414`（[路由之前](#server-refusals)） |
 | 状态读取上的空白 ID（`/shop/cart/%20/state`） | `400 wow.query.malformed` |
 | 状态读取或 trace 不接收的参数（`?verison=1`），或给出两次的参数（`?version=1&version=9`） | `400 wow.query.invalid`，违规项指出它 |
 | 不是不带符号、不带前导零的 ASCII 数字的 `version`、`minVersion`、`from`、`to` 或 `limit`（`%2B1`、`001`、`١`） | `400 wow.query.invalid`，违规项指出它 |
+| 命令路由上的查询参数（`/shop/cart/c-1/add-item?x=1`），内部端口上也一样：命令只读取请求体和请求头 | `400 wow.request.malformed`，违规项指明它；命令不会执行 |
+| 服务路由没有声明的查询参数（`?limt=1`），或给了两次的已声明参数（`?limit=1&limit=2`） | `400 wow.route.malformed`，违规项指明它；处理器不会执行 |
 | 服务路由的数字参数不是 JSON 写法的数字（`NaN`、`Infinity`、空格、`+1`、`01`；整数带小数或指数） | `400 wow.route.malformed`，违规项指出它 |
 
 ### 服务器在路由之前拒绝什么 {#server-refusals}
@@ -92,13 +96,15 @@ outline: deep
 | 请求 | 回答 | 上限：配置项，默认值 |
 | --- | --- | --- |
 | 请求行（方法、带查询的路径、版本）长于上限 | `414`，连接随之关闭 | `server.netty.max-initial-line-length`，4 KB |
-| 请求头块大于上限 | `431`，连接随之关闭 | `server.max-http-request-header-size`，8 KB |
+| 请求头块大于上限 | `431`，连接随之关闭 | `server.max-http-request-header-size`，8 KB；CoSec 的[网关模式](../operate/security#run-services-in-gateway-mode)下为 16 KB |
 | 服务器无法作为 HTTP 读取的请求，例如两个不一致的 `Content-Length` 头 | `400`，连接随之关闭 | |
 | 请求体大于编解码器在内存中接收的大小 | `413` | `spring.http.codecs.max-in-memory-size`，256 KB |
 
 内部端口对前三种同样回答，按 Reactor Netty 自己的上限：4,096 和 8,192 字节，没有配置项设置它们。
 
 超过编解码器上限的请求体，会按它的 `Content-Length` 在读取任何内容之前被拒绝：发送了 `Expect: 100-continue` 的客户端收到 `413` 而不是 `100 Continue`，于是不发送请求体。没有长度的请求体会在读取超过上限时被拒绝。当请求体还没读完就给出了回答、而连接随后关闭时（`Connection: close`、HTTP/1.0，或上面的某个拒绝），服务器先关闭自己这一端，并继续读取客户端仍在发送的内容，最多 5 秒，然后才关闭：回答会到达客户端，而不是被重置掉。
+
+停顿的请求体，即连续 `wow.http.read-timeout`（30 秒）没有任何内容到达，会得到 `408` 回答：只有状态的 Problem，`detail` 指出该超时和它的配置项，连接随之关闭；在 HTTP/2 上，回答之后它的流被重置。这个超时在两个端口上都生效，从请求头到请求体结束，所以它也会结束在提前给出的回答（`401`、`404`）之后仍在到达的请求体，否则服务器会为了在这个连接上接收下一个请求而继续读取它。它既不限制持续到达的请求体（无论多慢），也不限制回答：查询流或等待持续多久都可以，两次请求之间空闲的连接也会保留。它计时的是请求体没有被读取的时间，不论是谁停止了读取：Wow 自己的路由会一次读完请求体，但应用自己的路由如果以流的方式读取请求体、并在同样长的时间里不再请求任何内容（晚订阅，或在两段之间暂停），也会得到 `408`，即使客户端仍在发送。这样的路由应调高这个配置项，或者不停顿地读取请求体。
 
 ### 聚合 ID {#aggregate-ids}
 
@@ -146,7 +152,7 @@ hop  := "accepted" ["(" context ")"]
 | `queryable` | 聚合的快照查询所读的存储包含这次提交：查询读另一个存储（`query.snapshot.store`）时是它的副本，否则与 `snapshot` 相同 |
 | `handled(sub)` | 订阅 `sub`（`processor.function`）处理了这次提交 |
 
-不带上下文的跳在命令所在的上下文中。在 Saga 的 `handled` 那一跳之后，后面的跳适用于 Saga 派生的命令，在它们各自的上下文中。一个计划至多 `wow.wait.max-hops`（16）跳。长于 4,096 个字符或多于 32 跳的 `Wow-Wait`，在读任何一跳之前就以 `wow.wait.invalid` 拒绝。节点没有其 Manifest 的上下文中的跳，会在链到达那里时检查，除非 `wow.wait.unknown-contexts: reject` 以 `wow.wait.invalid` 拒绝它。
+不带上下文的跳在命令所在的上下文中。在 Saga 的 `handled` 那一跳之后，后面的跳适用于 Saga 派生的命令，在它们各自的上下文中。一个计划至多 `wow.wait.max-hops`（16）跳。长于 4,096 个字符或多于 32 跳的 `Wow-Wait`，在读任何一跳之前就以 `wow.wait.invalid` 拒绝。节点没有其 Manifest 的上下文中的跳，会在链到达那里时检查，除非 `wow.wait.unknown-contexts: refuse` 以 `wow.wait.invalid` 拒绝它。
 
 ## 响应 {#responses}
 
@@ -157,7 +163,14 @@ hop  := "accepted" ["(" context ")"]
 | `304` | 请求指明了其 `ETag` 的状态或能力描述 |
 | `4xx`、`5xx` | 一个 RFC 9457 problem（见下文）；稍后重试可能成功时带 `Retry-After` |
 
-**服务端推送事件。** 带 `Accept: text/event-stream` 的命令在被接受后以 `200` 回答，然后计划中列出的每一跳一到达，就为每个结果发一个事件（多条派生命令到达的同一跳各发一个），`id` 是结果的序号，事件以这一跳的阶段命名，数据是结果，直到等待结束。被接受之前的拒绝则返回一个带自身状态码的 problem：准入时的拒绝、节点已满（`429 wow.command.busy`）、无效的计划、命令主题没有接收它。响应头发出之后，拒绝、超时或失败是流的最后一个结果，失败是带错误码（`wow.storage.unavailable`、`wow.command.unknown`）的 FAILED 结果；在计划之前就结束的链（`chainEnded`）也一样。最后一个结果之后还有一个事件：`end`，数据为 `{"reason":"complete"}`，没有 `id`，表示流是完整的；它不是结果。没有它就结束的流，无论结束得多干净（节点停止、连接被切断），命令的结果都是未知的：用同一个 `Wow-Request-Id` 再次发送。读取方不根据计划推断流是否结束。立即写出一条注释 `: keep-alive`，之后在流运行期间每 15 秒写一条，使网关的空闲超时不会关闭这个流；服务端推送事件的读取方会跳过它。流式的 `list` 每条记录发一个 `row` 事件，它的 `id` 是这一行位置的游标（排序无法续读的列表没有 `id`），然后是一个 `end` 事件 `{"reason", "resumable"}`：全部记录发完为 `complete`（`"resumable":false`），`wow.query.stream.max-hold` 之后为 `hold-expired`，节点停止为 `node-stopping`，存储没能及时给下一块查询许可为 `permit-reclaimed`。可续读的流中，除 `complete` 外都可以用 `Last-Event-ID` 续读。第一行之后的失败以一个携带 problem 的 `error` 事件结束流。
+| 响应头 | 用于 | 含义 |
+| --- | --- | --- |
+| `ETag` | 状态读取、描述符 | 应答的版本，强标签（状态读取写的是 `"3-…"`），供 `If-None-Match` 使用，也供命令的 `If-Match` 使用（[实体标签](./protocols#entity-tags)） |
+| `Cache-Control` | 状态读取、描述符，以及它们的 `304` | `private, no-cache`：谁能读到这个应答、读到的是什么（状态读取所在的租户和作用域，调用方能看到的数据集），都取决于调用方。共享缓存不存储它；私有缓存可以保留它，但每次都带 `If-None-Match` 重新询问（[实体标签](./protocols#entity-tags)） |
+| `Wow-Rebuilding` | 快照查询、描述符 | 聚合类型的快照正在重建或回填时为 `true`：应答可能缺少重建尚未到达的内容 |
+| `Retry-After` | problem | 重试何时可能越过这个 problem，以整秒计 |
+
+**服务端推送事件。** 带 `Accept: text/event-stream` 的命令在被接受后以 `200` 回答，然后计划中列出的每一跳一到达，就为每个结果发一个事件（多条派生命令到达的同一跳各发一个），`id` 是结果的序号，事件以这一跳的阶段命名，数据是结果，直到等待结束。被接受之前的拒绝则返回一个带自身状态码的 problem：准入时的拒绝、节点已满（`429 wow.command.busy`）、无效的计划、命令主题没有接收它。响应头发出之后，拒绝、超时或失败是流的最后一个结果，失败是带错误码（`wow.storage.unavailable`、`wow.command.unknown`）的 FAILED 结果；在计划之前就结束的链（`chainEnded`）也一样。最后一个结果之后还有一个事件：`end`，数据为 `{"reason":"complete","resumable":false}`，没有 `id`，表示流是完整的；它不是结果，形状与流式 `list` 的 `end` 相同。没有它就结束的流，无论结束得多干净（节点停止、连接被切断），命令的结果都是未知的：用同一个 `Wow-Request-Id` 再次发送。读取方不根据计划推断流是否结束。立即写出一条注释 `: keep-alive`，之后在流运行期间每 15 秒写一条，使网关的空闲超时不会关闭这个流；服务端推送事件的读取方会跳过它。流式的 `list` 每条记录发一个 `row` 事件，它的 `id` 是这一行位置的游标（排序无法续读的列表没有 `id`），然后是一个 `end` 事件 `{"reason", "resumable"}`：全部记录发完为 `complete`（`"resumable":false`），`wow.query.stream.max-hold` 之后为 `hold-expired`，节点停止为 `node-stopping`，存储没能及时给下一块查询许可为 `permit-reclaimed`。可续读的流中，除 `complete` 外都可以用 `Last-Event-ID` 续读。第一行之后的失败以一个携带 problem 的 `error` 事件结束流。
 
 ## Problem {#problems}
 
@@ -174,9 +187,9 @@ hop  := "accepted" ["(" context ")"]
 | `retry` | 每个 problem 都有：重试能做什么，`none`、`same-request`（用同一个 `Wow-Request-Id` 重发）或 `new-request`；不是 `none` 时带 `Retry-After`，`wow.auth.unavailable` 除外，它的响应头是 CoSec 的（见下） |
 | `result` | 命令产生了结果时，命令完整的结果 |
 | `version` | problem 所回答的聚合版本：拒绝的版本，或低于 `minVersion` 的状态读取时的当前版本 |
-| 其他任何成员 | 拒绝的结构化扩展，按名字；与上面某个成员或 `instance` 同名的扩展会被略去 |
+| 其他任何成员 | 拒绝或服务路由拒绝的结构化扩展，按名字。与上面某个成员或 `instance` 同名的扩展会被略去，即使问题没有那个成员。名为 `requestId`、`traceId` 或 `errors` 的扩展也会被略去，这些名字由 Wow 留给自己的成员：CoSec 的拒绝带有 `requestId` 和 `traceId`（[CoSec 的拒绝](../operate/security#cosec-refusals)）。服务第一次略去某个名字时，会记一条警告，指明这个名字和错误码，从不记录值；拒绝的结果仍携带它 |
 
-领域错误码的状态是它的 `@ErrorCode(status)`，默认 422，可以用 `wow.http.errors.[<code>].status` 按错误码覆盖。框架的错误码见[错误码](./error-codes)。应用自己的路由也以 problem 回答它们的失败（`wow.http.global-errors.enabled`，默认打开）。
+领域错误码的状态是它的 `@ErrorCode(status)`，默认 422，可以用 `wow.http.errors.[<code>].status` 按错误码覆盖。框架的错误码见[错误码](./error-codes)。其中框架不会回答的 `wow.` 下的错误码会拒绝启动，并列出最接近的框架错误码；服务的 Manifest 和类路径上的对等方契约都没有声明的应用错误码以一条警告启动，因为它仍可能是对的（没有 `@ErrorCode` 声明的拒绝错误码、`ProblemMapper` 的错误码、对等方的错误码）。应用自己的路由也以 problem 回答它们的失败（`wow.http.global-errors.enabled`，默认打开）。
 
 CoSec 拒绝的请求在任何路由之前回答，用 CoSec 的状态、响应头和 problem（`https://cosec.ahoo.me/problems/<type>`，CoSec 的 `code`）。设为 `wow.cosec.problems: wow` 时，回答体是 Wow 的 problem：`wow.request.malformed`、`wow.auth.unauthenticated`、`wow.auth.forbidden`、`wow.request.rate-limited` 或 `wow.auth.unavailable`，CoSec 的内部错误是 `about:blank`，CoSec 的 `type` 与 `code` 在成员 `cosec` 里（[CoSec 的拒绝](../operate/security#cosec-refusals)）。响应头仍是 CoSec 的，所以 `wow.auth.unavailable`（503）的 `retry` 是 `new-request` 而没有 `Retry-After`：CoSec 对它不设这个头。目录给这个码的等待（一秒）是 Wow 的客户端在没有这个头时等待的默认值（[错误码](./error-codes)），不是响应里会出现的值。只有这些拒绝会带出 `wow.request.rate-limited` 与 `wow.auth.unavailable`。
 
@@ -206,7 +219,7 @@ CoSec 拒绝的请求在任何路由之前回答，用 CoSec 的状态、响应�
 @Order(0)
 fun catalogProblems(): ProblemMapper = ProblemMapper { failure ->
     (failure as? WebClientResponseException)?.let {
-        WowProblemException("shop.catalog.unreachable", 502, Retry.SAME_REQUEST, null, "The catalog did not answer.")
+        WowProblemException("shop.catalog.unreachable", 502, RetryAdvice.SAME_REQUEST, null, "The catalog did not answer.")
     }
 }
 ```

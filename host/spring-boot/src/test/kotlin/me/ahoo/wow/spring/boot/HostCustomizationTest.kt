@@ -200,7 +200,7 @@ class AuditingDeposit(private val commands: CommandClient) : CommandTransformer 
 
     override suspend fun transform(input: CommandInput): CommandTarget {
         opened += commands.wait(OpenAccount("audit"))
-        return CommandTarget(input.type, input.aggregateId, input.body, input.headers)
+        return CommandTarget(input.type, input.body, input.aggregateId, input.headers)
     }
 }
 
@@ -274,7 +274,7 @@ class HostRefusalTest {
         refusal("wow.aggregates.[bank.account].id-generator" to "missing").assert()
             .contains("wow.aggregates.[bank.account].id-generator names missing")
         refusal("wow.aggregates.[bank.ledger].id-generator" to "missing").assert()
-            .contains("wow.aggregates.[bank.ledger].id-generator names no aggregate type")
+            .contains("wow.aggregates.[bank.ledger] names no aggregate type")
     }
 
     @Test
@@ -290,6 +290,6 @@ class OwnerDefault : CommandTransformer {
     override suspend fun transform(input: CommandInput): CommandTarget {
         val body = input.body as OpenAccount
         val owner = body.owner.ifEmpty { "anonymous" }
-        return CommandTarget(input.type, input.aggregateId, body.copy(owner = owner), input.headers)
+        return CommandTarget(input.type, body.copy(owner = owner), input.aggregateId, input.headers)
     }
 }

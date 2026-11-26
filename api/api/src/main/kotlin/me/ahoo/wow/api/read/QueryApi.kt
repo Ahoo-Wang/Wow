@@ -198,7 +198,7 @@ interface RowQueries<R : Any> {
     suspend fun single(query: SingleQuery): R?
 
     /**
-     * The rows [query] matches, at most its limit, or the budget's default list size when it names none (`0`); read
+     * The rows [query] matches, at most its limit, or the budget's default list size when it names none (`null`); read
      * whole within the query's timeout. To read every row of a large result, [stream] it.
      */
     fun list(query: ListQuery): Flow<R>

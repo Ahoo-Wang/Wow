@@ -38,6 +38,7 @@ export interface ManagedInstanceAbilities {
   publish: boolean;
 }
 
+/** Which view manager commands the reader may use. */
 export interface ViewManagerAbilities {
   reorder: boolean;
   setDefault: boolean;

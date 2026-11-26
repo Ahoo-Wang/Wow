@@ -17,18 +17,18 @@ public final class me/ahoo/wow/runtime/StateCacheOptions {
 
 public final class me/ahoo/wow/runtime/access/AccessStampOptions {
 	public static final field Companion Lme/ahoo/wow/runtime/access/AccessStampOptions$Companion;
-	public static final field DEFAULT_BATCH I
 	public static final field DEFAULT_CAPACITY I
+	public static final field DEFAULT_STAMP_BATCH I
 	public static final field DEFAULT_WALK_BATCH I
 	public static final field DEFAULT_WALK_RATE I
 	public static final field DEFAULT_WALK_SHARE D
 	public synthetic fun <init> (IIIIDJJJILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
-	public final fun getBatch ()I
 	public final fun getCapacity ()I
 	public final fun getInterval-UwyO8pc ()J
 	public final fun getLeaseTtl-UwyO8pc ()J
 	public final fun getMemberTtl-UwyO8pc ()J
+	public final fun getStampBatch ()I
 	public final fun getWalkBatch ()I
 	public final fun getWalkRate ()I
 	public final fun getWalkShare ()D
@@ -228,15 +228,15 @@ public final class me/ahoo/wow/runtime/admission/CommandTarget {
 	public final fun getHeaders ()Ljava/util/Map;
 	public final fun getType ()Lme/ahoo/wow/kernel/CommandType;
 	public fun hashCode ()I
-	public static final fun of (Lme/ahoo/wow/kernel/CommandType;Ljava/lang/String;Ljava/lang/Object;)Lme/ahoo/wow/runtime/admission/CommandTarget;
-	public static final fun of (Lme/ahoo/wow/kernel/CommandType;Ljava/lang/String;Ljava/lang/Object;Ljava/util/Map;)Lme/ahoo/wow/runtime/admission/CommandTarget;
+	public static final fun of (Lme/ahoo/wow/kernel/CommandType;Ljava/lang/Object;Ljava/lang/String;)Lme/ahoo/wow/runtime/admission/CommandTarget;
+	public static final fun of (Lme/ahoo/wow/kernel/CommandType;Ljava/lang/Object;Ljava/lang/String;Ljava/util/Map;)Lme/ahoo/wow/runtime/admission/CommandTarget;
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/runtime/admission/CommandTarget$Companion {
-	public final fun of (Lme/ahoo/wow/kernel/CommandType;Ljava/lang/String;Ljava/lang/Object;)Lme/ahoo/wow/runtime/admission/CommandTarget;
-	public final fun of (Lme/ahoo/wow/kernel/CommandType;Ljava/lang/String;Ljava/lang/Object;Ljava/util/Map;)Lme/ahoo/wow/runtime/admission/CommandTarget;
-	public static synthetic fun of$default (Lme/ahoo/wow/runtime/admission/CommandTarget$Companion;Lme/ahoo/wow/kernel/CommandType;Ljava/lang/String;Ljava/lang/Object;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/runtime/admission/CommandTarget;
+	public final fun of (Lme/ahoo/wow/kernel/CommandType;Ljava/lang/Object;Ljava/lang/String;)Lme/ahoo/wow/runtime/admission/CommandTarget;
+	public final fun of (Lme/ahoo/wow/kernel/CommandType;Ljava/lang/Object;Ljava/lang/String;Ljava/util/Map;)Lme/ahoo/wow/runtime/admission/CommandTarget;
+	public static synthetic fun of$default (Lme/ahoo/wow/runtime/admission/CommandTarget$Companion;Lme/ahoo/wow/kernel/CommandType;Ljava/lang/Object;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/runtime/admission/CommandTarget;
 }
 
 public abstract interface class me/ahoo/wow/runtime/admission/CommandTransformer {
@@ -276,8 +276,6 @@ public final class me/ahoo/wow/runtime/admission/RouteAction$Companion {
 
 public final class me/ahoo/wow/runtime/admission/ServerCommandRequest {
 	public static final field Companion Lme/ahoo/wow/runtime/admission/ServerCommandRequest$Companion;
-	public static final fun builder (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest$Builder;
-	public static final fun builder (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/runtime/admission/CommandBody;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest$Builder;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAggregate ()Ljava/lang/String;
 	public final fun getAggregateId ()Ljava/lang/String;
@@ -289,34 +287,57 @@ public final class me/ahoo/wow/runtime/admission/ServerCommandRequest {
 	public final fun getExpectedVersion ()Ljava/lang/Integer;
 	public final fun getHeaders ()Ljava/util/Map;
 	public final fun getRequestId ()Ljava/lang/String;
-	public final fun getTarget ()Lme/ahoo/wow/api/caller/TargetScope;
+	public final fun getTargetScope ()Lme/ahoo/wow/api/caller/TargetScope;
 	public final fun getTenantId ()Ljava/lang/String;
 	public final fun getTrace ()Ljava/util/Map;
 	public final fun getWait ()Lme/ahoo/wow/api/result/WaitPlan;
 	public fun hashCode ()I
 	public static final fun of (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public static final fun of (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public static final fun of (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public static final fun of (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public static final fun of (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/caller/TargetScope;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public static final fun of (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/caller/TargetScope;Ljava/lang/String;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public static final fun of (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/caller/TargetScope;Ljava/lang/String;Ljava/lang/Integer;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public static final fun of (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/caller/TargetScope;Ljava/lang/String;Ljava/lang/Integer;Ljava/util/Map;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public static final fun of (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/caller/TargetScope;Ljava/lang/String;Ljava/lang/Integer;Ljava/util/Map;Lme/ahoo/wow/api/result/WaitPlan;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public static final fun of (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/caller/TargetScope;Ljava/lang/String;Ljava/lang/Integer;Ljava/util/Map;Lme/ahoo/wow/api/result/WaitPlan;Ljava/util/Map;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/runtime/admission/CommandBody;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/runtime/admission/CommandBody;Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/runtime/admission/CommandBody;Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/runtime/admission/CommandBody;Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/runtime/admission/CommandBody;Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/caller/TargetScope;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/runtime/admission/CommandBody;Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/caller/TargetScope;Ljava/lang/String;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/runtime/admission/CommandBody;Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/caller/TargetScope;Ljava/lang/String;Ljava/lang/Integer;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/runtime/admission/CommandBody;Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/caller/TargetScope;Ljava/lang/String;Ljava/lang/Integer;Ljava/util/Map;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/runtime/admission/CommandBody;Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/caller/TargetScope;Ljava/lang/String;Ljava/lang/Integer;Ljava/util/Map;Lme/ahoo/wow/api/result/WaitPlan;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/runtime/admission/CommandBody;Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/caller/TargetScope;Ljava/lang/String;Ljava/lang/Integer;Ljava/util/Map;Lme/ahoo/wow/api/result/WaitPlan;Ljava/util/Map;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
 	public fun toString ()Ljava/lang/String;
 }
 
-public final class me/ahoo/wow/runtime/admission/ServerCommandRequest$Builder {
-	public final fun aggregateId (Ljava/lang/String;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest$Builder;
-	public final fun build ()Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
-	public final fun caller (Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest$Builder;
-	public final fun expectedVersion (Ljava/lang/Integer;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest$Builder;
-	public final fun headers (Ljava/util/Map;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest$Builder;
-	public final fun requestId (Ljava/lang/String;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest$Builder;
-	public final fun target (Lme/ahoo/wow/api/caller/TargetScope;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest$Builder;
-	public final fun tenantId (Ljava/lang/String;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest$Builder;
-	public final fun trace (Ljava/util/Map;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest$Builder;
-	public final fun wait (Lme/ahoo/wow/api/result/WaitPlan;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest$Builder;
-}
-
 public final class me/ahoo/wow/runtime/admission/ServerCommandRequest$Companion {
-	public final fun builder (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest$Builder;
-	public final fun builder (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/runtime/admission/CommandBody;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest$Builder;
 	public final fun of (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public final fun of (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public final fun of (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public final fun of (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public final fun of (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/caller/TargetScope;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public final fun of (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/caller/TargetScope;Ljava/lang/String;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public final fun of (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/caller/TargetScope;Ljava/lang/String;Ljava/lang/Integer;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public final fun of (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/caller/TargetScope;Ljava/lang/String;Ljava/lang/Integer;Ljava/util/Map;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public final fun of (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/caller/TargetScope;Ljava/lang/String;Ljava/lang/Integer;Ljava/util/Map;Lme/ahoo/wow/api/result/WaitPlan;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public final fun of (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/caller/TargetScope;Ljava/lang/String;Ljava/lang/Integer;Ljava/util/Map;Lme/ahoo/wow/api/result/WaitPlan;Ljava/util/Map;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
 	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/runtime/admission/CommandBody;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/runtime/admission/CommandBody;Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/runtime/admission/CommandBody;Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/runtime/admission/CommandBody;Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/runtime/admission/CommandBody;Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/caller/TargetScope;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/runtime/admission/CommandBody;Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/caller/TargetScope;Ljava/lang/String;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/runtime/admission/CommandBody;Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/caller/TargetScope;Ljava/lang/String;Ljava/lang/Integer;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/runtime/admission/CommandBody;Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/caller/TargetScope;Ljava/lang/String;Ljava/lang/Integer;Ljava/util/Map;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/runtime/admission/CommandBody;Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/caller/TargetScope;Ljava/lang/String;Ljava/lang/Integer;Ljava/util/Map;Lme/ahoo/wow/api/result/WaitPlan;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/runtime/admission/CommandBody;Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/caller/TargetScope;Ljava/lang/String;Ljava/lang/Integer;Ljava/util/Map;Lme/ahoo/wow/api/result/WaitPlan;Ljava/util/Map;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public static synthetic fun of$default (Lme/ahoo/wow/runtime/admission/ServerCommandRequest$Companion;Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/caller/TargetScope;Ljava/lang/String;Ljava/lang/Integer;Ljava/util/Map;Lme/ahoo/wow/api/result/WaitPlan;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
+	public static synthetic fun of$default (Lme/ahoo/wow/runtime/admission/ServerCommandRequest$Companion;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/runtime/admission/CommandBody;Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/caller/TargetScope;Ljava/lang/String;Ljava/lang/Integer;Ljava/util/Map;Lme/ahoo/wow/api/result/WaitPlan;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest;
 }
 
 public abstract interface class me/ahoo/wow/runtime/admission/ServiceRouteAuthorizer {
@@ -330,32 +351,6 @@ public final class me/ahoo/wow/runtime/admission/ServiceRouteAuthorizer$Companio
 	public final fun allOf (Ljava/util/List;)Lme/ahoo/wow/runtime/admission/ServiceRouteAuthorizer;
 }
 
-public final class me/ahoo/wow/runtime/client/InProcessCommandClient : me/ahoo/wow/api/client/CommandClient {
-	public fun of (Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/api/client/CommandClient;
-	public fun send (Lme/ahoo/wow/api/client/CommandRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public fun stream (Lme/ahoo/wow/api/client/CommandRequest;)Lkotlinx/coroutines/flow/Flow;
-	public fun wait (Lme/ahoo/wow/api/client/CommandRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-}
-
-public final class me/ahoo/wow/runtime/cluster/CallerWire {
-	public static final field Companion Lme/ahoo/wow/runtime/cluster/CallerWire$Companion;
-	public final fun caller ()Lme/ahoo/wow/api/caller/Caller;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getAttributes ()Ljava/util/Map;
-	public final fun getCrossScope ()Z
-	public final fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
-	public final fun getService ()Z
-	public final fun getSubject ()Ljava/lang/String;
-	public final fun getTenantId ()Ljava/lang/String;
-	public fun hashCode ()I
-	public static final fun of (Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/runtime/cluster/CallerWire;
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/runtime/cluster/CallerWire$Companion {
-	public final fun of (Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/runtime/cluster/CallerWire;
-}
-
 public final class me/ahoo/wow/runtime/cluster/ClusterOptions {
 	public synthetic fun <init> (JJJJJJJIJIJILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
@@ -364,7 +359,7 @@ public final class me/ahoo/wow/runtime/cluster/ClusterOptions {
 	public final fun getHeartbeatInterval-UwyO8pc ()J
 	public final fun getLeaseParallelism ()I
 	public final fun getLeaseTtl-UwyO8pc ()J
-	public final fun getMaxInFlightPerPeer ()I
+	public final fun getMaxInFlightPerNode ()I
 	public final fun getMemberTtl-UwyO8pc ()J
 	public final fun getReconcileInterval-UwyO8pc ()J
 	public final fun getReconcileTimeout-UwyO8pc ()J
@@ -374,95 +369,11 @@ public final class me/ahoo/wow/runtime/cluster/ClusterOptions {
 	public fun toString ()Ljava/lang/String;
 }
 
-public final class me/ahoo/wow/runtime/cluster/CommandWire {
-	public static final field Companion Lme/ahoo/wow/runtime/cluster/CommandWire$Companion;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getActingTenant ()Ljava/lang/String;
-	public final fun getBody ()Ltools/jackson/databind/JsonNode;
-	public final fun getCaller ()Lme/ahoo/wow/runtime/cluster/CallerWire;
-	public final fun getCausation ()Lme/ahoo/wow/api/decide/Causation;
-	public final fun getExpectedVersion ()Ljava/lang/Integer;
-	public final fun getHeaders ()Ljava/util/Map;
-	public final fun getId ()Ljava/lang/String;
-	public final fun getOperator ()Lme/ahoo/wow/api/caller/Operator;
-	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
-	public final fun getReplyTo ()Lme/ahoo/wow/runtime/cluster/ReplyTo;
-	public final fun getRequestId ()Ljava/lang/String;
-	public final fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
-	public final fun getType ()Ljava/lang/String;
-	public fun hashCode ()I
-	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ltools/jackson/databind/JsonNode;)Lme/ahoo/wow/runtime/cluster/CommandWire;
-	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ltools/jackson/databind/JsonNode;Ljava/lang/Integer;)Lme/ahoo/wow/runtime/cluster/CommandWire;
-	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ltools/jackson/databind/JsonNode;Ljava/lang/Integer;Lme/ahoo/wow/api/aggregate/Scope;)Lme/ahoo/wow/runtime/cluster/CommandWire;
-	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ltools/jackson/databind/JsonNode;Ljava/lang/Integer;Lme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;)Lme/ahoo/wow/runtime/cluster/CommandWire;
-	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ltools/jackson/databind/JsonNode;Ljava/lang/Integer;Lme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;Lme/ahoo/wow/api/decide/Causation;)Lme/ahoo/wow/runtime/cluster/CommandWire;
-	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ltools/jackson/databind/JsonNode;Ljava/lang/Integer;Lme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;Lme/ahoo/wow/api/decide/Causation;Lme/ahoo/wow/api/caller/Operator;)Lme/ahoo/wow/runtime/cluster/CommandWire;
-	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ltools/jackson/databind/JsonNode;Ljava/lang/Integer;Lme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;Lme/ahoo/wow/api/decide/Causation;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/runtime/cluster/ReplyTo;)Lme/ahoo/wow/runtime/cluster/CommandWire;
-	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ltools/jackson/databind/JsonNode;Ljava/lang/Integer;Lme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;Lme/ahoo/wow/api/decide/Causation;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/runtime/cluster/ReplyTo;Lme/ahoo/wow/runtime/cluster/CallerWire;)Lme/ahoo/wow/runtime/cluster/CommandWire;
-	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ltools/jackson/databind/JsonNode;Ljava/lang/Integer;Lme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;Lme/ahoo/wow/api/decide/Causation;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/runtime/cluster/ReplyTo;Lme/ahoo/wow/runtime/cluster/CallerWire;Ljava/lang/String;)Lme/ahoo/wow/runtime/cluster/CommandWire;
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/runtime/cluster/CommandWire$Companion {
-	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ltools/jackson/databind/JsonNode;)Lme/ahoo/wow/runtime/cluster/CommandWire;
-	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ltools/jackson/databind/JsonNode;Ljava/lang/Integer;)Lme/ahoo/wow/runtime/cluster/CommandWire;
-	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ltools/jackson/databind/JsonNode;Ljava/lang/Integer;Lme/ahoo/wow/api/aggregate/Scope;)Lme/ahoo/wow/runtime/cluster/CommandWire;
-	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ltools/jackson/databind/JsonNode;Ljava/lang/Integer;Lme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;)Lme/ahoo/wow/runtime/cluster/CommandWire;
-	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ltools/jackson/databind/JsonNode;Ljava/lang/Integer;Lme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;Lme/ahoo/wow/api/decide/Causation;)Lme/ahoo/wow/runtime/cluster/CommandWire;
-	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ltools/jackson/databind/JsonNode;Ljava/lang/Integer;Lme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;Lme/ahoo/wow/api/decide/Causation;Lme/ahoo/wow/api/caller/Operator;)Lme/ahoo/wow/runtime/cluster/CommandWire;
-	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ltools/jackson/databind/JsonNode;Ljava/lang/Integer;Lme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;Lme/ahoo/wow/api/decide/Causation;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/runtime/cluster/ReplyTo;)Lme/ahoo/wow/runtime/cluster/CommandWire;
-	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ltools/jackson/databind/JsonNode;Ljava/lang/Integer;Lme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;Lme/ahoo/wow/api/decide/Causation;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/runtime/cluster/ReplyTo;Lme/ahoo/wow/runtime/cluster/CallerWire;)Lme/ahoo/wow/runtime/cluster/CommandWire;
-	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ltools/jackson/databind/JsonNode;Ljava/lang/Integer;Lme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;Lme/ahoo/wow/api/decide/Causation;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/runtime/cluster/ReplyTo;Lme/ahoo/wow/runtime/cluster/CallerWire;Ljava/lang/String;)Lme/ahoo/wow/runtime/cluster/CommandWire;
-	public static synthetic fun of$default (Lme/ahoo/wow/runtime/cluster/CommandWire$Companion;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ltools/jackson/databind/JsonNode;Ljava/lang/Integer;Lme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;Lme/ahoo/wow/api/decide/Causation;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/runtime/cluster/ReplyTo;Lme/ahoo/wow/runtime/cluster/CallerWire;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/runtime/cluster/CommandWire;
-}
-
-public final class me/ahoo/wow/runtime/cluster/LeaseGroup {
-	public static final field Companion Lme/ahoo/wow/runtime/cluster/LeaseGroup$Companion;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getContext ()Ljava/lang/String;
-	public final fun getName ()Ljava/lang/String;
-	public final fun getService ()Ljava/lang/String;
-	public fun hashCode ()I
-	public static final fun of (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/runtime/cluster/LeaseGroup;
-	public fun toString ()Ljava/lang/String;
-	public static final fun topic (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/runtime/cluster/LeaseGroup;
-}
-
-public final class me/ahoo/wow/runtime/cluster/LeaseGroup$Companion {
-	public final fun of (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/runtime/cluster/LeaseGroup;
-	public final fun topic (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/runtime/cluster/LeaseGroup;
-}
-
-public final class me/ahoo/wow/runtime/cluster/ReplyTo {
-	public static final field Companion Lme/ahoo/wow/runtime/cluster/ReplyTo$Companion;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun executionId ()Lme/ahoo/wow/api/subscribe/ExecutionId;
-	public final fun getCommitted ()Z
-	public final fun getContext ()Ljava/lang/String;
-	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
-	public final fun getSubscription ()Ljava/lang/String;
-	public final fun getVersion ()I
-	public fun hashCode ()I
-	public static final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;I)Lme/ahoo/wow/runtime/cluster/ReplyTo;
-	public static final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;IZ)Lme/ahoo/wow/runtime/cluster/ReplyTo;
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/runtime/cluster/ReplyTo$Companion {
-	public final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;I)Lme/ahoo/wow/runtime/cluster/ReplyTo;
-	public final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;IZ)Lme/ahoo/wow/runtime/cluster/ReplyTo;
-	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/subscribe/ExecutionId;Z)Lme/ahoo/wow/runtime/cluster/ReplyTo;
-	public static synthetic fun of$default (Lme/ahoo/wow/runtime/cluster/ReplyTo$Companion;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;IZILjava/lang/Object;)Lme/ahoo/wow/runtime/cluster/ReplyTo;
-	public static synthetic fun of$default (Lme/ahoo/wow/runtime/cluster/ReplyTo$Companion;Ljava/lang/String;Lme/ahoo/wow/api/subscribe/ExecutionId;ZILjava/lang/Object;)Lme/ahoo/wow/runtime/cluster/ReplyTo;
-}
-
 public final class me/ahoo/wow/runtime/contract/ContractDirectory : me/ahoo/wow/runtime/wait/SubscriptionDirectory {
 	public static final field Companion Lme/ahoo/wow/runtime/contract/ContractDirectory$Companion;
 	public static final field LOCAL_SOURCE Ljava/lang/String;
 	public static final field SERVICE_KEY Ljava/lang/String;
 	public static final field UNKNOWN_CONTEXT Ljava/lang/String;
-	public fun <init> (Lme/ahoo/wow/manifest/Manifest;Ljava/util/List;)V
-	public synthetic fun <init> (Lme/ahoo/wow/manifest/Manifest;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun aggregateOf (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/manifest/AggregateManifest;
 	public final fun aggregatesOf (Ljava/lang/String;)Ljava/util/List;
 	public final fun commandTypeOf (Ljava/lang/String;)Ljava/lang/String;
@@ -472,16 +383,15 @@ public final class me/ahoo/wow/runtime/contract/ContractDirectory : me/ahoo/wow/
 	public fun covers (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateType;)Z
 	public fun derivedContextsOf (Ljava/lang/String;Ljava/lang/String;)Ljava/util/Set;
 	public final fun getAllContexts ()Ljava/util/List;
-	public final fun getFragments ()Ljava/util/List;
 	public final fun getLocal ()Lme/ahoo/wow/manifest/Manifest;
 	public final fun getLocalContexts ()Ljava/util/Set;
 	public final fun getPeerContexts ()Ljava/util/Set;
-	public final fun getPeers ()Ljava/util/List;
 	public fun hasContext (Ljava/lang/String;)Z
 	public fun hasHandled (Ljava/lang/String;Lme/ahoo/wow/spi/log/EventStreamRecord;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun idPropertyOf (Ljava/lang/String;)Ljava/lang/String;
 	public final fun isLocal (Ljava/lang/String;)Z
 	public fun kindOf (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/result/FunctionKind;
+	public static final fun of (Lme/ahoo/wow/manifest/Manifest;)Lme/ahoo/wow/runtime/contract/ContractDirectory;
 	public final fun over (Lme/ahoo/wow/runtime/wait/SubscriptionDirectory;Ljava/lang/String;)Lme/ahoo/wow/runtime/wait/SubscriptionDirectory;
 	public final fun publishedOf (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/manifest/PublishedManifest;
 	public final fun schemaOf (Ljava/lang/String;)Ljava/lang/String;
@@ -491,6 +401,7 @@ public final class me/ahoo/wow/runtime/contract/ContractDirectory : me/ahoo/wow/
 public final class me/ahoo/wow/runtime/contract/ContractDirectory$Companion {
 	public final fun load (Lme/ahoo/wow/manifest/Manifest;Ljava/lang/ClassLoader;Ltools/jackson/databind/json/JsonMapper;Ljava/lang/String;)Lme/ahoo/wow/runtime/contract/ContractDirectory;
 	public static synthetic fun load$default (Lme/ahoo/wow/runtime/contract/ContractDirectory$Companion;Lme/ahoo/wow/manifest/Manifest;Ljava/lang/ClassLoader;Ltools/jackson/databind/json/JsonMapper;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/runtime/contract/ContractDirectory;
+	public final fun of (Lme/ahoo/wow/manifest/Manifest;)Lme/ahoo/wow/runtime/contract/ContractDirectory;
 }
 
 public final class me/ahoo/wow/runtime/ledger/LedgerPublishing {
@@ -616,7 +527,6 @@ public final class me/ahoo/wow/runtime/node/Routing : java/lang/Enum {
 
 public final class me/ahoo/wow/runtime/node/ServiceNode {
 	public static final field Companion Lme/ahoo/wow/runtime/node/ServiceNode$Companion;
-	public final fun bind (Ljava/lang/String;)V
 	public final fun getAddress ()Ljava/lang/String;
 	public final fun getClock ()Ljava/time/Clock;
 	public final fun getContracts ()Lme/ahoo/wow/runtime/contract/ContractDirectory;
@@ -696,7 +606,7 @@ public final class me/ahoo/wow/runtime/node/SourceTopics {
 	public final fun getAdmin ()Lme/ahoo/wow/spi/transport/TopicAdmin;
 	public final fun getDdl ()Lme/ahoo/wow/spi/Ddl;
 	public final fun getIntake ()Z
-	public final fun getPartitionRefresh-UwyO8pc ()J
+	public final fun getPartitionRefreshInterval-UwyO8pc ()J
 	public final fun getPrefix ()Ljava/lang/String;
 	public final fun getProducer ()Lme/ahoo/wow/spi/transport/TopicProducer;
 	public final fun getSource ()Lme/ahoo/wow/spi/transport/PartitionedSource;
@@ -714,7 +624,7 @@ public final class me/ahoo/wow/runtime/node/SourceTopics {
 }
 
 public final class me/ahoo/wow/runtime/node/SourceTopics$Companion {
-	public final fun getDEFAULT_PARTITION_REFRESH-UwyO8pc ()J
+	public final fun getDEFAULT_PARTITION_REFRESH_INTERVAL-UwyO8pc ()J
 	public final fun of (Lme/ahoo/wow/spi/transport/PartitionedSource;)Lme/ahoo/wow/runtime/node/SourceTopics;
 	public final fun of (Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;)Lme/ahoo/wow/runtime/node/SourceTopics;
 	public final fun of (Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;Lme/ahoo/wow/spi/transport/TopicProducer;)Lme/ahoo/wow/runtime/node/SourceTopics;
@@ -738,48 +648,37 @@ public final class me/ahoo/wow/runtime/schedule/JobOptions {
 	public fun toString ()Ljava/lang/String;
 }
 
-public final class me/ahoo/wow/runtime/sink/PublicationMasks {
-	public fun <init> (Lme/ahoo/wow/spi/read/StateMasks;Z)V
-	public final fun getDisplayShared ()Z
-	public final fun getMasks ()Lme/ahoo/wow/spi/read/StateMasks;
-	public final fun revealsDisplay (Lme/ahoo/wow/manifest/PublishedManifest;)Z
-	public fun toString ()Ljava/lang/String;
-}
-
 public final class me/ahoo/wow/runtime/sink/PublishedSinks {
 	public static final field Companion Lme/ahoo/wow/runtime/sink/PublishedSinks$Companion;
 	public static final field TRANSPORT_SINK Ljava/lang/String;
-	public fun <init> (Ljava/util/Map;Ljava/lang/String;Lme/ahoo/wow/runtime/sink/PublicationMasks;Lkotlin/jvm/functions/Function2;)V
 	public final fun nameOf (Lme/ahoo/wow/manifest/PublishedManifest;)Ljava/lang/String;
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/runtime/sink/PublishedSinks$Companion {
 	public final fun publishedOf (Lme/ahoo/wow/manifest/Manifest;)Ljava/util/Map;
-	public final fun topics (Lme/ahoo/wow/manifest/Manifest;Lme/ahoo/wow/spi/transport/TopicProducer;Lme/ahoo/wow/runtime/sink/PublicationMasks;ILjava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/runtime/sink/PublishedSinks;
-	public static synthetic fun topics$default (Lme/ahoo/wow/runtime/sink/PublishedSinks$Companion;Lme/ahoo/wow/manifest/Manifest;Lme/ahoo/wow/spi/transport/TopicProducer;Lme/ahoo/wow/runtime/sink/PublicationMasks;ILjava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/runtime/sink/PublishedSinks;
 }
 
 public final class me/ahoo/wow/runtime/snapshot/SnapshotOptions {
 	public static final field Companion Lme/ahoo/wow/runtime/snapshot/SnapshotOptions$Companion;
-	public static final field DEFAULT_BATCH I
-	public static final field DEFAULT_PAGES I
+	public static final field DEFAULT_REBUILD_MAX_PAGES I
+	public static final field DEFAULT_REBUILD_PAGE_SIZE I
 	public static final field DEFAULT_WRITE_BATCH I
 	public synthetic fun <init> (JIIJJIJLjava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
-	public final fun getBatch ()I
-	public final fun getInterval-UwyO8pc ()J
 	public final fun getLeaseTtl-UwyO8pc ()J
 	public final fun getLoadTimeout-UwyO8pc ()J
+	public final fun getMaintenanceInterval-UwyO8pc ()J
 	public final fun getMemberTtl-UwyO8pc ()J
-	public final fun getPages ()I
+	public final fun getRebuildMaxPages ()I
+	public final fun getRebuildPageSize ()I
 	public final fun getWriteBatch ()I
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/runtime/snapshot/SnapshotOptions$Companion {
-	public final fun getDEFAULT_INTERVAL-UwyO8pc ()J
+	public final fun getDEFAULT_MAINTENANCE_INTERVAL-UwyO8pc ()J
 	public final fun getDEFAULT_TTL-UwyO8pc ()J
 }
 
@@ -818,10 +717,17 @@ public final class me/ahoo/wow/runtime/subscription/ParkedNotice {
 	public final fun getAt ()J
 	public final fun getContext ()Ljava/lang/String;
 	public final fun getEntry ()Lme/ahoo/wow/spi/ledger/ParkedAggregate;
+	public final fun getFailedAt ()J
+	public final fun getFromVersion ()I
 	public final fun getGroup ()Ljava/lang/String;
 	public final fun getKind ()Lme/ahoo/wow/runtime/subscription/ParkedNotice$Kind;
+	public final fun getMaxRetries ()I
 	public final fun getNextRetryAt ()Ljava/lang/Long;
+	public final fun getReason ()Ljava/lang/String;
+	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public final fun getRetries ()I
 	public final fun getSpec ()Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
+	public final fun getSubscription ()Ljava/lang/String;
 	public fun hashCode ()I
 	public static final fun of (Lme/ahoo/wow/runtime/subscription/ParkedNotice$Kind;Ljava/lang/String;Lme/ahoo/wow/spi/ledger/ParkedAggregate;Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;J)Lme/ahoo/wow/runtime/subscription/ParkedNotice;
 	public fun toString ()Ljava/lang/String;
@@ -903,7 +809,6 @@ public final class me/ahoo/wow/runtime/subscription/SubscriptionOptions {
 	public final fun getReadRetry ()Lme/ahoo/wow/runtime/subscription/RetryPolicy;
 	public final fun getRetries ()Ljava/util/Map;
 	public final fun getRetry ()Lme/ahoo/wow/runtime/subscription/RetryPolicy;
-	public final fun getStarts ()Ljava/util/Map;
 	public final fun getStopTimeout-UwyO8pc ()J
 	public final fun getSystemic ()Lme/ahoo/wow/runtime/subscription/SystemicFailureOptions;
 	public fun hashCode ()I
@@ -927,7 +832,7 @@ public final class me/ahoo/wow/runtime/timer/TimerOptions {
 	public synthetic fun <init> (JJLme/ahoo/wow/runtime/subscription/RetryPolicy;Lkotlin/time/Duration;IILjava/lang/Double;JJIILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getBatch ()I
-	public final fun getClaimTimeout-UwyO8pc ()J
+	public final fun getClaimTtl-UwyO8pc ()J
 	public final fun getExpiresAfter-FghU774 ()Lkotlin/time/Duration;
 	public final fun getLookahead-UwyO8pc ()J
 	public final fun getMaxBusyRetries ()I
@@ -958,7 +863,7 @@ public final class me/ahoo/wow/runtime/wait/SubscriptionDirectory$Companion {
 
 public final class me/ahoo/wow/runtime/wait/UnknownContexts : java/lang/Enum {
 	public static final field ALLOW Lme/ahoo/wow/runtime/wait/UnknownContexts;
-	public static final field REJECT Lme/ahoo/wow/runtime/wait/UnknownContexts;
+	public static final field REFUSE Lme/ahoo/wow/runtime/wait/UnknownContexts;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/runtime/wait/UnknownContexts;
 	public static fun values ()[Lme/ahoo/wow/runtime/wait/UnknownContexts;

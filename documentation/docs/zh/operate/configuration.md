@@ -36,6 +36,8 @@ wow:
 
 对于与它所提供的任何东西都不匹配的名字，宿主不会忽略，而是拒绝启动：`wow.subscriptions` 下没有对应处理函数的订阅、`wow.aggregates` 下节点不提供的聚合类型、`wow.contexts` 下不在任何类路径上的上下文、没有任何东西提供的 ID 生成器。
 
+会启动却什么也不做的设置同样拒绝启动：`wow.http.errors` 中框架不会回答的 `wow.` 下的错误码，`wow.http.request-facts` 中的标准请求事实（`app_id`、`user_agent`、`remote_ip`），不是上下文名称的 `wow.ops.publish.context`，高于 `ceiling` 的自适应查询 `floor`，高于主题创建时 `replication-factor` 的 Kafka `min-insync-replicas`。`wow.http.errors` 中应用自己的错误码，若服务的 Manifest 和类路径上的对等方契约都没有声明它，则以一条警告启动：它仍可能是对的，比如没有 `@ErrorCode` 声明的领域拒绝错误码、`ProblemMapper` 的错误码，或契约不在类路径上的对等方的错误码。
+
 这类失败，以及宿主无法据以启动的其他取值，都是 `WowConfigurationException`。Spring Boot 在日志末尾把它报告为一份失败分析，而不是一堆 Bean 创建错误：哪里不对、哪个键及其取值、该怎么改。
 
 ## 键会被检查 {#keys-are-checked}
@@ -75,7 +77,7 @@ Spring 会忽略没有属性绑定的键，所以拼错的键会一声不响地�
 
 ## 开发与生产 {#development-and-production}
 
-在开发 profile（`dev`、`local`、`test` 或 `demo`，即 `wow.dev-profiles`）中，而且只在其中，有几个默认值会放宽。地址不表示开发模式：`wow.internal.host` 或 `wow.node.address` 是回环地址的节点，或者本机名字解析到回环地址的节点（Debian 的 `/etc/hosts` 给出 `127.0.1.1`），没有这种 profile 时都是生产节点。
+在开发 profile（`dev` 或 `local`，即 `wow.dev-profiles`）中，而且只在其中，有几个默认值会放宽。名为 `test` 或 `demo` 的 profile 不算开发 profile，除非 `wow.dev-profiles` 列出了它：这类 profile 常属于共享环境，而共享环境不能从请求头取得调用方，也不能把数据留在内存中。地址不表示开发模式：`wow.internal.host` 或 `wow.node.address` 是回环地址的节点，或者本机名字解析到回环地址的节点（Debian 的 `/etc/hosts` 给出 `127.0.1.1`），没有这种 profile 时都是生产节点。
 
 | 没有 | 开发环境中 | 生产环境中 |
 | --- | --- | --- |

@@ -29,7 +29,6 @@ import me.ahoo.wow.mongo.log.committed
 import me.ahoo.wow.query.backend.CachedQueryBindings
 import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.schema.LogicalQuerySchema
-import me.ahoo.wow.query.schema.QueryPathSegment
 import me.ahoo.wow.query.schema.QueryPathTemplate
 import me.ahoo.wow.query.schema.QueryStorageAdapter
 import me.ahoo.wow.query.schema.QueryStorageFacts
@@ -95,8 +94,8 @@ class MongoEventQueryStorage @JvmOverloads constructor(
  * A stream document `MongoEventLog` writes, as the `events` model reads it: each system field
  * of a stream a top-level field under its stored name ([PHYSICAL]), the operator the document `{id, tenantId,
  * actedElsewhere}` or absent, the access attributes the document `access` or absent when not stamped,
- * and the events the array `events`, each `{name, revision, payload}`, whose
- * `payload` a record names `body`. The position, causation, headers and transport are never part of a record.
+ * and the events the array `events`, each `{name, revision, body}`, as a record names them. The position, causation,
+ * headers and transport are never part of a record.
  */
 internal object MongoEventDocuments : MongoQueryDocuments {
     /** The stored name of each top-level field of a stream record, in the record's order. */
@@ -125,10 +124,6 @@ internal object MongoEventDocuments : MongoQueryDocuments {
         EventStreamFields.OPERATOR,
         EventStreamFields.ACCESS,
     )
-    private const val PAYLOAD = "payload"
-    private val EVENTS = QueryPathSegment.Property(EventStreamFields.EVENTS)
-    private val BODY = listOf(EVENTS, QueryPathSegment.Item, QueryPathSegment.Property(EventFields.BODY))
-    private val STORED_BODY = listOf(EVENTS, QueryPathSegment.Item, QueryPathSegment.Property(PAYLOAD))
     private val nodes: JsonNodeFactory = JsonNodeFactory.instance
 
     override val systemTypes: Map<String, Set<String>> = mapOf(
@@ -165,23 +160,10 @@ internal object MongoEventDocuments : MongoQueryDocuments {
 
     override val edgeTieBreakers: List<String> = listOf("aggregate_id", "tenant_id", "version")
 
-    override fun physical(path: QueryPathTemplate): QueryPathTemplate {
-        val renamed = renameRoot(path, PHYSICAL)
-        return if (renamed.segments.take(BODY.size) == BODY) {
-            QueryPathTemplate(STORED_BODY + renamed.segments.drop(BODY.size))
-        } else {
-            renamed
-        }
-    }
+    // The log stores an event's data under `body`, as the model names it: a path below it needs no translation.
+    override fun physical(path: QueryPathTemplate): QueryPathTemplate = renameRoot(path, PHYSICAL)
 
-    override fun logical(path: QueryPathTemplate): QueryPathTemplate {
-        val renamed = renameRoot(path, LOGICAL)
-        return if (renamed.segments.take(STORED_BODY.size) == STORED_BODY) {
-            QueryPathTemplate(BODY + renamed.segments.drop(STORED_BODY.size))
-        } else {
-            renamed
-        }
-    }
+    override fun logical(path: QueryPathTemplate): QueryPathTemplate = renameRoot(path, LOGICAL)
 
     override fun record(document: Document): ObjectNode = nodes.objectNode().apply {
         PHYSICAL.forEach { (logical, physical) ->
@@ -198,7 +180,7 @@ internal object MongoEventDocuments : MongoQueryDocuments {
                         events.addObject()
                             .put(EventFields.NAME, event.getString(EventFields.NAME))
                             .put(EventFields.REVISION, event.getInteger(EventFields.REVISION))
-                            .set(EventFields.BODY, ExactBson.node(event[PAYLOAD]))
+                            .set(EventFields.BODY, ExactBson.node(event[MongoEventLog.BODY]))
                     }
                 }
                 EventStreamFields.OPERATOR, EventStreamFields.ACCESS ->

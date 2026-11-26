@@ -110,11 +110,12 @@ export interface DurationSemantic {
 
 /**
  * A field whose value is the id of an aggregate, to look it up and link to
- * it: either a fixed aggregate, `contextName` and `aggregateName`, or per
- * record the aggregate the sibling string fields `contextNameField` and
- * `aggregateNameField` name (as in an `AggregateId`). The id is always the
- * aggregate's own. Declared on the model (`@QueryReference`), or inferred
- * for an `AggregateId`. Wow 9.2 and later.
+ * it, as the model declares it (`@QueryReference`): the aggregate,
+ * `contextName` and `aggregateName`. The other form, per record the
+ * aggregate the sibling string fields `contextNameField` and
+ * `aggregateNameField` name, is a 9.x server's: a Wow 10 server never
+ * writes it, and infers no reference. The id is always the aggregate's
+ * own. Wow 9.2 and later.
  */
 export type ReferenceSemantic = {
   /** The discriminator. */

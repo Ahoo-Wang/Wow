@@ -13,7 +13,7 @@
 import { useEffect, useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   MemoryViewStore,
   ViewEngine,
   withFieldKinds,
@@ -322,7 +322,7 @@ function RejectedDemo() {
  * （F-06）。视图由引擎按这份注册表新建，不经工作台，看条件编辑器怎么对待它。
  */
 const swatch: FieldKind = {
-  ...(builtinFieldKinds.get('string') as FieldKind),
+  ...(builtinFieldKindRegistry.get('string') as FieldKind),
   id: 'swatch',
   editor: () => ({ input: 'colourWheel' as never }),
 };
@@ -341,11 +341,11 @@ function unknownEditorView(): {
   const engine = new ViewEngine({
     resources: [{ definition, source: storySource() }],
     store: new MemoryViewStore(),
-    kinds: withFieldKinds(builtinFieldKinds, [swatch]),
+    kinds: withFieldKinds(builtinFieldKindRegistry, [swatch]),
   });
   const runtime = engine.create(definition.id, {
     title: '色板没有编辑器',
-    scope: 'personal',
+    audience: 'personal',
     config: recordConfig({
       filter: {
         op: 'and',

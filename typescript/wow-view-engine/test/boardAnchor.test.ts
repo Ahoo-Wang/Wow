@@ -114,7 +114,7 @@ function panel(id: string, config: AnalysisViewConfig, x: number) {
     id,
     kind: 'view',
     owned: { definitionId: 'orders', config },
-    bindings: [{ globalField: 'date', panelField: 'createdAt' }],
+    bindings: [{ dashboardField: 'date', panelField: 'createdAt' }],
     layout: { x, y: 0, w: 4, h: 3 },
   } as DashboardPanel;
 }
@@ -333,7 +333,7 @@ describe('a board owning an incomplete analysis', () => {
       id: 'bare-kind',
       kind: 'view',
       owned: { definitionId: 'orders', config: { kind: 'analysis' } },
-      bindings: [{ globalField: 'date', panelField: 'createdAt' }],
+      bindings: [{ dashboardField: 'date', panelField: 'createdAt' }],
       layout: { x: 16, y: 0, w: 4, h: 3 },
     } as unknown as DashboardPanel;
 

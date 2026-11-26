@@ -41,7 +41,7 @@ export const cosec = new CoSecConfigurer({
 cosec.applyTo(service);
 ```
 
-The endpoints are the CoSec application's: its refresh route (`cosec.authentication.login.refresh.path`) and its logout route (`cosec.authentication.login.logout.path`). `cosec.tokenManager?.logout()` ends the session at the server and forgets the pair here.
+The endpoints are the CoSec application's: its refresh route (`cosec.authentication.login.refresh.path`) and its logout route (`cosec.authentication.login.logout.path`). `cosec.tokenManager?.logout()` ends the session at the server and forgets the pair here. A refresh or a logout sends the pair only to an endpoint the client trusts, never through a redirect: a relative endpoint on its Fetcher's `baseURL`, as here, always is; one on another origin needs that origin in `isTrusted`.
 
 After sign-in, store the token pair; from then on every request of that Fetcher carries it:
 

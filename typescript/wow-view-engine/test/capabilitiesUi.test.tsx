@@ -19,7 +19,7 @@ import {
   SortDirection,
 } from '@ahoo-wang/wow-client/dsl';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   MemoryViewStore,
   validateDefinition,
   validateRecord,
@@ -29,7 +29,7 @@ import {
 import { elementFields } from '../src/filter/kinds/elementMatch.js';
 import { emptyFilter } from '../src/filter/tree.js';
 import { maxSortFields } from '../src/record/validate.js';
-import { useFilterEditor, useSearchBox } from '../src/react/index.js';
+import { useFilterEditor } from '../src/react/index.js';
 import { treeController } from '../src/react/filterTree.js';
 import { narrowDefinition } from '../src/capabilities/index.js';
 import {
@@ -43,6 +43,7 @@ import {
   ordersDescriptor,
   read,
 } from './fixtures/descriptor.js';
+import { useSearchBox } from '../src/react/useSearchBox.js';
 
 afterEach(cleanup);
 
@@ -159,7 +160,7 @@ describe("an element's search (N4)", () => {
     return treeController({
       tree: emptyFilter(),
       fields: elementFields(lines),
-      kinds: builtinFieldKinds,
+      kinds: builtinFieldKindRegistry,
       issues: [],
       onChange: () => undefined,
     })
@@ -167,7 +168,7 @@ describe("an element's search (N4)", () => {
       .map(field => field.name);
   };
   const narrowed = (search: boolean) =>
-    narrowDefinition(withLines, described(search), builtinFieldKinds)
+    narrowDefinition(withLines, described(search), builtinFieldKindRegistry)
       .definition;
 
   it('is offered inside the element match where it is declared, or described', () => {
@@ -201,12 +202,12 @@ describe('a sort bound the definition declares', () => {
       ],
     });
     expect(
-      validateRecord(bounded, config, builtinFieldKinds).map(
+      validateRecord(bounded, config, builtinFieldKindRegistry).map(
         found => found.code,
       ),
     ).toContain('record.sort.too-many');
     expect(
-      validateRecord(ordersDefinition(), config, builtinFieldKinds).map(
+      validateRecord(ordersDefinition(), config, builtinFieldKindRegistry).map(
         found => found.code,
       ),
     ).not.toContain('record.sort.too-many');
@@ -222,8 +223,8 @@ describe('a sort bound the definition declares', () => {
       },
     });
 
-    expect(validateDefinition(bounded, builtinFieldKinds)).toEqual([]);
-    expect(validateDefinition(wrong, builtinFieldKinds)).toEqual([
+    expect(validateDefinition(bounded, builtinFieldKindRegistry)).toEqual([]);
+    expect(validateDefinition(wrong, builtinFieldKindRegistry)).toEqual([
       {
         code: 'definition.record.max-sort-fields-invalid',
         severity: 'error',

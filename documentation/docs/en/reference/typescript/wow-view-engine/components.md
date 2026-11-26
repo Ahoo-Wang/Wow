@@ -33,7 +33,7 @@ The workbench of one data definition: its record views and analysis views in one
 | `definitionId` | The definition to draw |
 | `instanceId`, `onInstanceChange` | Which view is open, as `value` is on an input: leaving it out lets the workbench own it from the effective default on, and passing it — a string, or `null` for that default — puts a host's route in charge, every later change opening what it names. It goes through the leave guard, so a pushed view never takes an unsaved draft away without asking. `onInstanceChange` reports in the same vocabulary, so a host puts it straight into a route |
 | `viewKinds` | Which kinds it lists and draws, in the order the "new view" menu offers them. Both by default; naming one is a real narrowing — the other kind is neither listed nor openable there |
-| `record` | What the host says about the record views ([`RecordViewProps`](#api-RecordViewProps)): business actions, how a cell is read, whether rows can be picked, what an empty result says. The binding (`bind`'s `actions`, `slots`, `reading`) is the default of each; one given here wins |
+| `record` | What the host says about the record views ([`RecordViewOptions`](#api-RecordViewOptions)): business actions, how a cell is read, whether rows can be picked, what an empty result says. The binding (`bind`'s `actions`, `slots`, `reading`) is the default of each; one given here wins |
 | `features` | Which of the workbench's own controls are on screen: `export`, `layouts`, `columns`, `sort`, `search`, `visualization`, `manage`. All on by default; one turned off is absent, not disabled |
 | `templates` | What a new view of each kind starts from: `defaultRecordConfig` and `defaultAnalysisConfig` when left out. The view still opens unsaved, and the first save asks for its name and audience |
 | `handOver` | A view a dashboard or an embed handed the host's route, opened here as it came: the saved view with what the reader set on the board among its conditions ("Modified", each removable, "Restore" takes them off), or a view nobody saved. Each new object opens once, through the leave guard |
@@ -64,7 +64,7 @@ export interface DataWorkbenchProps {
   onSidebarOpenChange?(open: boolean): void;
   optionsFor?(remote: string): FieldOption[] | undefined;
   preset?: ViewPreset;
-  record?: RecordViewProps;
+  record?: RecordViewOptions;
   templates?: { record?: RecordViewConfig; analysis?: AnalysisViewConfig };
   tokens?: ViewSurfaceProps['tokens'];
   viewKinds?: readonly DataViewKind[];
@@ -72,7 +72,7 @@ export interface DataWorkbenchProps {
 export declare function DataWorkbench(props: DataWorkbenchProps): import('react').JSX.Element;
 ```
 
-### RecordViewProps {#api-RecordViewProps}
+### RecordViewOptions {#api-RecordViewOptions}
 
 What a host says about the record views a workbench draws. They are one object because none of them means anything to an analysis view (an analysis view has no business actions).
 
@@ -86,7 +86,7 @@ What a host says about the record views a workbench draws. They are one object b
 | `onExported` | Told whenever an export has been handed to the browser — the file's name, its contents and how many rows of which scope. A host that audits what leaves the application reads it |
 
 ```ts
-export interface RecordViewProps {
+export interface RecordViewOptions {
   actions?: RecordActions;
   detail?: RecordDetailOptions;
   emptyAction?: (() => void) | null;
@@ -106,8 +106,8 @@ The workbench of one dashboard definition: browse, edit and save boards. A board
 | Prop | Role |
 |---|---|
 | `instanceId`, `onInstanceChange` | As on `DataWorkbench` |
-| `initialTab`, `onTabChange` | The tab the board opens on, as a host's route has it; left out, or a tab the board does not have, the board opens where its reader last read it |
-| `initialFilters`, `onFiltersChange` | What the filters hold as the board opens, as a host's address has them; left out, every filter starts at its default, and what the board does not take is left out |
+| `defaultTab`, `onTabChange` | The tab the board opens on, as a host's route has it; left out, or a tab the board does not have, the board opens where its reader last read it |
+| `defaultFilters`, `onFiltersChange` | What the filters hold as the board opens, as a host's address has them; left out, every filter starts at its default, and what the board does not take is left out |
 | `onNavigate` | Every way off the board goes through it — "Open in workbench" on a panel, the follow-up menu on a group, a panel's custom destination. Without it none of these exist: a press on a group does nothing unless the panel cross-filters |
 | `features` | `manage` (the view manager) and `export` (a record panel's "Export data…") only; a board whose data must not leave the page turns `export` off |
 | `template` | What a new board starts from; an empty one when left out |
@@ -123,8 +123,8 @@ export interface DashboardWorkbenchProps {
   engine?: ViewEngine;
   expandable?: boolean;
   features?: Pick<WorkbenchFeatures, 'manage' | 'export'>;
-  initialFilters?: DashboardFilters | null;
-  initialTab?: string | null;
+  defaultFilters?: DashboardFilters | null;
+  defaultTab?: string | null;
   instanceId?: string | null;
   landmark?: WorkbenchLandmark;
   locale?: string;
@@ -228,8 +228,8 @@ One saved dashboard inside a business page: the board, its filter bar with each 
 | `filterModes` | How each of the board's filters is offered, by name: `adjustable` (the default, on the bar, the reader's), `locked` (on the bar as what it holds, fixed), `hidden` (not on the bar, still narrowing what it is wired to). A locked or hidden filter holds what `pageValues` gives it, or its default |
 | `groupingMode` | The time grouping's mode, likewise; `adjustable` when left out |
 | `pageValues` | What the page holds: the value of each locked or hidden filter and, with `groupingMode` locked or hidden, the time grouping's unit. In force from the first query and followed as it changes — a customer page moving to the next customer. It is the page's own, never the address's (a reader can edit an address) |
-| `initialFilters`, `onFiltersChange` | What the reader's filters open at, from the host's address, and told as they change — the adjustable filters only, since a locked or hidden value is the page's |
-| `initialTab`, `onTabChange` | The tab it opens on, and told as it changes |
+| `defaultFilters`, `onFiltersChange` | What the reader's filters open at, from the host's address, and told as they change — the adjustable filters only, since a locked or hidden value is the page's |
+| `defaultTab`, `onTabChange` | The tab it opens on, and told as it changes |
 | `withPanelTitles` | Whether the panels' titles are drawn; on by default |
 | `withRefresh` | "Updated 10:32" in the first row and, in the interactive tier, the refresh button beside it (off by default); it offers no interval, which stays the author's and `autoRefresh`'s |
 | `withExport` | "Export data…" in a panel's "⋯" (off by default); no effect in the static tier |
@@ -240,8 +240,8 @@ export interface EmbeddedDashboardProps extends EmbedBaseProps {
   caption?: import('react').ReactNode;
   filterModes?: Readonly<Record<string, DashboardFilterMode>>;
   groupingMode?: DashboardFilterMode;
-  initialFilters?: DashboardFilters | null;
-  initialTab?: string | null;
+  defaultFilters?: DashboardFilters | null;
+  defaultTab?: string | null;
   interaction?: EmbedInteraction;
   onFiltersChange?(filters: DashboardFilters): void;
   onTabChange?(tabId: string | null): void;

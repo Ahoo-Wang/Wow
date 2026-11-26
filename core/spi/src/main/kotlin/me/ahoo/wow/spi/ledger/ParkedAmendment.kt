@@ -205,7 +205,7 @@ sealed interface ParkedAmendment {
     /**
      * Restates the entry as another record of the same failure holds it now: when the entry is still at [revision], the
      * one read, it is parked for [reason] since [failedAt], with [retries] retries made, the last one started at
-     * [retryAt], under [retrySpec], marked [recoverable]. An operator's request stays, for the partition's owner.
+     * [lastRetryAt], under [retrySpec], marked [recoverable]. An operator's request stays, for the partition's owner.
      *
      * It is the import of 9.x compensations' amendment, not an operator's: the import parked the entry for a 9.x
      * execution that 9.x went on retrying until the cut-over, and brings the entry up to what 9.x holds of it now.
@@ -219,7 +219,7 @@ sealed interface ParkedAmendment {
         val reason: String,
         val failedAt: Long,
         val retries: Int,
-        val retryAt: Long?,
+        val lastRetryAt: Long?,
         val retrySpec: ParkedRetrySpec?,
         val recoverable: Recoverable,
     ) : ParkedAmendment {
@@ -234,11 +234,11 @@ sealed interface ParkedAmendment {
         override fun hashCode(): Int = valueFields().hashCode()
 
         override fun toString(): String =
-            "Restate(revision=$revision, reason=$reason, failedAt=$failedAt, retries=$retries, retryAt=$retryAt, " +
-                "retrySpec=$retrySpec, recoverable=$recoverable)"
+            "Restate(revision=$revision, reason=$reason, failedAt=$failedAt, retries=$retries, " +
+                "lastRetryAt=$lastRetryAt, retrySpec=$retrySpec, recoverable=$recoverable)"
 
         private fun valueFields(): List<Any?> =
-            listOf(revision, reason, failedAt, retries, retryAt, retrySpec, recoverable)
+            listOf(revision, reason, failedAt, retries, lastRetryAt, retrySpec, recoverable)
 
         companion object {
             /** A Restate of the given fields; parameters added later come last, with a default. */
@@ -248,10 +248,10 @@ sealed interface ParkedAmendment {
                 reason: String,
                 failedAt: Long,
                 retries: Int,
-                retryAt: Long?,
+                lastRetryAt: Long?,
                 retrySpec: ParkedRetrySpec?,
                 recoverable: Recoverable,
-            ): Restate = Restate(revision, reason, failedAt, retries, retryAt, retrySpec, recoverable)
+            ): Restate = Restate(revision, reason, failedAt, retries, lastRetryAt, retrySpec, recoverable)
         }
     }
 }

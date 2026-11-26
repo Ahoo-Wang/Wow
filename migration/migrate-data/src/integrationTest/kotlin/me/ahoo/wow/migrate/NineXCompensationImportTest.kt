@@ -161,7 +161,7 @@ class NineXCompensationImportTest {
                     "Conflict: stock reserved twice [9.x execution 0VYC0mp1nA0002]",
                     FAILED_AT + 181_000,
                     retries = 1,
-                    retryAt = FAILED_AT + 180_000,
+                    lastRetryAt = FAILED_AT + 180_000,
                     retrySpec = ParkedRetrySpec.of(5, 60.seconds, 30.seconds),
                     recoverable = Recoverable.RECOVERABLE,
                 ),

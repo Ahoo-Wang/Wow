@@ -6,11 +6,12 @@ import type { ApproveSensitivityChange, ApproveSource, DraftSource, MarkSourceRe
 
 /** Sends the commands of `analytics-catalog.source` by its service's routes (`AnalyticsCatalogManifest`). Each method answers the result its wait plan ends with, as `CommandClient.wait` does: the server's default plan unless the options give one, `{ wait: WaitPlan.ACCEPTED }` to answer once it is accepted. A rejected command rejects with a `CommandRejectedError`; anything else that did not succeed with a `WowProblemError`. */
 export class SourceCommandClient {
-  readonly client: CommandClient;
+  /** Sends the commands, as the context client's `commands` does. */
+  readonly commands: CommandClient;
 
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
-    this.client = new CommandClient(options, { manifest: AnalyticsCatalogManifest });
+    this.commands = new CommandClient(options, { manifest: AnalyticsCatalogManifest });
   }
 
   /**
@@ -19,12 +20,12 @@ export class SourceCommandClient {
    * Produces `SensitivityChangeApproved`.
    */
   approveSensitivityChange(id: string, body: ApproveSensitivityChange = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.client.wait({ ...options, command: 'analytics-catalog.source.ApproveSensitivityChange', body, id });
+    return this.commands.wait({ ...options, command: 'analytics-catalog.source.ApproveSensitivityChange', body, aggregateId: id });
   }
 
   /** `ApproveSensitivityChange`, answered as one result per hop of its wait (`text/event-stream`). */
   approveSensitivityChangeStream(id: string, body: ApproveSensitivityChange = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.client.stream({ ...options, command: 'analytics-catalog.source.ApproveSensitivityChange', body, id });
+    return this.commands.stream({ ...options, command: 'analytics-catalog.source.ApproveSensitivityChange', body, aggregateId: id });
   }
 
   /**
@@ -33,12 +34,12 @@ export class SourceCommandClient {
    * Produces `SourceApproved`.
    */
   approveSource(id: string, body: ApproveSource = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.client.wait({ ...options, command: 'analytics-catalog.source.ApproveSource', body, id });
+    return this.commands.wait({ ...options, command: 'analytics-catalog.source.ApproveSource', body, aggregateId: id });
   }
 
   /** `ApproveSource`, answered as one result per hop of its wait (`text/event-stream`). */
   approveSourceStream(id: string, body: ApproveSource = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.client.stream({ ...options, command: 'analytics-catalog.source.ApproveSource', body, id });
+    return this.commands.stream({ ...options, command: 'analytics-catalog.source.ApproveSource', body, aggregateId: id });
   }
 
   /**
@@ -48,12 +49,12 @@ export class SourceCommandClient {
    * Produces `SourceDrafted`.
    */
   draftSource(body: DraftSource, options?: CreateCommandOptions): Promise<CommandResult> {
-    return this.client.wait({ ...options, command: 'analytics-catalog.source.DraftSource', body });
+    return this.commands.wait({ ...options, command: 'analytics-catalog.source.DraftSource', body });
   }
 
   /** `DraftSource`, answered as one result per hop of its wait (`text/event-stream`). */
   draftSourceStream(body: DraftSource, options?: CreateCommandOptions): Promise<CommandResultStream> {
-    return this.client.stream({ ...options, command: 'analytics-catalog.source.DraftSource', body });
+    return this.commands.stream({ ...options, command: 'analytics-catalog.source.DraftSource', body });
   }
 
   /**
@@ -62,12 +63,12 @@ export class SourceCommandClient {
    * Produces `SourceReviewed`.
    */
   markSourceReviewed(id: string, body: MarkSourceReviewed = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.client.wait({ ...options, command: 'analytics-catalog.source.MarkSourceReviewed', body, id });
+    return this.commands.wait({ ...options, command: 'analytics-catalog.source.MarkSourceReviewed', body, aggregateId: id });
   }
 
   /** `MarkSourceReviewed`, answered as one result per hop of its wait (`text/event-stream`). */
   markSourceReviewedStream(id: string, body: MarkSourceReviewed = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.client.stream({ ...options, command: 'analytics-catalog.source.MarkSourceReviewed', body, id });
+    return this.commands.stream({ ...options, command: 'analytics-catalog.source.MarkSourceReviewed', body, aggregateId: id });
   }
 
   /**
@@ -76,12 +77,12 @@ export class SourceCommandClient {
    * Produces `SourceSensitivityReviewed`.
    */
   reviewSourceSensitivity(id: string, body: ReviewSourceSensitivity, options?: CommandOptions): Promise<CommandResult> {
-    return this.client.wait({ ...options, command: 'analytics-catalog.source.ReviewSourceSensitivity', body, id });
+    return this.commands.wait({ ...options, command: 'analytics-catalog.source.ReviewSourceSensitivity', body, aggregateId: id });
   }
 
   /** `ReviewSourceSensitivity`, answered as one result per hop of its wait (`text/event-stream`). */
   reviewSourceSensitivityStream(id: string, body: ReviewSourceSensitivity, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.client.stream({ ...options, command: 'analytics-catalog.source.ReviewSourceSensitivity', body, id });
+    return this.commands.stream({ ...options, command: 'analytics-catalog.source.ReviewSourceSensitivity', body, aggregateId: id });
   }
 
   /**
@@ -90,11 +91,11 @@ export class SourceCommandClient {
    * Produces `SourceRevised`.
    */
   reviseSource(id: string, body: ReviseSource = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.client.wait({ ...options, command: 'analytics-catalog.source.ReviseSource', body, id });
+    return this.commands.wait({ ...options, command: 'analytics-catalog.source.ReviseSource', body, aggregateId: id });
   }
 
   /** `ReviseSource`, answered as one result per hop of its wait (`text/event-stream`). */
   reviseSourceStream(id: string, body: ReviseSource = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.client.stream({ ...options, command: 'analytics-catalog.source.ReviseSource', body, id });
+    return this.commands.stream({ ...options, command: 'analytics-catalog.source.ReviseSource', body, aggregateId: id });
   }
 }

@@ -276,9 +276,6 @@ type CalendarFilter<FIELDS extends string = string> = RelativeTimeFilterOptions 
 };
 
 // @public
-export function checkManifest<M extends RoutingManifest>(manifest: M): M;
-
-// @public
 type CollectionFilter<FIELDS extends string = string> = {
     op: FilterOperator.IN | FilterOperator.NOT_IN | FilterOperator.CONTAINS_ALL;
     field: QueryField<FIELDS>;
@@ -287,9 +284,7 @@ type CollectionFilter<FIELDS extends string = string> = {
 
 // @public
 export class CommandClient {
-    constructor(client?: WowClientOptions, options?: CommandClientOptions);
-    // (undocumented)
-    readonly client: WowClientOptions;
+    constructor(options?: WowClientOptions, contract?: CommandClientOptions);
     send<R = Record<string, unknown>>(request: CommandRequest): Promise<CommandResult<R>>;
     stream<R = Record<string, unknown>>(request: CommandRequest): Promise<CommandResultStream<R>>;
     wait<R = Record<string, unknown>>(request: CommandRequest): Promise<CommandResult<R>>;
@@ -297,8 +292,8 @@ export class CommandClient {
 
 // @public
 export interface CommandClientOptions {
-    readonly bodyNumbers?: Readonly<Record<string, TextNumbers>>;
     readonly manifest?: RoutingManifest;
+    readonly textNumbers?: Readonly<Record<string, TextNumbers>>;
 }
 
 // @public
@@ -324,7 +319,7 @@ export interface CommandManifest {
 }
 
 // @public
-export type CommandOptions = Omit<CommandRequest, 'command' | 'body' | 'type' | 'id'>;
+export type CommandOptions = Omit<CommandRequest, 'command' | 'body' | 'type' | 'aggregateId'>;
 
 // @public
 export interface CommandRef {
@@ -353,10 +348,10 @@ export class CommandRejectedError extends Error {
 
 // @public
 export interface CommandRequest extends Omit<RequestOptions, 'scope'> {
+    readonly aggregateId?: string;
     readonly body?: object;
     readonly command: string;
     readonly expectedVersion?: number;
-    readonly id?: string;
     readonly requestId?: string;
     readonly scope?: never;
     readonly targetScope?: Omit<TargetScope, 'tenantId'>;
@@ -501,12 +496,12 @@ interface CountAggregationMetric<FIELDS extends string = string> {
 }
 
 // @public
-export interface CountQuery<FIELDS extends string = string> extends FilterCapable<FIELDS> {
+interface CountQuery<FIELDS extends string = string> extends FilterCapable<FIELDS> {
     limit?: number;
 }
 
 // @public
-export interface CountResult {
+interface CountResult {
     // (undocumented)
     readonly count: number;
     // (undocumented)
@@ -515,7 +510,7 @@ export interface CountResult {
 
 // @public
 export interface CreateCommandOptions extends CommandOptions {
-    readonly id?: string;
+    readonly aggregateId?: string;
 }
 
 // @public
@@ -538,10 +533,8 @@ interface CursorQuery<FIELDS extends string = string> {
 
 // @public
 export class DatasetClient {
-    constructor(client?: WowClientOptions);
-    // (undocumented)
-    readonly client: WowClientOptions;
-    dataset<R = Record<string, unknown>, FIELDS extends string = string>(context: string, dataset: string, numbers?: TextNumbers): QueryModelClient<R, FIELDS>;
+    constructor(options?: WowClientOptions);
+    dataset<R = Record<string, unknown>, FIELDS extends string = string>(context: string, dataset: string, textNumbers?: TextNumbers): QueryModelClient<R, FIELDS>;
     list(options?: RequestOptions): Promise<DatasetEntry[]>;
 }
 
@@ -601,13 +594,6 @@ type DaysFilter<FIELDS extends string = string> = RelativeTimeFilterOptions & {
     op: FilterOperator.RECENT_DAYS | FilterOperator.EARLIER_DAYS;
     field: QueryField<FIELDS>;
     days: number;
-};
-
-// @public
-export const DEFAULT_RETRY: {
-    readonly attempts: 5;
-    readonly backoffMs: 200;
-    readonly maxWaitMs: 5000;
 };
 
 // @public
@@ -834,7 +820,7 @@ export interface EventManifest {
 
 // @public
 export class EventQueryClient<E extends CommittedEvent = CommittedEvent, A = AccessValues> extends QueryModelClient<EventStream<E, A>, EventStreamField | AccessField<A>> {
-    constructor(type: AggregateType, client?: WowClientOptions);
+    constructor(type: AggregateType, options?: WowClientOptions);
     // (undocumented)
     readonly type: AggregateType;
 }
@@ -1152,7 +1138,7 @@ export const FrameworkErrorCodes: {
 
 // @public
 export interface FrameworkRetry {
-    readonly retry: Retry;
+    readonly retry: RetryAdvice;
     readonly retryAfterMs: number;
 }
 
@@ -1249,6 +1235,15 @@ export interface Hop {
     // (undocumented)
     readonly subscription?: string | null;
 }
+
+// @public
+export const Hop: {
+    readonly accepted: (context?: string) => Hop;
+    readonly committed: (context?: string) => Hop;
+    readonly snapshot: (context?: string) => Hop;
+    readonly queryable: (context?: string) => Hop;
+    readonly handled: (subscription: string, context?: string) => Hop;
+};
 
 // @public
 export type Including<Q, INCLUDE extends string> = Q & {
@@ -1404,8 +1399,13 @@ export interface OwnerTransferred {
 
 // @public
 export class OwnStateClient<S = unknown, E extends CommittedEvent = CommittedEvent, A = AccessValues> extends StateClient<S, E, A> {
-    findOwn(options?: Omit<StateReadOptions, 'ifNoneMatch'>): Promise<Snapshot<S, A> | undefined>;
-    getOwn(options?: Omit<StateReadOptions, 'ifNoneMatch'>): Promise<Snapshot<S, A>>;
+    constructor(type: AggregateType, options?: WowClientOptions);
+    findOwn(options?: StateReadOptions & {
+        readonly ifNoneMatch?: undefined;
+    }): Promise<Snapshot<S, A> | undefined>;
+    getOwn(options?: StateReadOptions & {
+        readonly ifNoneMatch?: undefined;
+    }): Promise<Snapshot<S, A>>;
     readOwn(options?: StateReadOptions): Promise<StateReadResult<S, A>>;
     traceOwn(options?: StateTraceOptions): Promise<StateTrace<S, E, A>>;
 }
@@ -1480,7 +1480,7 @@ export interface Problem {
     readonly detail?: string;
     readonly extensions?: Readonly<Record<string, unknown>>;
     readonly result?: RefusedResult;
-    readonly retry?: Retry;
+    readonly retry?: RetryAdvice;
     // (undocumented)
     readonly status: number;
     // (undocumented)
@@ -1575,10 +1575,8 @@ type QueryModel = (typeof QueryModels)[keyof typeof QueryModels] | (string & {})
 
 // @public
 export class QueryModelClient<R, FIELDS extends string = string> {
-    constructor(path: string, client?: WowClientOptions, numbers?: TextNumbers | undefined);
+    constructor(path: string, options?: WowClientOptions, textNumbers?: TextNumbers | undefined);
     aggregate<ROW = Record<string, unknown>>(query: AggregationQuery<FIELDS, string>, options?: RequestOptions): Promise<ROW[]>;
-    // (undocumented)
-    readonly client: WowClientOptions;
     count(query: CountQuery<FIELDS>, options?: RequestOptions): Promise<CountResult>;
     cursor<const INCLUDE extends FIELDS>(query: Including<CursorQuery<FIELDS>, INCLUDE>, options?: RequestOptions): Promise<CursorPage<Projected<R, INCLUDE>>>;
     // (undocumented)
@@ -1587,8 +1585,6 @@ export class QueryModelClient<R, FIELDS extends string = string> {
     list<const INCLUDE extends FIELDS>(query: Including<FilterListQuery<FIELDS>, INCLUDE>, options?: RequestOptions): Promise<Projected<R, INCLUDE>[]>;
     // (undocumented)
     list(query: FilterListQuery<FIELDS>, options?: RequestOptions): Promise<R[]>;
-    // (undocumented)
-    readonly numbers?: TextNumbers | undefined;
     paged<const INCLUDE extends FIELDS>(query: Including<PagedQuery<FIELDS>, INCLUDE>, options?: RequestOptions): Promise<PagedList<Projected<R, INCLUDE>>>;
     // (undocumented)
     paged(query: PagedQuery<FIELDS>, options?: RequestOptions): Promise<PagedList<R>>;
@@ -1603,6 +1599,8 @@ export class QueryModelClient<R, FIELDS extends string = string> {
     streamRows<const INCLUDE extends FIELDS>(query: Including<FilterListQuery<FIELDS>, INCLUDE>, options?: StreamOptions): Promise<ReadableStream<Positioned<Projected<R, INCLUDE>>>>;
     // (undocumented)
     streamRows(query: FilterListQuery<FIELDS>, options?: StreamOptions): Promise<ReadableStream<Positioned<R>>>;
+    // (undocumented)
+    readonly textNumbers?: TextNumbers | undefined;
 }
 
 // @public
@@ -1626,9 +1624,6 @@ const QueryModels: Readonly<{
     readonly EVENT_STREAM: "events";
     readonly DATASET: "dataset";
 }>;
-
-// @public
-export function queryPath(type: AggregateType, model: string): string;
 
 // @public
 type QuerySemanticType = TemporalDate | TemporalEpoch | TemporalFormatted | NumericDecimal | NumericMoney | DurationSemantic | ReferenceSemantic;
@@ -1716,7 +1711,7 @@ export interface RequestOptions {
 }
 
 // @public
-export type Retry = 'none' | 'same-request' | 'new-request';
+export type RetryAdvice = 'none' | 'same-request' | 'new-request';
 
 // @public
 export interface RetryManifest {
@@ -1739,7 +1734,7 @@ export interface RetryManifest {
 }
 
 // @public
-export function retryOf(problem: Problem): Retry;
+export function retryOf(problem: Problem): RetryAdvice;
 
 // @public
 export interface RouteManifest {
@@ -1914,7 +1909,7 @@ export interface SnapshotManifest {
 
 // @public
 export class SnapshotQueryClient<S = unknown, STATE_FIELDS extends string = `state.${string}`, A = AccessValues> extends QueryModelClient<Snapshot<S, A>, SnapshotSystemField | STATE_FIELDS | AccessField<A>> {
-    constructor(type: AggregateType, client?: WowClientOptions);
+    constructor(type: AggregateType, options?: WowClientOptions);
     // (undocumented)
     readonly type: AggregateType;
 }
@@ -1968,17 +1963,15 @@ export type Stage = (typeof Stage)[keyof typeof Stage];
 
 // @public
 export class StateClient<S = unknown, E extends CommittedEvent = CommittedEvent, A = AccessValues> {
-    constructor(type: AggregateType, client?: WowClientOptions);
-    // (undocumented)
-    readonly client: WowClientOptions;
-    find(id: string, options?: Omit<StateReadOptions, 'ifNoneMatch'>): Promise<Snapshot<S, A> | undefined>;
-    protected findAt(id: string | undefined, options: Omit<StateReadOptions, 'ifNoneMatch'>): Promise<Snapshot<S, A> | undefined>;
-    get(id: string, options?: Omit<StateReadOptions, 'ifNoneMatch'>): Promise<Snapshot<S, A>>;
-    protected getAt(id: string | undefined, options: Omit<StateReadOptions, 'ifNoneMatch'>): Promise<Snapshot<S, A>>;
+    constructor(type: AggregateType, options?: WowClientOptions);
+    find(id: string, options?: StateReadOptions & {
+        readonly ifNoneMatch?: undefined;
+    }): Promise<Snapshot<S, A> | undefined>;
+    get(id: string, options?: StateReadOptions & {
+        readonly ifNoneMatch?: undefined;
+    }): Promise<Snapshot<S, A>>;
     read(id: string, options?: StateReadOptions): Promise<StateReadResult<S, A>>;
-    protected readAt(id: string | undefined, options: StateReadOptions): Promise<StateReadResult<S, A>>;
     trace(id: string, options?: StateTraceOptions): Promise<StateTrace<S, E, A>>;
-    protected traceAt(id: string | undefined, options: StateTraceOptions): Promise<StateTrace<S, E, A>>;
     // (undocumented)
     readonly type: AggregateType;
 }
@@ -1993,12 +1986,25 @@ export interface StateManifest {
 }
 
 // @public
-export interface StateReadOptions extends RequestOptions {
-    readonly at?: string | Date;
+export type StateReadOptions = RequestOptions & {
     readonly ifNoneMatch?: string;
-    readonly minVersion?: number;
-    readonly version?: number;
-}
+} & ({
+    readonly version?: undefined;
+    readonly at?: undefined;
+    readonly minVersion?: undefined;
+} | {
+    readonly version: number;
+    readonly at?: undefined;
+    readonly minVersion?: undefined;
+} | {
+    readonly version?: undefined;
+    readonly at: string | Date;
+    readonly minVersion?: undefined;
+} | {
+    readonly version?: undefined;
+    readonly at?: undefined;
+    readonly minVersion: number;
+});
 
 // @public
 export type StateReadResult<S, A = AccessValues> = {
@@ -2048,10 +2054,10 @@ export interface StreamOptions extends RequestOptions {
 
 // @public
 export interface StreamResumeOptions {
-    readonly initialDelayMs?: number;
+    readonly backoffMs?: number;
     readonly lastEventId?: string;
-    readonly maxDelayMs?: number;
-    readonly maxRetries?: number;
+    readonly maxAttempts?: number;
+    readonly maxRetryAfterMs?: number;
 }
 
 // @public
@@ -2140,9 +2146,6 @@ type TermsAggregationGroup<FIELDS extends string = string> = {
 } & AggregationGroupInput<FIELDS>;
 
 // @public
-export function textNumberOr(marks: TextNumbers): TextNumbersOr;
-
-// @public
 export type TextNumbers = true | (() => TextNumbers) | TextNumbersOr | TextNumbersByName | {
     readonly [member: string]: TextNumbers;
 };
@@ -2164,6 +2167,9 @@ export interface TextNumbersOr {
     // (undocumented)
     readonly [OR]: TextNumbers;
 }
+
+// @public
+export function textNumbersOr(marks: TextNumbers): TextNumbersOr;
 
 // @public
 enum TimeUnit {
@@ -2230,15 +2236,6 @@ export interface Violation {
 }
 
 // @public
-export const wait: {
-    readonly accepted: (context?: string) => Hop;
-    readonly committed: (context?: string) => Hop;
-    readonly snapshot: (context?: string) => Hop;
-    readonly queryable: (context?: string) => Hop;
-    readonly handled: (subscription: string, context?: string) => Hop;
-};
-
-// @public
 export class WaitPlan {
     static readonly ACCEPTED: WaitPlan;
     static readonly COMMITTED: WaitPlan;
@@ -2299,7 +2296,7 @@ export class WowProblemError extends Error {
     readonly problem: Problem;
     get requestId(): string | undefined;
     readonly result?: RefusedResult;
-    readonly retry: Retry;
+    readonly retry: RetryAdvice;
     readonly retryAfterMs?: number;
     readonly status: number;
     // (undocumented)

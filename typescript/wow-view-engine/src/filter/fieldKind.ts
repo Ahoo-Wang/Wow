@@ -170,6 +170,7 @@ export interface NestedTree {
   fields: readonly FieldDefinition[];
 }
 
+/** What a field kind reads to say whether a filter value is blank. */
 export interface FieldKindBlankContext {
   value: unknown;
   operator: FilterOperatorName;
@@ -181,6 +182,7 @@ export interface FieldKindBlankContext {
   kinds: FieldKindRegistry;
 }
 
+/** What a field kind reads to validate a filter value. */
 export interface FieldKindValidateContext {
   value: unknown;
   operator: FilterOperatorName;
@@ -209,6 +211,7 @@ export interface FieldKindValidateContext {
   limits?: Pick<RuntimeLimits, 'maxFilterDepth' | 'maxFilterNodes'>;
 }
 
+/** What a field kind reads to compile a filter leaf into a query. */
 export interface FieldKindCompileContext {
   leaf: FilterLeaf;
   field: FieldDefinition;
@@ -219,6 +222,7 @@ export interface FieldKindCompileContext {
   timeZone: string;
 }
 
+/** What a field kind reads to describe a filter leaf in words. */
 export interface FieldKindDescribeContext {
   leaf: FilterLeaf;
   field: FieldDefinition;
@@ -256,6 +260,9 @@ export const EDITOR_INPUTS = [
   'duration',
 ] as const;
 
+/**
+ * An input control a field kind's filter editor may ask for (`EDITOR_INPUTS`).
+ */
 export type EditorInput = (typeof EDITOR_INPUTS)[number];
 
 /** Whether a kind named an input the engine has a control for. */
@@ -359,6 +366,7 @@ export function isBlankLeafValue(
   );
 }
 
+/** Makes an `Issue` with this code, path and params. */
 export function issue(
   code: string,
   path: IssuePath,

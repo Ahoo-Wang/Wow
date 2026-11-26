@@ -17,7 +17,7 @@ import { type Snapshot, WaitPlan } from "@ahoo-wang/wow-client";
 import {
   type BrandState,
   type CategoryState,
-  eshopCatalogWait,
+  EshopCatalogContract,
   type ProductState,
 } from "@/generated/catalog/eshop-catalog";
 import { Badge } from "@/components/ui/badge";
@@ -73,7 +73,7 @@ const SELECT =
  * Elasticsearch copy, which `snapshot` does not reach, and the page reloads
  * its product list right after; without it, the same as `snapshot`.
  */
-const LISTED = { wait: WaitPlan.of(eshopCatalogWait.queryable()) };
+const LISTED = { wait: WaitPlan.of(EshopCatalogContract.Wait.queryable()) };
 
 /** What an action came to, shown where it was taken: a form or a product's row. */
 interface Feedback {
@@ -170,7 +170,7 @@ export function AdminPage() {
           title="Brands"
           records={lists.status === "loaded" ? lists.value.brands : undefined}
           create={(name, id) =>
-            clients.catalog.brand.commands.createBrand({ name }, { id: id || undefined })
+            clients.catalog.brand.commands.createBrand({ name }, { aggregateId: id || undefined })
           }
           rename={(id, name) => clients.catalog.brand.commands.renameBrand(id, { name })}
           act={act}
@@ -181,7 +181,7 @@ export function AdminPage() {
           title="Categories"
           records={lists.status === "loaded" ? lists.value.categories : undefined}
           create={(name, id) =>
-            clients.catalog.category.commands.createCategory({ name }, { id: id || undefined })
+            clients.catalog.category.commands.createCategory({ name }, { aggregateId: id || undefined })
           }
           rename={(id, name) =>
             clients.catalog.category.commands.renameCategory(id, { name })
@@ -214,7 +214,7 @@ export function AdminPage() {
                         brandId: brandId || null,
                         categoryId: categoryId || null,
                       },
-                      { id: id || undefined, ...LISTED },
+                      { aggregateId: id || undefined, ...LISTED },
                     ),
                   `Created the draft ${name}.`,
                   form,
@@ -552,7 +552,7 @@ function ProductRow({
                 () =>
                   clients.inventory.stock.commands.receiveStock(
                     { quantity: Number(quantity) },
-                    { id },
+                    { aggregateId: id },
                   ),
                 `Received ${quantity} of ${state.name}.`,
                 form,

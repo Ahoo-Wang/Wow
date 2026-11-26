@@ -19,7 +19,7 @@ import type {
   CommandModel,
   ContextModel,
 } from '../../manifest/model';
-import { quoteStringLiteral, resolvePropertyName } from '../../naming/naming';
+import { quoteStringLiteral } from '../../naming/naming';
 import {
   addStatement,
   doc,
@@ -108,9 +108,10 @@ function commandMethods(
   const options =
     byId && unaddressed ? 'CreateCommandOptions' : 'CommandOptions';
   const idParam = byId && !unaddressed ? 'id: string, ' : '';
-  const sent = request(byId && !unaddressed ? ', id' : '');
+  // The positional id is the request's `aggregateId`.
+  const sent = request(byId && !unaddressed ? ', aggregateId: id' : '');
   if (stream) {
-    return `${comment}  ${name}(${idParam}${bodyParam}, options?: ${options}): ${returns} {\n    return this.client.${call}(${sent});\n  }`;
+    return `${comment}  ${name}(${idParam}${bodyParam}, options?: ${options}): ${returns} {\n    return this.commands.${call}(${sent});\n  }`;
   }
   return answeringMethod(
     comment,
@@ -130,16 +131,16 @@ function answeringMethod(
   request: string,
 ): string {
   const leading = params ? `${params}, ` : '';
-  return `${comment}  ${name}(${leading}options?: ${options}): Promise<CommandResult> {\n    return this.client.wait(${request});\n  }`;
+  return `${comment}  ${name}(${leading}options?: ${options}): Promise<CommandResult> {\n    return this.commands.wait(${request});\n  }`;
 }
 /**
- * The `bodyNumbers` option of a `CommandClient` that sends the commands of
+ * The `textNumbers` option of a `CommandClient` that sends the commands of
  * `aggregates`, or nothing when no body has exact numbers: the marks of each
  * body that has them, by the command's full name and by each of its former
  * names, which a request may name it by, so the client writes them unquoted.
  * Each marked aggregate's constant is imported from `specifier(aggregate)`.
  */
-export function bodyNumbersOption(
+export function textNumbersOption(
   aggregates: readonly AggregateModel[],
   module: ModuleBuilder,
   specifier: (aggregate: AggregateModel) => string,
@@ -154,16 +155,21 @@ export function bodyNumbersOption(
     const constant = `${aggregate.typeName}Aggregate`;
     module.imports.add(specifier(aggregate), [constant]);
     return marked.flatMap(command => {
-      const marks = `${constant}.textNumbers.commands${resolvePropertyName(command.name) === command.name ? `.${command.name}` : `[${quoteStringLiteral(command.name)}]`}`;
+      const full = command.name.includes('.')
+        ? command.name
+        : `${aggregate.context}.${aggregate.name}.${command.name}`;
+      const marks = `${constant}.textNumbers.commands[${quoteStringLiteral(full)}]`;
+      // A former name the Manifest lists as a full type name is what a
+      // caller sends as it is; one listed alone takes the aggregate's prefix.
       return [command.name, ...command.aliases].map(
         name =>
-          `      ${quoteStringLiteral(`${aggregate.context}.${aggregate.name}.${name}`)}: ${marks},`,
+          `      ${quoteStringLiteral(name.includes('.') ? name : `${aggregate.context}.${aggregate.name}.${name}`)}: ${marks},`,
       );
     });
   });
   return entries.length === 0
     ? ''
-    : `, bodyNumbers: {\n${entries.join('\n')}\n    }`;
+    : `, textNumbers: {\n${entries.join('\n')}\n    }`;
 }
 
 export function emitCommandClient(
@@ -204,17 +210,12 @@ export function emitCommandClient(
   ) {
     client.push('CommandOptions');
   }
-  const lifecycleTypes: string[] = [];
   for (const lifecycle of aggregate.lifecycle) {
     client.push('LifecycleCommands');
-    if (lifecycle.bodyType) {
-      (lifecycle.bodyGenerated ? lifecycleTypes : client).push(
-        lifecycle.bodyType,
-      );
-    }
+    if (lifecycle.bodyType) client.push(lifecycle.bodyType);
     const body = lifecycle.bodyType ? `body: ${lifecycle.bodyType}` : '';
     const request = (id: boolean) =>
-      `{ ...options, command: LifecycleCommands.${lifecycle.member}, type: { context: ${quoteStringLiteral(aggregate.context)}, name: ${quoteStringLiteral(aggregate.name)} }${id ? ', id' : ''}${lifecycle.bodyType ? ', body' : ''} }`;
+      `{ ...options, command: LifecycleCommands.${lifecycle.member}, type: { context: ${quoteStringLiteral(aggregate.context)}, name: ${quoteStringLiteral(aggregate.name)} }${id ? ', aggregateId: id' : ''}${lifecycle.bodyType ? ', body' : ''} }`;
     methods.push(
       answeringMethod(
         doc(
@@ -251,7 +252,7 @@ export function emitCommandClient(
       );
     }
   }
-  const bodyNumbers = bodyNumbersOption(
+  const bodyNumbers = textNumbersOption(
     [aggregate],
     module,
     () => './aggregate.js',
@@ -267,12 +268,11 @@ export function emitCommandClient(
   module.imports.add(WOW_CLIENT, [...new Set(client)].sort());
   importTypes(module, outputDir, files, [
     ...commands.map(command => command.bodyType),
-    ...lifecycleTypes,
   ]);
   addStatement(
     module,
     `${doc([
       `Sends the commands of \`${aggregate.context}.${aggregate.name}\` by its service's routes (\`${manifest}\`). Each method answers the result its wait plan ends with, as \`CommandClient.wait\` does: the server's default plan unless the options give one, \`{ wait: WaitPlan.ACCEPTED }\` to answer once it is accepted. A rejected command rejects with a \`CommandRejectedError\`; anything else that did not succeed with a \`WowProblemError\`.`,
-    ])}export class ${name}CommandClient {\n  readonly client: CommandClient;\n\n  /** @param options - How the service is reached */\n  constructor(options?: WowClientOptions) {\n    this.client = new CommandClient(options, { manifest: ${manifest}${bodyNumbers} });\n  }\n\n${methods.join('\n\n')}\n}`,
+    ])}export class ${name}CommandClient {\n  /** Sends the commands, as the context client's \`commands\` does. */\n  readonly commands: CommandClient;\n\n  /** @param options - How the service is reached */\n  constructor(options?: WowClientOptions) {\n    this.commands = new CommandClient(options, { manifest: ${manifest}${bodyNumbers} });\n  }\n\n${methods.join('\n\n')}\n}`,
   );
 }

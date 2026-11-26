@@ -21,6 +21,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.ledger.LedgerRequest
 import me.ahoo.wow.api.ledger.Recoverable
 import me.ahoo.wow.spi.ledger.FailureLedger
@@ -39,6 +40,7 @@ import kotlin.time.Duration.Companion.minutes
  * The [FailureLedger] contract (documentation/designs/04-subscriptions.md §2) every backend passes. A backend's
  * test extends it and supplies a ledger from [createLedger].
  */
+@WowSpi
 abstract class FailureLedgerSpec {
     /** A ledger. Ledgers may share storage: each test uses subscriptions of its own. */
     protected abstract fun createLedger(): FailureLedger
@@ -296,7 +298,7 @@ abstract class FailureLedgerSpec {
             val claimed = ledger.amend(subscription, ref("a"), ParkedAmendment.ClaimRetry(scheduled.revision, at))!!
             claimed.nextAttemptAt.assert().isNull()
             claimed.retries.assert().isEqualTo(1)
-            claimed.retryAt.assert().isEqualTo(at)
+            claimed.lastRetryAt.assert().isEqualTo(at)
             listOf(
                 ParkedAmendment.MarkRecoverable(Recoverable.RECOVERABLE),
                 ParkedAmendment.ApplyRetrySpec(SPEC),
@@ -333,7 +335,7 @@ abstract class FailureLedgerSpec {
                     reason = "restated",
                     failedAt = FAILED_AT + 30,
                     retries = 3,
-                    retryAt = FAILED_AT + 20,
+                    lastRetryAt = FAILED_AT + 20,
                     retrySpec = SPEC,
                     recoverable = Recoverable.UNRECOVERABLE,
                     request = LedgerRequest.SKIP,
@@ -354,7 +356,7 @@ abstract class FailureLedgerSpec {
             )
             ledger.amend(subscription, ref("a"), cleared)!!.also {
                 it.retrySpec.assert().isNull()
-                it.retryAt.assert().isNull()
+                it.lastRetryAt.assert().isNull()
                 it.retries.assert().isEqualTo(0)
                 it.recoverable.assert().isEqualTo(Recoverable.UNKNOWN)
             }
@@ -378,7 +380,7 @@ abstract class FailureLedgerSpec {
     fun `a new entry's retry state reads back with it, in its page and when resolved`(): Unit = runBlocking {
         val parked = entry(ref("a"), 3, partition = 5).copyWith(
             retries = 2,
-            retryAt = FAILED_AT + 100,
+            lastRetryAt = FAILED_AT + 100,
             retrySpec = SPEC,
             recoverable = Recoverable.RECOVERABLE,
             request = LedgerRequest.RETRY,
@@ -439,7 +441,7 @@ abstract class FailureLedgerSpec {
         ledger.amend(subscription, ref("a"), ParkedAmendment.ClaimRetry(1, FAILED_AT)).assert().isNull()
         val first = ledger.amend(subscription, ref("a"), ParkedAmendment.ClaimRetry(0, FAILED_AT + 10))!!
         first.retries.assert().isEqualTo(1)
-        first.retryAt.assert().isEqualTo(FAILED_AT + 10)
+        first.lastRetryAt.assert().isEqualTo(FAILED_AT + 10)
         ledger.amend(subscription, ref("a"), ParkedAmendment.ClaimRetry(0, FAILED_AT + 20)).assert().isNull()
         ledger.parked(subscription, ref("a")).assert().isEqualTo(first)
 
@@ -549,7 +551,7 @@ abstract class FailureLedgerSpec {
         reason = "restated",
         failedAt = FAILED_AT + 30,
         retries = 3,
-        retryAt = FAILED_AT + 20,
+        lastRetryAt = FAILED_AT + 20,
         retrySpec = SPEC,
         recoverable = Recoverable.UNRECOVERABLE,
     )
@@ -592,9 +594,9 @@ abstract class FailureLedgerSpec {
     }
 
     protected companion object {
-        const val FAILED_AT = 1_700_000_000_000L
-        const val CONTEXT = "ledger"
-        const val CONCURRENT_PARKS = 12
+        internal const val FAILED_AT = 1_700_000_000_000L
+        internal const val CONTEXT = "ledger"
+        private const val CONCURRENT_PARKS = 12
         val SPEC = ParkedRetrySpec(maxRetries = 4, initialBackoff = 1500.milliseconds, claimTtl = 2.minutes)
     }
 }

@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot.node
 import com.mongodb.client.MongoClient
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.HandlerRetry
@@ -52,7 +53,6 @@ import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.support.DefaultListableBeanFactory
 import org.springframework.beans.factory.support.RootBeanDefinition
 import org.springframework.boot.SpringApplication
-import org.springframework.boot.context.properties.bind.BindException
 import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource
 import org.springframework.core.env.MapPropertySource
@@ -266,7 +266,8 @@ class WowPropertiesTest {
         properties.wait.maxTimeout.assert().isEqualTo(Duration.ofSeconds(60))
         properties.wait.maxHops.assert().isEqualTo(16)
         properties.wait.unknownContexts.assert().isEqualTo(UnknownContexts.ALLOW)
-        properties.http.manifest.enabled.assert().isTrue()
+        // The public port serves no Manifest unless told to; the internal port serves it to the cluster's services.
+        properties.http.manifest.enabled.assert().isFalse()
         properties.http.openapi.enabled.assert().isTrue()
     }
 
@@ -282,7 +283,7 @@ class WowPropertiesTest {
             "wow.routing" to "local",
             "wow.cluster.lease-ttl" to "20s",
             "wow.cluster.drain-timeout" to "500ms",
-            "wow.subscription.read-retry.error-after" to "3",
+            "wow.subscription.read-retry.error-after-attempts" to "3",
             "wow.subscription.read-retry.max-backoff" to "1s",
             "wow.subscription.systemic.failing-aggregates" to "0",
             "wow.subscription.systemic.window" to "30s",
@@ -429,9 +430,14 @@ class WowPropertiesTest {
     @Test
     fun `the in-memory topics should keep at least one message, refusing a retention below that with its key`() {
         bind("wow.memory.topic-retention" to "1").memory.topicRetention.assert().isEqualTo(1)
-        val refused = assertThrows<BindException> { bind("wow.memory.topic-retention" to "0") }
-        generateSequence<Throwable>(refused) { it.cause }.mapNotNull { it.message }.toList().assert()
-            .anySatisfy { it.assert().contains("wow.memory.topic-retention keeps at least one message: 0.") }
+        // Refused where it is read, naming its key, rather than as a failure of binding.
+        val refused = assertThrows<WowConfigurationException> {
+            bind("wow.memory.topic-retention" to "0").memory.topicRetention
+        }
+        refused.key.assert().isEqualTo("wow.memory.topic-retention")
+        refused.value.assert().isEqualTo(0)
+        assertThrows<WowConfigurationException> { bind("wow.log.partitions" to "3").log.partitions }
+            .key.assert().isEqualTo("wow.log.partitions")
     }
 
     @Test
@@ -527,7 +533,7 @@ class WowPropertiesTest {
         NodeIdentity.of(properties, environment).bindHost.assert().isEqualTo("10.0.0.1")
         properties.node.address = "[fd00::1]:9191"
         NodeIdentity.of(properties, environment).bindHost.assert().isEqualTo("fd00::1")
-        properties.node.address = "node-1.shop"
+        properties.node.address = "node-1.shop:9191"
         NodeIdentity.of(properties, environment).bindHost.assert().isEqualTo("node-1.shop")
         // A blank wow.internal.host is not set.
         properties.internal.host = " "
@@ -554,6 +560,18 @@ class WowPropertiesTest {
         identity.addressAt(41234).assert().isEqualTo("127.0.0.1:41234")
         properties.node.address = "10.0.0.1:9191"
         NodeIdentity.of(properties, environment).addressAt(41234).assert().isEqualTo("10.0.0.1:9191")
+    }
+
+    @Test
+    fun `a forward should wait the node's default wait, unless the forward timeout is set`() {
+        fun forward(vararg set: Pair<String, String>) =
+            bind(*set).serviceNodeOptions(Routing.PARTITIONED, emptySet(), false).cluster.forwardTimeout
+        forward().assert().isEqualTo(WaitPlan.DEFAULT_TIMEOUT)
+        forward("wow.wait.default-timeout" to "25s").assert().isEqualTo(25.seconds)
+        forward(
+            "wow.wait.default-timeout" to "25s",
+            "wow.cluster.forward-timeout" to "3s",
+        ).assert().isEqualTo(3.seconds)
     }
 }
 

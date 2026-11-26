@@ -21,6 +21,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.schedule.Misfire
 import me.ahoo.wow.api.schedule.ScheduleRule
@@ -41,6 +42,7 @@ import java.util.UUID
  * The [SnapshotStore] contract (documentation/designs/03-log-and-snapshot.md §3) every backend passes. A
  * backend's test extends it and supplies a fresh, empty store from [createStore].
  */
+@WowSpi
 abstract class SnapshotStoreSpec {
     /** A new, empty snapshot store of bounded context [context]. */
     protected abstract fun createStore(context: String): SnapshotStore
@@ -524,8 +526,8 @@ abstract class SnapshotStoreSpec {
     }
 
     protected companion object {
-        const val CONTEXT_SUFFIX = 12
-        const val CONCURRENT_VERSIONS = 32
-        const val FIRST_EVENT_TIME = 1_700_000_000_000L
+        private const val CONTEXT_SUFFIX = 12
+        private const val CONCURRENT_VERSIONS = 32
+        private const val FIRST_EVENT_TIME = 1_700_000_000_000L
     }
 }

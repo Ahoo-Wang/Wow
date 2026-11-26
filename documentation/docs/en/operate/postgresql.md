@@ -57,11 +57,13 @@ A log table's keys are the position (`partition`, `sequence`), the version (`ten
 
 | `wow.ddl` | Does |
 | --- | --- |
-| `auto`, the default | Creates what is missing |
-| `validate` | Creates nothing, and refuses to start on a missing table or one of another format |
+| `auto`, the default | Creates what is missing, then checks what it found as `validate` does |
+| `validate` | Creates nothing, and refuses to start on a missing table, one of another format, one without a key of Wow's schema, or a missing index |
 | `none` | Creates and checks nothing |
 
 A deployment whose database account may not create tables runs once with an account that may, or applies the schema itself, and then runs with `validate`. `wow.stores.<name>.ddl` sets it for one store.
+
+**The keys are checked.** A table's unique keys are what refuse a duplicate write: a log table's version key refuses a second commit of one version, its request key a second commit of one request. `CREATE TABLE IF NOT EXISTS` leaves a table that exists as it is, so under `auto` and `validate` a store checks that each table it uses has a unique index over each key's columns (any name, any column order, no predicate), and refuses to start, naming the table and the key, when one is missing. A schema applied by hand keeps every `PRIMARY KEY` and `UNIQUE` of Wow's statements. The other indexes are checked by name: `auto` creates a missing one, `validate` refuses it.
 
 **The registries are data.** The tails find a context's log tables only in `wow_log_aggregate`, and the timer loop its timer tables only in `wow_timer_aggregate`. Under every `wow.ddl`, a store that finds an existing table without its row there writes the row at the table's first use, so the account needs `INSERT` on both. A schema applied by hand, such as a schema-only copy of a database, has the registries' tables but not their rows. `validate` and `none` refuse a table whose row they cannot write, naming the row to insert. A tail that waits at a sequence its counter has passed, an entry no registered table holds, warns after 30 seconds, naming the partition and the sequence.
 
@@ -172,7 +174,7 @@ Each node holds a few connections for its appends, its subscriptions, its timers
 
 Count the connections per database: the pool size times the number of nodes of the service, plus one more pool for a node that replaces a crashed one while the crashed node's connections are still open (until the keepalives above end them), plus what migrations and operators use, within PostgreSQL's `max_connections`.
 
-Each connection a store borrows waits at most `wow.postgres.operation-timeout` for a reply (30 seconds by default, a store's `operation-timeout`, `wow.stores.<name>.operation-timeout`, overrides it), and the schema's statements at most 5 minutes: a reply lost on the way, in a failover or behind a proxy, fails the call as a transient error and its connection is replaced, instead of blocking it. A pool whose driver already has a shorter `socketTimeout` keeps it. The server bounds each of Wow's transactions from the same timeout ([Server settings](#server-settings)).
+Each connection a store borrows waits at most `wow.postgres.operation-timeout` for a reply (30 seconds by default, a store's `operation-timeout`, `wow.stores.<name>.operation-timeout`, overrides it), and the schema's statements at most 5 minutes: a reply lost on the way, in a failover or behind a proxy, fails the call as a transient error and its connection is replaced, instead of blocking it. A pool whose driver already has a shorter `socketTimeout` keeps it. The server bounds each of Wow's transactions from the same timeout ([Server settings](#server-settings)). A timeout of zero or below, or past about 24.8 days (a JDBC network timeout is an `int` of milliseconds), refuses the start, naming the key.
 
 ## What an idle node reads {#what-an-idle-node-reads}
 

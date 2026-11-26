@@ -39,14 +39,19 @@ fun execute(vararg command: String, timeoutSeconds: Long = 30): String? = try {
  * - the stores' operation counters: MongoDB's `serverStatus().opcounters` with its journal's syncs, its write
  *   concern's waits, its operations' latencies, its transactions aborted and its write conflicts ([mongoContainer]),
  *   and PostgreSQL's `pg_stat_database` of [postgresDatabase] with `pg_stat_wal` ([postgresContainer]), each from one
- *   session that prints them every second, and the end offsets of every Kafka topic ([kafkaContainer]).
+ *   session that prints them every second, and the end offsets of every Kafka topic and partition ([kafkaContainer]);
+ * - a [published] stream: its partitions' heads, the transport sink's checkpoints and the oldest commit waiting above
+ *   them, every second from one more session of the store's ([PublishedStream]; on MongoDB in [mongoDatabase]), which
+ *   goes on after the measured phase until the stream caught up or [catchUpLimitSeconds] passed since the drain.
  *
  * Nothing starts inside the measured phase (B.O-2): [prepare], at the warm-up, starts every sampling process, opens
  * the allocation connections and reads the Kafka offsets once (`kafka-get-offsets` is a JVM of its own); [start] and
- * [stop] only read what is already running, and [complete], after the drain, reads the Kafka offsets again. The
- * stores' counters at the phase's edges are the samples nearest to them; PostgreSQL's also give a per-second series of
- * commits and WAL writes and flushes (B.O-3), and MongoDB's one of its writes and journal syncs. The samplers are a few
- * percent of a core; the results say what they were.
+ * [stop] only read what is already running, and [complete], after the drain, waits for the published stream to catch
+ * up and reads the Kafka offsets again. The stores' counters at the phase's edges are the samples nearest to them;
+ * PostgreSQL's also give a per-second series of commits and WAL writes and flushes (B.O-3), and MongoDB's one of its
+ * writes and journal syncs. The samplers are a few percent of a core; the results say what they were. The published
+ * stream's reads count among the store's own: on PostgreSQL one statement a second, on MongoDB two queries a partition
+ * and one of the checkpoints a second.
  */
 class Resources(
     private val processes: Map<String, Long>,
@@ -55,6 +60,9 @@ class Resources(
     private val postgresContainer: String?,
     private val postgresDatabase: String,
     private val kafkaContainer: String?,
+    private val mongoDatabase: String = DEFAULT_DATABASE,
+    private val published: PublishedStream? = null,
+    private val catchUpLimitSeconds: Int = DEFAULT_CATCH_UP_LIMIT_SECONDS,
 ) {
     private val psSamples = mutableListOf<Map<String, Any>>()
     private val gcLines = processes.keys.associateWith { mutableListOf<Pair<Long, String>>() }
@@ -62,14 +70,20 @@ class Resources(
     private val mongoSamples = mutableListOf<Pair<Long, Map<String, Double>>>()
     private val postgresSamples = mutableListOf<Pair<Long, Map<String, Double>>>()
     private val diskSamples = mutableListOf<Pair<Long, Map<String, Double>>>()
+    private val publishedSamples = mutableListOf<PublishedStream.Sample>()
     private val samplers = mutableListOf<Process>()
+    private val publishedSamplers = mutableListOf<Process>()
+
+    /** When the published stream's last read arrived, on this machine's clock. */
+    @Volatile
+    private var publishedReadAt = 0L
     private var allocations: Map<String, Allocations.Reader?> = emptyMap()
     private var psThread: Thread? = null
     private var preparedAt = 0L
     private var readyAt = 0L
     private var startedAt = 0L
     private var stoppedAt = 0L
-    private var kafkaBefore: Pair<Long, Map<String, Long>?>? = null
+    private var kafkaBefore: Pair<Long, Map<String, Map<Int, Long>>?>? = null
 
     @Volatile
     private var sampling = false
@@ -77,7 +91,7 @@ class Resources(
     private var cpuBefore: Map<String, Double> = emptyMap()
     private var allocatedBefore: Map<String, Long?> = emptyMap()
 
-    /** What [stop] captured, once it has; [complete] adds the Kafka offsets. */
+    /** What [stop] captured, once it has; [complete] adds the published stream and the Kafka offsets. */
     val stopped = AtomicReference<Map<String, Any?>>()
 
     /**
@@ -99,7 +113,8 @@ class Resources(
             }
         }
         mongoContainer?.let { container ->
-            stream(listOf("docker", "exec", container, "mongosh", "--quiet", "--eval", MONGO_LOOP)) { line ->
+            val sampler = listOf("docker", "exec", container, "mongosh", "--quiet", "--port", mongoPort)
+            stream(sampler + listOf("--eval", MONGO_LOOP)) { line ->
                 Samples.columns(
                     line,
                     MONGO_COLUMNS,
@@ -119,6 +134,7 @@ class Resources(
                 }
             }
         }
+        published?.let(::samplePublished)
         allocations = processes.mapValues { (_, pid) -> Allocations.connect(pid) }
         readyAt = System.currentTimeMillis()
         kafkaBefore = kafkaContainer?.let { System.currentTimeMillis() to kafkaOffsets(it) }
@@ -161,12 +177,14 @@ class Resources(
                 val samples = synchronized(psSamples) { psSamples.filter { it["process"] == name } }
                 val cpu = (cpuAfter[name] ?: 0.0) - (cpuBefore[name] ?: 0.0)
                 val allocated = allocatedBefore[name]?.let { before -> allocatedAfter[name]?.minus(before) }
+                val reader = allocations[name]
                 mapOf(
                     "pid" to pid,
                     "cpuSeconds" to cpu,
                     "averageCores" to cpu / seconds,
-                    // Null when either read failed (the JVM refused the attach or was gone).
+                    // Null when the attach or either read failed, or a read did not answer in time; why, beside it.
                     "allocatedBytes" to allocated,
+                    "allocationsMissing" to if (allocated == null) reader?.missing ?: "the attach failed" else null,
                     "rssMaxMb" to (samples.maxOfOrNull { it["rssMb"] as Double } ?: 0.0),
                     "samples" to samples.map { mapOf("t" to it["t"], "cpuSeconds" to it["cpuSeconds"], "rssMb" to it["rssMb"]) },
                     "gc" to gc(synchronized(gcLines) { Samples.within(gcLines.getValue(name).toList(), window) }),
@@ -201,23 +219,85 @@ class Resources(
         )
     }
 
-    /** After the drain: the Kafka offsets again (a JVM of its own, so outside the measured phase), added to [stopped]. */
+    /**
+     * After the drain, added to [stopped]: the published stream once it caught up (or [catchUpLimitSeconds] after the
+     * drain), then the Kafka offsets again (a JVM of its own, so outside the measured phase), which then hold every
+     * record the stream published of the run.
+     */
     fun complete() {
-        val stoppedMap = stopped.get() ?: return
-        val before = kafkaBefore ?: return
-        val container = kafkaContainer ?: return
-        val afterAt = System.currentTimeMillis()
-        val after = kafkaOffsets(container)
-        val stores = (stoppedMap["stores"] as? Map<*, *>)?.mapKeys { it.key.toString() }.orEmpty()
-        val kafka = mapOf(
-            // The offsets were read at the warm-up and after the drain: the delta covers more than the measured phase.
-            "fromSecond" to (before.first - startedAt) / MILLIS_PER_SECOND.toDouble(),
-            "toSecond" to (afterAt - startedAt) / MILLIS_PER_SECOND.toDouble(),
-            "before" to before.second,
-            "after" to after,
-            "delta" to before.second?.let { b -> after?.mapValues { (topic, offset) -> offset - (b[topic] ?: 0L) } },
-        )
-        stopped.set(stoppedMap + ("stores" to stores + ("kafkaEndOffsets" to kafka)))
+        var completed = stopped.get() ?: run {
+            // No stop's reads to add to: the published stream's session ends all the same.
+            publishedSamplers.forEach { it.destroy() }
+            return
+        }
+        published?.let { completed = completed + ("publishedStream" to awaitPublished(it)) }
+        val before = kafkaBefore
+        val container = kafkaContainer
+        if (before != null && container != null) {
+            val afterAt = System.currentTimeMillis()
+            val after = kafkaOffsets(container)
+            val stores = (completed["stores"] as? Map<*, *>)?.mapKeys { it.key.toString() }.orEmpty()
+            val delta = before.second?.let { b -> after?.let { kafkaDelta(b, it) } }
+            val kafka = mapOf(
+                // The offsets were read at the warm-up and after the drain: the delta covers more than the measured phase.
+                "fromSecond" to (before.first - startedAt) / MILLIS_PER_SECOND.toDouble(),
+                "toSecond" to (afterAt - startedAt) / MILLIS_PER_SECOND.toDouble(),
+                "before" to before.second?.let(::perTopic),
+                "after" to after?.let(::perTopic),
+                "delta" to delta?.let(::perTopic),
+                // Each topic's partitions apart: a published stream's records go to their aggregate's partition.
+                "deltaByPartition" to delta?.mapValues { (_, offsets) -> offsets.mapKeys { it.key.toString() } },
+            )
+            completed = completed + ("stores" to stores + ("kafkaEndOffsets" to kafka))
+        }
+        stopped.set(completed)
+    }
+
+    /** The published stream's reads from one more session of the store's, PostgreSQL's else MongoDB's. */
+    private fun samplePublished(stream: PublishedStream) {
+        val onLine: (String) -> Unit = { line ->
+            PublishedStream.parse(line)?.let {
+                synchronized(publishedSamples) { publishedSamples += it }
+                publishedReadAt = System.currentTimeMillis()
+            }
+        }
+        when {
+            postgresContainer != null -> stream(
+                listOf("docker", "exec", "-i", postgresContainer, "psql", "-U", "postgres", "-d", postgresDatabase, "-XqtA"),
+                input = "${stream.postgresQuery()}\n\\watch ${SAMPLE_MILLIS / MILLIS_PER_SECOND}\n",
+                into = publishedSamplers,
+                onLine = onLine,
+            )
+            mongoContainer != null -> stream(
+                listOf(
+                    "docker", "exec", mongoContainer, "mongosh", "--quiet", "--port", mongoPort, mongoDatabase,
+                    "--eval", stream.mongoLoop(),
+                ),
+                into = publishedSamplers,
+                onLine = onLine,
+            )
+        }
+    }
+
+    /**
+     * Waits until the published stream caught up ([PublishedStream.caughtUpAt]), [catchUpLimitSeconds] passed, or its
+     * session's reads stopped answering (a store's table missing, say), then stops the session and gives back its
+     * figures ([PublishedStream.summary]).
+     */
+    private fun awaitPublished(stream: PublishedStream): Map<String, Any?> {
+        val drainedAt = System.currentTimeMillis()
+        val deadline = drainedAt + catchUpLimitSeconds * MILLIS_PER_SECOND
+        fun samples() = synchronized(publishedSamples) { publishedSamples.toList() }
+        fun answering() = System.currentTimeMillis() - publishedReadAt < STALE_MILLIS
+        while (System.currentTimeMillis() < deadline && answering() &&
+            PublishedStream.caughtUpAt(samples(), stoppedAt, drainedAt) == null
+        ) {
+            Thread.sleep(SAMPLE_MILLIS / 4)
+        }
+        publishedSamplers.forEach { it.destroy() }
+        return mapOf("stream" to stream.toString(), "subscription" to stream.subscription) +
+            PublishedStream.summary(samples(), startedAt, stoppedAt, drainedAt) +
+            ("catchUpLimitSeconds" to catchUpLimitSeconds)
     }
 
     private fun stores(window: LongRange): Map<String, Any?> = buildMap {
@@ -241,17 +321,20 @@ class Resources(
         }
     }
 
-    private fun kafkaOffsets(container: String): Map<String, Long>? =
+    /** Every topic's end offset of each of its partitions: `kafka-get-offsets`' `<topic>:<partition>:<offset>` lines. */
+    private fun kafkaOffsets(container: String): Map<String, Map<Int, Long>>? =
         execute("docker", "exec", container, "kafka-get-offsets", "--bootstrap-server", "localhost:9092")
-            ?.lines()
-            ?.filter { it.count { c -> c == ':' } >= 2 }
-            ?.groupBy(
-                { it.substringBeforeLast(':').substringBeforeLast(':') }
-            ) { it.substringAfterLast(':').toLongOrNull() ?: 0L }
-            ?.mapValues { it.value.sum() }
-            ?.toSortedMap()
+            ?.let(::kafkaOffsetsOf)
 
-    private fun stream(command: List<String>, input: String? = null, onLine: (String) -> Unit) {
+    // The harness's MongoDB port inside the container as outside (compose.yml), 27017 unless set.
+    private val mongoPort = System.getenv("WOW_BENCH_MONGO_PORT") ?: "27017"
+
+    private fun stream(
+        command: List<String>,
+        input: String? = null,
+        into: MutableList<Process> = samplers,
+        onLine: (String) -> Unit,
+    ) {
         val process = try {
             ProcessBuilder(command).redirectError(ProcessBuilder.Redirect.DISCARD).start()
         } catch (_: java.io.IOException) {
@@ -262,7 +345,7 @@ class Resources(
             process.outputStream.write(input.toByteArray())
             process.outputStream.flush()
         }
-        samplers += process
+        into += process
         thread(name = "sampler-${command.first()}", isDaemon = true) {
             try {
                 process.inputStream.bufferedReader().useLines { lines -> lines.forEach(onLine) }
@@ -363,6 +446,43 @@ class Resources(
 
     companion object {
         const val SAMPLE_MILLIS = 1_000L
+
+        /** The benchmark server's database on either store (its `application.yaml`). */
+        const val DEFAULT_DATABASE = "transfer"
+
+        /** How long after the drain a published stream is waited for, by default, to catch up. */
+        const val DEFAULT_CATCH_UP_LIMIT_SECONDS = 60
+
+        /** A published stream's session whose newest read is older than this has stopped answering. */
+        private const val STALE_MILLIS = 5_000L
+
+        /** `kafka-get-offsets`' lines, `<topic>:<partition>:<offset>`, as each topic's end offset of each partition. */
+        fun kafkaOffsetsOf(output: String): Map<String, Map<Int, Long>> = output.lines()
+            .mapNotNull { line ->
+                val fields = line.trim().split(':')
+                val partition = fields.getOrNull(fields.size - 2)?.toIntOrNull()
+                val offset = fields.last().toLongOrNull()
+                if (fields.size < KAFKA_FIELDS || partition == null || offset == null) return@mapNotNull null
+                Triple(fields.dropLast(2).joinToString(":"), partition, offset)
+            }
+            .groupBy({ it.first }) { it.second to it.third }
+            .mapValues { (_, offsets) -> offsets.toMap().toSortedMap() }
+            .toSortedMap()
+
+        /** Each topic's partitions' growth from [before] to [after]; a partition new since counts from 0. */
+        fun kafkaDelta(
+            before: Map<String, Map<Int, Long>>,
+            after: Map<String, Map<Int, Long>>,
+        ): Map<String, Map<Int, Long>> =
+            after.mapValues { (topic, offsets) ->
+                offsets.mapValues { (partition, offset) -> offset - (before[topic]?.get(partition) ?: 0L) }
+            }
+
+        /** A topic's offsets summed over its partitions. */
+        fun perTopic(offsets: Map<String, Map<Int, Long>>): Map<String, Long> =
+            offsets.mapValues { it.value.values.sum() }.toSortedMap()
+
+        private const val KAFKA_FIELDS = 3
 
         /** The `jstat` of the JDK the load generator runs on, the servers' JDK in the harness. */
         private val JSTAT = File(System.getProperty("java.home"), "bin/jstat").path

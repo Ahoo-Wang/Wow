@@ -16,32 +16,38 @@ package me.ahoo.wow.api.query
 import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
- * Data class representing a paginated query with filtering, projection, sorting, and pagination.
+ * A paged query: one page of the records its filter matches, in its order, with its projection.
  *
  * It supports all standard query operations ([Queryable]) and retrieves one page of the results.
  *
  * @property filter The filter expression to apply to the query; [MatchAllFilter], every record, by default.
  * @property projection The field projection to control which fields are included in the results.
- * @property sort The sorting criteria to order the results.
+ * @param sort The order of the results; the query keeps a copy.
  * @property pagination The pagination settings to control which page and how many items to return.
  * @property total How the total is counted; [TotalMode.BOUNDED], the default, stops at the budget's count limit.
  *
  * ```
- * val query = PagedQuery(
- *     filter = EqualFilter(QueryField("status"), value),
- *     projection = Projection(listOf(QueryField("name"), QueryField("email"))),
- *     sort = listOf(Sort(QueryField("name"), Direction.ASC)),
- *     pagination = Pagination(index = 2, size = 20)
+ * val query = PagedQuery.of(
+ *     filter = EqualFilter.of(QueryField("status"), value),
+ *     projection = Projection.of(listOf(QueryField("name"), QueryField("email"))),
+ *     sort = listOf(Sort.of(QueryField("name"), Sort.Direction.ASC)),
+ *     pagination = Pagination.of(index = 2, size = 20),
  * )
  * ```
  */
 class PagedQuery @InternalWowApi constructor(
     override val filter: FilterExpression = MatchAllFilter,
     override val projection: Projection = Projection.ALL,
-    override val sort: List<Sort> = emptyList(),
+    sort: List<Sort> = emptyList(),
     val pagination: Pagination = Pagination.DEFAULT,
     val total: TotalMode = TotalMode.BOUNDED,
 ) : Queryable<PagedQuery> {
+    /**
+     * The sorting criteria to order the results; a copy, so a list its caller changes later changes neither this query
+     * nor its hash.
+     */
+    override val sort: List<Sort> = sort.copied()
+
     init {
         require(sort.size <= Sort.MAX_FIELDS) {
             "sort must contain at most ${Sort.MAX_FIELDS} fields."

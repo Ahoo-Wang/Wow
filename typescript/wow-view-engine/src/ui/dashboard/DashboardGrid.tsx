@@ -66,7 +66,7 @@ import {
 import { PanelWiring, useFilterWiring } from './FilterWiring.js';
 import { panelPress } from './press.js';
 import { boardWideHost, recordHostOf } from './PanelBodies.js';
-import { filterModeOf, type BoardFilterModes } from './filterModes.js';
+import { filterModeOf, type DashboardFilterModes } from './filterModes.js';
 import {
   Empty,
   EmptyContent,
@@ -76,6 +76,7 @@ import {
   EmptyDescription,
 } from '../components/empty.js';
 
+/** Props of `DashboardGrid`. */
 export interface DashboardGridProps {
   dashboard: DashboardController;
   /**
@@ -99,7 +100,7 @@ export interface DashboardGridProps {
    * board is built. Told whether the board is in its one-column reading,
    * where building is renaming, removing and reordering alone (D22 J).
    */
-  header?(board: { narrow: boolean }): ReactNode;
+  header?(dashboard: { narrow: boolean }): ReactNode;
   /**
    * Under the empty board's words: the first things to add (D22 A). Left
    * out, an empty board says it has no panels and offers nothing — a reader
@@ -142,7 +143,7 @@ export interface DashboardGridProps {
    * filter the page hid (「不受…影响」 would name what the reader cannot
    * see).
    */
-  filterModes?: BoardFilterModes;
+  filterModes?: DashboardFilterModes;
   className?: string;
 }
 
@@ -618,7 +619,7 @@ function DashboardEmpty({
 function unreachedBy(
   panel: DashboardPanelView,
   dashboard: DashboardController,
-  modes: BoardFilterModes | undefined,
+  modes: DashboardFilterModes | undefined,
 ): string[] {
   if (panel.panel.kind !== 'view' || panel.broken) return [];
   return dashboard.filterFields.flatMap(field =>

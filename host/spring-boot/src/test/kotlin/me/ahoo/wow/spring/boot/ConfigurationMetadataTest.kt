@@ -115,7 +115,7 @@ class ConfigurationMetadataTest {
             "wow.kafka.properties",
             "wow.kafka.topics.prefix",
             "wow.kafka.command-intake.enabled",
-            "wow.kafka.topics.partition-refresh",
+            "wow.kafka.topics.partition-refresh-interval",
             "wow.kafka.topics.configs",
             "wow.clickhouse.endpoint",
             "wow.clickhouse.sink.batch-size",

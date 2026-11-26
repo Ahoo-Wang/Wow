@@ -21,7 +21,7 @@ import type {
   RecordTableController,
 } from '../src/react/index.js';
 import type { RecordViewRuntime } from '../src/runtime/index.js';
-import type { ExportWindowProps } from '../src/ui/kit/ExportDialog.js';
+import type { ExportWindowOptions } from '../src/ui/kit/ExportDialog.js';
 import { exportPlan } from '../src/runtime/exportRows.js';
 import { MessagesProvider } from '../src/ui/kit/MessagesProvider.js';
 import { ResultToolbar } from '../src/ui/workbench/ResultToolbar.js';
@@ -39,7 +39,7 @@ afterEach(cleanup);
  */
 const runtime = {
   id: 'r-1',
-  limits: { exportMax: 10000, maxPageSize: 200 },
+  limits: { maxExportRows: 10000, maxPageSize: 200 },
   definition: { kind: 'data', record: { paging: 'paged' } },
 } as unknown as RecordViewRuntime;
 
@@ -98,7 +98,7 @@ function exportController(
 function exportOffer(
   overrides: Partial<RecordExportController> = {},
   on: RecordViewRuntime = runtime,
-): ExportWindowProps {
+): ExportWindowOptions {
   return {
     control: exportController(overrides),
     conditions: [],
@@ -744,7 +744,7 @@ describe('ResultToolbar export', () => {
     const user = userEvent.setup();
     const windowed = {
       ...runtime,
-      limits: { exportMax: 50000, maxPageSize: 300 },
+      limits: { maxExportRows: 50000, maxPageSize: 300 },
       definition: {
         kind: 'data',
         record: { paging: 'paged', maxWindow: 10000 },

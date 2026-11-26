@@ -24,14 +24,14 @@ import { exportPlan } from '../../runtime/exportRows.js';
 import {
   useRecordExport,
   type FilterEditorController,
-  type RecordExportScope,
+  type RecordExportExtent,
   type RecordTableController,
 } from '../../react/index.js';
 import { csvCellText } from '../kit/display.js';
 import { isoDay } from '../kit/displayTime.js';
 import { currencyCsvText } from '../kit/currency.js';
 import { downloadFile, fileName } from '../kit/download.js';
-import type { ExportWindowProps } from '../kit/ExportDialog.js';
+import type { ExportWindowOptions } from '../kit/ExportDialog.js';
 import {
   useViewMessages,
   type MessageFormatters,
@@ -93,12 +93,12 @@ function currencyOfValue(value: unknown): CurrencyReading | undefined {
 export interface ExportedFile {
   name: string;
   text: string;
-  scope: RecordExportScope;
+  scope: RecordExportExtent;
   rows: number;
 }
 
 /**
- * What the export window is handed (`ExportWindowProps`) for one open record view
+ * What the export window is handed (`ExportWindowOptions`) for one open record view
  * — the workbench's toolbar and an embed's head alike.
  *
  * The rows go out as a CSV of the columns the table is drawing, in its
@@ -128,7 +128,7 @@ export function useExportOffer({
   /** The view's title, which names the file. */
   title: string;
   onExported?(file: ExportedFile): void;
-}): ExportWindowProps {
+}): ExportWindowOptions {
   const messages = useViewMessages();
   // The language and zone a value reads in, as the cells read it, and the
   // runtime's reference names where the surface carries none: the
@@ -154,7 +154,7 @@ export function useExportOffer({
   // it is explicitly off.
   const neutralizeFormulas = neutralizesFormulas(runtime.limits);
   const deliver = useCallback(
-    (rows: readonly RecordData[], scope: RecordExportScope, name: string) => {
+    (rows: readonly RecordData[], scope: RecordExportExtent, name: string) => {
       const text = serializeCsv(
         rows,
         fileColumns(columns, messages),

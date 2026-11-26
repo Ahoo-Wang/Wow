@@ -217,6 +217,10 @@ object Report {
                 )
             }
         }
+        (resources["publishedStream"] as Map<String, Any?>?)?.let { stream ->
+            appendLine()
+            appendLine(publishedLine(stream))
+        }
         // PostgreSQL's commits and WAL flushes per second over the measured phase (B.O-3).
         val series = resources["postgresSeries"] as List<Map<String, Any?>>?
         if (!series.isNullOrEmpty()) {
@@ -229,6 +233,22 @@ object Report {
                     "(max ${"%.0f".format(syncMs.max())} ms), WAL write time ${"%.0f".format(column("wal_write_time").average())} ms",
             )
         }
+    }
+
+    /** The published stream's line: its appends and publications a second, its worst lag and its catch-up. */
+    @Suppress("UNCHECKED_CAST")
+    fun publishedLine(stream: Map<String, Any?>): String {
+        val name = "Published stream ${stream["stream"]}"
+        stream["missing"]?.let { return "$name: $it" }
+        val lag = stream["maxLag"] as Map<String, Any?>?
+        val seconds = stream["maxLagSeconds"] as Map<String, Any?>?
+        val catchUp = (stream["catchUpSeconds"] as Double?)?.let { "caught up %.1f s after the load".format(it) }
+            ?: "not caught up ${stream["catchUpLimitSeconds"]} s after the drain, ${stream["lagAtEnd"]} entries behind"
+        val checkpointed = if (stream["checkpointed"] == true) "" else " (no checkpoint of ${stream["subscription"]}: every lag is the head)"
+        return "$name$checkpointed: appended ${"%.0f".format(stream["appendedPerSecond"])}/s, published " +
+            "${"%.0f".format(stream["publishedPerSecond"])}/s; worst lag ${lag?.get("entries") ?: 0} entries " +
+            "(partition ${lag?.get("partition") ?: "-"}), ${"%.1f".format(seconds?.get("seconds") ?: 0.0)} s " +
+            "(aggregate ${seconds?.get("aggregate") ?: "-"}); $catchUp"
     }
 
     @Suppress("UNCHECKED_CAST")

@@ -469,16 +469,19 @@ internal class QueryResolver(
             reference.effective.satisfies(rule) && reference.definition.value.accepts(values) &&
                 DateOperands.accepts(reference.effective.temporal, values)
         ) { QueryViolation.ValueMismatch(reference.logical) }
+        values.forEach { it.requireStoredDigits(reference.logical) }
     }
 
     private fun projection(projection: Projection): Projection {
         requireValid(projection.include.isNotEmpty() || schema.fullProjectionAvailable) {
             QueryViolation.IncompleteProjection
         }
+        // A repeated entry, as written or by another name of the same field, asks nothing more: kept once, so no
+        // backend copies a record's subtree once per repetition (#7074).
         val resolved = if (projection.include.isEmpty() && projection.exclude.isEmpty()) {
             projection
         } else {
-            Projection(projection.include.map(::projected), projection.exclude.map(::projected))
+            Projection(projection.include.map(::projected).distinct(), projection.exclude.map(::projected).distinct())
         }
         schema.profile?.validateProjection(resolved)
         return resolved

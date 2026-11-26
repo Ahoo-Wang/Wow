@@ -75,7 +75,7 @@ class WowCosIdAutoConfigurationTest {
         runner(*COSID_PROPERTIES, "${WowCosIdAutoConfiguration.AGGREGATE_GENERATOR}=missing").run { context ->
             val failure = generateSequence(context.startupFailure) { it.cause }
                 .filterIsInstance<WowConfigurationException>().first()
-            failure.key.assert().isEqualTo(CosIdProperties.AGGREGATE_GENERATOR)
+            failure.key.assert().isEqualTo(WowCosIdProperties.AGGREGATE_GENERATOR)
         }
         // No generator at all, so no default one: the start fails, naming the key and what to configure.
         runner("spring.application.name=wow-cosid-test").run { context ->
