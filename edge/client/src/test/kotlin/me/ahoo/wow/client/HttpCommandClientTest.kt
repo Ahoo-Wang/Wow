@@ -711,6 +711,6 @@ class HttpCommandClientTest {
         const val SERVICE = "basket-service"
 
         /** The event a command's stream ends with once whole, after its last result. */
-        const val END = "event: end\ndata: {\"reason\":\"complete\"}\n\n"
+        const val END = "event: end\ndata: {\"reason\":\"complete\",\"resumable\":false}\n\n"
     }
 }

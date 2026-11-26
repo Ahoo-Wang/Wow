@@ -627,7 +627,7 @@ class OpenApiAgreementTest {
             "once accepted, the answer is 200 and no other status",
             "`: keep-alive`",
             "`wow.wait.timeout` at the last hop reached",
-            "`end` with `{\"reason\":\"complete\"}`",
+            "`end` with `{\"reason\":\"complete\",\"resumable\":false}`",
         )
         val open = operation("POST /$CONTEXT/cart/{id}/open-cart")
         val stream = mapOf(HttpHeaders.ACCEPT to EVENT_STREAM)

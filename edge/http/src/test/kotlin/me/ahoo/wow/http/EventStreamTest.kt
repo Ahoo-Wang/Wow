@@ -42,7 +42,7 @@ class EventStreamTest {
 
     /**
      * The result events of a stream, each one seen by [seen] as it arrives: the stream ends with `end`
-     * `{"reason":"complete"}` after them, once whole, which this checks and leaves out.
+     * `{"reason":"complete","resumable":false}` after them, once whole, which this checks and leaves out.
      */
     private fun events(
         path: String,
@@ -64,6 +64,8 @@ class EventStreamTest {
         val end = events.last()
         end.event().assert().describedAs("the stream's last event").isEqualTo("end")
         json.readTree(end.data())["reason"].asString().assert().isEqualTo("complete")
+        // A streamed list's end's shape (D484 N8).
+        json.readTree(end.data())["resumable"].asBoolean().assert().isFalse()
         end.id().assert().isNull()
         // It follows the last result alone.
         events.dropLast(1).map { it.event() }.assert().doesNotContain("end")
