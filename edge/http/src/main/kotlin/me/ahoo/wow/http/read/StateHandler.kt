@@ -170,7 +170,9 @@ internal class StateHandler(
                 commits.map { commit ->
                     commit.copy(
                         state = facade.history(commit.committed(ref, latest)),
-                        events = commit.events.map { it.copy(body = facade.event(type, it.name, it.body)) }
+                        events = commit.events.map {
+                            it.copy(body = facade.event(type, it.name, it.revision, it.body))
+                        }
                     )
                 }
             }

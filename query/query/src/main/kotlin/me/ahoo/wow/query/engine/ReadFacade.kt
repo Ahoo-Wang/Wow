@@ -184,8 +184,12 @@ class ReadFacade(
             }
     }
 
-    /** The body of an event [name] of [type] as every caller sees it: masked as the Manifest declares. */
-    fun event(type: AggregateType, name: String, body: JsonNode): JsonNode = masks.event(type, name, body)
+    /**
+     * The body of an event [name] of [type] at [revision] as every caller sees it: masked as the Manifest declares,
+     * whole when it does not know the event ([PayloadMasks.event]).
+     */
+    fun event(type: AggregateType, name: String, revision: Int, body: JsonNode): JsonNode =
+        masks.event(type, name, revision, body)
 
     @InternalWowApi
     companion object {

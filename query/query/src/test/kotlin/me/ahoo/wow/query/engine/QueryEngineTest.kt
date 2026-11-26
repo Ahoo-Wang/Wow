@@ -224,7 +224,7 @@ class QueryEngineTest {
     fun `the facade with no policy reads every state as it is`(): Unit = runBlocking {
         val read = ReadFacade.NONE.read(QueryCaller.IN_PROCESS, { state(cart, "east") }, { it })
         (read as ReadFacade.Read.Visible).state["items"].asInt().assert().isEqualTo(2)
-        ReadFacade.NONE.event(cart, "added", WowJson.mapper.createObjectNode()).isEmpty.assert().isTrue()
+        ReadFacade.NONE.event(cart, "added", 1, WowJson.mapper.createObjectNode()).isEmpty.assert().isTrue()
         ManifestTypes.hosted(manifest, setOf("shop")).assert().containsExactly(order, cart)
         ManifestTypes.hosted(manifest, emptySet()).assert().isEmpty()
         ManifestStateSchemas(manifest).declares(order).assert().isFalse()
