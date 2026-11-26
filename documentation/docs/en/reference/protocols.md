@@ -88,6 +88,8 @@ A state event is a commit together with the aggregate's state after it. Handlers
 
 Events are upgraded to their current revision before they are published.
 
+A published stream has a record for every commit of the aggregate type, so an aggregate's versions on its topic run on without a gap from its first record. A commit whose events the aggregate all retired is published with `events` empty: a Wow subscription passes over it and calls no handler, as for the same commit in the context's own log. A commit that only sets or cancels schedules is published with its `wow.schedule.*` events, as they are in any commit. A version is missing from a topic only where the publishing service's operator skipped a commit its transport sink could not write, or where the sink was set to start after the aggregate's first commits. A state topic written by a 10.0 pre-release is created again, as every pre-release store is, before a 10.0 release publishes to it.
+
 ## Kafka envelope
 
 Every message Wow writes to Kafka is an envelope.

@@ -275,9 +275,17 @@ class EnvelopeCodecTest {
     }
 
     @Test
+    fun `a record of a commit whose events were all retired should hold none, and read back so`() {
+        val retired = record().copyWith(events = emptyList())
+        val read = EnvelopeCodec.stateEventOf(EnvelopeCodec.encode(EnvelopeCodec.stateEvent(retired)))
+        // The transport's reservations stay in the context: the envelope carries the rest of it.
+        read.copyWith(transport = retired.transport).assert().isEqualTo(retired)
+        tree(String(EnvelopeCodec.message(retired).value))["payload"]["events"].size().assert().isZero()
+    }
+
+    @Test
     fun `a record should hold a consistent commit`() {
         assertThrows<IllegalArgumentException> { record(state = PublishedState(3, "f1", tree("{}"))) }
-        assertThrows<IllegalArgumentException> { record().copyWith(events = emptyList()) }
         assertThrows<IllegalArgumentException> { record().copyWith(version = 0) }
         assertThrows<IllegalArgumentException> { record().copyWith(commandId = " ") }
         assertThrows<IllegalArgumentException> { record().copyWith(commandType = "") }
