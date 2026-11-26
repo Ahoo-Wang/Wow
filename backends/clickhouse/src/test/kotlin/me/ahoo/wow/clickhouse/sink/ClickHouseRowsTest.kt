@@ -61,8 +61,8 @@ class ClickHouseRowsTest {
     fun `numbers should keep their exact text in the events, the state and the state's numbers`() {
         val row = ClickHouseRows.rowOf(SinkFixtures.recordOf())
         WowJson.mapper.writeValueAsString(row.get("events")).assert().isEqualTo(
-            """[{"name":"order_placed","revision":1,"payload":"{\"total\":12.30,\"lines\":[{\"price\":0.10}]}"},""" +
-                """{"name":"order_noted","revision":2,"payload":"{\"note\":\"fast\"}"}]""",
+            """[{"name":"order_placed","revision":1,"body":"{\"total\":12.30,\"lines\":[{\"price\":0.10}]}"},""" +
+                """{"name":"order_noted","revision":2,"body":"{\"note\":\"fast\"}"}]""",
         )
         row.get("state").asString().assert().isEqualTo(SinkFixtures.stateOf(1))
         WowJson.mapper.writeValueAsString(row.get("state_numbers")).assert().isEqualTo(
@@ -75,7 +75,7 @@ class ClickHouseRowsTest {
     }
 
     @Test
-    fun `a payload and a state made from the codec's text should be written as that text, numbers read alike`() {
+    fun `a body and a state made from the codec's text should be written as that text, numbers read alike`() {
         // A double as the codec writes it: its exponent without a sign, which the tree would write with one.
         val text = """{"double":1.0E20,"total":12.30}"""
         val fromTrees = SinkFixtures.recordOf(state = text)
@@ -84,7 +84,7 @@ class ClickHouseRowsTest {
             state = PublishedState.ofText(1, "fingerprint-1", text),
         )
         val row = ClickHouseRows.rowOf(record)
-        row.get("events").single().get("payload").asString().assert().isEqualTo(text)
+        row.get("events").single().get("body").asString().assert().isEqualTo(text)
         row.get("state").asString().assert().isEqualTo(text)
         val treeRow = ClickHouseRows.rowOf(fromTrees)
         treeRow.get("state").asString().assert().isEqualTo("""{"double":1.0E+20,"total":12.30}""")

@@ -27,9 +27,9 @@ import me.ahoo.wow.spi.json.WowJson
  *
  * | Table | Paths |
  * | --- | --- |
- * | `_state_events` | `state.<path>`, each event's `events.payload.<path>` |
+ * | `_state_events` | `state.<path>`, each event's `events.body.<path>` |
  * | `_state` | `state.<path>` |
- * | `_events` | each event's `payload.<path>` |
+ * | `_events` | each event's `body.<path>` |
  * | `_state_flat` | the flat column of a top-level property |
  *
  * A path goes through an object's properties (`.name`), a map's values (`.{key}`) and an array's items (no segment,
@@ -78,11 +78,11 @@ internal object CatalogEntries {
         )
         return buildList {
             if (schema.aggregate.history) {
-                add(entry(schema.stateEvents, STATE_EVENTS, state + withPrefix("events.payload")))
+                add(entry(schema.stateEvents, STATE_EVENTS, state + withPrefix("events.body")))
             }
             add(entry(schema.state, STATE, state))
             if (schema.aggregate.history) {
-                add(entry(schema.events, EVENTS, withPrefix("payload")))
+                add(entry(schema.events, EVENTS, withPrefix("body")))
             }
             add(entry(schema.stateFlat, STATE_FLAT, flat(state, schema.flatColumns)))
         }

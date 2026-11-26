@@ -121,7 +121,7 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_events`
     `operator_id` String CODEC(ZSTD(1)),
     `operator_tenant_id` String CODEC(ZSTD(1)),
     `operator_acted_elsewhere` Bool,
-    `events` Array(Tuple(name LowCardinality(String), revision UInt32, payload String)) CODEC(ZSTD(1)),
+    `events` Array(Tuple(name LowCardinality(String), revision UInt32, body String)) CODEC(ZSTD(1)),
     `state` String CODEC(ZSTD(1)),
     `state_fingerprint` String CODEC(ZSTD(1)),
     `state_numbers` Map(String, String) CODEC(ZSTD(1))
@@ -180,7 +180,7 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_events`
     `sequence` UInt32,
     `event_name` LowCardinality(String),
     `event_revision` UInt32,
-    `payload` String CODEC(ZSTD(1)),
+    `body` String CODEC(ZSTD(1)),
     `command_id` String CODEC(ZSTD(1)),
     `request_id` String CODEC(ZSTD(1)),
     `command_type` LowCardinality(String),
@@ -202,7 +202,7 @@ FROM `default`.`shop_order_state_events`)
 COMMENT 'wow-sink-format:1';
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS `default`.`shop_order_events_mv` TO `default`.`shop_order_events` AS
-(SELECT id, tenant_id, aggregate_id, version, toUInt32(sequence) AS sequence, event.name AS event_name, event.revision AS event_revision, event.payload AS payload, command_id, request_id, command_type, commit_time, owner_id, space_id, correlation_id, causation_id
+(SELECT id, tenant_id, aggregate_id, version, toUInt32(sequence) AS sequence, event.name AS event_name, event.revision AS event_revision, event.body AS body, command_id, request_id, command_type, commit_time, owner_id, space_id, correlation_id, causation_id
 FROM `default`.`shop_order_state_events`
 ARRAY JOIN events AS event, arrayEnumerate(events) AS sequence)
 COMMENT 'wow-sink-format:1';
@@ -240,11 +240,11 @@ COMMENT 'wow-sink-format:1 wow-sink-flat:abec05d592597f99';
 | `correlation_id`、`causation_id` | 根命令的 id 和直接原因；调用方直接发出的命令则为空 |
 | `headers` | 命令携带的请求事实；仅 `_state_events` 有 |
 | `operator_id`、`operator_tenant_id`、`operator_acted_elsewhere` | 谁提交的；没有时为空和 false |
-| `events` | 这次提交的事件，每个是 `(name, revision, payload)`，payload 为 JSON 文本；仅 `_state_events` 有 |
+| `events` | 这次提交的事件，每个是 `(name, revision, body)`，body 即事件的数据，为 JSON 文本；仅 `_state_events` 有 |
 | `state`、`state_fingerprint` | 提交之后的状态（JSON 文本）和它的 schema 的指纹；不发布状态的聚合为空 |
 | `state_numbers` | 状态每个顶层数字的原文，`_state_flat` 从中读取小数 |
 
-**`_events`**，每个事件一行：`sequence`（事件在它所属提交中的位置，从 1 开始）、`event_name`、`event_revision` 和 `payload`，以及这次提交的 `id`、`tenant_id`、`aggregate_id`、`version`、`command_id`、`request_id`、`command_type`、`commit_time`、`owner_id`、`space_id`、`correlation_id` 和 `causation_id`。
+**`_events`**，每个事件一行：`sequence`（事件在它所属提交中的位置，从 1 开始）、`event_name`、`event_revision` 和 `body`（事件的数据），以及这次提交的 `id`、`tenant_id`、`aggregate_id`、`version`、`command_id`、`request_id`、`command_type`、`commit_time`、`owner_id`、`space_id`、`correlation_id` 和 `causation_id`。
 
 **`_state` 的计算列。** 在存储列之后，`_state` 还有 ClickHouse 在插入一行时由它们计算的列（`MATERIALIZED`）：任何插入都不设置它们，`SELECT *` 也不包含它们，所以要按名字读。每一列的注释记着它的类型与表达式的指纹（`wow:<指纹>`）。它们是：
 
@@ -288,7 +288,9 @@ Sink 不使用 ClickHouse 的 `async_insert`，也不需要它：Sink 自己把�
 
 `wow.clickhouse.ddl` 决定 Sink 在第一次写入之前以及之后不时怎样对待它的表：`auto`（默认）创建缺失的部分并校验其余部分；`validate` 只检查；`none` 两者都不做。被删除或被修改过的表会让写入失败，订阅会重试，直到它恢复成 Sink 期望的样子。
 
-Sink 保有的每张表和每个视图都在注释里写明 Sink 表的格式：`wow-sink-format:1`。Sink 期望的表或视图存在、有上面的列、并写明这个格式，才算 Sink 的；否则 Sink 拒绝写入，逐一指出是哪一个、哪里不对（`<table> is not of format 1`、`<table> has the columns …`）。`auto` 用这个注释创建缺失的部分，已存在的表保持原样：别的格式的表会被拒绝，和列不同的表一样。这些表里没有日志之外的东西：删掉它们，Sink 的新一代即可从日志重新填充（[重建数仓](#rebuild-the-warehouse)）。`none` 什么也不检查。
+Sink 保有的每张表和每个视图都在注释里写明 Sink 表的格式：`wow-sink-format:1`。Sink 期望的表或视图存在、至少有上面的列且各列类型相同（顺序不限）、并写明这个格式，才算 Sink 的：其他列，无论是运维自己加的（普通、`MATERIALIZED` 或 `ALIAS`）还是更新版本在同一格式内加的，都不构成理由。否则 Sink 拒绝写入，逐一指出是哪一个、哪里不对（`<table> is not of format 1`、`<table> has no <column> <type>`、`<table> has <column> <type>, not <type>`）。`auto` 用这个注释创建缺失的部分；对已存在的表，只添加 Wow 在同一格式内新增的列（带默认值：`ALTER TABLE <db>.<table> ADD COLUMN IF NOT EXISTS <column> <type> DEFAULT <default>`；10.0 没有这样的列）以及下面的计算列，`validate` 会给出这些语句。别的格式的表，或缺少格式中其他列、或列类型不同的表，在任何模式下都会被拒绝，并保持原样。这些表里没有日志之外的东西：删掉它们，Sink 的新一代即可从日志重新填充（[重建数仓](#rebuild-the-warehouse)）。`none` 什么也不检查。
+
+10.0 预发布版写的表随升级重建：它们写明格式 1，但事件的数据在那里叫 `payload`，而现在叫 `body`，Sink 会拒绝它们并指出列（`<ctx>_<agg>_events has no body String`，以及历史表 `events` 的类型不同）。删掉它们并提高 Sink 的代数（[重建数仓](#rebuild-the-warehouse)）。在什么都不检查的 `ddl: none` 下，Sink 会照原样写入它们：ClickHouse 丢弃每个事件的 `body`（旧的元组没有这个元素），`payload` 留空。
 
 Sink 既不检查也不更改列的编解码器，所以早先版本建的表保留建表时的编解码器。要让它用上面的编解码器，对每一列执行 `ALTER TABLE <db>.<table> MODIFY COLUMN <column> <type> CODEC(<codec>)`，此后写入与合并的部分会用它；或者删掉 Sink 的表并调高它的代数，让它重新填满（[重建数仓](#rebuild-the-warehouse)）。
 
@@ -346,7 +348,7 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_events_local` ON CLUSTER 
     `operator_id` String CODEC(ZSTD(1)),
     `operator_tenant_id` String CODEC(ZSTD(1)),
     `operator_acted_elsewhere` Bool,
-    `events` Array(Tuple(name LowCardinality(String), revision UInt32, payload String)) CODEC(ZSTD(1)),
+    `events` Array(Tuple(name LowCardinality(String), revision UInt32, body String)) CODEC(ZSTD(1)),
     `state` String CODEC(ZSTD(1)),
     `state_fingerprint` String CODEC(ZSTD(1)),
     `state_numbers` Map(String, String) CODEC(ZSTD(1))
@@ -406,7 +408,7 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_events_local` ON CLUSTER '{clus
     `sequence` UInt32,
     `event_name` LowCardinality(String),
     `event_revision` UInt32,
-    `payload` String CODEC(ZSTD(1)),
+    `body` String CODEC(ZSTD(1)),
     `command_id` String CODEC(ZSTD(1)),
     `request_id` String CODEC(ZSTD(1)),
     `command_type` LowCardinality(String),
@@ -446,7 +448,7 @@ FROM `default`.`shop_order_state_events_local`)
 COMMENT 'wow-sink-format:1';
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS `default`.`shop_order_events_mv` ON CLUSTER '{cluster}' TO `default`.`shop_order_events_local` AS
-(SELECT id, tenant_id, aggregate_id, version, toUInt32(sequence) AS sequence, event.name AS event_name, event.revision AS event_revision, event.payload AS payload, command_id, request_id, command_type, commit_time, owner_id, space_id, correlation_id, causation_id
+(SELECT id, tenant_id, aggregate_id, version, toUInt32(sequence) AS sequence, event.name AS event_name, event.revision AS event_revision, event.body AS body, command_id, request_id, command_type, commit_time, owner_id, space_id, correlation_id, causation_id
 FROM `default`.`shop_order_state_events_local`
 ARRAY JOIN events AS event, arrayEnumerate(events) AS sequence)
 COMMENT 'wow-sink-format:1';
@@ -457,7 +459,7 @@ FROM `default`.`shop_order_state` FINAL
 COMMENT 'wow-sink-format:1 wow-sink-flat:abec05d592597f99';
 ```
 
-- **设置 `wow.clickhouse.ddl: validate`。** 此时 Sink 不创建任何东西，期望的表或视图缺失、列不同或没有写明 Sink 的格式时拒绝写入，并指出是哪一个。分布式表能通过，因为 ClickHouse 报告它们的列与本地表相同。Sink 从分布式表自己的注释读取格式，`AS` 不会复制注释，所以示例给每一张都写了 `COMMENT`。`auto` 会在端点所连的那一个节点上把缺失的表建成单机表；`none` 什么也不检查。
+- **设置 `wow.clickhouse.ddl: validate`。** 此时 Sink 不创建任何东西，期望的表或视图缺失、缺少格式中的列或列类型不同、或没有写明 Sink 的格式时拒绝写入，并指出是哪一个。分布式表能通过，因为 ClickHouse 报告它们的列与本地表相同。Sink 从分布式表自己的注释读取格式，`AS` 不会复制注释，所以示例给每一张都写了 `COMMENT`。`auto` 会在端点所连的那一个节点上把缺失的表建成单机表；`none` 什么也不检查。
 - **按聚合分片。** 分片键是 `sipHash64(tenant_id, aggregate_id)`，与 9.x 相同，所以一个聚合的所有提交都在同一个分片上：`_state` 保留同一个键版本最高的行，历史表按各自的键合并掉重放的行，两者都只在一个分片之内生效。
 - **每个分片一个副本接收写入。** 在集群的分片上设置 `<internal_replication>true</internal_replication>`，与任何复制表一样：分布式插入于是只写分片的一个副本，由副本互相复制。
 - **同步插入。** 默认情况下，ClickHouse 对分布式表的插入在行落到接收节点的磁盘后就应答，之后才把它们发往各分片。Sink 把应答当作提交已在数仓中，并推进它的检查点。让 Sink 的用户同步插入，这样应答就表示各分片已收到这些行：
@@ -474,7 +476,7 @@ COMMENT 'wow-sink-format:1 wow-sink-flat:abec05d592597f99';
 
 ## 命令不写入 {#commands-are-not-written}
 
-Wow 9.x 的 BI 同步还会创建一张命令表 `<ctx>_<agg>_command`，由命令主题填充。Wow 10 不往 ClickHouse 写命令：Sink 复制的是提交，所以被拒绝的命令、或没有产生变化的命令不会留下任何一行。提交对它的命令保留的内容在 `_state_events` 中：`command_id`、`request_id` 和 `command_type`；操作者 `operator_id`、`operator_tenant_id` 和 `operator_acted_elsewhere`；`correlation_id` 和 `causation_id`（Saga 的命令对应它所处理的那次提交）；`headers` 中的请求事实；以及这个命令产生的事件和它们的 payload。命令的正文不保存。要得到命令的历史：
+Wow 9.x 的 BI 同步还会创建一张命令表 `<ctx>_<agg>_command`，由命令主题填充。Wow 10 不往 ClickHouse 写命令：Sink 复制的是提交，所以被拒绝的命令、或没有产生变化的命令不会留下任何一行。提交对它的命令保留的内容在 `_state_events` 中：`command_id`、`request_id` 和 `command_type`；操作者 `operator_id`、`operator_tenant_id` 和 `operator_acted_elsewhere`；`correlation_id` 和 `causation_id`（Saga 的命令对应它所处理的那次提交）；`headers` 中的请求事实；以及这个命令产生的事件和它们的 body。命令的正文不保存。要得到命令的历史：
 
 - **从提交中读取**，看哪个命令在什么时候、为谁改变了一个聚合：
 
@@ -485,7 +487,7 @@ Wow 9.x 的 BI 同步还会创建一张命令表 `<ctx>_<agg>_command`，由命�
   ORDER BY version
   ```
 
-- **把审计需要的命令信息放进事件。** 命令的业务数据通常会进入事件的 payload，`_events.payload` 按事件保存它。
+- **把审计需要的命令信息放进事件。** 命令的业务数据通常会进入事件的 body，`_events.body` 按事件保存它。
 - **拒绝在发生之处读取**，而不是在数仓中：`wow.command.rejections` 统计它们，拒绝日志列出它们（[健康、指标与追踪](./observability)）。
 
 ## wow_catalog {#wow-catalog}

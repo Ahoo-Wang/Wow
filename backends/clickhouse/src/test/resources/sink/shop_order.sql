@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_events`
     `operator_id` String CODEC(ZSTD(1)),
     `operator_tenant_id` String CODEC(ZSTD(1)),
     `operator_acted_elsewhere` Bool,
-    `events` Array(Tuple(name LowCardinality(String), revision UInt32, payload String)) CODEC(ZSTD(1)),
+    `events` Array(Tuple(name LowCardinality(String), revision UInt32, body String)) CODEC(ZSTD(1)),
     `state` String CODEC(ZSTD(1)),
     `state_fingerprint` String CODEC(ZSTD(1)),
     `state_numbers` Map(String, String) CODEC(ZSTD(1))
@@ -103,7 +103,7 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_events`
     `sequence` UInt32,
     `event_name` LowCardinality(String),
     `event_revision` UInt32,
-    `payload` String CODEC(ZSTD(1)),
+    `body` String CODEC(ZSTD(1)),
     `command_id` String CODEC(ZSTD(1)),
     `request_id` String CODEC(ZSTD(1)),
     `command_type` LowCardinality(String),
@@ -125,7 +125,7 @@ FROM `default`.`shop_order_state_events`)
 COMMENT 'wow-sink-format:1';
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS `default`.`shop_order_events_mv` TO `default`.`shop_order_events` AS
-(SELECT id, tenant_id, aggregate_id, version, toUInt32(sequence) AS sequence, event.name AS event_name, event.revision AS event_revision, event.payload AS payload, command_id, request_id, command_type, commit_time, owner_id, space_id, correlation_id, causation_id
+(SELECT id, tenant_id, aggregate_id, version, toUInt32(sequence) AS sequence, event.name AS event_name, event.revision AS event_revision, event.body AS body, command_id, request_id, command_type, commit_time, owner_id, space_id, correlation_id, causation_id
 FROM `default`.`shop_order_state_events`
 ARRAY JOIN events AS event, arrayEnumerate(events) AS sequence)
 COMMENT 'wow-sink-format:1';

@@ -94,8 +94,8 @@ class MongoEventQueryStorage @JvmOverloads constructor(
  * A stream document `MongoEventLog` writes, as the `events` model reads it: each system field
  * of a stream a top-level field under its stored name ([PHYSICAL]), the operator the document `{id, tenantId,
  * actedElsewhere}` or absent, the access attributes the document `access` or absent when not stamped,
- * and the events the array `events`, each `{name, revision, payload}`, whose
- * `payload` a record names `body`. The position, causation, headers and transport are never part of a record.
+ * and the events the array `events`, each `{name, revision, body}`, as a record names them. The position, causation,
+ * headers and transport are never part of a record.
  */
 internal object MongoEventDocuments : MongoQueryDocuments {
     /** The stored name of each top-level field of a stream record, in the record's order. */

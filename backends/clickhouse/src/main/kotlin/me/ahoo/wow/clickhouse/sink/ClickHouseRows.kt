@@ -41,7 +41,7 @@ import java.time.format.DateTimeFormatter
  * | `correlation_id`, `causation_id` | the causation, empty when none |
  * | `headers` | as they are; in the history only |
  * | `operator_id`, `operator_tenant_id`, `operator_acted_elsewhere` | the operator; empty and false when none |
- * | `events` | each event's `(name, revision, payload)`, the payload as JSON text; in the history only |
+ * | `events` | each event's `(name, revision, body)`, the body as JSON text; in the history only |
  * | `state`, `state_fingerprint` | the state as JSON text and its schema's fingerprint; empty without the state |
  * | `state_numbers` | the exact text of each top-level number of the state, which `_state_flat` reads decimals from |
  *
@@ -79,7 +79,7 @@ internal object ClickHouseRows {
                     addObject()
                         .put("name", event.name)
                         .put("revision", event.revision)
-                        .put("payload", textOf(event))
+                        .put("body", textOf(event))
                 }
             }
         }
@@ -100,7 +100,7 @@ internal object ClickHouseRows {
 
     private fun textOf(node: JsonNode): String = WowJson.mapper.writeValueAsString(node)
 
-    /** [event]'s payload as the codec's text it was made from, or its tree written. */
+    /** [event]'s body as the codec's text it was made from, or its tree written. */
     private fun textOf(event: StateEventPayload): String = event.payloadText ?: textOf(event.payload)
 
     /** [state]'s state as the codec's text it was made from, or its tree written. */
