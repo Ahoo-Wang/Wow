@@ -34,9 +34,9 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
 /**
- * How a context stamps the histories ([AccessStamping], [AccessWalking]): at most [batch] streams in one stamp, so one
- * long history is written in statements of a bounded size, each by the version key; the last stamped attributes of at
- * most [capacity] aggregates, which spare the follower a read of the previous stream; and the walks, [walkBatch]
+ * How a context stamps the histories ([AccessStamping], [AccessWalking]): at most [stampBatch] streams in one stamp, so
+ * one long history is written in statements of a bounded size, each by the version key; the last stamped attributes of
+ * at most [capacity] aggregates, which spare the follower a read of the previous stream; and the walks, [walkBatch]
  * aggregates a page at most, at most [walkRate] a second and at most [walkShare] of the time, run every [interval]
  * under a lease of [leaseTtl], each node a member of its access schema of each type for [memberTtl] after its last run.
  * The host configures them (`wow.access.*`).
@@ -44,7 +44,7 @@ import kotlin.time.TimeSource
  * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal to Wow.
  */
 class AccessStampOptions @InternalWowApi constructor(
-    val batch: Int = DEFAULT_BATCH,
+    val stampBatch: Int = DEFAULT_STAMP_BATCH,
     val capacity: Int = DEFAULT_CAPACITY,
     val walkBatch: Int = DEFAULT_WALK_BATCH,
     val walkRate: Int = DEFAULT_WALK_RATE,
@@ -59,7 +59,7 @@ class AccessStampOptions @InternalWowApi constructor(
     val memberTtl: Duration = DEFAULT_TTL,
 ) {
     init {
-        require(batch >= 1) { "A stamp writes at least one stream." }
+        require(stampBatch >= 1) { "A stamp writes at least one stream." }
         require(capacity >= 1) { "The stamping remembers at least one aggregate." }
         require(walkBatch >= 1) { "A walk stamps at least one aggregate a page." }
         require(walkRate >= 1) { "A walk stamps at least one aggregate a second." }
@@ -75,15 +75,15 @@ class AccessStampOptions @InternalWowApi constructor(
     override fun hashCode(): Int = valueFields().hashCode()
 
     override fun toString(): String =
-        "AccessStampOptions(batch=$batch, capacity=$capacity, walkBatch=$walkBatch, walkRate=$walkRate, " +
+        "AccessStampOptions(stampBatch=$stampBatch, capacity=$capacity, walkBatch=$walkBatch, walkRate=$walkRate, " +
             "walkShare=$walkShare, interval=$interval, leaseTtl=$leaseTtl, memberTtl=$memberTtl)"
 
     private fun valueFields(): List<Any> =
-        listOf(batch, capacity, walkBatch, walkRate, walkShare, interval, leaseTtl, memberTtl)
+        listOf(stampBatch, capacity, walkBatch, walkRate, walkShare, interval, leaseTtl, memberTtl)
 
     companion object {
         /** The most streams one stamp writes by default. */
-        const val DEFAULT_BATCH: Int = 1_000
+        const val DEFAULT_STAMP_BATCH: Int = 1_000
 
         /** The aggregates whose last attributes the stamping remembers by default. */
         const val DEFAULT_CAPACITY: Int = 100_000
@@ -110,8 +110,8 @@ class AccessStampOptions @InternalWowApi constructor(
  * its current ones. The kernel stamps each commit with the attributes after it ([AccessValues.ofStream]); when a
  * commit changed them (its attributes differ from those of the stream before it), this subscription stamps them over
  * every earlier stream of the aggregate ([AccessStamps.stamp]), as of the commit's version, in stamps of at most
- * [AccessStampOptions.batch] streams. So an events query authorizes an aggregate's whole history by what it is now,
- * within the subscription's lag.
+ * [AccessStampOptions.stampBatch] streams. So an events query authorizes an aggregate's whole history by what it is
+ * now, within the subscription's lag.
  *
  * - **Every type**: the built-in owner and space are among the attributes, and any aggregate's scope can be
  *   transferred, so it follows every type of the context, from the beginning of the log.
@@ -179,7 +179,7 @@ class AccessStamping(
                 ?: kernel.streamAt(ref, version - 1)?.access
             if (before != access) {
                 val started = time.markNow()
-                val written = stamps.stampIn(ref, access, version, 1, version, options.batch)
+                val written = stamps.stampIn(ref, access, version, 1, version, options.stampBatch)
                 val millis = started.elapsedNow().inWholeMilliseconds
                 observer.observed(ObservedEvent.AccessStamped(ref.type, Cause.CHANGE, written, millis))
                 logger.debug { "Stamped the access attributes of $ref@$version over $written streams before it." }

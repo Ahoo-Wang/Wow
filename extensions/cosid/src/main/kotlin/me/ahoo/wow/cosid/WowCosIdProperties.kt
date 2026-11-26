@@ -20,7 +20,7 @@ import me.ahoo.cosid.runtime.RuntimeSpec
  * from. The module imports no Spring Boot, so [WowCosIdAutoConfiguration] reads its key from Spring's
  * `Environment`, falling back to the default here; the host knows the key from the metadata this module ships.
  */
-class CosIdProperties {
+class WowCosIdProperties {
     /**
      * The CosId generator, by its name in `cosid.generators`, of the aggregate types that
      * `wow.aggregates.[<context>.<aggregate>].id-generator` does not name and that have no CosId generator named after

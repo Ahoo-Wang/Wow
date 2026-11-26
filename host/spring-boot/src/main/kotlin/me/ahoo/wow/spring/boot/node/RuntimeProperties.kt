@@ -67,7 +67,7 @@ class ClusterProperties {
      * The forwards one node may have outstanding with another; one more is refused busy (`wow.command.busy`), not run
      * here.
      */
-    var maxInFlightPerNode: Int = DEFAULT_CLUSTER.maxInFlightPerPeer
+    var maxInFlightPerNode: Int = DEFAULT_CLUSTER.maxInFlightPerNode
 
     /** How long a hand-off of a partition waits for its commands in flight before it moves on. */
     var drainTimeout: Duration = DEFAULT_CLUSTER.drainTimeout.toJavaDuration()
@@ -98,7 +98,7 @@ class ClusterProperties {
         reconcileInterval = reconcileInterval.toKotlinDuration(),
         routeRefreshInterval = routeRefreshInterval.toKotlinDuration(),
         forwardTimeout = (forwardTimeout ?: defaultWaitTimeout).toKotlinDuration(),
-        maxInFlightPerPeer = maxInFlightPerNode,
+        maxInFlightPerNode = maxInFlightPerNode,
         drainTimeout = drainTimeout.toKotlinDuration(),
         leaseParallelism = leaseParallelism,
         reconcileTimeout = reconcileTimeout.toKotlinDuration(),

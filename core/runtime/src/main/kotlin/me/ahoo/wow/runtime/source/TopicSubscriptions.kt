@@ -83,7 +83,7 @@ import kotlin.time.Duration
  * publisher has not started, and the lease group is joined then ([awaitStarted]). [stop] hands the held partitions
  * off, saving the checkpoints, and leaves the group.
  *
- * **Partitions added** while it reads: every [partitionRefresh] it reads the topic's partitions
+ * **Partitions added** while it reads: every [partitionRefreshInterval] it reads the topic's partitions
  * again, and when there are more, hands the held ones off, saving their checkpoints, saves a first checkpoint at the
  * beginning of each added partition for every subscription, where none is saved yet, and joins the group again over
  * all of them, so the new ones are read too, from their beginning, whatever each subscription's start says: a start
@@ -115,7 +115,7 @@ class TopicSubscriptions internal constructor(
     /** Hears what the parked entries come to. */
     private val notifier: ParkedNotifier = ParkedNotifier.NONE,
     /** How often the topic's partitions are read again, for those added; never when infinite. */
-    private val partitionRefresh: Duration = Duration.INFINITE,
+    private val partitionRefreshInterval: Duration = Duration.INFINITE,
     /** Sees each message its subscriptions consume. */
     private val observer: Observer = Observer.NONE,
     /** How its subscriptions classify their handlers' failures. */
@@ -147,7 +147,7 @@ class TopicSubscriptions internal constructor(
         context: CoroutineContext = Dispatchers.Default,
         signals: SignalSender = SignalSender.NONE,
         notifier: ParkedNotifier = ParkedNotifier.NONE,
-        partitionRefresh: Duration = Duration.INFINITE,
+        partitionRefreshInterval: Duration = Duration.INFINITE,
         observer: Observer = Observer.NONE,
         classification: FailureClassification = RuntimeFailures.DEFAULT,
         membership: ServiceMembership? = null,
@@ -170,7 +170,7 @@ class TopicSubscriptions internal constructor(
         signals,
         { partitions -> TopicEntries(topic, source, partitions, observer) },
         notifier,
-        partitionRefresh,
+        partitionRefreshInterval,
         observer,
         classification,
         membership,
@@ -260,7 +260,7 @@ class TopicSubscriptions internal constructor(
             val run = join(partitions.size)
             deferred.complete(run)
             logger.info { "$node reads topic $topic (${partitions.size} partitions) for ${subscriptions.size} subscriptions." }
-            if (partitionRefresh.isFinite()) {
+            if (partitionRefreshInterval.isFinite()) {
                 launchLoop("partition refresh of $topic") { refresh() }
             }
         }
@@ -326,14 +326,14 @@ class TopicSubscriptions internal constructor(
     }
 
     /**
-     * One round of the partitions' refresh: reads the topic's partitions after [partitionRefresh], and joins again over
-     * them when there are more: the held ones are handed off, each subscription given a first checkpoint at the
-     * beginning of each added partition ([startAddedAtBeginning]), then the group joined over all of them, retrying as
-     * [start] does until it succeeds.
+     * One round of the partitions' refresh: reads the topic's partitions after [partitionRefreshInterval], and joins
+     * again over them when there are more: the held ones are handed off, each subscription given a first checkpoint at
+     * the beginning of each added partition ([startAddedAtBeginning]), then the group joined over all of them, retrying
+     * as [start] does until it succeeds.
      */
     @Suppress("TooGenericExceptionCaught") // A refresh that fails is tried again at the next one.
     private suspend fun refresh() {
-        delay(partitionRefresh)
+        delay(partitionRefreshInterval)
         val current = checkNotNull(running)
         val count = try {
             source.partitions(topic).size
@@ -342,7 +342,7 @@ class TopicSubscriptions internal constructor(
         } catch (failure: Exception) {
             logger.warn(
                 failure
-            ) { "$node failed to read the partitions of $topic; it tries again in $partitionRefresh." }
+            ) { "$node failed to read the partitions of $topic; it tries again in $partitionRefreshInterval." }
             return
         }
         if (count > current.partitions) {

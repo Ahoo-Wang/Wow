@@ -51,9 +51,9 @@ class BenchTuning(
                 mergeMax = callCap ?: queue.mergeMax,
             ),
             snapshots = SnapshotOptions(
-                interval = snapshots.interval,
-                batch = snapshots.batch,
-                pages = snapshots.pages,
+                maintenanceInterval = snapshots.maintenanceInterval,
+                rebuildPageSize = snapshots.rebuildPageSize,
+                rebuildMaxPages = snapshots.rebuildMaxPages,
                 leaseTtl = snapshots.leaseTtl,
                 memberTtl = snapshots.memberTtl,
                 writeBatch = snapshots.writeBatch,

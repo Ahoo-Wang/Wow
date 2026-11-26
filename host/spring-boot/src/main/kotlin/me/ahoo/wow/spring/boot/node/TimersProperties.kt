@@ -65,7 +65,7 @@ class TimersProperties {
      * How long the claim on a timer being sent holds: when its node dies, the next owner of the partition sends
      * the timer again after it. Longer than a send takes.
      */
-    var claimTtl: Duration = DEFAULT_TIMERS.claimTimeout.toJavaDuration()
+    var claimTtl: Duration = DEFAULT_TIMERS.claimTtl.toJavaDuration()
 
     /**
      * How long a scheduled command waits in its target for its due time on the target node's clock; one that
@@ -80,7 +80,7 @@ class TimersProperties {
         expiresAfter = expiresAfter?.takeUnless { it.isZero }?.toKotlinDuration(),
         parallelism = parallelism,
         maxFireRate = maxFireRate?.takeUnless { it == 0.0 },
-        claimTimeout = claimTtl.toKotlinDuration(),
+        claimTtl = claimTtl.toKotlinDuration(),
         maxEarlyWait = maxEarlyWait.toKotlinDuration(),
     )
 }

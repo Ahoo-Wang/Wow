@@ -131,23 +131,8 @@ topic 传输和 Sink 的发现方式与存储相同。`TransportProvider`（`:sp
        override val facets: List<Class<*>> = listOf(StoreQueries::class.java, StorePool::class.java)
 
        /** PostgreSQL's jsonb refuses a NUL character. */
-       override fun refused(stream: EventStreamRecord): EventStreamRecord = with(stream) {
-           EventStreamRecord.of(
-               ref,
-               version,
-               commandId,
-               requestId,
-               commandType,
-               commitTime,
-               listOf(EventRecord.of("x.aggregate.Named", 1, """{"name":"a\u0000b"}""")),
-               scope,
-               causation,
-               headers,
-               operator,
-               access,
-               accessVersion,
-           )
-       }
+       override fun refused(stream: EventStreamRecord): EventStreamRecord =
+           stream.withEvents(listOf(EventRecord.of("x.aggregate.Named", 1, """{"name":"a\u0000b"}""")))
    }
    ```
 
@@ -182,23 +167,8 @@ topic 传输和 Sink 的发现方式与存储相同。`TransportProvider`（`:sp
            (log as PostgresEventLog).snapshotTailsWith(snapshots as PostgresSnapshotStore)
 
        /** A `\u0000` in a payload string: PostgreSQL's `jsonb` does not take it. */
-       override fun refused(stream: EventStreamRecord): EventStreamRecord = with(stream) {
-           EventStreamRecord.of(
-               ref,
-               version,
-               commandId,
-               requestId,
-               commandType,
-               commitTime,
-               listOf(EventRecord.of("x.aggregate.Named", 1, """{"name":"a\u0000b"}""")),
-               scope,
-               causation,
-               headers,
-               operator,
-               access,
-               accessVersion,
-           )
-       }
+       override fun refused(stream: EventStreamRecord): EventStreamRecord =
+           stream.withEvents(listOf(EventRecord.of("x.aggregate.Named", 1, """{"name":"a\u0000b"}""")))
    }
    ```
 

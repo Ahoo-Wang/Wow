@@ -108,7 +108,7 @@ class KafkaSourcedSubscriptionTest {
     private suspend fun start(
         node: String,
         topic: String,
-        partitionRefresh: Duration = Duration.INFINITE,
+        partitionRefreshInterval: Duration = Duration.INFINITE,
     ): TopicSubscriptions {
         val board = Subscription(BOARD, SubscriptionFilter(ORDER.context)) { entry ->
             failing[entry.ref]?.let { from ->
@@ -139,7 +139,7 @@ class KafkaSourcedSubscriptionTest {
                 ),
             ),
             cluster = CLUSTER,
-            partitionRefresh = partitionRefresh,
+            partitionRefreshInterval = partitionRefreshInterval,
         ).also {
             started += it to source
             it.start()
@@ -208,7 +208,7 @@ class KafkaSourcedSubscriptionTest {
     @Test
     fun `partitions added to the topic while it is read should be read too (decision D168)`(): Unit = runBlocking {
         val topic = newTopic(2)
-        val node = start("node-1", topic, partitionRefresh = 200.milliseconds)
+        val node = start("node-1", topic, partitionRefreshInterval = 200.milliseconds)
         val refs = (0 until 10).map { ORDER.ref("t", "o-$it") }
         publish(topic, *refs.map { record(it, 1) }.toTypedArray())
         eventually { handled.size == refs.size }

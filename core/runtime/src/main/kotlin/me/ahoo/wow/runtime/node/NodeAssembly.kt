@@ -469,7 +469,7 @@ internal class NodeAssembly(
             ids = admission.ids.global,
             context = wiring.contextOf(Component.LEDGER, publishing.context),
             available = available,
-            availability = topics?.partitionRefresh ?: publishing.interval,
+            availability = topics?.partitionRefreshInterval ?: publishing.interval,
         )
     }
 

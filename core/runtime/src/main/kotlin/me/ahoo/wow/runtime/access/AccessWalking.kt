@@ -294,8 +294,8 @@ class AccessWalking(
         }
         val (access, state) = (if (walked) replaying(ref, replay) else replay()) ?: return null
         val head = streams.last().version
-        val written = stamps.stampIn(ref, access, head, 1, head + 1, options.batch)
-        targets[ref.type]?.forEach { it.stampIn(ref, access, head, 1, head + 1, options.batch) }
+        val written = stamps.stampIn(ref, access, head, 1, head + 1, options.stampBatch)
+        targets[ref.type]?.forEach { it.stampIn(ref, access, head, 1, head + 1, options.stampBatch) }
         snapshots.rewrite(ref, streams, state)
         val millis = started.elapsedNow().inWholeMilliseconds
         observer.observed(ObservedEvent.AccessStamped(ref.type, cause, written, millis))

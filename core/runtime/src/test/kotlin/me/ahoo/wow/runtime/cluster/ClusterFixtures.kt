@@ -99,7 +99,7 @@ const val DECIDED_BY = "decidedBy"
 /** Cluster timings short enough for tests, keeping the ratios of the defaults. */
 fun fastOptions(
     forwardTimeout: Duration = 1.seconds,
-    maxInFlightPerPeer: Int = 1_024,
+    maxInFlightPerNode: Int = 1_024,
     drainTimeout: Duration = 5.seconds,
     leaseParallelism: Int = ClusterOptions().leaseParallelism,
     reconcileTimeout: Duration = ClusterOptions().reconcileTimeout,
@@ -111,7 +111,7 @@ fun fastOptions(
     reconcileInterval = 100.milliseconds,
     routeRefreshInterval = 100.milliseconds,
     forwardTimeout = forwardTimeout,
-    maxInFlightPerPeer = maxInFlightPerPeer,
+    maxInFlightPerNode = maxInFlightPerNode,
     drainTimeout = drainTimeout,
     leaseParallelism = leaseParallelism,
     reconcileTimeout = reconcileTimeout,
