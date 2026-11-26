@@ -25,7 +25,7 @@ Add the module, the starter of your registry, and the Spring Cloud BOM of the tr
 dependencies {
     implementation(platform("org.springframework.cloud:spring-cloud-dependencies:2026.0.0"))
     implementation("me.ahoo.wow:wow-spring-cloud")
-    implementation("me.ahoo.cosky:cosky-spring-boot-starter:8.0.0-rc.1")
+    implementation("me.ahoo.cosky:cosky-spring-boot-starter:8.0.0-rc.3")
 }
 ```
 

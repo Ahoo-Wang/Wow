@@ -11,7 +11,7 @@ dependencies {
     implementation(platform("org.springframework.cloud:spring-cloud-dependencies:2026.0.0"))
     implementation("me.ahoo.wow:wow-spring-cloud")
     // The registry's starter: CoSky here, the registry its tests run on.
-    implementation("me.ahoo.cosky:cosky-spring-boot-starter:8.0.0-rc.1")
+    implementation("me.ahoo.cosky:cosky-spring-boot-starter:8.0.0-rc.3")
 }
 ```
 

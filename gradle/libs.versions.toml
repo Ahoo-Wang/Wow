@@ -7,7 +7,7 @@ cocache = "8.2.0"
 spring-cloud = "2026.0.0"
 cosec = "8.0.0"
 # The worked example of wow-spring-cloud's registry (D396, D461), on its integration test class path only
-cosky = "8.0.0-rc.1"
+cosky = "8.0.0-rc.3"
 testcontainers = "2.0.5"
 opentelemetry = "1.68.0"
 opentelemetry-instrumentation = "2.34.0"
