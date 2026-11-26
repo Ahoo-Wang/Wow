@@ -153,6 +153,26 @@ number is written as its digits, whatever its size; a fraction, a boolean or a t
 {{- end -}}
 {{- end -}}
 
+{{/*
+"true" when the entry of networkPolicy.public.from given names one namespace: it has no namespaceSelector (the
+release's own namespace), or its namespaceSelector requires kubernetes.io/metadata.name to be a name it gives, in
+matchLabels or as an In expression; empty otherwise.
+*/}}
+{{- define "wow-service.namesNamespace" -}}
+{{- if not (hasKey . "namespaceSelector") -}}
+true
+{{- else if kindIs "map" .namespaceSelector -}}
+{{- $named := false -}}
+{{- with .namespaceSelector.matchLabels -}}
+{{- if get . "kubernetes.io/metadata.name" -}}{{- $named = true -}}{{- end -}}
+{{- end -}}
+{{- range .namespaceSelector.matchExpressions | default list -}}
+{{- if and (eq .key "kubernetes.io/metadata.name") (eq .operator "In") .values -}}{{- $named = true -}}{{- end -}}
+{{- end -}}
+{{- if $named -}}true{{- end -}}
+{{- end -}}
+{{- end -}}
+
 {{/* Refuses values that cannot work together; each template that renders them includes it, so one rendered alone (helm template -s) refuses them too. */}}
 {{- define "wow-service.validate" -}}
 {{- if and .Values.autoscaling.hpa.enabled .Values.autoscaling.keda.enabled -}}
@@ -223,15 +243,34 @@ second key of the same name, which a strict YAML reader refuses.
 {{- fail "networkPolicy.public.from is empty, which would admit every pod to the public port: name the gateway's pods, or disable networkPolicy" -}}
 {{- end -}}
 {{- /*
+The default from names the gateway's namespace as "", for you to name: a policy that selects the namespace "" admits no
+pod at all, so it is refused whether or not the chart makes the gateway-only statement.
+*/ -}}
+{{- if .Values.networkPolicy.enabled -}}
+{{- range $index, $from := .Values.networkPolicy.public.from -}}
+{{- $labels := (($from.namespaceSelector | default dict).matchLabels) | default dict -}}
+{{- if and (hasKey $labels "kubernetes.io/metadata.name") (not (get $labels "kubernetes.io/metadata.name")) -}}
+{{- fail (printf "networkPolicy.public.from[%d] names the gateway's namespace as \"\", which admits no pod: set namespaceSelector.matchLabels.kubernetes.io/metadata.name to the namespace your gateway runs in, or leave the namespaceSelector out for the release's own namespace" $index) -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- /*
 The gateway-only statement (#6935) holds only while every entry of from names pods by their labels: one with an empty
 or no podSelector admits every pod of its namespaces, a namespaceSelector alone those of every namespace it selects, and
-an ipBlock whatever has an address in it; each of them can then claim any identity.
+an ipBlock whatever has an address in it; each of them can then claim any identity. It holds only while every entry
+names its namespace too: pod labels are their namespace's owner's to set, so a rule by labels in any namespace, or in
+the namespaces some other label selects, lets the owner of each such namespace pass as the gateway. An entry names its
+namespace by kubernetes.io/metadata.name, the label Kubernetes sets to the namespace's name, in its namespaceSelector's
+matchLabels or as an In expression; an entry without a namespaceSelector selects the pods of the release's own.
 */ -}}
 {{- if and .Values.networkPolicy.enabled .Values.networkPolicy.public.onlyGateway (not (hasKey .Values.config "COSEC_PIPELINE_IDENTITY_ONLYGATEWAYCANREACH")) -}}
 {{- range $index, $from := .Values.networkPolicy.public.from -}}
 {{- $pods := $from.podSelector | default dict -}}
 {{- if not (or $pods.matchLabels $pods.matchExpressions) -}}
 {{- fail (printf "networkPolicy.public.from[%d] names no pods by their labels, so it admits every pod it reaches: the statement that only the gateway reaches the public port (networkPolicy.public.onlyGateway) would not hold, and each such pod could claim any identity; name the gateway's pods with a podSelector, or set onlyGateway: false" $index) -}}
+{{- end -}}
+{{- if not (include "wow-service.namesNamespace" $from) -}}
+{{- fail (printf "networkPolicy.public.from[%d] names no namespace, so the owner of any namespace it selects could label a pod as the gateway's: the statement that only the gateway reaches the public port (networkPolicy.public.onlyGateway) would not hold; name the gateway's namespace with namespaceSelector.matchLabels.kubernetes.io/metadata.name, leave the namespaceSelector out for the release's own namespace, or set onlyGateway: false" $index) -}}
 {{- end -}}
 {{- end -}}
 {{- end -}}

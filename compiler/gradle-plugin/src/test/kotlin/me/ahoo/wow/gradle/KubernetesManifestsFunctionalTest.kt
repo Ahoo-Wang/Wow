@@ -68,7 +68,7 @@ class KubernetesManifestsFunctionalTest {
         )
         serverBuild = File(root, "a-server/build.gradle.kts").readText()
         server()
-        values("image:\n  repository: a-server\n  tag: \"1.0.0\"\nreplicas: 2\npartOf: shop\n")
+        values("image:\n  repository: a-server\n  tag: \"1.0.0\"\nreplicas: 2\npartOf: shop\n$GATEWAY")
     }
 
     private fun values(text: String) = ContextsFixture.write(root, "a-server/deploy/values.yaml", text)
@@ -126,7 +126,7 @@ class KubernetesManifestsFunctionalTest {
 
     @Test
     fun `swapping two values files of one name should render again, and the other file win`() {
-        ContextsFixture.write(root, "a-server/deploy/shop/values.yaml", "image:\n  repository: a-server\nreplicas: 3\n")
+        ContextsFixture.write(root, "a-server/deploy/shop/values.yaml", "image:\n  repository: a-server\nreplicas: 3\n$GATEWAY")
         ContextsFixture.write(root, "a-server/deploy/shop/prod/values.yaml", "replicas: 5\n")
         val deployment = File(output, "deployment-a-server.yaml")
         try {
@@ -163,7 +163,7 @@ class KubernetesManifestsFunctionalTest {
                 "additional properties 'replicaz' not allowed",
             )
         } finally {
-            values("image:\n  repository: a-server\n  tag: \"1.0.0\"\nreplicas: 2\npartOf: shop\n")
+            values("image:\n  repository: a-server\n  tag: \"1.0.0\"\nreplicas: 2\npartOf: shop\n$GATEWAY")
         }
     }
 
@@ -192,5 +192,12 @@ class KubernetesManifestsFunctionalTest {
         } finally {
             server()
         }
+    }
+
+    private companion object {
+        /** The gateway's pods in the release's own namespace: the chart renders only once their namespace is named. */
+        const val GATEWAY: String =
+            "networkPolicy:\n  public:\n    from:\n      - podSelector:\n          matchLabels:\n" +
+                "            app.kubernetes.io/component: gateway\n"
     }
 }

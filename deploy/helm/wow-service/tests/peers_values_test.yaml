@@ -11,6 +11,15 @@ release:
 values:
   - values/generated-peers.yaml
   - values/own-peers.yaml
+set:
+  # The gateway's pods in the gateway's namespace, named: the chart renders nothing without it.
+  networkPolicy.public.from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: gateway
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/component: gateway
 tests:
   - it: admits every peer the code calls to the internal port, the one placed in payments there
     documentSelector:
