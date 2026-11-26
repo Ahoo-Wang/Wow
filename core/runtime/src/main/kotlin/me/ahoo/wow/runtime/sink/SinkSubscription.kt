@@ -17,6 +17,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.StartFrom
 import me.ahoo.wow.runtime.health.NodeFatals
@@ -51,6 +52,10 @@ import me.ahoo.wow.spi.state.StateEventRecord
  *   a record that holds none, and a commit that only changes schedules with its schedule events, as a commit that
  *   holds others is, so an aggregate's versions on its state topic are contiguous from its first record. A store's
  *   sink writes nothing for the first and does not take the second: its readers query it, they follow no versions.
+ * - **Published** ([published], the transport sink's): the record goes to other contexts on the state topic, so its
+ *   headers leave out the client's address and `User-Agent` ([RequestFacts.REMOTE_IP], [RequestFacts.USER_AGENT]),
+ *   personal data that stays with the service the request reached and its log; the application ([RequestFacts.APP_ID])
+ *   and the host's request facts go on. A store's sink, the service's own, keeps the log's headers.
  * - **The state**: read through the context's shared decoder ([EntryDecoder.stateEvents]) by [reader], whose name
  *   must be [name], so the sink is one of the context's state consumers: the view the executor took when the stream
  *   committed, else the nearest view or snapshot evolved with the log's tail, else the log replayed. It is mapped to
@@ -82,6 +87,7 @@ internal class SinkSubscription(
     private val masks: RecordMasks?,
     startFrom: StartFrom = StartFrom.BEGINNING,
     private val everyCommit: Boolean = false,
+    private val published: Boolean = false,
 ) {
     private val model: AggregateModel<*> = reader.modelOf(type)
     private val codec = reader.codec
@@ -191,7 +197,7 @@ internal class SinkSubscription(
             deleted = view.deleted,
             access = access,
             causation = stream.causation,
-            headers = stream.headers,
+            headers = if (published) stream.headers - CLIENT_FACTS else stream.headers,
             operator = stream.operator,
             transport = published(entry.transport, currentCoroutineContext().trace),
             imported = entry.imported,
@@ -255,4 +261,9 @@ internal class SinkSubscription(
     }
 
     override fun toString(): String = "SinkSubscription($name)"
+
+    private companion object {
+        /** The request facts of where a request came from, which a published record leaves out: the client's. */
+        val CLIENT_FACTS: Set<String> = RequestFacts.STANDARD - RequestFacts.PROPAGATED
+    }
 }

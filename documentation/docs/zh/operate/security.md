@@ -429,7 +429,7 @@ kafka-acls.sh --bootstrap-server kafka:9092 --add --allow-principal User:ops --o
 
 - 尽可能不让个人数据进入事件，例如姓名、地址、电话号码和关于某个人的自由文本。把它们保存在可以删除的读模型里，例如投影的表或另一个服务，并在事件里放一个不透明的 ID。
 - 决定函数需要个人数据时，让它通过领域服务读取，而不是把数据带在事件里。
-- 提交的操作人记录为不透明的 ID。每次提交都会记录请求事实：已认证的应用，以及对公开端口上的请求，客户端的远程地址和 User-Agent，即 `remote_ip` 和 `user_agent`。IP 地址和 User-Agent 属于个人数据，一旦写入就无法删除。把事件日志以及显示这些事实的服务日志都当作含有个人数据的数据来对待，并据此设置日志的保留期。`wow.http.client-facts.enabled`（默认 `true`）可以关闭地址和 User-Agent 的记录：设为 `false` 时，公开端口两者都不记录。不要再往 `wow.http.request-facts` 里加其他个人数据。CoSec 的设备 ID `CoSec-Device-Id`（CoSec 的 TypeScript 客户端从每个浏览器发送）就是这样的数据：只有应用把它列在那里时 Wow 才记录它。
+- 提交的操作人记录为不透明的 ID。每次提交都会记录请求事实：已认证的应用，以及对公开端口上的请求，客户端的远程地址和 User-Agent，即 `remote_ip` 和 `user_agent`。IP 地址和 User-Agent 属于个人数据，一旦写入就无法删除。它们留在请求到达的那个服务里：服务发布到状态主题、供其他上下文读取的记录两者都不带，`app_id` 和宿主的请求事实照常发布。把事件日志以及显示这些事实的服务日志都当作含有个人数据的数据来对待，并据此设置日志的保留期。`wow.http.client-facts.enabled`（默认 `true`）可以关闭地址和 User-Agent 的记录：设为 `false` 时，公开端口两者都不记录。不要再往 `wow.http.request-facts` 里加其他个人数据。CoSec 的设备 ID `CoSec-Device-Id`（CoSec 的 TypeScript 客户端从每个浏览器发送）就是这样的数据：只有应用把它列在那里时 Wow 才记录它。
 - 快照、数仓和检索索引都从日志派生：在那里删除一行，并不会删除事实。
 
 ## 租户 {#tenants}

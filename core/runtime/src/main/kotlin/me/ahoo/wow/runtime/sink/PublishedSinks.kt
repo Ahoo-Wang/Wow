@@ -80,6 +80,8 @@ class PublishedSinks @InternalWowApi constructor(
                     masks = masks?.let { RecordMasks(it.masks, type, it.revealsDisplay(stream)) },
                     // The transport sink publishes every commit: an aggregate's versions on its topic are contiguous.
                     everyCommit = processor == TRANSPORT_SINK,
+                    // And its records reach other contexts, without the client's address and User-Agent.
+                    published = processor == TRANSPORT_SINK,
                 ).subscription
             }
 
