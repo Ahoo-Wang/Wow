@@ -304,7 +304,7 @@ internal class ErrorResponses(
         /** A body larger than the server takes in memory (`spring.http.codecs.max-in-memory-size`). */
         val CONTENT_TOO_LARGE: Pair<Int, String> = 413 to "Content Too Large: the body is larger than this server takes."
 
-        /** A body sent as another type than JSON. */
-        val UNSUPPORTED_MEDIA_TYPE: Pair<Int, String> = 415 to "Unsupported Media Type: the body is sent as application/json."
+        /** A body sent as another type than JSON, or with no Content-Type. */
+        val UNSUPPORTED_MEDIA_TYPE: Pair<Int, String> = 415 to "Unsupported Media Type: the body is sent with Content-Type application/json."
     }
 }

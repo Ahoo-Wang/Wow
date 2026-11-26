@@ -3944,7 +3944,7 @@
         }
       },
       "wow.dataset-query.415" : {
-        "description" : "Unsupported Media Type: the body is sent as application/json.",
+        "description" : "Unsupported Media Type: the body is sent with Content-Type application/json.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -4287,7 +4287,7 @@
         }
       },
       "eshop-ordering.command.415" : {
-        "description" : "Unsupported Media Type: the body is sent as application/json.",
+        "description" : "Unsupported Media Type: the body is sent with Content-Type application/json.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -4489,7 +4489,7 @@
         }
       },
       "wow.command.415" : {
-        "description" : "Unsupported Media Type: the body is sent as application/json.",
+        "description" : "Unsupported Media Type: the body is sent with Content-Type application/json.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -4764,7 +4764,7 @@
         }
       },
       "wow.query.415" : {
-        "description" : "Unsupported Media Type: the body is sent as application/json.",
+        "description" : "Unsupported Media Type: the body is sent with Content-Type application/json.",
         "content" : {
           "application/problem+json" : {
             "schema" : {

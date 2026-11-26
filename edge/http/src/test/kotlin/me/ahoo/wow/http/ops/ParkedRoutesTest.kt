@@ -108,11 +108,16 @@ class ParkedRoutesTest {
     private fun named(id: String, tenant: String = TENANT, subscription: String = KEY): String =
         """"subscription":"$subscription","context":"shop","aggregate":"cart","tenantId":"$tenant","id":"$id""""
 
-    private fun WebTestClient.post(path: String, body: String? = null, user: String? = "alice", json: Boolean = true) =
-        post().uri(path).headers {
-            if (user != null) it.set("X-User", user)
-            it.set("Content-Type", if (json) "application/json" else "text/plain")
-        }.let { if (body == null) it else it.bodyValue(body) }.answer()
+    private fun WebTestClient.post(
+        path: String,
+        body: String? = null,
+        user: String? = "alice",
+        json: Boolean = true,
+        untyped: Boolean = false,
+    ) = post().uri(path).headers {
+        if (user != null) it.set("X-User", user)
+        if (!untyped) it.set("Content-Type", if (json) "application/json" else "text/plain")
+    }.let { if (body == null) it else it.bodyValue(body.toByteArray()) }.answer()
 
     /** [action] on [id]'s entry, [members] beside the ones that name it. */
     private fun WebTestClient.act(
@@ -479,6 +484,8 @@ class ParkedRoutesTest {
         client.post(mark, "{").assertMalformed()
         val recoverable = """"recoverable":"recoverable""""
         client.post(mark, "{${named("a")},$recoverable}", json = false).status.assert().isEqualTo(415)
+        // D485 ⑪: a body with no Content-Type at all is no way past it.
+        client.post(mark, "{${named("a")},$recoverable}", untyped = true).status.assert().isEqualTo(415)
         client.act(OpsPaths.MARK_RECOVERABLE, "absent", recoverable).status.assert().isEqualTo(404)
         actions.map { it.second.type.name }.toSet().assert().containsExactly(OpsCommands.MARK_RECOVERABLE)
     }

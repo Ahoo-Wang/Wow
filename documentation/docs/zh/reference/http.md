@@ -80,7 +80,7 @@ outline: deep
 | 任何路由上的 `Wow-Call`（服务同步调用的请求头）：命令、查询、状态读取、服务路由 | `403 wow.auth.forbidden`，无论凭据如何：调用只在内部端口上接收 |
 | 任何路由上的 `Wow-Reveal`（服务读取对端 `DISPLAY` 值的请求头） | `403 wow.auth.forbidden`，无论凭据如何：公共端口上的读取是调用方的读取，`DISPLAY` 值会被掩码 |
 | 路径中的矩阵参数（`/shop/cart/c-1;x=1/add-item`），包括不带参数名的 `;`（`c-1;`、`c-1;=v`），内部端口的调用路由也一样 | `400 wow.request.malformed`：没有路由接收它们 |
-| 类型不是 `application/json` 或 `application/<name>+json` 的请求体，参数不计（`*/*`、`application/*`、`image/x+json`） | `415` |
+| 类型不是 `application/json` 或 `application/<name>+json` 的请求体，参数不计（`*/*`、`application/*`、`image/x+json`），或者根本没有 `Content-Type` 的请求体（`Content-Length` 大于零，或带 `Transfer-Encoding`），在命令、查询、服务路由与运营路由上，内部端口的调用与读取也是 | `415`：浏览器不经预检发送的跨站请求体只能是简单类型或不带类型。没有请求体的请求不需要 `Content-Type` |
 | [ID 规则](#aggregate-ids)拒绝的聚合 ID：含控制字符（`a%00b`）、两端有空白（`%20c-1`）、`.` 或 `..`、含 `/`、`;` 或 `\`（`a%2Fb`）、长于 256 个字符，或者 UTF-8 编码后长于 512 字节 | `400 wow.command.malformed`。Unicode ID（`%E8%B4%AD`）按原样接收：客户端会编码它发送的 ID。长到使请求行超过其上限的 ID 会先被拒绝：`414`（[路由之前](#server-refusals)） |
 | 状态读取上的空白 ID（`/shop/cart/%20/state`） | `400 wow.query.malformed` |
 | 状态读取或 trace 不接收的参数（`?verison=1`），或给出两次的参数（`?version=1&version=9`） | `400 wow.query.invalid`，违规项指出它 |

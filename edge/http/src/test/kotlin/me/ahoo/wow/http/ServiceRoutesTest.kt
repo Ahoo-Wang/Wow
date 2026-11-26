@@ -258,6 +258,12 @@ class ServiceRoutesTest {
             .bodyValue("""{"text":"hello"}""")
             .answer()
         plain.status.assert().isEqualTo(415)
+        // D485 ⑪: a body with no Content-Type at all is no way past it.
+        val untyped = node.client.post().uri("/$CONTEXT/notes").header("X-User", "alice")
+            .bodyValue("""{"text":"hello"}""".toByteArray())
+            .answer()
+        untyped.status.assert().isEqualTo(415)
+        untyped.body!!["detail"].asString().assert().contains("A route's body", "none was given")
         // A property given twice, or one the route's request does not have, is refused, naming it.
         val twice = node.post("/$CONTEXT/notes", """{"text":"a","text":"b"}""")
         twice.status.assert().isEqualTo(400)
