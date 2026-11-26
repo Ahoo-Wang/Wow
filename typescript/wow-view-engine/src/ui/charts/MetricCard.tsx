@@ -406,7 +406,7 @@ export function MetricCard({
   // one period or the whole range, and its sparkline is neither — the two
   // read as one span when nothing on the card tells them apart (audit P1-6).
   const span = period
-    ? period.partial
+    ? period.unfinished
       ? messages.label('label.chart.period.so-far', {
           period: headlineOf(period),
         })
@@ -447,7 +447,7 @@ export function MetricCard({
       >
         {figure}
       </span>
-      {period && !period.partial && (
+      {period && !period.unfinished && (
         <PeriodChange
           period={period}
           amountOf={amountOf}

@@ -170,7 +170,7 @@ export interface HeldCommandsInput extends Pick<
 
 /**
  * The ways into and out of a held view, as the controller offers them
- * (`WorkbenchController.create`, `drill`, `follow`, `back`, `toBoard`).
+ * (`WorkbenchController.create`, `drill`, `follow`, `back`, `toDashboard`).
  */
 export function useHeldCommands({
   engine,
@@ -327,7 +327,7 @@ export function useHeldCommands({
         ? null
         : (held.dashboardOrigin ?? null)
       : (handedHere?.from ?? null);
-  const toBoard = useCallback(() => {
+  const toDashboard = useCallback(() => {
     if (board) request(() => onNavigate?.(board.back));
   }, [board, request, onNavigate]);
 
@@ -339,7 +339,7 @@ export function useHeldCommands({
     follow: holdFrom,
     back,
     dashboardOrigin: board,
-    toBoard,
+    toDashboard,
   };
 }
 

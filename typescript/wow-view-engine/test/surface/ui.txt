@@ -8,8 +8,8 @@ value AnalysisTable
 type  AnalysisTableProps
 value AppliedBar
 type  AppliedBarProps
-value BUILT_IN_PRESETS
-type  BuiltInPreset
+value BUILTIN_PRESETS
+type  BuiltinPreset
 type  CellField
 type  CellSurface
 type  ChartImageSlot
@@ -47,7 +47,7 @@ value EmbeddedView
 type  EmbeddedViewProps
 type  EmptyWayOut
 type  ExportOffer
-type  ExportWindowProps
+type  ExportWindowOptions
 type  ExportedFile
 value FilterPanel
 type  FilterPanelProps
@@ -90,7 +90,7 @@ type  RecordPaginationProps
 type  RecordPaginationTable
 value RecordTable
 type  RecordTableProps
-type  RecordViewProps
+type  RecordViewOptions
 type  ReleasedPins
 type  RenderBoundaryName
 type  RenderFailure

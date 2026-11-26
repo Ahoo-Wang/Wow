@@ -28,7 +28,7 @@
  * is complete as well as kept; holds each preset to it; holds the reset rule
  * to the registry's preset layer; and holds both theming guides to their rendering
  * of it. It also holds the list of names a host can build a picker from,
- * `BUILT_IN_PRESETS`, to the files.
+ * `BUILTIN_PRESETS`, to the files.
  */
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
@@ -36,7 +36,7 @@ import { join } from 'node:path';
 import postcss from 'postcss';
 import { compile } from 'tailwindcss';
 import { describe, expect, it } from 'vitest';
-import { BUILT_IN_PRESETS } from '../src/ui/kit/presets';
+import { BUILTIN_PRESETS } from '../src/ui/kit/presets';
 import {
   declaredVariable,
   hostVariables,
@@ -362,7 +362,7 @@ describe('the reset rule', () => {
 
 describe('the presets a host can name', () => {
   it('are the files the index imports, in its order', () => {
-    expect([...BUILT_IN_PRESETS]).toEqual(
+    expect([...BUILTIN_PRESETS]).toEqual(
       presetSources().map(({ name }) => name),
     );
   });
@@ -372,6 +372,6 @@ describe('the presets a host can name', () => {
       .filter(file => file.endsWith('.css'))
       .map(file => file.slice(0, -'.css'.length))
       .sort();
-    expect(files).toEqual([...BUILT_IN_PRESETS].sort());
+    expect(files).toEqual([...BUILTIN_PRESETS].sort());
   });
 });

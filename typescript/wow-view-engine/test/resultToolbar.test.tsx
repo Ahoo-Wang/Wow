@@ -21,7 +21,7 @@ import type {
   RecordTableController,
 } from '../src/react/index.js';
 import type { RecordViewRuntime } from '../src/runtime/index.js';
-import type { ExportWindowProps } from '../src/ui/kit/ExportDialog.js';
+import type { ExportWindowOptions } from '../src/ui/kit/ExportDialog.js';
 import { exportPlan } from '../src/runtime/exportRows.js';
 import { MessagesProvider } from '../src/ui/kit/MessagesProvider.js';
 import { ResultToolbar } from '../src/ui/workbench/ResultToolbar.js';
@@ -98,7 +98,7 @@ function exportController(
 function exportOffer(
   overrides: Partial<RecordExportController> = {},
   on: RecordViewRuntime = runtime,
-): ExportWindowProps {
+): ExportWindowOptions {
   return {
     control: exportController(overrides),
     conditions: [],

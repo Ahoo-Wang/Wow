@@ -28,10 +28,10 @@
  * There are no display names: the engine draws no picker, and a host that
  * does names them in its own words.
  */
-export const BUILT_IN_PRESETS = ['neutral', 'contrast'] as const;
+export const BUILTIN_PRESETS = ['neutral', 'contrast'] as const;
 
 /** The name of a preset the package ships. */
-export type BuiltInPreset = (typeof BUILT_IN_PRESETS)[number];
+export type BuiltinPreset = (typeof BUILTIN_PRESETS)[number];
 
 /**
  * What a `preset` prop takes: a built-in preset, with completion, or the name
@@ -39,7 +39,7 @@ export type BuiltInPreset = (typeof BUILT_IN_PRESETS)[number];
  * `string & {}` keeps the built-in names in completion while any string
  * still type-checks; a bare `string` would swallow the union.
  */
-export type ViewPreset = BuiltInPreset | (string & {});
+export type ViewPreset = BuiltinPreset | (string & {});
 
 /**
  * How dense a surface sits (themes.md 2.4): the record and

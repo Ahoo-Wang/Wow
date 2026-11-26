@@ -36,7 +36,7 @@ import { columnTitle, type DisplayContext } from '../kit/display.js';
 import { isoDay } from '../kit/displayTime.js';
 import { currencyCsvText } from '../kit/currency.js';
 import { downloadFile, fileName } from '../kit/download.js';
-import type { ExportWindowProps } from '../kit/ExportDialog.js';
+import type { ExportWindowOptions } from '../kit/ExportDialog.js';
 import {
   useViewMessages,
   type MessageFormatters,
@@ -161,7 +161,7 @@ export function analysisFile(
 function holding(
   view: AnalysisProjection,
   messages: MessageFormatters,
-): NonNullable<ExportWindowProps['holds']> {
+): NonNullable<ExportWindowOptions['holds']> {
   const count = view.rows.length;
   const grouped = view.columns.some(column => column.role === 'group');
   const groups = !grouped
@@ -209,7 +209,7 @@ export function useAnalysisExportOffer({
   runtime: ViewRuntime | null;
   /** The view's or the panel's title, which names the file. */
   title: string;
-}): ExportWindowProps | null {
+}): ExportWindowOptions | null {
   const messages = useViewMessages();
   const display = useSurfaceDisplay();
   const state = useViewRuntime(runtime);

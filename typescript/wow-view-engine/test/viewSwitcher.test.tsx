@@ -74,7 +74,7 @@ function listState(items = ITEMS): ViewListState {
     defaultInstanceId: null,
     status: 'success',
     error: null,
-    reload: () => {},
+    refresh: () => {},
   };
 }
 

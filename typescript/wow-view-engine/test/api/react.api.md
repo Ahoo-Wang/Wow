@@ -178,7 +178,6 @@ interface AnalysisColumnView {
     named?: true;
     numberFormat?: NumberFormat;
     numeric?: FieldNumeric;
-    ongoing?: unknown;
     // (undocumented)
     options?: readonly FieldOption[];
     remote?: string;
@@ -187,6 +186,7 @@ interface AnalysisColumnView {
     sortable?: false;
     timeUnit?: EpochTimeUnit;
     timeZone?: string;
+    unfinished?: unknown;
     // (undocumented)
     width?: number;
 }
@@ -1023,7 +1023,7 @@ export interface DashboardController {
     columns: number;
     crossFilter(panelId: string, row: RecordData): CrossFilterOutcome;
     destination(panelId: string, row: RecordData): Promise<PressDestination | null>;
-    destinationBoard(instanceId: string): Promise<DestinationDashboard | null>;
+    destinationDashboard(instanceId: string): Promise<DestinationDashboard | null>;
     // (undocumented)
     dirty: boolean;
     edit: (DashboardEditing & DashboardFilterEditing) | null;
@@ -1222,7 +1222,7 @@ interface DashboardRuntime extends ViewRuntime<DashboardViewConfig>, DashboardEd
     clearFilters(): void;
     crossFilter(panelId: string, row: RecordData): CrossFilterOutcome;
     destination(panelId: string, row: RecordData): Promise<PressDestination | null>;
-    destinationBoard(instanceId: string): Promise<DestinationDashboard | null>;
+    destinationDashboard(instanceId: string): Promise<DestinationDashboard | null>;
     // (undocumented)
     getSnapshot(): DashboardRuntimeState;
     handOver(panelId: string): HandOver | null;
@@ -2552,7 +2552,6 @@ interface MetricPeriod {
         delta: number;
         ratio: number | null;
     } | null;
-    partial?: true;
     previous?: {
         at: unknown;
         value: number | null;
@@ -2563,6 +2562,7 @@ interface MetricPeriod {
         to: number;
         zone: string;
     };
+    unfinished?: true;
     unit: AggregationDateUnitName;
     unmatched?: true;
 }
@@ -3653,11 +3653,11 @@ interface SaveAsInput {
 // @public
 export interface SaveCommands {
     abandon(write?: WriteState): void;
-    addToDashboard?(boardId: string): Promise<ViewInstance | null>;
-    boards?(): Promise<readonly DashboardChoice[]>;
+    addToDashboard?(dashboardId: string): Promise<ViewInstance | null>;
     // (undocumented)
     can: SaveAbilities;
     changeAudience?(audience: ViewAudience): Promise<ViewInstance | null>;
+    dashboards?(): Promise<readonly DashboardChoice[]>;
     // (undocumented)
     delete(): Promise<boolean>;
     // (undocumented)
@@ -4011,7 +4011,7 @@ type ViewDefinition = DataViewDefinition | DashboardDefinition;
 class ViewEngine {
     constructor(options: ViewEngineOptions);
     abandonWrite(target: WriteTarget): void;
-    addToDashboard(boardId: string, instanceId: string): Promise<ViewInstance>;
+    addToDashboard(dashboardId: string, instanceId: string): Promise<ViewInstance>;
     changeAudience(id: string, audience: ViewAudience): Promise<ViewInstance>;
     checkBinding(definitionId: string, actions?: readonly RecordAction[]): boolean;
     close(runtime: ViewRuntime): void;
@@ -4033,6 +4033,7 @@ class ViewEngine {
     list(definitionId: string, options?: ReadOptions): Promise<ViewListing>;
     open(instanceId: string, options?: OpenOptions): Promise<AnyViewRuntime>;
     openRuntimes(): readonly ViewRuntime[];
+    optionSource(key: string): OptionSource;
     pendingWrites(): ReadonlyMap<string, WriteState>;
     // (undocumented)
     permissions(definitionId: string): ViewPermissions;
@@ -4045,7 +4046,6 @@ class ViewEngine {
     reorder(definitionId: string, order: string[]): Promise<ViewPreferences>;
     resolveConflict(target: WriteTarget, choice: ConflictChoice): Promise<ViewInstance | ViewPreferences | void>;
     resolveDefault(summaries: readonly ViewInstanceSummary[], preferences: ViewPreferences, explicit?: string): string | null;
-    resolveOptions(key: string): OptionSource;
     retryWrite(target: WriteTarget): Promise<ViewInstance | ViewPreferences | void>;
     save(runtime: ViewRuntime): Promise<ViewInstance>;
     saveAs(runtime: ViewRuntime, input: SaveAsInput): Promise<ViewInstance>;
@@ -4070,7 +4070,7 @@ interface ViewEngineOptions {
     limits?: Partial<RuntimeLimits>;
     newRequestId?(): string;
     onIssue?(issue: Issue): void;
-    resolveOptions?(key: string): OptionSource;
+    optionSource?(key: string): OptionSource;
     resources: readonly ViewResource[];
     // (undocumented)
     store: ViewStore;
@@ -4200,7 +4200,7 @@ export interface ViewListPreferences {
 }
 
 // @public
-export interface ViewListReloadOptions {
+export interface ViewListRefreshOptions {
     without?: string;
 }
 
@@ -4217,7 +4217,7 @@ export interface ViewListState {
     // (undocumented)
     preferences: ViewListPreferences;
     // (undocumented)
-    reload(options?: ViewListReloadOptions): void;
+    refresh(options?: ViewListRefreshOptions): void;
     status: QueryStatus;
 }
 
@@ -4515,7 +4515,7 @@ export interface WorkbenchController {
     // (undocumented)
     setAutoRun(on: boolean): Promise<void>;
     state: ViewRuntimeState<ViewConfig> | null;
-    toBoard(): void;
+    toDashboard(): void;
     unopenable: Issue | null;
     viewKinds: readonly ViewKind[];
 }

@@ -40,7 +40,7 @@ export interface UseViewListOptions {
 }
 
 /** What a caller already knows about the list it is asking to be read again. */
-export interface ViewListReloadOptions {
+export interface ViewListRefreshOptions {
   /**
    * An instance that is gone: it is dropped from the summaries kept on screen
    * for the duration of the reload, and `defaultInstanceId` never names it,
@@ -105,7 +105,7 @@ export interface ViewListState {
    * list, and on a state a host writes itself.
    */
   cut?: number;
-  reload(options?: ViewListReloadOptions): void;
+  refresh(options?: ViewListRefreshOptions): void;
 }
 
 /**
@@ -245,7 +245,7 @@ export function useViewList(
     [engine, definitionId],
   );
   const reload = useCallback(
-    (options?: ViewListReloadOptions) =>
+    (options?: ViewListRefreshOptions) =>
       setRequest(current => ({
         token: current.token + 1,
         without: options?.without ?? null,
@@ -339,6 +339,6 @@ export function useViewList(
     status: !settled ? 'loading' : current.error ? 'error' : 'success',
     error: current.error,
     ...(current.cut === undefined ? {} : { cut: current.cut }),
-    reload,
+    refresh: reload,
   };
 }

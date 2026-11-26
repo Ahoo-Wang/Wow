@@ -29,7 +29,7 @@ import { FilterOperators, type FilterOperatorName } from '../../model/index.js';
 /**
  * Points at rows of another dataset. The value keeps each label next to its
  * id, so reopening a saved view shows what was chosen without asking the
- * remote source again; only editing needs `resolveOptions`.
+ * remote source again; only editing needs `optionSource`.
  *
  * `IS_EMPTY` — 「没有条目」 — asks a list of ids for none; the descriptor
  * admits it only on an array, so a single id never offers it. "One of

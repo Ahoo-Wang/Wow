@@ -1410,19 +1410,19 @@ describe('ViewEngine wiring', () => {
 
   it('resolves option sources only when the host injected one', () => {
     const { engine } = harness();
-    expect(() => engine.resolveOptions('orders')).toThrowError(
+    expect(() => engine.optionSource('orders')).toThrowError(
       /view command refused/i,
     );
 
     const withOptions = new ViewEngine({
       resources: resourcesOf([ordersDefinition()], () => testSource()),
       store: new MemoryViewStore(),
-      resolveOptions: () => ({
+      optionSource: () => ({
         search: () => Promise.resolve({ items: [], nextCursor: null }),
         resolve: () => Promise.resolve([]),
       }),
     });
-    expect(withOptions.resolveOptions('orders')).toBeDefined();
+    expect(withOptions.optionSource('orders')).toBeDefined();
   });
 
   it('closes one runtime and stops holding it', async () => {

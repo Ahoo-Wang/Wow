@@ -248,7 +248,7 @@ export function OpenViewColumn({
             <OriginBar
               title={workbench.dashboardOrigin.title}
               from="dashboard"
-              onBack={workbench.toBoard}
+              onBack={workbench.toDashboard}
             />
           )
         )}

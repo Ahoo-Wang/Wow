@@ -417,7 +417,7 @@ export function resourcesOf(
 
 /**
  * The labels a runtime built on its own reads (`ViewRuntimeOptions.labels`):
- * with no `resolveOptions` every id reads as itself and nothing is asked.
+ * with no `optionSource` every id reads as itself and nothing is asked.
  */
 export function testLabels(): ReferenceLabels {
   return new ReferenceLabels({

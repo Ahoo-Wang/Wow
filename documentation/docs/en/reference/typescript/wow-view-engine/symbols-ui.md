@@ -22,8 +22,8 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 150 — with its kind and
 | `AnalysisTableProps` | interface | Props of `AnalysisTable`. | — |
 | `AppliedBar` | function | The conditions the rows below were fetched under. | — |
 | `AppliedBarProps` | interface | Props of `AppliedBar`. | — |
-| `BUILT_IN_PRESETS` | const | The presets `@ahoo-wang/wow-view-engine/themes.css` ships, by name, in the order it lists them (themes.md 4.1) — for a host that builds its own picker, and for the completion of a `preset` prop. | — |
-| `BuiltInPreset` | type | The name of a preset the package ships. | — |
+| `BUILTIN_PRESETS` | const | The presets `@ahoo-wang/wow-view-engine/themes.css` ships, by name, in the order it lists them (themes.md 4.1) — for a host that builds its own picker, and for the completion of a `preset` prop. | — |
+| `BuiltinPreset` | type | The name of a preset the package ships. | — |
 | `CellField` | type | What a renderer knows about the field a value came from — which is what any reading of a value needs, `cellText` in a CSV included, so it is that type under the name this side uses for it. | — |
 | `CellSurface` | type | Where the reading is drawn, which is the one thing the two surfaces disagree about: **how many lines a value may take**. | — |
 | `ChartImageSlot` | interface | Where a chart hands over its capture; `null` takes it back. | — |
@@ -61,7 +61,7 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 150 — with its kind and
 | `EmbeddedViewProps` | interface | — | [Workbenches and Embeds](./components#api-EmbeddedView) |
 | `EmptyWayOut` | type | The one way out of a query that matched nothing, by what was asked. | — |
 | `ExportOffer` | interface | What a surface hands over to offer an export of its result — the run itself, plus the two things only the surface can say about the file. | — |
-| `ExportWindowProps` | interface | Props of the export window: the offer, and the columns the file will hold. | — |
+| `ExportWindowOptions` | interface | Props of the export window: the offer, and the columns the file will hold. | — |
 | `ExportedFile` | interface | One file an export produced, as it was handed over. | — |
 | `FilterPanel` | function | The condition builder. | — |
 | `FilterPanelProps` | interface | Props of `FilterPanel`. | — |
@@ -104,7 +104,7 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 150 — with its kind and
 | `RecordPaginationTable` | type | What of a record table the pager reads and steps through. | — |
 | `RecordTable` | function | The record view as a table. | — |
 | `RecordTableProps` | interface | Props of `RecordTable`. | — |
-| `RecordViewProps` | interface | What a host may say about the record views a workbench draws: what may be done to a record, how a cell is read, whether rows can be picked, and what an empty result says. | [Workbenches and Embeds](./components#api-RecordViewProps) |
+| `RecordViewOptions` | interface | What a host may say about the record views a workbench draws: what may be done to a record, how a cell is read, whether rows can be picked, and what an empty result says. | [Workbenches and Embeds](./components#api-RecordViewOptions) |
 | `ReleasedPins` | interface | Which pins the cap has taken back. | — |
 | `RenderBoundaryName` | type | The parts of a view a render can fail in, each behind a boundary of its own, so that one of them failing leaves the others standing. | — |
 | `RenderFailure` | interface | What a boundary caught, handed to the host as it is caught. | — |

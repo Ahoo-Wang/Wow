@@ -491,7 +491,7 @@ describe('a board that names a panel field by an alias', () => {
         url: '/orders?amount={{ amount }}&w={{warehouse}}',
       },
     } as unknown as DashboardPanel;
-    const toBoard = {
+    const toDashboard = {
       ...panel,
       id: 'b',
       click: {
@@ -518,7 +518,7 @@ describe('a board that names a panel field by an alias', () => {
       layout: { x: 0, y: 4, w: 24, h: 1 },
     } as DashboardPanel;
     const config = dashboardConfig({
-      panels: [heading, panel, toBoard, owned],
+      panels: [heading, panel, toDashboard, owned],
     });
     const ownedView = vi.fn((view: ReturnType<typeof analysisConfig>) => ({
       ...view,
@@ -551,7 +551,7 @@ describe('a board that names a panel field by an alias', () => {
       owned: { config: { title: 'renamed' } },
     });
     // The config itself back when nothing is renamed, or not known yet.
-    const plain = dashboardConfig({ panels: [heading, toBoard] });
+    const plain = dashboardConfig({ panels: [heading, toDashboard] });
     expect(withCanonicalPanelFields(plain, () => ({}), ownedView)).toBe(plain);
     expect(withCanonicalPanelFields(config, () => null, ownedView)).toBe(
       config,

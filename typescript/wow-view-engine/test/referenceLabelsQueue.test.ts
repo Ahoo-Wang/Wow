@@ -93,7 +93,7 @@ function labelsOver(
   const failed = vi.fn();
   const timers = clock();
   const labels = new ReferenceLabels({
-    resolveOptions: () => options,
+    optionSource: () => options,
     batch: more.batch ?? 1,
     concurrency: more.concurrency ?? 2,
     ...(more.timeout === undefined ? {} : { timeout: more.timeout }),

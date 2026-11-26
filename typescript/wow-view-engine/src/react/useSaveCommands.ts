@@ -174,13 +174,13 @@ export interface SaveCommands {
    * definition of the engine — where 「放进仪表盘…」 offers to put the open
    * view (R2-98). A definition whose list could not be read offers none.
    */
-  boards?(): Promise<readonly DashboardChoice[]>;
+  dashboards?(): Promise<readonly DashboardChoice[]>;
   /**
    * 放进仪表盘: the open view as one more panel on the board `boardId`
    * (`engine.addToDashboard`) — the board as saved, or `null` where it did
    * not land, the reason then this view's `error`.
    */
-  addToDashboard?(boardId: string): Promise<ViewInstance | null>;
+  addToDashboard?(dashboardId: string): Promise<ViewInstance | null>;
   delete(): Promise<boolean>;
   /** Drops the edits and puts the saved config back in force. */
   revert(): void;
@@ -346,7 +346,7 @@ export function useSaveCommands(
     [engine, runtime, run],
   );
 
-  const { rename, changeAudience, remove, addToDashboard, boards } =
+  const { rename, changeAudience, remove, addToDashboard, dashboards } =
     useInstanceWrites(engine, instanceId, run);
 
   const retry = useCallback(() => {
@@ -444,7 +444,7 @@ export function useSaveCommands(
         (engine.permissions(one.id).createPersonal ||
           engine.permissions(one.id).createShared),
     )
-      ? { boards, addToDashboard }
+      ? { dashboards, addToDashboard }
       : {}),
     delete: remove,
     revert,
@@ -566,18 +566,18 @@ function useInstanceWrites(
     [engine, instanceId, run],
   );
   const addToDashboard = useCallback(
-    (boardId: string) =>
+    (dashboardId: string) =>
       instanceId
         ? run(
             'view.addToDashboard.failed',
-            () => engine.addToDashboard(boardId, instanceId),
+            () => engine.addToDashboard(dashboardId, instanceId),
             null,
           )
         : Promise.resolve(null),
     [engine, instanceId, run],
   );
-  const boards = useCallback(() => boardsOf(engine), [engine]);
-  return { rename, changeAudience, remove, addToDashboard, boards };
+  const dashboards = useCallback(() => boardsOf(engine), [engine]);
+  return { rename, changeAudience, remove, addToDashboard, dashboards };
 }
 
 /** Every saved board this reader may save in place, definition by definition. */

@@ -55,7 +55,7 @@ function labelsOver(
 ): { labels: ReferenceLabels; failed: ReturnType<typeof vi.fn> } {
   const failed = vi.fn();
   const labels = new ReferenceLabels({
-    resolveOptions: options ? () => options : undefined,
+    optionSource: options ? () => options : undefined,
     batch,
     concurrency,
     failed,
@@ -473,7 +473,7 @@ describe('ReferenceLabels tells its readers', () => {
 });
 
 describe('ReferenceLabels without a source', () => {
-  it('reads every id as itself and asks nothing with no resolveOptions', async () => {
+  it('reads every id as itself and asks nothing with no optionSource', async () => {
     const { labels } = labelsOver(null);
 
     await expect(labels.want('customers', ['c1'])).resolves.toBeUndefined();
@@ -482,13 +482,13 @@ describe('ReferenceLabels without a source', () => {
     expect(labels.label('customers', 'c1')).toEqual({ status: 'unresolved' });
   });
 
-  it('reads ids as themselves for a remote resolveOptions throws on, asked once', async () => {
-    const resolveOptions = vi.fn((): OptionSource => {
+  it('reads ids as themselves for a remote optionSource throws on, asked once', async () => {
+    const optionSource = vi.fn((): OptionSource => {
       throw new Error('no such remote');
     });
     const failed = vi.fn();
     const labels = new ReferenceLabels({
-      resolveOptions,
+      optionSource,
       batch: 200,
       concurrency: 4,
       failed,
@@ -498,7 +498,7 @@ describe('ReferenceLabels without a source', () => {
     await labels.want('nowhere', ['y']);
 
     expect(labels.text('nowhere', 'x')).toBe('x');
-    expect(resolveOptions).toHaveBeenCalledTimes(1);
+    expect(optionSource).toHaveBeenCalledTimes(1);
     expect(failed).not.toHaveBeenCalled();
   });
 });

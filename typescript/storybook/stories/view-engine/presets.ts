@@ -10,16 +10,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { BUILT_IN_PRESETS } from '@ahoo-wang/wow-view-engine/ui';
+import { BUILTIN_PRESETS } from '@ahoo-wang/wow-view-engine/ui';
 
 /**
  * The presets the package ships, in its order (phase 5, 5D; D35) — the list a
- * host builds its own picker from, `BUILT_IN_PRESETS`, which the package
+ * host builds its own picker from, `BUILTIN_PRESETS`, which the package
  * holds to its stylesheet — so the toolbar, the theme gallery and the
  * contrast matrix take a preset the moment it ships, and none of them can
  * name one it does not have.
  */
-export const PRESETS: readonly string[] = BUILT_IN_PRESETS;
+export const PRESETS: readonly string[] = BUILTIN_PRESETS;
 
 /**
  * The preset a surface wears with no attribute anywhere: the theme itself.

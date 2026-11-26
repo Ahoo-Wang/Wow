@@ -95,7 +95,7 @@ describe('Truncated (R2-75)', () => {
       defaultInstanceId: null,
       status: 'success',
       error: null,
-      reload: () => {},
+      refresh: () => {},
     };
     render(<ViewList list={list} currentId={null} onOpen={() => {}} />);
     const name = screen.getByText(LONG);

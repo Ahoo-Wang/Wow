@@ -40,7 +40,7 @@ export const engine = new ViewEngine({
 |---|---|
 | `resources` | Every resource the host registers: each definition, with the source of its data. A board's definition has no source — it queries nothing of its own |
 | `store` | The port that keeps saved views and preferences ([persistence port](./store)) |
-| `resolveOptions` | Where the remote candidates of `reference` fields come from, by the same key |
+| `optionSource` | Where the remote candidates of `reference` fields come from, by the same key |
 | `kinds` | The field kind registry; the built-in kinds when left out ([definitions and field kinds](./definitions#api-FieldKind)) |
 | `text` | How the definitions' keys (`text(key)`) are said in the language the engine starts in, for a host with no Provider; under a `ViewHost` or `MessagesProvider` they are said in its language. Left out, a key reads as itself until a language is set |
 | `limits` | The host's budgets over `DEFAULT_RUNTIME_LIMITS`; what is left out keeps its default. The source budgets (`maxPageSize`, `maxPageWindow`, `maxAnalysisRows`, `maxQueryFilterNodes`, `maxFilterValues`) come from a source's descriptor, and one given here only lowers it — leave them out unless the engine should ask for less than the server admits |
@@ -61,7 +61,7 @@ export interface ViewEngineOptions {
   limits?: Partial<RuntimeLimits>;
   newRequestId?(): string;
   onIssue?(issue: Issue): void;
-  resolveOptions?(key: string): OptionSource;
+  optionSource?(key: string): OptionSource;
   resources: readonly ViewResource[];
   store: ViewStore;
   text?(key: string): string | undefined;

@@ -35,7 +35,7 @@ import type { ReactNode } from 'react';
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 import {
-  BUILT_IN_PRESETS,
+  BUILTIN_PRESETS,
   ViewSurface,
   zhCN,
 } from '@ahoo-wang/wow-view-engine/ui';
@@ -98,7 +98,7 @@ const HOST_PRIMARY = 'rgb(1, 2, 3)';
 export const HostRootBeatsPinnedPresets: Story = {
   render: () => (
     <div data-surfaces>
-      {BUILT_IN_PRESETS.map(preset => (
+      {BUILTIN_PRESETS.map(preset => (
         <ViewSurface key={preset} preset={preset} colorMode="light">
           {preset}
         </ViewSurface>
@@ -110,7 +110,7 @@ export const HostRootBeatsPinnedPresets: Story = {
     const surfaces = [
       ...canvasElement.querySelectorAll('[data-slot="view-surface"]'),
     ];
-    await expect(surfaces).toHaveLength(BUILT_IN_PRESETS.length);
+    await expect(surfaces).toHaveLength(BUILTIN_PRESETS.length);
     // Each preset sets a primary of its own, so the check is not idle.
     const own = surfaces.map(surface => colorOf(surface, '--primary'));
     await expect(own).not.toContain(HOST_PRIMARY);
@@ -240,7 +240,7 @@ function Pair({ preset, outer }: { preset: string; outer: string }) {
   );
 }
 
-const PRESETS = [...BUILT_IN_PRESETS, HOST_PRESET];
+const PRESETS = [...BUILTIN_PRESETS, HOST_PRESET];
 
 /**
  * 钉住的预设完整替换外层的预设（ui/theme.md「三层变量」的复位规则）。

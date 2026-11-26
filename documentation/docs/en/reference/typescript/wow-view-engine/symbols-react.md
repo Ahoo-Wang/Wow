@@ -89,7 +89,7 @@ Every name `@ahoo-wang/wow-view-engine/react` exports — 103 — with its kind 
 | `UseDatasetsOptions` | interface | When `useDatasets` reads the directories. | — |
 | `UseViewListOptions` | interface | What `useViewList` reads of the list beside the definition. | — |
 | `ViewListPreferences` | interface | The reader's preferences for the definition, read beside the list. | [React Hooks](./react#api-useViewList) |
-| `ViewListReloadOptions` | interface | What a caller already knows about the list it is asking to be read again. | — |
+| `ViewListRefreshOptions` | interface | What a caller already knows about the list it is asking to be read again. | — |
 | `ViewListState` | interface | — | [React Hooks](./react#api-useViewList) |
 | `ViewManagerAbilities` | interface | Which view manager commands the reader may use. | — |
 | `ViewManagerController` | interface | What `useViewManager` answers: the commands that rename, move, share, publish and delete saved views. | — |

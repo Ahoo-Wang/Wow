@@ -288,7 +288,7 @@ export class PanelPresses {
         ? { refused: issue('dashboard.click.url-unsafe', at) }
         : { to: { kind: 'url', url } };
     }
-    if (click.kind === 'dashboard') return this.toBoard(click, pressed, at);
+    if (click.kind === 'dashboard') return this.toDashboard(click, pressed, at);
     const reference = await this.host.reference(click.instanceId);
     if (!reference)
       return {
@@ -347,7 +347,7 @@ export class PanelPresses {
    * filter left blank, a value the target filter refuses (several into one
    * that takes one) — leaves that filter at its default too.
    */
-  private async toBoard(
+  private async toDashboard(
     click: BoardClick,
     pressed: Pressed,
     at: IssuePath,

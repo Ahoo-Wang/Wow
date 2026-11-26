@@ -327,9 +327,9 @@ export class ViewEngine {
     return this.resources.wordingOf(definitionId);
   }
 
-  /** The remote candidates of `reference` fields under `key` (`ViewEngineOptions.resolveOptions`). */
-  resolveOptions(key: string): OptionSource {
-    return this.resources.resolveOptions(key);
+  /** The remote candidates of `reference` fields under `key` (`ViewEngineOptions.optionSource`). */
+  optionSource(key: string): OptionSource {
+    return this.resources.optionSource(key);
   }
 
   /** What `validateDefinition` said about one definition, for a host to show. */
@@ -579,8 +579,11 @@ export class ViewEngine {
    * either take those edits or leave them over a baseline they were not
    * made on. A board open and unedited takes the new board as it lands.
    */
-  addToDashboard(boardId: string, instanceId: string): Promise<ViewInstance> {
-    return this.writes.addToDashboard(boardId, instanceId);
+  addToDashboard(
+    dashboardId: string,
+    instanceId: string,
+  ): Promise<ViewInstance> {
+    return this.writes.addToDashboard(dashboardId, instanceId);
   }
 
   delete(id: string): Promise<void> {

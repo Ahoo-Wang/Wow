@@ -44,7 +44,7 @@ import { TextValue } from './text.js';
  * A value the host looks up rather than the kind declaring it.
  *
  * Three ways in, by what the host wired: the whole list at once (`options`),
- * a searchable source (`source`, from `resolveOptions`), or neither — then
+ * a searchable source (`source`, from `optionSource`), or neither — then
  * the field is typed, since nothing is lost by typing an id that is already
  * valid. The value keeps whatever shape it arrived in: a `reference` kind's
  * `{ items: [{ id, label }] }`, where the label rides with the id so a saved

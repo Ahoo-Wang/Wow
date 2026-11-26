@@ -258,7 +258,9 @@ export interface DashboardRuntime
    * so a mapping gone stale warns on the panel from then on. Never read
    * when this board opens. `null` for one gone, unreadable or not a board.
    */
-  destinationBoard(instanceId: string): Promise<DestinationDashboard | null>;
+  destinationDashboard(
+    instanceId: string,
+  ): Promise<DestinationDashboard | null>;
   /**
    * What one data panel's view takes with it off the board (D26 Q30), in
    * its own field names: the board's fixed scope and the filters the page

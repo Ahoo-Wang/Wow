@@ -60,7 +60,7 @@ import { useActionSurface } from '../actions/ActionSurface.js';
 import { useSurfaceAnnouncer } from '../kit/Announcer.js';
 import { SelectionBar } from '../record/SelectionBar.js';
 import { emptyHintOf } from '../record/EmptyResult.js';
-import type { RecordViewProps } from '../workbench/RecordParts.js';
+import type { RecordViewOptions } from '../workbench/RecordParts.js';
 import type { ViewBinding } from '../workbench/bindings.js';
 import { QueryStrip } from '../kit/StatusStrip.js';
 import { isForbiddenQuery } from '../../runtime/failure/queryFailure.js';
@@ -90,7 +90,7 @@ import { usePanelFollowUps } from '../../react/usePanelFollowUps.js';
  * host's.
  */
 export interface RecordPanelHost extends Pick<
-  RecordViewProps,
+  RecordViewOptions,
   'actions' | 'slots'
 > {
   /** What reading again after a command means: the whole board. */

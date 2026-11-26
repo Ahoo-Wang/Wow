@@ -161,7 +161,7 @@ describe('useViewList', () => {
     vi.spyOn(store, 'list').mockRejectedValueOnce(
       new ViewStoreError('UNAVAILABLE', 'offline'),
     );
-    act(() => result.current.reload());
+    act(() => result.current.refresh());
     await waitFor(() => expect(result.current.error).not.toBeNull());
 
     // The saved view is still listed, from the answer before the failure;
@@ -337,7 +337,7 @@ describe('useViewList', () => {
     const { result } = renderHook(() => useViewList(engine, 'orders'));
     await waitFor(() => expect(result.current.status).not.toBe('loading'));
 
-    act(() => result.current.reload());
+    act(() => result.current.refresh());
 
     await waitFor(() => {
       expect(list).toHaveBeenCalledTimes(2);

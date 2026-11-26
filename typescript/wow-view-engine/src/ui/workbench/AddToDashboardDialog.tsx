@@ -42,7 +42,7 @@ export function AddToDashboardDialog({
 }: {
   open: boolean;
   onOpenChange(open: boolean): void;
-  commands: Required<Pick<SaveCommands, 'boards' | 'addToDashboard'>> &
+  commands: Required<Pick<SaveCommands, 'dashboards' | 'addToDashboard'>> &
     Pick<SaveCommands, 'state'>;
   /** The open view's title, in the heading. */
   title: string;
@@ -53,7 +53,7 @@ export function AddToDashboardDialog({
   const [boards, setBoards] = useState<readonly DashboardChoice[] | null>(null);
   const [adding, setAdding] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
-  const { boards: read } = commands;
+  const { dashboards: read } = commands;
   // Each opening starts afresh — set while rendering, the way React has a
   // prop's change adjust state — and reads the boards anew.
   const [shown, setShown] = useState(open);

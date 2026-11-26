@@ -127,7 +127,7 @@ export interface AnalysisColumnView {
    * A table writes it 「2026年9月（进行中）」, as a chart marks the end of its
    * axis: half a month read as a month is a drop that never happened.
    */
-  ongoing?: unknown;
+  unfinished?: unknown;
   /**
    * For a calendar part group: which part its keys are (the ISO weekday 1 to
    * 7, the hour 0 to 23…), so a key reads 「周一」 or 「20时」 rather than a

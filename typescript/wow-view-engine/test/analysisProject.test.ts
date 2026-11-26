@@ -974,7 +974,7 @@ describe('the period still under way, in the table', () => {
     }).columns.find(column => column.alias === 'month');
 
   it('names the month still running, wherever the sort put it', () => {
-    expect(month(new Date(Date.UTC(2026, 8, 21)))?.ongoing).toBe(september);
+    expect(month(new Date(Date.UTC(2026, 8, 21)))?.unfinished).toBe(september);
   });
 
   it('names none once every month has ended', () => {

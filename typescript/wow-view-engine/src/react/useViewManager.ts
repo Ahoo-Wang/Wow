@@ -155,12 +155,12 @@ export function useViewManager(
   definitionId: string,
   { list }: ViewManagerOptions,
 ): ViewManagerController {
-  const { all, items, permissions, reload } = list;
+  const { all, items, permissions, refresh } = list;
   const preferences = list.preferences.value;
   const { run, outcomes, pending, held, record, owns } = useCommandRunner(
     engine,
     definitionId,
-    reload,
+    refresh,
   );
   // What the moves already queued have submitted; see `move`.
   const optimistic = useRef<PendingOrder | null>(null);

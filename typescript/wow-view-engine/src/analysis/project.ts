@@ -300,7 +300,7 @@ export function projectAnalysis(
       context.timeZone ?? hostTimeZone(),
       context.now,
     );
-    return ongoing ? { ongoing: ongoing.at } : {};
+    return ongoing ? { unfinished: ongoing.at } : {};
   };
   const settledTotals = totals && settle(totals);
   const overall =

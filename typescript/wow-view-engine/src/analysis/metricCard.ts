@@ -108,7 +108,7 @@ export interface MetricPeriod {
    * `at` had not ended when the question was asked either — it is the only
    * bucket there was — so the headline is the period so far.
    */
-  partial?: true;
+  unfinished?: true;
   /**
    * The latest bucket, left out of the headline because it had not ended
    * when the question was asked: a day half over compared with a whole one
@@ -341,7 +341,7 @@ function knownEmpty(row: RecordData, config: AnalysisViewConfig): RecordData {
  * morning reads as a fall every morning, and a card that cries wolf is one
  * nobody reads. It still draws on the sparkline, and the card says it was
  * left out (`skipped`). Only when no bucket had ended — the range holds
- * just the current one — is the headline the period so far (`partial`).
+ * just the current one — is the headline the period so far (`unfinished`).
  *
  * A period is the part of its bucket the question's dates hold
  * (`bucketSpan` with the `window`): a month under a filter of one day is
@@ -395,7 +395,7 @@ function lastPeriod(
         ? { span: { from: span.from, to: span.to, zone: span.zone } }
         : {}),
       unit: axis.unit,
-      ...(ended === -1 ? { partial: true as const } : {}),
+      ...(ended === -1 ? { unfinished: true as const } : {}),
       ...(index < timed.length - 1
         ? { skipped: timed[timed.length - 1].row[x] }
         : {}),

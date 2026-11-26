@@ -232,7 +232,7 @@ export function createRetailEngine(
     // Wow 的查询服务一页最多 100 行；导出按运行时最大的页取，所以这里也是。
     limits: { ...DEFAULT_RUNTIME_LIMITS, maxPageSize: 100, ...limits },
     store: new MemoryViewStore({ instances }),
-    resolveOptions: remote => {
+    optionSource: remote => {
       if (remote !== MEMBER_OPTIONS)
         throw new Error(`No retail options ${remote}.`);
       return memberOptions();

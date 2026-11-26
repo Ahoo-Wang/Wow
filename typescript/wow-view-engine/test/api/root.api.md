@@ -182,7 +182,6 @@ export interface AnalysisColumnView {
     named?: true;
     numberFormat?: NumberFormat;
     numeric?: FieldNumeric;
-    ongoing?: unknown;
     // (undocumented)
     options?: readonly FieldOption[];
     remote?: string;
@@ -191,6 +190,7 @@ export interface AnalysisColumnView {
     sortable?: false;
     timeUnit?: EpochTimeUnit;
     timeZone?: string;
+    unfinished?: unknown;
     // (undocumented)
     width?: number;
 }
@@ -976,7 +976,7 @@ export interface DashboardRuntime extends ViewRuntime<DashboardViewConfig>, Dash
     clearFilters(): void;
     crossFilter(panelId: string, row: RecordData): CrossFilterOutcome;
     destination(panelId: string, row: RecordData): Promise<PressDestination | null>;
-    destinationBoard(instanceId: string): Promise<DestinationDashboard | null>;
+    destinationDashboard(instanceId: string): Promise<DestinationDashboard | null>;
     // (undocumented)
     getSnapshot(): DashboardRuntimeState;
     handOver(panelId: string): HandOver | null;
@@ -2279,7 +2279,6 @@ export interface MetricPeriod {
         delta: number;
         ratio: number | null;
     } | null;
-    partial?: true;
     previous?: {
         at: unknown;
         value: number | null;
@@ -2290,6 +2289,7 @@ export interface MetricPeriod {
         to: number;
         zone: string;
     };
+    unfinished?: true;
     unit: AggregationDateUnitName;
     unmatched?: true;
 }
@@ -3378,7 +3378,7 @@ export type ViewDestination = ViewRoute | ViewNavigation;
 export class ViewEngine {
     constructor(options: ViewEngineOptions);
     abandonWrite(target: WriteTarget): void;
-    addToDashboard(boardId: string, instanceId: string): Promise<ViewInstance>;
+    addToDashboard(dashboardId: string, instanceId: string): Promise<ViewInstance>;
     changeAudience(id: string, audience: ViewAudience): Promise<ViewInstance>;
     checkBinding(definitionId: string, actions?: readonly RecordAction[]): boolean;
     close(runtime: ViewRuntime): void;
@@ -3400,6 +3400,7 @@ export class ViewEngine {
     list(definitionId: string, options?: ReadOptions): Promise<ViewListing>;
     open(instanceId: string, options?: OpenOptions): Promise<AnyViewRuntime>;
     openRuntimes(): readonly ViewRuntime[];
+    optionSource(key: string): OptionSource;
     pendingWrites(): ReadonlyMap<string, WriteState>;
     // (undocumented)
     permissions(definitionId: string): ViewPermissions;
@@ -3412,7 +3413,6 @@ export class ViewEngine {
     reorder(definitionId: string, order: string[]): Promise<ViewPreferences>;
     resolveConflict(target: WriteTarget, choice: ConflictChoice): Promise<ViewInstance | ViewPreferences | void>;
     resolveDefault(summaries: readonly ViewInstanceSummary[], preferences: ViewPreferences, explicit?: string): string | null;
-    resolveOptions(key: string): OptionSource;
     retryWrite(target: WriteTarget): Promise<ViewInstance | ViewPreferences | void>;
     save(runtime: ViewRuntime): Promise<ViewInstance>;
     saveAs(runtime: ViewRuntime, input: SaveAsInput): Promise<ViewInstance>;
@@ -3437,7 +3437,7 @@ export interface ViewEngineOptions {
     limits?: Partial<RuntimeLimits>;
     newRequestId?(): string;
     onIssue?(issue: Issue): void;
-    resolveOptions?(key: string): OptionSource;
+    optionSource?(key: string): OptionSource;
     resources: readonly ViewResource[];
     // (undocumented)
     store: ViewStore;

@@ -75,7 +75,7 @@ type  ToggleSortOptions
 type  UseDatasetsOptions
 type  UseViewListOptions
 type  ViewListPreferences
-type  ViewListReloadOptions
+type  ViewListRefreshOptions
 type  ViewListState
 type  ViewManagerAbilities
 type  ViewManagerController

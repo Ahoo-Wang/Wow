@@ -86,12 +86,12 @@ describe('FilterPanel tree editing', () => {
     /** What the surface around the panel has taken off its hands. */
     props: Partial<FilterPanelProps> = {},
     /** The host's option sources, for a definition with a reference field. */
-    resolveOptions?: () => OptionSource,
+    optionSource?: () => OptionSource,
   ): PanelHarness {
     const engine = new ViewEngine({
       resources: resourcesOf([definition], () => testSource()),
       store: new MemoryViewStore({ instances: [mine] }),
-      ...(resolveOptions ? { resolveOptions } : {}),
+      ...(optionSource ? { optionSource } : {}),
     });
     const runtime = engine.create('orders', {
       title: 'Scratch',

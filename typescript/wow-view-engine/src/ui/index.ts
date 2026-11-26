@@ -138,7 +138,7 @@ export type {
 } from './embed/options.js';
 export {
   type ExportOffer,
-  type ExportWindowProps,
+  type ExportWindowOptions,
 } from './kit/ExportDialog.js';
 export { FilterPanel, type FilterPanelProps } from './filter/FilterPanel.js';
 export {
@@ -189,8 +189,8 @@ export {
   type RenderFailureHandler,
 } from './kit/RenderBoundary.js';
 export {
-  BUILT_IN_PRESETS,
-  type BuiltInPreset,
+  BUILTIN_PRESETS,
+  type BuiltinPreset,
   type ViewDensity,
   type ViewPreset,
 } from './kit/presets.js';
@@ -254,7 +254,7 @@ export {
 } from './workbench/WorkbenchShell.js';
 export {
   type RecordDetailOptions,
-  type RecordViewProps,
+  type RecordViewOptions,
 } from './workbench/RecordParts.js';
 export type { ExportedFile } from './record/exportOffer.js';
 export { type ViewWriteCallbacks } from './workbench/WriteOutcome.js';

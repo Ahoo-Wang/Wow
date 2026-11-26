@@ -60,7 +60,7 @@ import '@ahoo-wang/wow-view-engine/themes/contrast.css';
 <html data-fve-preset="contrast"></html>
 ```
 
-Import `themes.css` instead to have every preset and switch at run time. The attribute on `<html>` reaches every view and every popup; to give one view its own, pass `preset` (see [Pinning a preset](#pinning-a-preset)). `/ui` exports `BUILT_IN_PRESETS`, the list of built-in names, for a picker in your own chrome — the engine draws none.
+Import `themes.css` instead to have every preset and switch at run time. The attribute on `<html>` reaches every view and every popup; to give one view its own, pass `preset` (see [Pinning a preset](#pinning-a-preset)). `/ui` exports `BUILTIN_PRESETS`, the list of built-in names, for a picker in your own chrome — the engine draws none.
 
 | Preset      | Character                                                                                                                          | Corners          | Chart colours |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------- | ------------- |

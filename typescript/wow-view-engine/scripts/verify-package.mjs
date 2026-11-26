@@ -1035,9 +1035,9 @@ for (const { specifier, resolved } of jsEntries) {
 // stylesheet lacks, and misses none.
 const ui = await import(import.meta.resolve(`${name}/ui`));
 assert.deepEqual(
-  [...ui.BUILT_IN_PRESETS],
+  [...ui.BUILTIN_PRESETS],
   [...presets.keys()],
-  'BUILT_IN_PRESETS must name the presets of themes.css, in its order',
+  'BUILTIN_PRESETS must name the presets of themes.css, in its order',
 );
 
 // 8. The chart chunk draws. It is loaded on a chart's first use, so no entry
