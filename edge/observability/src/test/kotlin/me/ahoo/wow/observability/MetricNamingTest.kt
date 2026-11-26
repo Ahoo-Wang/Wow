@@ -18,6 +18,7 @@ import io.micrometer.core.instrument.config.MeterFilter
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.manifest.FrameworkErrors
+import me.ahoo.wow.query.filter.QueryType
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.nio.file.Path
@@ -75,6 +76,16 @@ class MetricNamingTest {
         assertThrows<IllegalStateException> { WowMetrics.TAIL_READS.counter(meters, "sales", "Gap") }
         assertThrows<IllegalArgumentException> { WowMetrics.TAIL_READS.counter(meters, "sales") }
         assertThrows<IllegalStateException> { WowMetrics.TAIL_READS.timer(meters, "sales", "gap") }
+    }
+
+    @Test
+    fun `a query metric's types should be every query type but a descriptor's read, which runs no query`() {
+        // Listed by hand: a case added to QueryType fails here until the metrics decide whether they record it.
+        val types = listOf("single", "list", "paged", "cursor", "count", "aggregation", "state", "trace")
+        listOf(WowMetrics.QUERY_DURATION, WowMetrics.DATASET_QUERY_DURATION).forEach { metric ->
+            metric.values[WowMetrics.QUERY_TYPE].assert().describedAs(metric.name).isEqualTo(types)
+        }
+        QueryType.entries.map { it.name.lowercase() }.assert().isEqualTo(types + "describe")
     }
 
     @Test

@@ -142,7 +142,11 @@ object WowMetrics {
     )
         .map { it.value }
 
-    /** The query types a query metric is recorded for: every one but DESCRIBE, a descriptor's read, which runs no query. */
+    /**
+     * The query types a query metric is recorded for: every one but [QueryType.DESCRIBE], a descriptor's read, which
+     * runs no query, so nothing observes it and no metric carries its value. `MetricNamingTest` lists the set, so a
+     * case added to [QueryType] is decided here, not taken by accident.
+     */
     private val QUERY_TYPES = QueryType.entries.filter { it != QueryType.DESCRIBE }.map { it.tagValue }
 
     val COMMAND_DURATION: MetricSpec = MetricSpec.timer(
