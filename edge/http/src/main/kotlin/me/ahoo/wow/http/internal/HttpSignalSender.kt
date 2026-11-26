@@ -56,9 +56,11 @@ import kotlin.time.toJavaDuration
  * [send] never waits: it puts the signal in its origin's queue of [HttpSignalSenderOptions.queueCapacity] and returns.
  * Each origin's queue is sent from by at most [HttpSignalSenderOptions.concurrency] requests at a time. A request
  * carries what the queue holds then, up to [HttpSignalSenderOptions.maxBatch] signals: under a burst, one request per
- * batch instead of one per signal; a lone signal goes as before. A batch the origin refuses as malformed (HTTP 400) has
- * each of its signals sent again alone, once, so that one the origin cannot read costs only itself; the origin's next
- * signals still go in batches, as every node of this version reads them.
+ * batch instead of one per signal; a lone signal goes as before. A batch the origin refuses as malformed (HTTP 400),
+ * one of its signals of a format it does not read among them, has each of its signals sent again alone, once, so that
+ * one the origin cannot read costs only itself; the origin's next signals still go in batches, as every node of this
+ * version reads them. A batch larger than the origin's internal port takes (HTTP 413) is sent again as its two halves,
+ * each split again while the origin refuses it so; a lone signal it refuses so is dropped.
  *
  * A request is given until the latest deadline of the waits its signals end, as a forward is: a signal
  * is worth delivering while its waiter waits, so an origin slow to take it, its event loops lagging under load, still
@@ -190,8 +192,8 @@ class HttpSignalSender(
     /**
      * Sends [pending] to [outbox]'s origin in one request, given until the latest of their waits' deadlines; a signal
      * whose wait is over is dropped unsent. A batch the origin refuses as malformed is sent again one signal a
-     * request, once. A request that fails for a while only is
-     * sent again, as [attempt] + 1, after its backoff ([retry]).
+     * request, once, and one it refuses as too large as its two halves. A request that fails for a while only is sent
+     * again, as [attempt] + 1, after its backoff ([retry]).
      */
     private suspend fun deliver(outbox: Outbox, pending: List<Pending>, attempt: Int = 1) {
         val now = clock()
@@ -220,7 +222,7 @@ class HttpSignalSender(
         }
     }
 
-    /** Acts on [status], the origin's answer to [live]: done, sent one by one, sent again, or dropped. */
+    /** Acts on [status], the origin's answer to [live]: done, sent one by one or by halves, sent again, or dropped. */
     private suspend fun answered(outbox: Outbox, live: List<Pending>, status: Int, attempt: Int, latest: Long) {
         when {
             status in SUCCESS -> Unit
@@ -230,6 +232,13 @@ class HttpSignalSender(
                         "each alone, so that one it cannot read costs only itself."
                 }
                 live.forEach { deliver(outbox, listOf(it)) }
+            }
+
+            status == CONTENT_TOO_LARGE && live.size > 1 -> {
+                logger.debug { "${outbox.address} refused a batch of ${live.size} signals as too large: halving it." }
+                val half = live.size / 2
+                deliver(outbox, live.subList(0, half))
+                deliver(outbox, live.subList(half, live.size))
             }
 
             status in BUSY -> retry(outbox, live, attempt, latest, Reason.REFUSED, "it answered HTTP $status")
@@ -300,6 +309,7 @@ class HttpSignalSender(
         const val WARN_EVERY: Long = 100
 
         private const val BAD_REQUEST = 400
+        private const val CONTENT_TOO_LARGE = 413
         private val SUCCESS = 200..299
         private val logger = KotlinLogging.logger {}
     }

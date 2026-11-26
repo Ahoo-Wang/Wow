@@ -263,19 +263,21 @@ class ReplyTo(
  * null when it has neither. The wait's origin stays the node the command arrived at, so later hops
  * signal that node directly, never through the channel.
  *
- * Every cluster message carries its format version [v]. A reader ignores the fields it does not know,
- * so a node reads the messages of the next minor version.
+ * Every cluster message carries its [format], which its reader compares ([ClusterCodec]): a node refuses a forward of
+ * a format it does not read ([Refusal.UNKNOWN_FORMAT]), so its sender knows it did not run it. A reader ignores the
+ * fields it does not know, so a node reads what a node of the next minor version adds within the format.
  */
 @InternalWowApi
 data class ForwardCommand(
-    val v: Int = VERSION,
+    val format: Int = FORMAT,
     val command: CommandWire,
     val transport: Transport? = null,
     val deadline: Long,
 ) {
     @InternalWowApi
     companion object {
-        const val VERSION: Int = 1
+        /** The format of this structure. */
+        const val FORMAT: Int = 1
     }
 }
 
@@ -286,11 +288,12 @@ data class ForwardCommand(
  * Hops reached later are signalled to the wait's origin.
  *
  * A node that does not take the command answers [refused] instead, with one of the [Refusal] codes; the sender then
- * executes the command itself.
+ * executes the command itself. A reply of a format the sender does not read, or with a result of one, leaves the
+ * forward's outcome unknown to it ([ClusterCodec.decodeReply]): the owner may have run the command.
  */
 @InternalWowApi
 data class ForwardReply(
-    val v: Int = VERSION,
+    val format: Int = FORMAT,
     val result: CommandResult? = null,
     val reached: List<CommandResult> = emptyList(),
     val refused: String? = null,
@@ -301,7 +304,8 @@ data class ForwardReply(
 
     @InternalWowApi
     companion object {
-        const val VERSION: Int = 1
+        /** The format of this structure. */
+        const val FORMAT: Int = 1
 
         fun refused(code: String): ForwardReply = ForwardReply(refused = code)
     }
@@ -320,17 +324,38 @@ object Refusal {
     const val UNKNOWN_TYPE = "unknown-type"
 
     /**
-     * The forward is larger than the node's internal port takes (`wow.internal.max-message-size`): the
+     * The forward is larger than the node's internal port takes (`spring.http.codecs.max-in-memory-size`): the
      * node did not read it, so the sender runs the command itself.
      */
     const val TOO_LARGE = "too-large"
+
+    /**
+     * The forward, or its command's result format, is of a format the node does not read ([ClusterCodec]), such as a
+     * node of a later version's: the node did not run it, so the sender runs the command itself.
+     */
+    const val UNKNOWN_FORMAT = "unknown-format"
+
+    /** The node could not read the forward at all, a body that is not a forward: it did not run it. */
+    const val MALFORMED = "malformed"
 }
+
+/**
+ * A message between the nodes of a service of a format this node does not read ([ClusterCodec]): its reader refuses it
+ * rather than guess at it.
+ */
+@InternalWowApi
+class UnknownFormatException(message: String) : IllegalArgumentException(message)
 
 /**
  * Reads and writes the messages between the nodes of a service as JSON: the cluster channel's
  * [ForwardCommand] and [ForwardReply], and the [WaitSignal] a node sends to the origin of a wait,
  * reading leniently: unknown fields are ignored at every level, and an unknown status, stage or function kind of a
  * result is read as `UNKNOWN` ([WowJson.readerBuilder]), so a node of the minor version before reads a newer one's.
+ *
+ * Each reader compares the formats a message carries, its own and its results' ([CommandResult.format]), with the one
+ * this node writes, and refuses a message of another with an [UnknownFormatException]: a later format is a change this
+ * node cannot read, and reading it as format 1 would act on what it misreads. The comparison is of integers already
+ * read, nothing more on the path of a forward or a signal.
  *
  * The mapper is Wow's ([WowJson]): it registers a fixed set of modules, the Kotlin module only, and
  * never discovers others on the class path, since the wire form is the protocol and must not depend on what a host
@@ -347,13 +372,22 @@ object ClusterCodec {
 
     fun encode(message: ForwardReply): ByteArray = mapper.writeValueAsBytes(message)
 
-    fun decodeCommand(bytes: ByteArray): ForwardCommand = mapper.readValue(bytes, ForwardCommand::class.java)
+    /** The forward [bytes] hold; an [UnknownFormatException] when it is of another format. */
+    fun decodeCommand(bytes: ByteArray): ForwardCommand = mapper.readValue(bytes, ForwardCommand::class.java).also {
+        readable("A forward", it.format, ForwardCommand.FORMAT)
+    }
 
-    fun decodeReply(bytes: ByteArray): ForwardReply = mapper.readValue(bytes, ForwardReply::class.java)
+    /** The reply [bytes] hold; an [UnknownFormatException] when it, or one of its results, is of another format. */
+    fun decodeReply(bytes: ByteArray): ForwardReply = mapper.readValue(bytes, ForwardReply::class.java).also { reply ->
+        readable("A forward's reply", reply.format, ForwardReply.FORMAT)
+        reply.result?.let { readable(it) }
+        reply.reached.forEach { readable(it) }
+    }
 
     fun encode(signal: WaitSignal): ByteArray = mapper.writeValueAsBytes(signal)
 
-    fun decodeSignal(bytes: ByteArray): WaitSignal = mapper.readValue(bytes, WaitSignal::class.java)
+    /** The signal [bytes] hold; an [UnknownFormatException] when it, or its result, is of another format. */
+    fun decodeSignal(bytes: ByteArray): WaitSignal = readable(mapper.readValue(bytes, WaitSignal::class.java))
 
     /**
      * A batch of signals to one node, a JSON array of what [encode] writes for each, which every node of this version
@@ -362,13 +396,30 @@ object ClusterCodec {
      */
     fun encodeSignals(signals: List<WaitSignal>): ByteArray = mapper.writeValueAsBytes(signals)
 
-    /** The signals of a request body: one signal ([encode]) or a batch ([encodeSignals]). */
+    /**
+     * The signals of a request body: one signal ([encode]) or a batch ([encodeSignals]); an [UnknownFormatException]
+     * when one of them, or its result, is of another format.
+     */
     fun decodeSignals(bytes: ByteArray): List<WaitSignal> {
         val tree = mapper.readTree(bytes)
         return if (tree.isArray) {
-            tree.asSequence().map { mapper.treeToValue(it, WaitSignal::class.java) }.toList()
+            tree.asSequence().map { readable(mapper.treeToValue(it, WaitSignal::class.java)) }.toList()
         } else {
-            listOf(mapper.treeToValue(tree, WaitSignal::class.java))
+            listOf(readable(mapper.treeToValue(tree, WaitSignal::class.java)))
+        }
+    }
+
+    private fun readable(signal: WaitSignal): WaitSignal = signal.also {
+        readable("A wait signal", it.format, WaitSignal.FORMAT)
+        readable(it.result)
+    }
+
+    private fun readable(result: CommandResult): Unit =
+        readable("A command result", result.format, CommandResult.FORMAT)
+
+    private fun readable(what: String, format: Int, read: Int) {
+        if (format != read) {
+            throw UnknownFormatException("$what is of format $format; this node reads format $read.")
         }
     }
 

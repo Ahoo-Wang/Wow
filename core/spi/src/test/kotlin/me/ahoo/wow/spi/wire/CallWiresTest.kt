@@ -55,6 +55,16 @@ class CallWiresTest {
     }
 
     @Test
+    fun `a call should carry its format, and one of another format should be refused, never read as this one`() {
+        val sent = WowJson.mapper.readTree(CallHeader.decode(CallWires.encode(wire))) as ObjectNode
+        sent["format"].asInt().assert().isEqualTo(CallWire.FORMAT)
+        sent.put("format", 2)
+        assertThrows<IllegalArgumentException> {
+            CallWires.decode(CallHeader.encode(WowJson.mapper.writeValueAsBytes(sent)))
+        }.message.assert().isEqualTo("Wow-Call is of format 2; this node reads format 1.")
+    }
+
+    @Test
     fun `a value that is no call should be refused`() {
         assertThrows<IllegalArgumentException> { CallWires.decode(CallHeader.encode("[]".toByteArray())) }
     }

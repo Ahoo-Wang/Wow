@@ -221,6 +221,43 @@ class HttpSignalSenderTest {
         }
 
     @Test
+    fun `a batch refused as too large should be sent again by halves, and only a signal too large alone dropped`(): Unit =
+        runBlocking {
+            val gate = CompletableDeferred<Unit>()
+            val arrived = AtomicInteger()
+            val received = CopyOnWriteArrayList<WaitSignal>()
+            val sizes = CopyOnWriteArrayList<Int>()
+            InternalServer(
+                coRouter {
+                    POST(InternalHttp.SIGNALS_PATH) { request ->
+                        arrived.incrementAndGet()
+                        gate.await()
+                        val signals = ClusterCodec.decodeSignals(request.awaitBody<ByteArray>())
+                        sizes += signals.size
+                        // The origin's port takes two signals a request, and w-5 is too large even alone.
+                        if (signals.size > 2 || signals.any { it.waitId == "w-5" }) {
+                            return@POST ServerResponse.status(CONTENT_TOO_LARGE).buildAndAwait()
+                        }
+                        received += signals
+                        ServerResponse.noContent().buildAndAwait()
+                    }
+                },
+            ).use { origin ->
+                val sender = sender(concurrency = 1)
+                // w-0 holds the one request at the gate while the burst queues behind it, so that the burst goes in
+                // batches, one of them at least three signals.
+                sender.send(origin(origin.address), signal(0), deadline())
+                eventually { arrived.get() == 1 }
+                (1..6).forEach { sender.send(origin(origin.address), signal(it), deadline()) }
+                gate.complete(Unit)
+                eventually { received.size == 6 && sender.dropped == 1L }
+                received.map { it.waitId }.assert()
+                    .containsExactlyInAnyOrder("w-0", "w-1", "w-2", "w-3", "w-4", "w-6")
+                sizes.max().assert().isGreaterThan(2)
+            }
+        }
+
+    @Test
     fun `every dropped signal is observed by its reason`(): Unit = runBlocking {
         val reasons = CopyOnWriteArrayList<ObservedEvent.SignalDropped.Reason>()
         val observer = object : Observer {
@@ -458,3 +495,5 @@ class HttpSignalSenderTest {
         received.assert().isEmpty()
     }
 }
+
+private const val CONTENT_TOO_LARGE = 413

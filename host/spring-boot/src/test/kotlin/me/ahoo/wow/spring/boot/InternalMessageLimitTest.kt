@@ -123,8 +123,10 @@ class InternalMessageLimitTest {
             internalRoutes(handler, {})
         )
         serving(server) {
-            // Read whole: no forward, so malformed.
-            post(it, InternalHttp.FORWARD_PATH, body(300 * 1024)).statusCode().assert().isEqualTo(400)
+            // Read whole: no forward, so refused as malformed rather than as too large.
+            val answer = post(it, InternalHttp.FORWARD_PATH, body(300 * 1024))
+            answer.statusCode().assert().isEqualTo(200)
+            ClusterCodec.decodeReply(answer.body()).refused.assert().isEqualTo(Refusal.MALFORMED)
         }
     }
 }

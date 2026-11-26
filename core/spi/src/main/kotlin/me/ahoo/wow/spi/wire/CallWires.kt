@@ -24,7 +24,7 @@ import tools.jackson.core.JacksonException
  * JSON configuration, which the server's call routes read and `wow-client` writes. A member of the
  * JSON that is not the wire form's is dropped as it is parsed, and a hop's stage the reader does not know reads as
  * [me.ahoo.wow.api.result.Stage.UNKNOWN] ([WowJson.readerBuilder]): the internal port keeps reading what a peer of the
- * next minor version sends.
+ * next minor version sends. A call of another format ([CallWire.format]) is refused, never read as this one.
  */
 @InternalWowApi
 object CallWires {
@@ -32,14 +32,18 @@ object CallWires {
     @JvmStatic
     fun encode(wire: CallWire): String = CallHeader.encode(WowJson.mapper.writeValueAsBytes(wire))
 
-    /** The wire form [value] carries; an [IllegalArgumentException] when it does not parse. */
+    /** The wire form [value] carries; an [IllegalArgumentException] when it does not parse or is of another format. */
     @JvmStatic
     fun decode(value: String): CallWire {
         val bytes = CallHeader.decode(value)
-        return try {
+        val wire = try {
             WowJson.reader.readValue(bytes, CallWire::class.java)
         } catch (invalid: JacksonException) {
             throw IllegalArgumentException("Wow-Call is not a call: ${invalid.originalMessage}", invalid)
         }
+        require(wire.format == CallWire.FORMAT) {
+            "Wow-Call is of format ${wire.format}; this node reads format ${CallWire.FORMAT}."
+        }
+        return wire
     }
 }
