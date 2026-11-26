@@ -17,15 +17,21 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.query.AggregateIdFilter
+import me.ahoo.wow.api.query.AggregateIdsFilter
 import me.ahoo.wow.api.query.CaseFolding
 import me.ahoo.wow.api.query.ContainsFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.StringComparison
+import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.postgres.PostgresFixture
 import me.ahoo.wow.query.admission.QueryAdmission
 import me.ahoo.wow.query.backend.list
@@ -54,7 +60,12 @@ class PostgresIgnoreCasePatternTest {
 
     private fun ids(filter: FilterExpression): List<String> = runBlocking {
         val store = PostgresFixture.snapshotStore(type.context)
-        listOf("a" to """{"name":"Ann"}""", "b" to """{"name":"Bob"}""", "q" to """{"name":"a?"}""").forEach {
+        listOf(
+            "a" to """{"name":"Ann"}""",
+            "b" to """{"name":"Bob"}""",
+            "q" to """{"name":"a?"}""",
+            "a?" to """{"name":"Quinn"}""",
+        ).forEach {
             store.save(QueryFixtures.snapshot(type, it.first, it.second))
         }
         val storage = PostgresSnapshotQueryStorage(PostgresFixture.dataSource, type.context)
@@ -102,6 +113,13 @@ class PostgresIgnoreCasePatternTest {
             ContainsFilter(name, "a\uD800", StringComparison.CASE_INSENSITIVE),
             ContainsFilter(name, "a\uD800"),
             EqualFilter(name, "a\uD800"),
+            // An aggregate id is bound as any text: the row whose id is `a?` would answer.
+            AggregateIdFilter("a\uD800"),
+            AggregateIdsFilter(listOf("b", "a\uD800")),
+            IdFilter("a\uD800"),
+            TenantIdFilter("t\uD800"),
+            OwnerIdFilter("o\uD800"),
+            SpaceIdFilter("s\uD800"),
         ).forEach { filter ->
             refusal(filter).violations.single().code.assert().isEqualTo(QueryErrorCodes.VALUE_MISMATCH)
         }

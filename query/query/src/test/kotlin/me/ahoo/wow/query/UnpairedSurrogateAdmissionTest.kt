@@ -14,12 +14,16 @@
 package me.ahoo.wow.query
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregateIdFilter
+import me.ahoo.wow.api.query.AggregateIdsFilter
 import me.ahoo.wow.api.query.BetweenFilter
 import me.ahoo.wow.api.query.ContainsFilter
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.EndsWithFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.IdFilter
+import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.InFilter
 import me.ahoo.wow.api.query.NotEqualFilter
 import me.ahoo.wow.api.query.QueryField
@@ -77,6 +81,19 @@ class UnpairedSurrogateAdmissionTest {
         // An array's equality, its elements read as the JSON array they make.
         violation(EqualFilter(QueryField("tags"), listOf("x", "\uD800"))).assert()
             .isEqualTo(QueryViolation.ValueMismatch(QueryField("tags")))
+    }
+
+    @Test
+    fun `a system field's value with an unpaired surrogate should be a value mismatch too`() {
+        listOf(
+            IdFilter("a\uD800"),
+            IdsFilter(listOf("x", "\uD800")),
+            AggregateIdFilter("a\uD800"),
+            AggregateIdsFilter(listOf("x", "\uDC00")),
+        ).forEach { filter ->
+            violation(filter).assert().describedAs("$filter").isInstanceOf(QueryViolation.ValueMismatch::class.java)
+        }
+        violation(AggregateIdFilter("a\uD83D\uDE00")).assert().isNull()
     }
 
     @Test

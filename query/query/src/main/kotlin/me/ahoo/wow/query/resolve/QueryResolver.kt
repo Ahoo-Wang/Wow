@@ -291,6 +291,9 @@ internal class QueryResolver(
     private fun system(fresh: FilterExpression, original: FilterExpression, at: At): FilterExpression {
         val field = schema.systemField(checkNotNull(original.spec.systemField))
         val reference = reference(field, at.scope, original.requiredCapability())
+        requireValid(systemValues(original).none { it.hasUnpairedSurrogate() }) {
+            QueryViolation.ValueMismatch(reference.logical)
+        }
         fields[fresh] = bind(reference, at.scope, reference.capability)
         return fresh
     }
@@ -456,8 +459,9 @@ internal class QueryResolver(
     }
 
     /**
-     * Refuses a text operand of [expression] holding an unpaired surrogate (a `"\ud800"` of a JSON body): no store
-     * holds one, since every one keeps text as UTF-8, and a store's driver writes it as `?` (PostgreSQL's, ClickHouse's),
+     * Refuses a text operand of [expression] holding an unpaired surrogate (a `"\ud800"` of a JSON body), as [system]
+     * refuses one of a system field's (an id, an owner, a space): no store holds one, since every one keeps text as
+     * UTF-8, and a store's driver writes it as `?` (PostgreSQL's, ClickHouse's),
      * which a pattern reads as a quantifier and a comparison as a character the operand never held. The value matches
      * no text of [field], so it is the request's to mend, `wow.query.invalid` with a value mismatch, on every store.
      */
@@ -472,6 +476,18 @@ internal class QueryResolver(
             }
         }
         requireValid(texts.none(::holdsUnpairedSurrogate)) { QueryViolation.ValueMismatch(field) }
+    }
+
+    /** The texts a system-field filter compares its column with, which [requireWellFormedText] reads for a field's. */
+    private fun systemValues(filter: FilterExpression): List<String> = when (filter) {
+        is IdFilter -> listOf(filter.value)
+        is IdsFilter -> filter.values
+        is AggregateIdFilter -> listOf(filter.value)
+        is AggregateIdsFilter -> filter.values
+        is TenantIdFilter -> listOf(filter.value)
+        is OwnerIdFilter -> listOf(filter.value)
+        is SpaceIdFilter -> listOf(filter.value)
+        else -> emptyList()
     }
 
     private fun holdsUnpairedSurrogate(value: Any?): Boolean = when (value) {
