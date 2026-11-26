@@ -112,3 +112,5 @@ wow:
 ## Webhook {#webhooks}
 
 每个服务还可以在聚合停放或重试用尽时通知一个 webhook：设置 `wow.ops.webhook.url`，`wow.ops.webhook.format` 设为 `generic`（Wow 的 JSON）或 `wecom`（企业微信机器人），并用 `wow.ops.webhook.events` 在 `parked` 和 `exhausted` 之间选择。
+
+消息的 Markdown 摘要（企业微信消息的全部内容，Wow 的 JSON 中的 `text`）把聚合和停放原因写成文本。原因可能经由拒绝消息引用客户端发来的内容。它们写在一行里，CommonMark 在行内视为标记的字符（`` \ ` * _ ~ [ ] < ``）用反斜杠转义。所以客户端的文本不会给告警添加行、链接、强调或 HTML。Wow 的 JSON 还在 `entry` 中原样携带这个条目。

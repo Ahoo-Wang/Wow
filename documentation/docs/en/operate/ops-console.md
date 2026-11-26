@@ -112,3 +112,5 @@ A subscription's name is its identity: its context, its processor's name and its
 ## Webhooks
 
 Each service can also notify a webhook when an aggregate parks or spends its retries: set `wow.ops.webhook.url`, with `wow.ops.webhook.format` `generic` for Wow's JSON or `wecom` for a WeCom (WeChat Work) robot, and `wow.ops.webhook.events` to choose between `parked` and `exhausted`.
+
+The message's Markdown summary (the whole of a WeCom message, the `text` of Wow's JSON) writes the aggregate and the parked reason as text. A reason may quote what a client sent, through a rejection's message. Each is written on one line, and CommonMark's markup characters within a line (`` \ ` * _ ~ [ ] < ``) are escaped with a backslash. So a client's text adds no line, link, emphasis or HTML to the alert. Wow's JSON also carries the entry as it is, in `entry`.
