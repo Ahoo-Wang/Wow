@@ -41,7 +41,7 @@
 # `down` stops them. A reused run must name the session's backend, nodes, accounts, heap and install. With
 # `up --jfr`, each reused run dumps the servers' recordings over its warm-up and measured phase.
 #
-# Options: --warm-up=30 --measure=60 --distribution=uniform|zipf|hot --accounts=1000 --label=run --out=<dir>
+# Options: --warm-up=30 --measure=60 --distribution=uniform|zipf|hot|single --accounts=1000 --label=run --out=<dir>
 #          --heap=1g --jfr (a flight recording per server) --settle=<s> (after the nodes are up), --install=<dir> (the
 #          server's installed distribution, by default this tree's server/build/install/benchmark-server: another
 #          build, such as a baseline's, or test/benchmarks/axon-server/build/install/axon-server for the Axon
@@ -192,14 +192,15 @@ volume_disk() {
   echo "/dev/$disk"
 }
 
-# What the load generator samples of the containers beside the servers (its --containers and --kafka): the store's
-# $1, and Kafka's unless --no-bus.
+# What the load generator samples of the containers beside the servers (its --containers, --kafka and --published):
+# the store's $1, and unless --no-bus Kafka's and the account's published stream, the transport sink's lag behind the
+# log (Resources.kt, Published.kt).
 containers() {
   CONTAINERS="wow-e2e-bench-$1"
   KAFKA_OPTION=()
   if uses_bus; then
     CONTAINERS="wow-e2e-bench-kafka,$CONTAINERS"
-    KAFKA_OPTION=(--kafka=wow-e2e-bench-kafka)
+    KAFKA_OPTION=(--kafka=wow-e2e-bench-kafka --published=transfer.account)
   fi
 }
 
