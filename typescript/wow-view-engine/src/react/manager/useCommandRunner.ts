@@ -127,7 +127,7 @@ interface CommandRunner {
 export function useCommandRunner(
   engine: ViewEngine,
   definitionId: string,
-  reload: ViewListState['reload'],
+  refresh: ViewListState['refresh'],
 ): CommandRunner {
   // Kept here rather than read back from `engine.pendingWrites()`: that map is
   // keyed by request id and says nothing about which row raised a write, and
@@ -215,7 +215,7 @@ export function useCommandRunner(
         // would take that id back out of the request — leaving the row
         // listed, and named as the default, until the store answers.
         record(key, null);
-        if (intent.action !== 'delete') reload();
+        if (intent.action !== 'delete') refresh();
         return true;
       } catch (caught) {
         // A refusal never left, and it may not displace a handle; see
@@ -231,7 +231,7 @@ export function useCommandRunner(
           commit({ ...settled, pending: null });
       }
     },
-    [commit, definitionId, engine, held, owns, record, reload],
+    [commit, definitionId, engine, held, owns, record, refresh],
   );
 
   const run = useCallback(

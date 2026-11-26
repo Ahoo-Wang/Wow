@@ -82,7 +82,7 @@ export interface ExportOffer {
 /**
  * Props of the export window: the offer, and the columns the file will hold.
  */
-export interface ExportWindowProps extends ExportOffer {
+export interface ExportWindowOptions extends ExportOffer {
   /**
    * The columns the file will hold, in the order the table draws them —
    * the very list the serialiser writes into the header row. Only what each
@@ -93,7 +93,7 @@ export interface ExportWindowProps extends ExportOffer {
   max: number;
 }
 
-export interface ExportDialogProps extends ExportWindowProps {
+export interface ExportDialogProps extends ExportWindowOptions {
   /**
    * Whether the window is open. Whatever offers the export opens it — the
    * toolbar's own button (`ExportButton`), or 「导出数据…」 in a dashboard
@@ -130,7 +130,7 @@ export interface ExportDialogProps extends ExportWindowProps {
 export function ExportButton({
   detached,
   ...props
-}: ExportWindowProps & {
+}: ExportWindowOptions & {
   /**
    * Draws one half of it, joined to the other by a handle: the button
    * inside a toolbar, the window beside it (`DetachedDialog`). Left out,
@@ -256,7 +256,7 @@ function ExportJourney({
   primary,
   onClose,
   ...props
-}: ExportWindowProps & {
+}: ExportWindowOptions & {
   phase: ExportPhase;
   primary: RefObject<HTMLButtonElement | null>;
   onClose(): void;

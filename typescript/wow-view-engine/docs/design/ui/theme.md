@@ -118,8 +118,8 @@ shadcn 的语义名描述「颜色的用途类别」，一个名字身兼数职�
 | `contrast` | 高对比：字 ≥7:1，控件边、焦点与标记 ≥4.5:1，2px 焦点与控件边，图表默认开花纹                  |
 
 - **内置预设是两套**（D94 修订）：示例主题 `porcelain`（Storybook 的 `host-theme/porcelain.css`，曾是内置预设，D94 移出）整份留在包外，与 `acme.css` 并排；宿主自己的预设就是这样写的（`:where([data-fve-preset='<名>'])` 下的 `--fvp-*`），想要桌面原生外观的宿主把它抄进自己的应用，`data-fve-preset="porcelain"` 照旧写，名字是宿主自己的。性格：系统字体、分部件的圆角、柔和的浮起、填色的控件、表格读作桌面列表（D59、D63、D69）。包的测试仍把它与内置预设一起量（`test/fixtures/themeTokens.ts`：对比度、色板与品牌色的门）；Storybook 把它当示例主题加载，工具栏列作「porcelain (example)」。
-- **每个值的理由写在它的源文件里**：`src/themes/<名>.css` 一套一个文件，块加上每个取值的理由（与参考的差异、量出来最紧的几对）；`src/themes.css` 是索引，顺序就是一切名单的顺序。构建由 `scripts/themes.mjs` 去掉注释做出 `themes.css`（全部）与 `themes/<名>.css`（单套，`./themes/*.css`）；`verify-package` 断言单套文件拼起来等于 `themes.css`、与 `BUILT_IN_PRESETS` 同序，并称重（每套 gzip ≤1.5 KB、`themes.css` ≤8 KB）。
-- **类型**：`/ui` 导出 `BUILT_IN_PRESETS`（只读名字数组）、`BuiltInPreset` 与 `ViewPreset`（内置名 ∪ `(string & {})`：内置名有补全，宿主自己的预设名也能传）。不导出显示名：引擎里没有选择器。
+- **每个值的理由写在它的源文件里**：`src/themes/<名>.css` 一套一个文件，块加上每个取值的理由（与参考的差异、量出来最紧的几对）；`src/themes.css` 是索引，顺序就是一切名单的顺序。构建由 `scripts/themes.mjs` 去掉注释做出 `themes.css`（全部）与 `themes/<名>.css`（单套，`./themes/*.css`）；`verify-package` 断言单套文件拼起来等于 `themes.css`、与 `BUILTIN_PRESETS` 同序，并称重（每套 gzip ≤1.5 KB、`themes.css` ≤8 KB）。
+- **类型**：`/ui` 导出 `BUILTIN_PRESETS`（只读名字数组）、`BuiltinPreset` 与 `ViewPreset`（内置名 ∪ `(string & {})`：内置名有补全，宿主自己的预设名也能传）。不导出显示名：引擎里没有选择器。
 - **命名**：描述性的普通词（材料、自然、性格），小写；不用任何公司、产品、设计系统或编辑器配色的名字。对外只描述性格，唯一的例外是主题指南「该选哪套」的指路表可以写「想要 macOS／Apple 桌面应用那种感觉」，只为让宿主找得到（D46：Apple 是商标，预设以风格命名）；这一行现在指向示例主题 `porcelain` 的文件，不再指向内置预设。值是按本包的门自己调出来的，不整套照搬；不带任何标识、图标、插画或字体文件，系统字体只经名字引用本机已装的。
 - **预设可以带自己的图表八色**（D35 Q62，修订 D30 Q47）：全带或全不带，且必须过同一套色板门；过不了就用默认八色。色位是序数：`--chart-3` 是「第三个系列的颜色」，不是「青色」，所以写色位的 `ChartSpec.colors` 换预设会换色，要表达好坏、涨跌的用语义 token（[../model-shapes.md](../model-shapes.md)）。
 - **高对比不跟随系统自动切换**：换哪套预设是宿主的外观；系统的「提高对比度」自动开的是花纹（D33 Q57）；Windows 的强制颜色模式由浏览器接管颜色，本包保证的是焦点、控件边与选中在那种模式下仍看得见（见[打印与强制颜色](#打印与强制颜色)）。
@@ -202,5 +202,5 @@ ECharts 画在级联够不到的地方，所以 `readChartTheme`（`ui/charts/th
 ## Storybook
 
 - 工具栏有「Preset」（`fvePreset`，把 `data-fve-preset` 挂在 `<html>` 上；`neutral` 即不挂）、明暗（多一档 `system`）、「Density」「Change colors」四个全局，都像宿主一样写 `<html>`。Storybook 打开时是 `neutral`，与引擎自己的默认一样；「Preset」里除两套内置预设外还列着示例主题「porcelain (example)」。
-- 预设名单读 `/ui` 的 `BUILT_IN_PRESETS`（`stories/view-engine/presets.ts`），工具栏、主题一览与对比度矩阵共用它：包里多一套，三处就多一套。
+- 预设名单读 `/ui` 的 `BUILTIN_PRESETS`（`stories/view-engine/presets.ts`），工具栏、主题一览与对比度矩阵共用它：包里多一套，三处就多一套。
 - 「能力/主题与预设」下：每套一个主题一览（`ThemeGallery.stories.tsx`）、对比度矩阵、品牌色、宿主自定义主题；角色、三层、链接、图表角色、密度、打印与强制颜色各有自己的回归故事。

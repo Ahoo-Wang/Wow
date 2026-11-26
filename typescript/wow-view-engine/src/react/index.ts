@@ -130,7 +130,7 @@ export {
 export {
   type UseViewListOptions,
   type ViewListPreferences,
-  type ViewListReloadOptions,
+  type ViewListRefreshOptions,
   type ViewListState,
   useViewList,
 } from './useViewList.js';

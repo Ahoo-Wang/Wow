@@ -256,9 +256,11 @@ export interface DashboardController {
   ): Promise<PressDestination | null>;
   /**
    * Another board a click opens, read for 「点击时…」 to list its filters
-   * (`DashboardRuntime.destinationBoard`); `null` for one gone or unreadable.
+   * (`DashboardRuntime.destinationDashboard`); `null` for one gone or unreadable.
    */
-  destinationBoard(instanceId: string): Promise<DestinationDashboard | null>;
+  destinationDashboard(
+    instanceId: string,
+  ): Promise<DestinationDashboard | null>;
   /**
    * What one data panel's view takes off the board as it stands
    * (`DashboardRuntime.handOver`, D26 Q30): every way off it — 「在工作台中
@@ -451,9 +453,9 @@ export function useDashboard(
         runtime ? runtime.destination(panelId, row) : null,
       [runtime],
     ),
-    destinationBoard: useCallback(
+    destinationDashboard: useCallback(
       async (instanceId: string) =>
-        runtime ? runtime.destinationBoard(instanceId) : null,
+        runtime ? runtime.destinationDashboard(instanceId) : null,
       [runtime],
     ),
     handOver: useCallback(

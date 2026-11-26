@@ -41,7 +41,7 @@ function listState(overrides: Partial<ViewListState> = {}): ViewListState {
     defaultInstanceId: null,
     status: 'success',
     error: null,
-    reload: () => {},
+    refresh: () => {},
     ...overrides,
   };
 }

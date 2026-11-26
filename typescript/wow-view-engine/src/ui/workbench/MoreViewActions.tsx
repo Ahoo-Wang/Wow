@@ -87,9 +87,9 @@ export function MoreViewActions({
     (can.local !== true || state.audience === 'shared');
   // 放进仪表盘: offered on a saved view whose commands can; whether any
   // board will take it is read when the dialog opens.
-  const { boards, addToDashboard } = commands;
+  const { dashboards, addToDashboard } = commands;
   const placeable =
-    !state.isNew && boards !== undefined && addToDashboard !== undefined;
+    !state.isNew && dashboards !== undefined && addToDashboard !== undefined;
   if (!onSaveAs && moveTo === null && !linkable && !placeable) return null;
   const Audience = moveTo === null ? null : AUDIENCE_ICON[moveTo];
 
@@ -177,7 +177,7 @@ export function MoreViewActions({
         <AddToDashboardDialog
           open={placing}
           onOpenChange={setPlacing}
-          commands={{ boards, addToDashboard, state }}
+          commands={{ dashboards, addToDashboard, state }}
           title={title}
           onAdded={board =>
             say(

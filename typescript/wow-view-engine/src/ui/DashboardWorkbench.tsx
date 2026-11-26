@@ -130,6 +130,11 @@ export interface DashboardWorkbenchProps {
    * the same choice as `messages`, made for values rather than words.
    */
   locale?: string;
+  /**
+   * The whole list of options behind a `remote` key, where the host has it
+   * at hand: the value editor filters it as the reader types, rather than
+   * searching the source the engine's `optionSource` answers.
+   */
   optionsFor?(remote: string): FieldOption[] | undefined;
   /**
    * The sidebar this workbench opens on. It is view state and nothing else —

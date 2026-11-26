@@ -154,7 +154,7 @@ function engineWith(
   const engine = new ViewEngine({
     resources: resourcesOf([definition(), overviewDefinition()], () => source),
     store,
-    resolveOptions: key => (key === 'customers' ? customers : people),
+    optionSource: key => (key === 'customers' ? customers : people),
     environment: { ...testEnvironment().environment, onError },
     ...(options.limits ? { limits: options.limits } : {}),
   });
@@ -335,7 +335,7 @@ describe('rows read beside a page ask their ids too', () => {
     const engine = new ViewEngine({
       resources: resourcesOf([definition], () => memorySource(rows)),
       store: new MemoryViewStore(),
-      resolveOptions: () => owners.source,
+      optionSource: () => owners.source,
     });
     const runtime = engine.create('deals', {
       title: 'Pipeline',

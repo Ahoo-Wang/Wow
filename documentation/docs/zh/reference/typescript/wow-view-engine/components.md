@@ -33,7 +33,7 @@ description: 'DataWorkbench、DashboardWorkbench、EmbeddedView 与 EmbeddedDash
 | `definitionId` | 要画的定义 |
 | `instanceId`、`onInstanceChange` | 打开哪个视图，像输入框的 `value`：不传则工作台从有效缺省开始自己管；传了——字符串，或 `null` 表示缺省——就由宿主的路由做主，之后每次变化都打开它指的视图。它经过离开确认，所以推过来的视图不会不问就丢掉未保存的草稿。`onInstanceChange` 用同样的词汇报告，宿主可以直接放进路由 |
 | `viewKinds` | 列出并能画哪些种类，顺序即「新建视图」菜单的顺序。缺省两种都有；只写一种是真正的收窄——另一种既不列出也打不开 |
-| `record` | 宿主对记录视图说的话（[`RecordViewProps`](#api-RecordViewProps)）：业务操作、单元格读法、能否选行、空结果说什么。绑定（`bind` 的 `actions`、`slots`、`reading`）是各项的缺省，这里给的优先 |
+| `record` | 宿主对记录视图说的话（[`RecordViewOptions`](#api-RecordViewOptions)）：业务操作、单元格读法、能否选行、空结果说什么。绑定（`bind` 的 `actions`、`slots`、`reading`）是各项的缺省，这里给的优先 |
 | `features` | 工作台自己的哪些控件出现在屏幕上：`export`、`layouts`、`columns`、`sort`、`search`、`visualization`、`manage`。缺省全开；关掉的是不存在，不是禁用 |
 | `templates` | 新建各种视图时从什么开始，缺省是 `defaultRecordConfig` 与 `defaultAnalysisConfig`。视图仍然以未保存打开，首次保存时问名字和受众 |
 | `handOver` | 仪表盘或嵌入交给宿主路由的一个视图，按它来的样子在这里打开：保存的视图带着读者在仪表盘上设的条件（「已修改」，可逐个去掉，「还原」全部去掉），或没人保存过的视图。每个新对象经离开确认打开一次 |
@@ -64,7 +64,7 @@ export interface DataWorkbenchProps {
   onSidebarOpenChange?(open: boolean): void;
   optionsFor?(remote: string): FieldOption[] | undefined;
   preset?: ViewPreset;
-  record?: RecordViewProps;
+  record?: RecordViewOptions;
   templates?: { record?: RecordViewConfig; analysis?: AnalysisViewConfig };
   tokens?: ViewSurfaceProps['tokens'];
   viewKinds?: readonly DataViewKind[];
@@ -72,7 +72,7 @@ export interface DataWorkbenchProps {
 export declare function DataWorkbench(props: DataWorkbenchProps): import('react').JSX.Element;
 ```
 
-### RecordViewProps {#api-RecordViewProps}
+### RecordViewOptions {#api-RecordViewOptions}
 
 宿主对工作台所画记录视图说的话。它们是一个对象，因为没有一项对分析视图有意义（分析视图没有业务操作）。
 
@@ -86,7 +86,7 @@ export declare function DataWorkbench(props: DataWorkbenchProps): import('react'
 | `onExported` | 每次导出交给浏览器时告诉宿主：文件名、内容、哪个范围多少行。要审计什么离开了应用的宿主读它 |
 
 ```ts
-export interface RecordViewProps {
+export interface RecordViewOptions {
   actions?: RecordActions;
   detail?: RecordDetailOptions;
   emptyAction?: (() => void) | null;

@@ -89,7 +89,7 @@ export interface ViewListState {
   items: ViewInstanceSummary[];
   permissions: ViewPermissions;
   preferences: ViewListPreferences;
-  reload(options?: ViewListReloadOptions): void;
+  refresh(options?: ViewListRefreshOptions): void;
   status: QueryStatus;
 }
 

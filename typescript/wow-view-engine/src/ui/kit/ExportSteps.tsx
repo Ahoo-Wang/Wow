@@ -35,7 +35,7 @@ import {
 } from '../components/field.js';
 import { Progress } from '../components/progress.js';
 import { RadioGroup, RadioGroupItem } from '../components/radio-group.js';
-import type { ExportOffer, ExportWindowProps } from './ExportDialog.js';
+import type { ExportOffer, ExportWindowOptions } from './ExportDialog.js';
 import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
 import { conditionsText } from './summary.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
@@ -82,7 +82,7 @@ export function ChooseStep({
   holds,
   scope,
   onScope,
-}: ExportWindowProps & {
+}: ExportWindowOptions & {
   /** The name this opening settled on; see `ExportOffer.nameFile`. */
   fileName: string;
   scope: RecordExportExtent;

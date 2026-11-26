@@ -40,7 +40,7 @@ export const engine = new ViewEngine({
 |---|---|
 | `resources` | 宿主登记的全部资源：每份定义，以及它的数据来源。仪表盘的定义没有来源——它自己不查询 |
 | `store` | 保存视图与偏好的端口（[持久化端口](./store)） |
-| `resolveOptions` | `reference` 字段远端候选值的来源，按同一个键查 |
+| `optionSource` | `reference` 字段远端候选值的来源，按同一个键查 |
 | `kinds` | 字段类型登记表；缺省是内置类型（[定义与字段类型](./definitions#api-FieldKind)） |
 | `text` | 定义里的键（`text(key)`）在引擎起始语言下怎样说，给没有 Provider 的宿主；有 `ViewHost` 或 `MessagesProvider` 时由它们按自己的语言说。缺省时，在设定语言前键就读作键本身 |
 | `limits` | 宿主在 `DEFAULT_RUNTIME_LIMITS` 上的预算，没写的保持缺省。来源预算（`maxPageSize`、`maxPageWindow`、`maxAnalysisRows`、`maxQueryFilterNodes`、`maxFilterValues`）由来源的查询描述给出，这里给的只能往下压——除非要引擎比服务端允许的少要一些，否则别写 |
@@ -61,7 +61,7 @@ export interface ViewEngineOptions {
   limits?: Partial<RuntimeLimits>;
   newRequestId?(): string;
   onIssue?(issue: Issue): void;
-  resolveOptions?(key: string): OptionSource;
+  optionSource?(key: string): OptionSource;
   resources: readonly ViewResource[];
   store: ViewStore;
   text?(key: string): string | undefined;

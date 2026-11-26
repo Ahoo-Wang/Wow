@@ -253,7 +253,7 @@ export interface WorkbenchController {
    */
   dashboardOrigin: DashboardOrigin | null;
   /** Goes back to `dashboardOrigin` through the host's route, past the leave guard. */
-  toBoard(): void;
+  toDashboard(): void;
   /**
    * Whether the view on screen is one a board or an embed handed over
    * (`handOver`, D26 Q30), saved or not: the press that sent it took the
@@ -521,7 +521,7 @@ export function useWorkbench(
     handedHere,
   });
 
-  const reload = list.reload;
+  const reload = list.refresh;
   const open = useCallback(
     (instance: ViewInstance) => {
       // What the store took is what the screen shows from here, opened by

@@ -80,7 +80,7 @@ export function createBoardEngine(
     // 与真实的 Wow 服务一样，一页最多 100 行。
     limits: { ...DEFAULT_RUNTIME_LIMITS, maxPageSize: 100 },
     store: options.store ?? new MemoryViewStore({ instances: retailInstances }),
-    resolveOptions: remote => {
+    optionSource: remote => {
       if (remote !== MEMBER_OPTIONS)
         throw new Error(`No retail options ${remote}.`);
       return memberOptions();

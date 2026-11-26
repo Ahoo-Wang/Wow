@@ -187,7 +187,6 @@ interface AnalysisColumnView {
     named?: true;
     numberFormat?: NumberFormat;
     numeric?: FieldNumeric;
-    ongoing?: unknown;
     // (undocumented)
     options?: readonly FieldOption[];
     remote?: string;
@@ -196,6 +195,7 @@ interface AnalysisColumnView {
     sortable?: false;
     timeUnit?: EpochTimeUnit;
     timeZone?: string;
+    unfinished?: unknown;
     // (undocumented)
     width?: number;
 }
@@ -521,13 +521,13 @@ interface BoxplotSpec {
 }
 
 // @public
-export const BUILT_IN_PRESETS: readonly ["neutral", "contrast"];
+export const BUILTIN_PRESETS: readonly ["neutral", "contrast"];
 
 // @public
 type BuiltinFieldKindId = 'string' | 'number' | 'boolean' | 'date' | 'datetime' | 'enum' | 'reference' | 'array' | 'elementMatch' | 'search' | MetadataFieldKindId;
 
 // @public
-export type BuiltInPreset = (typeof BUILT_IN_PRESETS)[number];
+export type BuiltinPreset = (typeof BUILTIN_PRESETS)[number];
 
 // @public
 interface BulkRun {
@@ -981,7 +981,7 @@ interface DashboardController {
     columns: number;
     crossFilter(panelId: string, row: RecordData): CrossFilterOutcome;
     destination(panelId: string, row: RecordData): Promise<PressDestination | null>;
-    destinationBoard(instanceId: string): Promise<DestinationDashboard | null>;
+    destinationDashboard(instanceId: string): Promise<DestinationDashboard | null>;
     // (undocumented)
     dirty: boolean;
     edit: (DashboardEditing & DashboardFilterEditing) | null;
@@ -1080,7 +1080,6 @@ export interface DashboardExtensionsOptions {
     // (undocumented)
     engine: ViewEngine;
     messages: MessageFormatters;
-    // (undocumented)
     optionsFor?: Parameters<typeof NewAnalysisDialog>[0]['optionsFor'];
     runtime: DashboardRuntime | null;
     say(message: string): void;
@@ -1154,7 +1153,7 @@ export interface DashboardGridProps {
     editable?: boolean;
     emptyActions?: ReactNode;
     filterModes?: DashboardFilterModes;
-    header?(board: {
+    header?(dashboard: {
         narrow: boolean;
     }): ReactNode;
     headingLevel?: PanelHeadingLevel;
@@ -1242,7 +1241,7 @@ interface DashboardRuntime extends ViewRuntime<DashboardViewConfig>, DashboardEd
     clearFilters(): void;
     crossFilter(panelId: string, row: RecordData): CrossFilterOutcome;
     destination(panelId: string, row: RecordData): Promise<PressDestination | null>;
-    destinationBoard(instanceId: string): Promise<DestinationDashboard | null>;
+    destinationDashboard(instanceId: string): Promise<DestinationDashboard | null>;
     // (undocumented)
     getSnapshot(): DashboardRuntimeState;
     handOver(panelId: string): HandOver | null;
@@ -1375,7 +1374,6 @@ export interface DashboardWorkbenchProps {
     onRenderFailure?: RenderFailureHandler;
     onSidebarOpenChange?(open: boolean): void;
     onTabChange?(tabId: string | null): void;
-    // (undocumented)
     optionsFor?(remote: string): FieldOption[] | undefined;
     preset?: ViewPreset;
     template?: DashboardViewConfig;
@@ -1514,10 +1512,9 @@ export interface DataWorkbenchProps {
     onNavigate?(to: ViewNavigation): void;
     onRenderFailure?: RenderFailureHandler;
     onSidebarOpenChange?(open: boolean): void;
-    // (undocumented)
     optionsFor?(remote: string): FieldOption[] | undefined;
     preset?: ViewPreset;
-    record?: RecordViewProps;
+    record?: RecordViewOptions;
     templates?: {
         record?: RecordViewConfig;
         analysis?: AnalysisViewConfig;
@@ -4070,7 +4067,7 @@ interface ExportRowsOptions {
 }
 
 // @public
-export interface ExportWindowProps extends ExportOffer {
+export interface ExportWindowOptions extends ExportOffer {
     columns: readonly {
         label: string;
     }[];
@@ -4994,7 +4991,6 @@ interface MetricPeriod {
         delta: number;
         ratio: number | null;
     } | null;
-    partial?: true;
     previous?: {
         at: unknown;
         value: number | null;
@@ -5005,6 +5001,7 @@ interface MetricPeriod {
         to: number;
         zone: string;
     };
+    unfinished?: true;
     unit: AggregationDateUnitName;
     unmatched?: true;
 }
@@ -5047,7 +5044,6 @@ export interface NewAnalysisDialogProps {
     onOpenChange(open: boolean): void;
     // (undocumented)
     open: boolean;
-    // (undocumented)
     optionsFor?(remote: string): FieldOption[] | undefined;
 }
 
@@ -5879,7 +5875,7 @@ interface RecordViewConfig extends DataViewConfigBase {
 }
 
 // @public
-export interface RecordViewProps {
+export interface RecordViewOptions {
     actions?: RecordActions;
     detail?: RecordDetailOptions;
     emptyAction?: (() => void) | null;
@@ -6019,7 +6015,7 @@ export function ResultToolbar(input: ResultToolbarProps): React_2.JSX.Element;
 // @public
 export interface ResultToolbarProps {
     bulkActions?(context: SelectionContext): React_2.ReactNode;
-    exporter?: ExportWindowProps;
+    exporter?: ExportWindowOptions;
     features?: WorkbenchFeatures;
     fieldGroups?: readonly FieldGroupDefinition[];
     fields: readonly FieldDefinition[];
@@ -6182,11 +6178,11 @@ interface SaveAsInput {
 // @public
 interface SaveCommands {
     abandon(write?: WriteState): void;
-    addToDashboard?(boardId: string): Promise<ViewInstance | null>;
-    boards?(): Promise<readonly DashboardChoice[]>;
+    addToDashboard?(dashboardId: string): Promise<ViewInstance | null>;
     // (undocumented)
     can: SaveAbilities;
     changeAudience?(audience: ViewAudience): Promise<ViewInstance | null>;
+    dashboards?(): Promise<readonly DashboardChoice[]>;
     // (undocumented)
     delete(): Promise<boolean>;
     // (undocumented)
@@ -7900,7 +7896,7 @@ export type ViewDestination = ViewRoute | ViewNavigation;
 class ViewEngine {
     constructor(options: ViewEngineOptions);
     abandonWrite(target: WriteTarget): void;
-    addToDashboard(boardId: string, instanceId: string): Promise<ViewInstance>;
+    addToDashboard(dashboardId: string, instanceId: string): Promise<ViewInstance>;
     changeAudience(id: string, audience: ViewAudience): Promise<ViewInstance>;
     checkBinding(definitionId: string, actions?: readonly RecordAction[]): boolean;
     close(runtime: ViewRuntime): void;
@@ -7922,6 +7918,7 @@ class ViewEngine {
     list(definitionId: string, options?: ReadOptions): Promise<ViewListing>;
     open(instanceId: string, options?: OpenOptions): Promise<AnyViewRuntime>;
     openRuntimes(): readonly ViewRuntime[];
+    optionSource(key: string): OptionSource;
     pendingWrites(): ReadonlyMap<string, WriteState>;
     // (undocumented)
     permissions(definitionId: string): ViewPermissions;
@@ -7934,7 +7931,6 @@ class ViewEngine {
     reorder(definitionId: string, order: string[]): Promise<ViewPreferences>;
     resolveConflict(target: WriteTarget, choice: ConflictChoice): Promise<ViewInstance | ViewPreferences | void>;
     resolveDefault(summaries: readonly ViewInstanceSummary[], preferences: ViewPreferences, explicit?: string): string | null;
-    resolveOptions(key: string): OptionSource;
     retryWrite(target: WriteTarget): Promise<ViewInstance | ViewPreferences | void>;
     save(runtime: ViewRuntime): Promise<ViewInstance>;
     saveAs(runtime: ViewRuntime, input: SaveAsInput): Promise<ViewInstance>;
@@ -7959,7 +7955,7 @@ interface ViewEngineOptions {
     limits?: Partial<RuntimeLimits>;
     newRequestId?(): string;
     onIssue?(issue: Issue): void;
-    resolveOptions?(key: string): OptionSource;
+    optionSource?(key: string): OptionSource;
     resources: readonly ViewResource[];
     // (undocumented)
     store: ViewStore;
@@ -8143,7 +8139,7 @@ interface ViewListPreferences {
 }
 
 // @public
-interface ViewListReloadOptions {
+interface ViewListRefreshOptions {
     without?: string;
 }
 
@@ -8160,7 +8156,7 @@ interface ViewListState {
     // (undocumented)
     preferences: ViewListPreferences;
     // (undocumented)
-    reload(options?: ViewListReloadOptions): void;
+    refresh(options?: ViewListRefreshOptions): void;
     status: QueryStatus;
 }
 
@@ -8292,7 +8288,7 @@ interface ViewPreferences {
 }
 
 // @public
-export type ViewPreset = BuiltInPreset | (string & {});
+export type ViewPreset = BuiltinPreset | (string & {});
 
 // @public
 interface ViewQueryState {
@@ -8553,7 +8549,7 @@ interface WorkbenchController {
     // (undocumented)
     setAutoRun(on: boolean): Promise<void>;
     state: ViewRuntimeState<ViewConfig> | null;
-    toBoard(): void;
+    toDashboard(): void;
     unopenable: Issue | null;
     viewKinds: readonly ViewKind[];
 }

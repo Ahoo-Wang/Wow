@@ -132,7 +132,7 @@ function engineOver(config: ViewConfig, source: OptionSource): ViewEngine {
       }),
     ),
     store: new MemoryViewStore({ instances: [instance] }),
-    resolveOptions: () => source,
+    optionSource: () => source,
   });
 }
 

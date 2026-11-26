@@ -154,7 +154,7 @@ describe('a metric card over a trend, read as its last period', () => {
     expect(data.period).toEqual({
       at: day(22),
       unit: AggregationDateUnit.DAY,
-      partial: true,
+      unfinished: true,
     });
   });
 

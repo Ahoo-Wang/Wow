@@ -871,7 +871,7 @@ export function createStoryEngine(
     store:
       options.store ??
       new MemoryViewStore({ instances: options.instances ?? savedViews }),
-    resolveOptions: () => options.customers ?? customerSource(),
+    optionSource: () => options.customers ?? customerSource(),
     ...(options.limits
       ? { limits: { ...DEFAULT_RUNTIME_LIMITS, ...options.limits } }
       : {}),

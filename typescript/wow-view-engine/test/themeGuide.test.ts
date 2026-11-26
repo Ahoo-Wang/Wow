@@ -45,7 +45,7 @@ import { readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import postcss from 'postcss';
 import { describe, expect, it } from 'vitest';
-import { BUILT_IN_PRESETS } from '../src/ui/kit/presets';
+import { BUILTIN_PRESETS } from '../src/ui/kit/presets';
 import {
   hostVariables,
   presetVariables,
@@ -107,7 +107,7 @@ const STYLESHEETS = new Set([
   '@ahoo-wang/wow-view-engine/styles.css',
   '@ahoo-wang/wow-view-engine/themes.css',
   '@ahoo-wang/wow-view-engine/shadcn-bridge.css',
-  ...BUILT_IN_PRESETS.map(
+  ...BUILTIN_PRESETS.map(
     preset => `@ahoo-wang/wow-view-engine/themes/${preset}.css`,
   ),
 ]);
@@ -249,7 +249,7 @@ describe('the HTML samples of the theming pages', () => {
         if (!THEME_ATTRIBUTES.includes(name)) wrong.push(`${name} is no axis`);
         if (
           name === 'data-fve-preset' &&
-          !(BUILT_IN_PRESETS as readonly string[]).includes(value) &&
+          !(BUILTIN_PRESETS as readonly string[]).includes(value) &&
           !own.has(value)
         )
           wrong.push(`no preset ${value}`);

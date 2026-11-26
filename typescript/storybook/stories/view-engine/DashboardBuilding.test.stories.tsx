@@ -13,7 +13,7 @@
 import type { ComponentType } from 'react';
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, screen, userEvent, waitFor, within } from 'storybook/test';
-import { BUILT_IN_PRESETS, zhCN } from '@ahoo-wang/wow-view-engine/ui';
+import { BUILTIN_PRESETS, zhCN } from '@ahoo-wang/wow-view-engine/ui';
 import displayMeta, {
   AllPanels as DisplayAllPanels,
   Building as DisplayBuilding,
@@ -440,7 +440,7 @@ export const EditBarSitsOnTheGround: Story = {
     const preset = html.getAttribute('data-fve-preset');
     const dark = html.classList.contains('dark');
     try {
-      for (const name of BUILT_IN_PRESETS)
+      for (const name of BUILTIN_PRESETS)
         for (const mode of [false, true]) {
           html.setAttribute('data-fve-preset', name);
           html.classList.toggle('dark', mode);

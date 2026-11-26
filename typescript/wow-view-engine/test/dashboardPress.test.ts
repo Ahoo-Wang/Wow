@@ -557,13 +557,13 @@ describe('a press that opens another board (D23 Q17)', () => {
       throw new Error('expected a dashboard');
     expect(get.mock.calls.map(([id]) => id)).not.toContain('regional');
 
-    const read = await runtime.destinationBoard('regional');
+    const read = await runtime.destinationDashboard('regional');
     expect(read?.title).toBe('Regional');
     expect(read?.config.columns).toBe(24);
     expect(get.mock.calls.filter(([id]) => id === 'regional')).toHaveLength(1);
     // Neither a view nor a board that is gone is a board to open.
-    expect(await runtime.destinationBoard('list')).toBeNull();
-    expect(await runtime.destinationBoard('nope')).toBeNull();
+    expect(await runtime.destinationDashboard('list')).toBeNull();
+    expect(await runtime.destinationDashboard('nope')).toBeNull();
   });
 
   it('falls back to the follow-up menu on a mapping gone stale, and warns from then on', async () => {

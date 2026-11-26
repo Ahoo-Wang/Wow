@@ -126,7 +126,7 @@ export function SidebarColumn({
         >
           <ViewList
             list={list}
-            onRetry={list.error ? () => list.reload() : undefined}
+            onRetry={list.error ? () => list.refresh() : undefined}
             {...rest}
           />
         </aside>

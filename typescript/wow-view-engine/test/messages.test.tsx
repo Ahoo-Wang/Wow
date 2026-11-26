@@ -824,7 +824,7 @@ function listState(items: ViewInstanceSummary[]): ViewListState {
     defaultInstanceId: null,
     status: 'success',
     error: null,
-    reload: () => {},
+    refresh: () => {},
   };
 }
 

@@ -76,17 +76,17 @@ export function useDestinationBoard(
     id: string;
     board: DestinationDashboard | null;
   } | null>(null);
-  const { destinationBoard } = dashboard;
+  const { destinationDashboard } = dashboard;
   useEffect(() => {
     if (instanceId === '') return;
     let live = true;
-    void destinationBoard(instanceId).then(board => {
+    void destinationDashboard(instanceId).then(board => {
       if (live) setRead({ id: instanceId, board });
     });
     return () => {
       live = false;
     };
-  }, [destinationBoard, instanceId]);
+  }, [destinationDashboard, instanceId]);
   if (instanceId === '') return { status: 'none' };
   if (read?.id !== instanceId) return { status: 'loading' };
   return read.board

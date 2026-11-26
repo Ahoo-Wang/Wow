@@ -100,7 +100,7 @@ export interface DashboardGridProps {
    * board is built. Told whether the board is in its one-column reading,
    * where building is renaming, removing and reordering alone (D22 J).
    */
-  header?(board: { narrow: boolean }): ReactNode;
+  header?(dashboard: { narrow: boolean }): ReactNode;
   /**
    * Under the empty board's words: the first things to add (D22 A). Left
    * out, an empty board says it has no panels and offers nothing — a reader

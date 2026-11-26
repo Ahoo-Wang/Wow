@@ -46,7 +46,7 @@ export interface ViewEngineOptions {
   resources: readonly ViewResource[];
   store: ViewStore;
   /** Remote candidates of `reference` fields, by the same key. */
-  resolveOptions?(key: string): OptionSource;
+  optionSource?(key: string): OptionSource;
   kinds?: FieldKindRegistry;
   /**
    * How the definitions' keys (`text(key)`) are said in the language the

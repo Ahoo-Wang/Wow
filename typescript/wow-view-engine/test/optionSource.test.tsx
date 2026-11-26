@@ -31,11 +31,11 @@ const customers: OptionSource = {
   resolve: () => Promise.resolve([]),
 };
 
-function engineWith(resolveOptions?: () => OptionSource) {
+function engineWith(optionSource?: () => OptionSource) {
   return new ViewEngine({
     resources: resourcesOf([ordersDefinition()], () => testSource()),
     store: new MemoryViewStore({ instances: [mine] }),
-    ...(resolveOptions ? { resolveOptions } : {}),
+    ...(optionSource ? { optionSource } : {}),
   });
 }
 

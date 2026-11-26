@@ -78,7 +78,7 @@ export interface ViewRuntime<C extends ViewConfig = ViewConfig> {
   readonly limits: RuntimeLimits;
   /**
    * The remote candidates behind a `reference` field's `remote` key, or
-   * `null` when the host wired no `resolveOptions`. The editor asks here
+   * `null` when the host wired no `optionSource`. The editor asks here
    * rather than reaching for the engine: a runtime is what a workbench
    * holds, and a value editor two levels down has no engine to reach.
    */

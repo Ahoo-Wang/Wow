@@ -440,7 +440,9 @@ export abstract class BoardCommands
   ): Promise<PressDestination | null> {
     return this.presses.destination(panelId, row);
   }
-  destinationBoard(instanceId: string): Promise<DestinationDashboard | null> {
+  destinationDashboard(
+    instanceId: string,
+  ): Promise<DestinationDashboard | null> {
     return this.presses.board(instanceId);
   }
 }
