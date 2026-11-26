@@ -56,7 +56,17 @@ class CoSecServiceRouteAuthorizerTest {
     fun `a request-less caller gets no objection`() = runTest {
         cosec.permits = { false }
         authorizer.authorize(caller, action).assert().isEqualTo(Authorization.Allowed)
-        authorize(caller.copyWith(subject = "bob")).assert().isEqualTo(Authorization.Allowed)
+        cosec.asked.assert().isEmpty()
+    }
+
+    @Test
+    fun `a caller of the request that is not its principal is denied, CoSec not asked (D485)`() = runTest {
+        listOf(caller.copyWith(subject = "bob"), caller.copyWith(tenantId = "other"), Caller.ANONYMOUS).forEach {
+            (authorize(it) as Authorization.Denied).message.assert().startsWith(
+                "CoSec cannot authorize shop:summary on route/summary: the caller is not the principal CoSec " +
+                    "authenticated for the request.",
+            )
+        }
         cosec.asked.assert().isEmpty()
     }
 }

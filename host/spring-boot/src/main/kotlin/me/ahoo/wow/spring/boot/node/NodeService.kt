@@ -61,6 +61,7 @@ import me.ahoo.wow.spring.boot.node.NodeAdmission.Companion.writePolicies
 import me.ahoo.wow.spring.boot.query.EventQueryBackend
 import me.ahoo.wow.spring.boot.query.QueryAutoConfiguration
 import me.ahoo.wow.spring.boot.query.QueryProperties
+import me.ahoo.wow.spring.boot.security.CoSecAuthorizerSwitch
 import me.ahoo.wow.spring.boot.store.HostBackends
 import me.ahoo.wow.spring.boot.transport.PortProviders
 import me.ahoo.wow.spring.boot.transport.PortProviders.Companion.configured
@@ -130,6 +131,7 @@ internal class NodeService {
         customizer: ObjectProvider<NodeOptionsCustomizer>,
     ): ServiceNode {
         checkShutdownTimeout(environment)
+        CoSecAuthorizerSwitch.check(properties, environment, beanFactory)
         val sourceTopics = topics.ifAvailable
         if (sourceTopics == null) {
             val contexts = models.models.mapTo(HashSet()) { it.type.context }

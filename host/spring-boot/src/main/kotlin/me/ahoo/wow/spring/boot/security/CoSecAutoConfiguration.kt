@@ -170,7 +170,9 @@ class CoSecAutoConfiguration {
  * by the same actions, as the caller of its request, among the node's authorizers when `wow.cosec.authorizer.enabled`
  * is true and CoSec decides here (its `AuthorizationChecker`): asked with the application's own authorizers, each of
  * which must allow a command too. On the public port CoSec's pipeline already decides the command routes. A
- * request-less command (a saga's, a timer's, a scheduled job's) gets no objection from them.
+ * request-less command (a saga's, a timer's, a scheduled job's) gets no objection from them; a caller of a request that
+ * is not the principal CoSec authenticated for it is denied. Where the switch is true and they cannot be wired, the
+ * node refuses to start ([CoSecAuthorizerSwitch]).
  *
  * After CoSec's pipeline, which defines the checker: their condition looks for it among the beans registered so far,
  * and [CoSecAutoConfiguration], before the host's own configuration, comes before CoSec's (#6849). The node takes them

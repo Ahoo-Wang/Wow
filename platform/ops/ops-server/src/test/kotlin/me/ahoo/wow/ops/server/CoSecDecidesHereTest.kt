@@ -150,6 +150,32 @@ class CoSecDecidesHereTest {
             }
         }
 
+    @Test
+    fun `a caller of the request that is not its principal should be denied, an operational command too`(): Unit =
+        application { context ->
+            // What an application's CallerResolver beside CoSec's gives when it maps the principal, or answers
+            // anonymous callers: CoSec cannot evaluate it, so its authorizers deny it rather than abstain (D485 ⑦).
+            val commands = CommandAuthorizer.allOf(
+                context.getBeansOfType(CommandAuthorizer::class.java).values.toList()
+            )
+            val routes = ServiceRouteAuthorizer.allOf(
+                context.getBeansOfType(ServiceRouteAuthorizer::class.java).values.toList(),
+            )
+            val request = aliceRequest(context.getBean(Pipeline::class.java))
+            val foreign = listOf(ALICE.copyWith(subject = "user:alice"), Caller.of(TENANT))
+            runBlocking {
+                inRequest(request) {
+                    foreign.forEach { caller ->
+                        listOf(
+                            commands.authorize(caller, command("$SHOP.cart.AddItem", CART, "c-1")),
+                            commands.authorize(caller, command(ScheduleJobs.ENABLE_JOB, SCHEDULE, "report")),
+                            routes.authorize(caller, route("summary")),
+                        ).forEach { (it as Authorization.Denied).message.assert().startsWith("CoSec cannot authorize") }
+                    }
+                }
+            }
+        }
+
     /**
      * The security context CoSec's [pipeline] permits alice's `POST /shop/cart/c-1/add-item` in, once it has installed
      * the platform document, which it reads as it starts.

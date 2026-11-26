@@ -109,23 +109,54 @@ class CoSecCommandAuthorizerTest {
     }
 
     @Test
-    fun `a caller that is not the request's principal is request-less`() = runTest {
+    fun `a caller of the request that is not its principal is denied, and CoSec is not asked (D485)`() = runTest {
+        // What an application's CallerResolver beside CoSec's pipeline gives (another subject or tenant, or the
+        // anonymous caller), or a command its code sends as another caller while it handles the request: CoSec cannot
+        // evaluate it, and abstaining would open what the authorizer is on for.
         val security = alice()
-        cosec.permits = { false }
-        val others = listOf(
+        val foreign = listOf(
             editor().copyWith(subject = "bob"),
             editor().copyWith(tenantId = "other"),
-            Caller(subject = "alice", service = true),
             Caller.ANONYMOUS,
         )
-        others.forEach { caller ->
-            inRequest(security) { authorizer.authorize(caller, action) }.assert().isEqualTo(Authorization.Allowed)
+        foreign.forEach { caller ->
+            val denied = inRequest(security) { authorizer.authorize(caller, action) }
+            (denied as Authorization.Denied).message.assert().isEqualTo(
+                "CoSec cannot authorize shop:AddItem on cart/c-1: the caller is not the principal CoSec " +
+                    "authenticated for the request. Send it as the request's caller, or decide such callers with an " +
+                    "authorizer of your own in place of wow.cosec.authorizer.enabled.",
+            )
         }
         cosec.asked.assert().isEmpty()
     }
 
     @Test
-    fun `a security context whose principal no credential proved is no request of the caller's`() = runTest {
+    fun `an operational command of a caller that is not the request's principal is denied too`() = runTest {
+        val security = alice()
+        val rebuild = CommandAction(
+            CommandType(SnapshotRebuilds.REBUILD_SNAPSHOT, Any::class.java),
+            AggregateType(CONTEXT, SnapshotRebuilds.AGGREGATE).ref("acme", "cart"),
+            Scope.NONE,
+            Creation.NONE,
+        )
+        val operator = Caller.of("acme", subject = "ops", roles = listOf("operator"))
+        inRequest(security) { authorizer.authorize(operator, rebuild) }
+            .assert().isInstanceOf(Authorization.Denied::class.java)
+        cosec.asked.assert().isEmpty()
+    }
+
+    @Test
+    fun `a service identity is request-less, the internal port alone taking it and CoSec not running there`() =
+        runTest {
+            cosec.permits = { false }
+            inRequest(alice()) { authorizer.authorize(Caller(subject = "alice", service = true), action) }
+                .assert().isEqualTo(Authorization.Allowed)
+            cosec.asked.assert().isEmpty()
+        }
+
+    @Test
+    fun `a security context CoSec did not build is no request of the caller's`() = runTest {
+        // CoSec's Reactor context reads only the contexts its pipeline made: one an application's code built is none.
         cosec.permits = { false }
         inRequest(unproven("alice", roles = listOf("editor"))) { authorizer.authorize(editor(), action) }
             .assert().isEqualTo(Authorization.Allowed)

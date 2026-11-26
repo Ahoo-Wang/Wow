@@ -70,6 +70,7 @@ import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.runtime.admission.CommittedRequests
 import me.ahoo.wow.runtime.admission.ModelRegistry
+import me.ahoo.wow.runtime.snapshot.SnapshotRebuildModel
 import me.ahoo.wow.runtime.state.KernelStateReads
 import me.ahoo.wow.runtime.wait.LocalSignalSender
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
@@ -314,11 +315,13 @@ class CoSecNode(
     authorizer: CommandAuthorizer = CommandAuthorizer.ALLOW_ALL,
     aggregate: String = "cart",
     context: String = CONTEXT,
+    rebuilds: Boolean = false,
 ) {
     private val registry = WaitRegistry()
     private val kernel = Kernel(InMemoryEventLog(partitions = 2))
     private val models = ModelRegistry(
-        listOf(if (aggregate == "cart" && context == CONTEXT) cartModel else cartModelOf(aggregate, context)),
+        listOf(if (aggregate == "cart" && context == CONTEXT) cartModel else cartModelOf(aggregate, context)) +
+            listOfNotNull(SnapshotRebuildModel.model(context, setOf(aggregate)).takeIf { rebuilds }),
     )
     private val manifest = cartManifest(aggregate, context)
     private val reads = KernelStateReads(
