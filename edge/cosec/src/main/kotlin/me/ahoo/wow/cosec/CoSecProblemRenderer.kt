@@ -11,12 +11,8 @@
  * limitations under the License.
  */
 
-// CoSec's ProblemRenderer is experimental in CoSec 8 (PIP-34): Wow opts in here alone, and may follow it in its RC.
-@file:OptIn(ExperimentalCoSecApi::class)
-
 package me.ahoo.wow.cosec
 
-import me.ahoo.cosec.annotations.ExperimentalCoSecApi
 import me.ahoo.cosec.runtime.http.Problem
 import me.ahoo.cosec.runtime.http.ProblemRenderer
 import me.ahoo.cosec.runtime.http.ProblemType

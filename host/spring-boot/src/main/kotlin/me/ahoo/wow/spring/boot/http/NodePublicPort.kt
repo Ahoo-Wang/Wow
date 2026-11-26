@@ -52,6 +52,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.boot.reactor.netty.NettyServerCustomizer
+import org.springframework.boot.web.server.autoconfigure.ServerProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.env.Environment
@@ -78,14 +79,11 @@ internal class NodePublicPort {
      */
     @Bean
     @InternalWowApi
-    fun wowServerRefusals(environment: Environment): NettyServerCustomizer {
-        val binder = Binder.get(environment)
-        fun limit(key: String, default: DataSize): String =
-            "${(binder.bind(key, DataSize::class.java).orElse(null) ?: default).toBytes()} bytes ($key)"
-        val limits = ServerRefusals.Limits(
-            requestLine = limit(MAX_INITIAL_LINE_LENGTH, DEFAULT_MAX_INITIAL_LINE_LENGTH),
-            headers = limit(MAX_HEADER_SIZE, DEFAULT_MAX_HEADER_SIZE),
-        )
+    fun wowServerRefusals(
+        environment: Environment,
+        serverProperties: ObjectProvider<ServerProperties>,
+    ): NettyServerCustomizer {
+        val limits = limitsOf(environment, serverProperties.ifAvailable)
         return NettyServerCustomizer { server -> LingeringClose.of(ServerRefusals.of(server, limits)) }
     }
 
@@ -272,6 +270,26 @@ internal class NodePublicPort {
         /** Spring Boot's key of the public server's header block limit, and its default. */
         const val MAX_HEADER_SIZE: String = "server.max-http-request-header-size"
         private val DEFAULT_MAX_HEADER_SIZE: DataSize = DataSize.ofKilobytes(8)
+
+        /**
+         * The public server's limits as its refusals name them ([ServerRefusals.Limits]): the request line's as the
+         * environment sets its key; the header block's as the server is built with it, from the bound [server]
+         * properties, which another configuration may set after binding (CoSec's gateway mode derives 16 KB there,
+         * `IDN-43`), and from the environment's key only on a host without them.
+         */
+        internal fun limitsOf(environment: Environment, server: ServerProperties?): ServerRefusals.Limits {
+            val binder = Binder.get(environment)
+            fun bound(key: String, default: DataSize): DataSize =
+                binder.bind(key, DataSize::class.java).orElse(null) ?: default
+            fun named(key: String, size: DataSize): String = "${size.toBytes()} bytes ($key)"
+            val headers: DataSize = if (server != null) {
+                server.maxHttpRequestHeaderSize
+            } else {
+                bound(MAX_HEADER_SIZE, DEFAULT_MAX_HEADER_SIZE)
+            }
+            val requestLine = bound(MAX_INITIAL_LINE_LENGTH, DEFAULT_MAX_INITIAL_LINE_LENGTH)
+            return ServerRefusals.Limits(named(MAX_INITIAL_LINE_LENGTH, requestLine), named(MAX_HEADER_SIZE, headers))
+        }
 
         /**
          * The operational commands ([SystemCommandGroups.OPERATIONAL]) the Manifest routes, by their names: a context's

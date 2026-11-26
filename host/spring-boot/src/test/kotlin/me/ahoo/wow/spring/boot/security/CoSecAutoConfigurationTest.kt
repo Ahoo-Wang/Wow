@@ -14,7 +14,6 @@
 package me.ahoo.wow.spring.boot.security
 
 import io.mockk.mockk
-import me.ahoo.cosec.annotations.ExperimentalCoSecApi
 import me.ahoo.cosec.document.route.RouteMap
 import me.ahoo.cosec.document.route.RouteResolution
 import me.ahoo.cosec.runtime.AuthorizationChecker
@@ -55,7 +54,6 @@ import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 @ExtendWith(OutputCaptureExtension::class)
-@OptIn(ExperimentalCoSecApi::class)
 class CoSecAutoConfigurationTest {
     private val runner = ApplicationContextRunner()
         .withConfiguration(
