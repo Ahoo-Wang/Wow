@@ -100,10 +100,13 @@ private fun usage(): Nothing {
           check:    --accounts=1000 [--scenario=… | --mix=…: only those]
           run:      --scenario=E1|E1-large|E2|E3|E4-state|E4-list (or --mix=E1:50,E4-state:40,E4-list:10) --rate=<ops/s>
                     --warm-up=30 --measure=60
-                    --distribution=uniform|zipf|hot --zipf-exponent=1.1 --hot-fraction=0.5 --hot-keys=1
+                    --distribution=uniform|zipf|hot|single --zipf-exponent=1.1 --hot-fraction=0.5 --hot-keys=1
                     --accounts=1000 --seed=20261015 --max-in-flight=20000 --out=<dir> --label=<text>
                     --pids=name:pid,… --containers=name,… --mongo=<container> --postgres=<container>
                     --postgres-database=transfer --kafka=<container> --repository=<dir> --meta=key=value;…
+                    --published=<context>.<aggregate> (its transport sink's lag, from the store's session)
+                    --mongo-database=transfer (the published stream's database on MongoDB)
+                    --catch-up-limit=60 (seconds after the drain to wait for the published stream to catch up)
           saturate: --scenario=… (or --mix=…) --start-concurrency=1 --max-concurrency=256 --warm-up=5 --step=10 --out=<dir>
                     --sweep (every step up to the maximum, not only up to where the throughput levels off)
                     --growth=2 (the concurrency's factor from one step to the next; 4 takes 1, 4, 16, 64, 256, 1024)
@@ -311,14 +314,20 @@ private fun keyChooser(options: Options, seed: Long): KeyChooser = KeyChooser(
     hotKeys = options.int("hot-keys", 1),
 )
 
-/** What `--pids`, `--containers`, `--mongo`, `--postgres` and `--kafka` name to capture beside a run. */
+/**
+ * What `--pids`, `--containers`, `--mongo`, `--postgres`, `--kafka` and `--published` name to capture beside a run;
+ * `--catch-up-limit`, how long the published stream is waited for after the drain.
+ */
 private fun resources(options: Options): Resources = Resources(
     processes = options.list("pids").associate { it.substringBefore(':') to it.substringAfter(':').toLong() },
     containers = options.list("containers"),
     mongoContainer = options.optional("mongo"),
     postgresContainer = options.optional("postgres"),
-    postgresDatabase = options.string("postgres-database", "transfer"),
+    postgresDatabase = options.string("postgres-database", Resources.DEFAULT_DATABASE),
     kafkaContainer = options.optional("kafka"),
+    mongoDatabase = options.string("mongo-database", Resources.DEFAULT_DATABASE),
+    published = options.optional("published")?.let(PublishedStream::of),
+    catchUpLimitSeconds = options.int("catch-up-limit", Resources.DEFAULT_CATCH_UP_LIMIT_SECONDS),
 )
 
 /**
@@ -344,7 +353,10 @@ private class Sampling(private val resources: Resources) {
         }
     }
 
-    /** After the drain: waits for the stop's reads, then the reads that start a process of their own. */
+    /**
+     * After the drain: waits for the stop's reads, then for the published stream to catch up and the reads that start a
+     * process of their own.
+     */
     fun finish() {
         stopping?.join()
         resources.complete()

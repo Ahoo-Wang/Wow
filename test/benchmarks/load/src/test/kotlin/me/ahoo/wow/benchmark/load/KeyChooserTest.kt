@@ -15,6 +15,9 @@ package me.ahoo.wow.benchmark.load
 
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Timeout
+import org.junit.jupiter.api.assertThrows
+import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 import kotlin.math.pow
 
@@ -67,5 +70,30 @@ class KeyChooserTest {
     fun `a transfer's target should be another account`() {
         val chooser = KeyChooser(KeyChooser.HOT, 3, seed = 1, hotFraction = 0.9)
         repeat(1000) { (chooser.nextOtherThan(0) != 0).assert().isTrue() }
+    }
+
+    @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
+    fun `single should send every request to the first account and a transfer's target among the others`() {
+        val chooser = KeyChooser(KeyChooser.SINGLE, 10, seed = 1)
+        List(1000) { chooser.next() }.distinct().assert().containsExactly(0)
+        val targets = IntArray(10)
+        repeat(draws) { targets[chooser.nextOtherThan(0)]++ }
+        targets[0].assert().isZero()
+        (1 until 10).forEach { abs(targets[it].toDouble() / draws - 1.0 / 9).assert().isLessThan(0.01) }
+        chooser.describe().assert().isEqualTo(mapOf("distribution" to "single", "accounts" to 10))
+    }
+
+    @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
+    fun `a hot share of all requests to one account should draw a transfer's target among the others`() {
+        val chooser = KeyChooser(KeyChooser.HOT, 10, seed = 1, hotFraction = 1.0, hotKeys = 1)
+        List(100) { chooser.nextOtherThan(0) }.forEach { it.assert().isBetween(1, 9) }
+    }
+
+    @Test
+    fun `a hot fraction outside 0 to 1 should be refused`() {
+        assertThrows<IllegalArgumentException> { KeyChooser(KeyChooser.HOT, 10, seed = 1, hotFraction = 1.5) }
+        assertThrows<IllegalArgumentException> { KeyChooser(KeyChooser.HOT, 10, seed = 1, hotFraction = -0.1) }
     }
 }
