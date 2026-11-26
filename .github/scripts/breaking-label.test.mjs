@@ -102,6 +102,63 @@ test('other descriptions are not breaking', () => {
     assert.equal(isBreakingBody(body), false, `${body}`);
 });
 
+test('a Breaking section that opens with None as a sentence of its own is not breaking, whatever follows', () => {
+  // The sections of pull requests labelled by mistake, shortened.
+  for (const section of [
+    // #7080
+    'None. A value that was refused (an unknown stage from another node) is now read; nothing that was read before changes.',
+    // #7088
+    "None. A build that refused a newer peer's contract now takes it with a warning.",
+    // #7094
+    'None. A call that stands from a `Mono`, `Flux` or `@Blocking` decide function now takes the derived request id.',
+    // #7100
+    'None. A topic holding a record of no value stopped every tail of the topic on the node; now it stops its own partition.',
+    // #7108
+    'None. The root entry gains one export, `isActionInputError` (a `+` line in `test/api/root.api.md` and `test/surface/root.txt`).',
+    // #7127
+    'None. A `ddl: validate` or `none` timer store whose account may only read `wow_timer_aggregate` starts serving.',
+    'None: the peer range only widens.',
+    'None, a wider range breaks nobody.',
+    'None\n\nThe range only widens.',
+    '**None.** The range only widens.',
+    '_None._ The range only widens.',
+    'No. The range only widens.',
+    'N/A, nothing is removed.',
+    'No breaking changes. The range only widens.',
+  ]) {
+    const body = `## Goal\n\nx\n\n## Breaking\n\n${section}\n\n## Upgrades paragraph\n\ny`;
+    assert.equal(isBreakingBody(body), false, section);
+  }
+});
+
+test('a Breaking section that does not open with None as a sentence still labels', () => {
+  for (const section of [
+    // "None" opens a longer sentence: it says what is removed.
+    'None of the reports change, but `ViewStoreError.detail` is removed.',
+    // #7119's form: the sentence names where nothing changes, then a
+    // behaviour that now fails; it reads as a break, and a maintainer who
+    // judges otherwise removes the label by hand.
+    'None in the API reports or the surface lists. A command stream whose `end` gives a reason other than `complete` now fails.',
+    'Nothing is removed, but `x` is renamed.',
+    '- `CommandRequest.id` is `aggregateId`',
+  ]) {
+    const body = `## Breaking\n\n${section}\n\n## Upgrades paragraph\n\ny`;
+    assert.equal(isBreakingBody(body), true, section);
+  }
+  // A ticked box, a footer or a breaking title still labels whatever the section says.
+  assert.equal(
+    isBreakingBody('## Breaking\n\nNone.\n\n- [x] **Breaking**: it does not.'),
+    true,
+  );
+  assert.equal(
+    isBreakingBody(
+      '## Breaking\n\nNone.\n\nBREAKING CHANGE: the token changed',
+    ),
+    true,
+  );
+  assert.equal(isBreakingTitle('fix(client)!: x'), true);
+});
+
 test('the pull request template asks about breaking changes the way the labeler reads them', () => {
   const template = readFileSync(
     join(ROOT, '.github/PULL_REQUEST_TEMPLATE'),
@@ -182,6 +239,36 @@ test('additions only to each surface record add no label', () => {
     },
   ];
   assert.deepEqual(breakingSurfaceFiles(files), []);
+});
+
+test("an addition's surface diff adds no label: a surface list's # header and an API report's // comments are not names (#7108)", () => {
+  // #7108's own diff, shortened: one export added.
+  const files = [
+    modified(
+      'typescript/wow-view-engine/test/surface/root.txt',
+      '@@ -1,4 +1,4 @@\n-# @ahoo-wang/wow-view-engine — 455 names, from src/index.ts.\n+# @ahoo-wang/wow-view-engine — 456 names, from src/index.ts.\n # Written by test/publicSurface.test.ts; a change here is a change to\n # the public surface (README「Entries」, docs/design/decisions.md D29).\n type  AbsoluteDateTimeValue\n@@ -432,6 +432,7 @@ value fitChartSlots\n value hasResult\n value inRows\n+value isActionInputError\n value isAnalysisRuntime',
+    ),
+    modified(
+      'typescript/wow-view-engine/test/api/root.api.md',
+      '@@ -2099,6 +2099,9 @@ export interface InstantRange {\n     to?: string;\n }\n \n+// @public\n+export function isActionInputError(error: unknown): error is ActionInputError;\n+\n // @public\n export function isAnalysisRuntime(runtime: ViewRuntime | null | undefined): runtime is AnalysisViewRuntime;',
+    ),
+  ];
+  assert.deepEqual(breakingSurfaceFiles(files), []);
+  // A name taken out still labels, header or not.
+  assert.deepEqual(
+    breakingSurfaceFiles([
+      modified(
+        'typescript/wow-view-engine/test/surface/root.txt',
+        '@@ -1,4 +1,4 @@\n-# @ahoo-wang/wow-view-engine — 456 names, from src/index.ts.\n+# @ahoo-wang/wow-view-engine — 455 names, from src/index.ts.\n value hasResult\n-value isActionInputError\n value isAnalysisRuntime',
+      ),
+    ]),
+    [
+      {
+        file: 'typescript/wow-view-engine/test/surface/root.txt',
+        lines: ['value isActionInputError'],
+      },
+    ],
+  );
 });
 
 test('one removed line in each kind of surface record adds the label', () => {
