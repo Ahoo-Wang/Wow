@@ -22,32 +22,10 @@ public abstract class me/ahoo/wow/gradle/WowKubernetesExtension {
 }
 
 public final class me/ahoo/wow/gradle/WowPlugin : org/gradle/api/Plugin {
-	public static final field ALLOW_BREAKING_PROPERTY Ljava/lang/String;
 	public static final field API_ID Ljava/lang/String;
-	public static final field ASSEMBLE_CONTRACT_TASK Ljava/lang/String;
-	public static final field BASELINE_FILE Ljava/lang/String;
-	public static final field CHECK_TASK Ljava/lang/String;
-	public static final field CONTRACTS_CONFIGURATION Ljava/lang/String;
-	public static final field CONTRACT_CONFIGURATION Ljava/lang/String;
-	public static final field CONTRACT_DOCS_TYPE Ljava/lang/String;
-	public static final field CONTRACT_ELEMENTS Ljava/lang/String;
-	public static final field CONTRACT_JAR_TASK Ljava/lang/String;
-	public static final field CONTRACT_SOURCE_SET Ljava/lang/String;
 	public static final field Companion Lme/ahoo/wow/gradle/WowPlugin$Companion;
-	public static final field EXTENSION Ljava/lang/String;
-	public static final field GENERATE_CONTRACT_SOURCES_TASK Ljava/lang/String;
-	public static final field GENERATE_CONTRACT_TASK Ljava/lang/String;
-	public static final field GENERATE_FRAGMENT_TASK Ljava/lang/String;
-	public static final field HELM_VALUES_TASK Ljava/lang/String;
 	public static final field ID Ljava/lang/String;
-	public static final field INTEGRATION_TEST Ljava/lang/String;
-	public static final field JACKSON_CHECK_TASK Ljava/lang/String;
-	public static final field MANIFESTS_TASK Ljava/lang/String;
-	public static final field MERGE_TASK Ljava/lang/String;
-	public static final field OPENAPI_TASK Ljava/lang/String;
 	public static final field SERVICE_ID Ljava/lang/String;
-	public static final field TOOLS_CONFIGURATION Ljava/lang/String;
-	public static final field UPDATE_BASELINE_TASK Ljava/lang/String;
 	public fun <init> ()V
 	public synthetic fun apply (Ljava/lang/Object;)V
 	public fun apply (Lorg/gradle/api/Project;)V

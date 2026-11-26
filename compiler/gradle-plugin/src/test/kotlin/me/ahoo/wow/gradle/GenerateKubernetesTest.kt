@@ -22,10 +22,10 @@ import org.junit.jupiter.api.io.TempDir
 import java.io.File
 
 /**
- * [GenerateManifests]'s action in process, and its place in `assemble` ([KubernetesRole]), with a Helm of the test: a
+ * [GenerateKubernetes]'s action in process, and its place in `assemble` ([KubernetesRole]), with a Helm of the test: a
  * script that answers `version` as the pinned Helm does and `template` with what [rendered] holds, or refuses.
  */
-class GenerateManifestsTest {
+class GenerateKubernetesTest {
     @TempDir
     lateinit var directory: File
 
@@ -47,13 +47,13 @@ class GenerateManifestsTest {
     }
 
     /** The service's task, its values and namespace set, rendering with [helm]. */
-    private fun task(helm: File, values: Boolean = true, namespace: Boolean = true): GenerateManifests {
+    private fun task(helm: File, values: Boolean = true, namespace: Boolean = true): GenerateKubernetes {
         val extension = project.extensions.getByType(WowServiceExtension::class.java)
         val deployment = File(directory, "values.yaml").apply { writeText("image:\n  repository: shop\n") }
         extension.kubernetes.values.setFrom(listOfNotNull(deployment.takeIf { values }))
         extension.kubernetes.namespace.set("shop".takeIf { namespace })
         val generated = File(directory, "generated.yaml").apply { writeText("service:\n  name: \"shop-service\"\n") }
-        return (project.tasks.getByName(WowPlugin.MANIFESTS_TASK) as GenerateManifests).also {
+        return (project.tasks.getByName(WowPlugin.KUBERNETES_TASK) as GenerateKubernetes).also {
             it.generatedValues.set(generated)
             it.helm.set(
                 project.gradle.sharedServices.registerIfAbsent("testHelm", HelmService::class.java) { spec ->
@@ -130,7 +130,7 @@ class GenerateManifestsTest {
     fun `assemble should render only when the build names the deployment's values`() {
         val assemble = project.tasks.getByName("assemble")
         fun dependsOnManifests() =
-            assemble.taskDependencies.getDependencies(assemble).any { it.name == WowPlugin.MANIFESTS_TASK }
+            assemble.taskDependencies.getDependencies(assemble).any { it.name == WowPlugin.KUBERNETES_TASK }
         dependsOnManifests().assert().isFalse()
         project.extensions.getByType(WowServiceExtension::class.java).kubernetes {
             it.values.from(File(directory, "values.yaml"))

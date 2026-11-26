@@ -23,7 +23,7 @@ import java.util.zip.ZipInputStream
 
 /**
  * The chart the plugin renders is the repository's, `deploy/helm/wow-service`, at the plugin's version; and how
- * [GenerateManifests] reads what Helm renders and the values the build generates.
+ * [GenerateKubernetes] reads what Helm renders and the values the build generates.
  */
 class KubernetesChartTest {
     private val chart =
@@ -79,26 +79,26 @@ class KubernetesChartTest {
             spec:
               clusterIP: None
         """.trimIndent() + "\n"
-        val objects = GenerateManifests.objectsOf(output)
+        val objects = GenerateKubernetes.objectsOf(output)
         objects.map { it.file }.assert()
             .containsExactly("serviceaccount-shop-service.yaml", "service-shop-service-cluster.yaml")
         objects.first().text.assert()
             .startsWith("# Source: wow-service/templates/serviceaccount.yaml\napiVersion: v1\n")
             .endsWith("app.kubernetes.io/name: shop-service\n")
         val nameless = "---\napiVersion: v1\nmetadata:\n  name: x\n"
-        assertThrows<IllegalStateException> { GenerateManifests.objectsOf(nameless) }
+        assertThrows<IllegalStateException> { GenerateKubernetes.objectsOf(nameless) }
             .message.assert().contains("without a kind")
-        assertThrows<IllegalStateException> { GenerateManifests.objectsOf("---\nkind: Service\nspec: {}\n") }
+        assertThrows<IllegalStateException> { GenerateKubernetes.objectsOf("---\nkind: Service\nspec: {}\n") }
             .message.assert().contains("without a name")
         // Two objects of one kind and name would be one file: refused, naming the file and both templates.
         val twice = "---\n# Source: wow-service/templates/a.yaml\nkind: Service\nmetadata:\n  name: shop\n" +
             "---\n# Source: wow-service/templates/b.yaml\nkind: Service\nmetadata:\n  name: shop\n"
-        assertThrows<GradleException> { GenerateManifests.objectsOf(twice) }.message.assert().isEqualTo(
+        assertThrows<GradleException> { GenerateKubernetes.objectsOf(twice) }.message.assert().isEqualTo(
             "Helm rendered 2 objects that would all be service-shop.yaml, one replacing the others: " +
                 "wow-service/templates/a.yaml and wow-service/templates/b.yaml.",
         )
         val unsourced = "---\nkind: Service\nmetadata:\n  name: shop\n---\nkind: Service\nmetadata:\n  name: shop\n"
-        assertThrows<GradleException> { GenerateManifests.objectsOf(unsourced) }
+        assertThrows<GradleException> { GenerateKubernetes.objectsOf(unsourced) }
             .message.assert().endsWith("a document and a document.")
     }
 
@@ -108,9 +108,9 @@ class KubernetesChartTest {
         values.writeText(
             "# Generated\nservice:\n  name: \"shop-service\"\n  contractPeers: []\n  manifest:\n    route: \"/wow/manifest\"\n"
         )
-        GenerateManifests.serviceOf(values).assert().isEqualTo("shop-service")
+        GenerateKubernetes.serviceOf(values).assert().isEqualTo("shop-service")
         values.writeText("service:\n  contractPeers: []\n")
-        assertThrows<GradleException> { GenerateManifests.serviceOf(values) }
+        assertThrows<GradleException> { GenerateKubernetes.serviceOf(values) }
             .message.assert().contains("names no service")
     }
 }

@@ -93,14 +93,15 @@ class ServiceRoleTest {
         project.version = "2.0.0"
 
         val generate = project.tasks.getByName(WowPlugin.GENERATE_FRAGMENT_TASK) as GenerateManifestFragment
-        // The wow group holds the tasks a user runs; the plumbing has none.
+        // The wow group holds the tasks a user runs; the plumbing has none. Their names are written out: users' build
+        // scripts and CI name them.
         generate.group.assert().isNull()
         project.tasks.filter { it.group == "wow" }.map { it.name }.assert().containsExactlyInAnyOrder(
-            WowPlugin.MERGE_TASK,
-            WowPlugin.OPENAPI_TASK,
-            WowPlugin.HELM_VALUES_TASK,
-            WowPlugin.MANIFESTS_TASK,
-            WowPlugin.UPDATE_BASELINE_TASK,
+            "mergeWowManifest",
+            "generateWowOpenApi",
+            "generateWowHelmValues",
+            "generateWowKubernetes",
+            "updateWowManifestBaseline",
         )
         generate.schemaOverrides.get().assert().containsEntry("a.Money", """{"type":"string"}""")
         val fragments = File(project.projectDir, "build/wow/manifest-fragment")

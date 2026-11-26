@@ -1,4 +1,4 @@
-# The basket in production, over the base its build renders (generateWowManifests, in assemble):
+# The basket in production, over the base its build renders (generateWowKubernetes, in assemble):
 #
 #   ./gradlew :eshop-basket-server:assemble
 #   kubectl apply -k deploy/eshop-basket/prod

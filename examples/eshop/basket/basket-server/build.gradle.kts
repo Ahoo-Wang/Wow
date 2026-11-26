@@ -12,14 +12,14 @@ application {
     mainClass.set("me.ahoo.wow.example.eshop.basket.server.BasketServerKt")
 }
 
-// Its Kubernetes manifests (generateWowManifests, in assemble): the wow-service chart rendered with the deployment's
+// Its Kubernetes manifests (generateWowKubernetes, in assemble): the wow-service chart rendered with the deployment's
 // values for the namespace it runs in, a Kustomize base of plain YAML in build/wow/k8s that an overlay applies over
 // with `kubectl apply -k`. BasketManifestsTest holds the objects it renders with the defaults. An environment whose
 // namespace or derived values differ is another render, never an overlay that moves the base: the namespace, and values
 // files after the deployment's (paths from the repository's root, comma-separated), are the build's properties, as
 // .github/ga-e2e/cluster.sh renders it for its cluster:
 //
-//   ./gradlew :eshop-basket-server:generateWowManifests -Peshop.kubernetes.namespace=default \
+//   ./gradlew :eshop-basket-server:generateWowKubernetes -Peshop.kubernetes.namespace=default \
 //     -Peshop.kubernetes.values=.github/ga-e2e/services/values.yaml
 // region kubernetes
 wow {
@@ -36,7 +36,7 @@ wow {
 // endregion
 
 tasks.test {
-    val manifests = tasks.named("generateWowManifests")
+    val manifests = tasks.named("generateWowKubernetes")
     inputs.files(manifests).withPropertyName("manifests").withPathSensitivity(PathSensitivity.RELATIVE)
     systemProperty("eshop.manifests", layout.buildDirectory.dir("wow/k8s").get().asFile.path)
 }

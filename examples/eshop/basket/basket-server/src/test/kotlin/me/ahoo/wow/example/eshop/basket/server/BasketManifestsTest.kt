@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test
 import java.io.File
 
 /**
- * The basket's Kubernetes manifests, as `generateWowManifests` renders them from the wow-service chart with
+ * The basket's Kubernetes manifests, as `generateWowKubernetes` renders them from the wow-service chart with
  * deploy/eshop-basket/values.yaml for the namespace `eshop` (the build file's `wow { kubernetes { … } }`): the eight
  * objects of a Kustomize base, and the figures the chart derives for the service.
  */
