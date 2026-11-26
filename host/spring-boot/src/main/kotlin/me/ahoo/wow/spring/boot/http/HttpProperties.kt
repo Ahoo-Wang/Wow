@@ -19,6 +19,7 @@ import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.client.HttpCommandCaller
 import me.ahoo.wow.client.PeerMode
 import me.ahoo.wow.client.WowClient
+import me.ahoo.wow.http.internal.InternalPortSettings
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.spi.config.configCheck
@@ -27,6 +28,7 @@ import me.ahoo.wow.spring.boot.openapi.SpringdocAutoConfiguration
 import java.net.URI
 import java.time.Duration
 import kotlin.time.toJavaDuration
+import kotlin.time.toKotlinDuration
 import me.ahoo.wow.client.RetryPolicy as ClientRetryPolicy
 
 /** The HTTP edge: its routes and its error answers. */
@@ -44,6 +46,29 @@ class HttpProperties {
 
     /** The client address and `User-Agent` of each command, recorded as request facts. */
     var clientFacts: ClientFacts = ClientFacts()
+
+    /**
+     * The longest a request's body may stall on the public port and the internal port: the time between two reads of
+     * it, from the request's headers to the body's end, whether or not a route has answered by then. A request whose
+     * body stalls longer, sent slowly or not at all, is answered 408, unless it was answered already, and its
+     * connection closed (over HTTP/2, its stream). An upload that keeps sending is not cut, however long it takes, and
+     * neither is the answer: a stream or a wait runs as long as it does. It counts the time nothing of the body is read,
+     * whoever stops the reads: an application's own route that reads its body as a stream and asks for none of it for
+     * as long (subscribing late, pausing between pieces) is answered 408 too, though its client keeps sending. Wow's own
+     * routes read a body at once. Positive.
+     */
+    var readTimeout: Duration = InternalPortSettings.READ_TIMEOUT.toJavaDuration()
+
+    /** [readTimeout]; one that is not positive refuses the start. */
+    fun checkedReadTimeout(): kotlin.time.Duration {
+        configCheck(
+            !readTimeout.isNegative && !readTimeout.isZero,
+            "wow.http.read-timeout",
+            readTimeout,
+            "Set a positive duration, such as 30s.",
+        ) { "A read timeout of $readTimeout would cut every request's body: it bounds the gap between two reads." }
+        return readTimeout.toKotlinDuration()
+    }
 
     /**
      * The names of [requestFacts]. One of the standard request facts ([RequestFacts.STANDARD]), in any case, refuses the

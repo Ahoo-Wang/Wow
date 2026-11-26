@@ -24,6 +24,7 @@ import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.ops.parkedRoutes
 import me.ahoo.wow.http.problem.GlobalErrors
 import me.ahoo.wow.http.problem.LingeringClose
+import me.ahoo.wow.http.problem.ReadTimeouts
 import me.ahoo.wow.http.problem.ServerRefusals
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.http.route.ServiceRoutes
@@ -85,6 +86,18 @@ internal class NodePublicPort {
     ): NettyServerCustomizer {
         val limits = limitsOf(environment, serverProperties.ifAvailable)
         return NettyServerCustomizer { server -> LingeringClose.of(ServerRefusals.of(server, limits)) }
+    }
+
+    /**
+     * The public server's read timeout (`wow.http.read-timeout`, [ReadTimeouts]): a request whose body stalls longer
+     * between two reads is answered 408 and its connection closed, as is a connection whose body stalls as long once
+     * its request is answered. It holds from the request's headers to its body's end, never over the answer.
+     */
+    @Bean
+    @InternalWowApi
+    fun wowReadTimeout(properties: WowProperties): NettyServerCustomizer {
+        val timeout = properties.http.checkedReadTimeout()
+        return NettyServerCustomizer { server -> ReadTimeouts.of(server, timeout) }
     }
 
     /**

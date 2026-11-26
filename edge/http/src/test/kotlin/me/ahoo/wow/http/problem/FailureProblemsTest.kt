@@ -47,6 +47,7 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.server.MissingRequestValueException
 import org.springframework.web.server.ResponseStatusException
 import org.springframework.web.server.ServerWebInputException
+import reactor.netty.channel.AbortedException
 import java.util.concurrent.CompletionException
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.seconds
@@ -258,6 +259,20 @@ class FailureProblemsTest {
         val answered = events.filter { "answered" in it.formattedMessage && "A request failed" in it.formattedMessage }
         answered.single { UPSTREAM in it.formattedMessage }.level.assert().isEqualTo(Level.DEBUG)
         answered.single { CART_EMPTY in it.formattedMessage }.level.assert().isEqualTo(Level.WARN)
+    }
+
+    @Test
+    fun `a connection closed before its request was answered is a 400 logged at debug, offered to no mapper`() {
+        // A client that went away, or a body that stalled past the read timeout: Reactor Netty's AbortedException.
+        lateinit var problem: Problem
+        val events = logged {
+            problem = problems(mapper("everything") { error("asked") })
+                .problemOf(AbortedException("Connection has been closed"))
+        }
+        problem.status.assert().isEqualTo(400)
+        problem.detail.assert().isEqualTo("The connection closed before the request was answered.")
+        events.single().level.assert().isEqualTo(Level.DEBUG)
+        asked.assert().isEmpty()
     }
 
     /** The events [FailureProblems] logs while [block] runs, at debug and above. */

@@ -17,6 +17,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.http.announce
 import me.ahoo.wow.runtime.cluster.ClusterChannelHandler
 import me.ahoo.wow.runtime.cluster.ClusterCodec
@@ -35,8 +36,13 @@ import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.nio.ByteBuffer
 import java.util.concurrent.CompletionException
+import java.util.concurrent.SubmissionPublisher
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 /** The internal port (decisions D89, D109): its own server, bound and unbound by its host. */
 class InternalPortTest {
@@ -82,6 +88,75 @@ class InternalPortTest {
             val end = runCatching { stalled.getInputStream().read() }
             (end.getOrNull() == -1 || end.exceptionOrNull() is SocketException).assert()
                 .describedAs("the stalled connection after the stop: $end").isTrue()
+        }
+    }
+
+    @Test
+    fun `a read timeout that is not positive should be refused`() {
+        assertThrownBy<IllegalArgumentException> {
+            InternalPortSettings(port = 0, bindHost = "127.0.0.1", readTimeout = Duration.ZERO)
+        }
+    }
+
+    @Test
+    fun `a request whose body stalls past the read timeout should be answered 408 and its connection closed`() {
+        val port = InternalPort.of(
+            InternalPortSettings(port = 0, bindHost = "127.0.0.1", readTimeout = 300.milliseconds),
+            coRouter { POST("/echo") { ServerResponse.ok().bodyValueAndAwait(it.awaitBody<String>()) } },
+        )
+        port.start()
+        try {
+            Socket().use { stalled ->
+                stalled.connect(InetSocketAddress("127.0.0.1", port.boundPort), 1_000)
+                stalled.soTimeout = 5_000
+                stalled.getOutputStream().apply {
+                    write("POST /echo HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Length: 100\r\n\r\n0123".toByteArray())
+                    flush()
+                }
+                // Answered and closed once nothing came for the read timeout, long before the client's own timeout.
+                val answer = stalled.getInputStream().readAllBytes().toString(Charsets.UTF_8)
+                answer.assert().startsWith("HTTP/1.1 408").contains(
+                    "Nothing of the request's body was read for 300ms (wow.http.read-timeout): the client sent none, or the route took none.",
+                )
+            }
+        } finally {
+            port.stop()
+        }
+    }
+
+    @Test
+    fun `over h2c a stream whose body stalls past the read timeout should be ended, its connection kept`() {
+        val port = InternalPort.of(
+            InternalPortSettings(port = 0, bindHost = "127.0.0.1", readTimeout = 300.milliseconds),
+            coRouter {
+                GET("/ping") { ServerResponse.ok().buildAndAwait() }
+                POST("/echo") { ServerResponse.ok().bodyValueAndAwait(it.awaitBody<String>()) }
+            },
+        )
+        port.start()
+        val body = SubmissionPublisher<ByteBuffer>()
+        try {
+            val client = InternalHttp.client()
+            fun ping() = client.send(
+                HttpRequest.newBuilder(InternalHttp.uri("127.0.0.1:${port.boundPort}", "/ping")).build(),
+                HttpResponse.BodyHandlers.discarding(),
+            )
+            ping().version().assert().isEqualTo(HttpClient.Version.HTTP_2)
+            val answer = client.sendAsync(
+                HttpRequest.newBuilder(InternalHttp.uri("127.0.0.1:${port.boundPort}", "/echo"))
+                    .POST(HttpRequest.BodyPublishers.fromPublisher(body, 100)).build(),
+                HttpResponse.BodyHandlers.ofString(),
+            )
+            body.submit(ByteBuffer.wrap("0123456789".toByteArray()))
+            // The stream is answered 408 and reset, its request still open: the JDK client, still sending, keeps the
+            // reset alone (as it does after a reset without an error, RFC 9113 8.1).
+            val ended = runCatching { answer.get(5, TimeUnit.SECONDS) }
+            ended.exceptionOrNull()?.cause?.message.assert().contains("RST_STREAM")
+            // Its connection takes the next stream.
+            ping().statusCode().assert().isEqualTo(200)
+        } finally {
+            body.close()
+            port.stop()
         }
     }
 
