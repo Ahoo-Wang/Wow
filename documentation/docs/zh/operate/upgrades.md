@@ -132,7 +132,7 @@ configurations.matching { it.isCanBeResolved && !it.isCanBeConsumed && it.name !
 
 ## 从 10.0.0 预发布版升级 {#from-a-10-0-0-pre-release}
 
-10.0.0 的预发布版（`alpha`、`beta`、`rc`）对它存储的数据与它的 API 都不做兼容承诺。它的存储不会带过来：请在空的存储上启动本版本。预发布版写入的 MongoDB 日志没有按租户限定的访问键，所以在一次盖章重写这些流的属性之前，对 owner 或 space 的相等查不到它们。从 9.x 迁移的服务请按 [从 9.x 迁移](../migrate/) 进行。
+10.0.0 的预发布版（`alpha`、`beta`、`rc`）对它存储的数据与它的 API 都不做兼容承诺。它的存储不会带过来：请在空的存储上启动本版本。预发布版写入的 MongoDB 日志没有按租户限定的访问键，所以在一次盖章重写这些流的属性之前，对 owner 或 space 的相等查不到它们。Elasticsearch 上的检索存储也在这些存储之列：预发布版创建的索引 `[<prefix>_]wow_snapshot__<context>__<aggregate>` 或 `[<prefix>_]wow_events__<context>__<aggregate>` 是一个具体索引，而本版本把这个名字留作别名，存储会拒绝它并指出它的名字（[索引及其别名](./elasticsearch#indices-and-aliases)）。请在本版本启动之前删除这些索引。仍然沿用了日志的部署从日志把它们重新填上：快照副本靠快照重建，事件索引靠它的 Sink 的新一代，即 `wow.stores.<name>.sink.generation`（[重建](./elasticsearch#rebuild)）。从 9.x 迁移的服务请按 [从 9.x 迁移](../migrate/) 进行。
 
 `ddl: validate` 或 `ddl: none` 下的存储（`wow.ddl`，或某个存储的 `wow.stores.<name>.ddl`）会把每个日志或定时器的表或集合记录在登记表 `wow_log_aggregate` 或 `wow_timer_aggregate` 中，缺少这条记录就不再继续。在 PostgreSQL 上，`validate` 下账户无权插入缺失记录的节点在启动时被拒绝，并指明表、登记表和那一行；`none` 下，这张表第一次追加、读取或定时时同样被拒绝。在 MongoDB 上，这样的集合第一次追加或第一次定时会失败，并指明要插入的文档。预发布版则照常启动并丢失投递：别的节点的尾部读不到这张表，它的定时器也永远不会到期。为存储的账户授予两个登记表的 `INSERT`（MongoDB 上是 `insert` 和 `find`），或者插入拒绝信息指明的每条记录；由 `ddl: auto` 创建的 schema 已经有这些记录（[PostgreSQL](./postgresql#manage-the-schema)、[MongoDB](./mongodb#the-collections)）。MongoDB 存储还会在 `ddl: validate` 和 `ddl: auto` 下，把每个与 Wow 的索引同名的索引（`version_key`、`request_key`、`timer_due` 等）与本版本创建的定义比较：手工或由工具建立、键或键的顺序不同、缺少 `unique`、稀疏、部分过滤条件不同或带排序规则的索引会让启动失败，并指明每处差异。删掉它并以 `ddl: auto` 启动一次，或者按消息给出的定义创建它；删掉一个并不唯一的唯一键之前，先检查集合中被它放进来的重复项。
 
@@ -160,7 +160,7 @@ wow-generator 生成的 TypeScript 客户端按 Kotlin 契约的命名给错误�
 
 列出了快照存储的预发布版，要在启动本版本之前修改配置。配置项 `wow.snapshot.stores`、`wow.snapshot.primary`，以及聚合的 `snapshot.stores` 和 `snapshot.primary` 已经移除，每一个都会拒绝启动，并指出它自己。用 `wow.snapshot.store` 或聚合的 `snapshot.store` 为每个类型指定它唯一的存储。保留了检索副本的部署（`snapshot.stores: [main, search]` 加 `query.snapshot.store: search`）去掉 `snapshot.stores`、保留 `query.snapshot.store`：副本的订阅名不变，仍是 `wow.snapshot:search`，所以它的索引和检查点都保留，也不会重新读取任何东西。
 
-提供者的选项，无论在 `wow.<type>` 下（`wow.kafka.*`、`wow.mongo.*`、对等发现的、数据集后端的），还是在 `wow.stores.<name>` 下属于某个存储自己的，现在都按 Spring 绑定的每一种写法读取，与配置键检查的读法一致：环境变量（`WOW_KAFKA_COMMANDINTAKE_ENABLED`）或驼峰写法（`commandIntake.enabled`）与短横线写法的键含义相同，两者同时出现时按环境的顺序决定。预发布版本只按某个文件中的短横线键读取提供者的选项：没有文件设置其短横线写法的环境变量或驼峰键能通过启动检查，却不会被读取。这样的设置现在会生效；请检查部署以这种方式设置了什么。Wow 自带的 eShop 支付服务的 chart 设置了 `WOW_KAFKA_COMMANDINTAKE_ENABLED: "true"`，预发布版本忽略了它：它的命令接收现在会运行。
+提供者的选项，无论在 `wow.<type>` 下（`wow.kafka.*`、`wow.mongo.*`、对等发现的、数据集后端的），还是在 `wow.stores.<name>` 下属于某个存储自己的，现在都按 Spring 绑定的每一种写法读取，与配置键检查的读法一致：环境变量（`WOW_KAFKA_COMMANDINTAKE_ENABLED`）或驼峰写法（`commandIntake.enabled`）与短横线写法的键含义相同，两者同时出现时按环境的顺序决定。预发布版本只按某个文件中的短横线键读取提供者的选项：没有文件设置其短横线写法的环境变量或驼峰键能通过启动检查，却不会被读取。这样的设置现在会生效；请检查部署以这种方式设置了什么。Wow 自带的 eShop 支付服务的 chart 设置了 `WOW_KAFKA_COMMANDINTAKE_ENABLED: "true"`，预发布版本忽略了它：它的命令接收现在会运行。`deploy/` 中 eShop 的购物车、库存、订单、支付服务与 ops 服务的 values 设置了 `WOW_KAFKA_DDL: validate`，预发布版本按 `auto` 运行：本版本的节点不创建主题，缺少主题时不启动，正如这些 README 所说，所以请先创建主题。
 
 `spring.codec.max-in-memory-size` 不再设置内部端口的消息上限：Spring Boot 4 只绑定 `spring.http.codecs.max-in-memory-size`，两个端口都遵循它。
 
@@ -170,7 +170,7 @@ wow-generator 生成的 TypeScript 客户端按 Kotlin 契约的命名给错误�
 
 预发布版本拒绝把 Elasticsearch 存储作为聚合类型自己的快照存储；这个版本接受它（[Elasticsearch](./elasticsearch#only-snapshot-store)）。快照留在数据库、在 Elasticsearch 上另有副本的部署无需改动。想让类型的状态只存一份的部署，在类型的 `snapshot.store` 中指定 Elasticsearch 存储。这个存储随后从日志回填，期间该类型答 `rebuilding`（[重建与重放](./replay)）。
 
-在一次处理中向同一目标发多条同类型命令的 Saga，要给每条一个 `CommandRequest.requestId`，即它所涉及的业务键，例如它预留的商品；按事件类型逐个处理的处理函数只在一次调用发多条时才需要键（[向同一目标发多条命令](../guide/sagas#several-commands-to-one-target)）。没有键时，这次处理作为 Saga 自身的错误失败，它的聚合停放，消息会指出处理函数、命令类型与目标。升级之前，先在本版本上运行领域的 `sagaSpec` 与 `scheduleSpec` 测试；但规格只有覆盖到发多条命令的那次处理时才会暴露它，而这可能取决于数据：eShop 的到货作业只有在某次触发读到同一商品的两次到货时（例如补跑错过的早晨），才会向同一库存发两条入库命令。用 `call` 发多条这类命令的处理函数，在第二条被拒绝之前已经发出了第一条，所以加上键之后，第一条会以它的键再执行一次：要在升级之前修好这样的 Saga，而不是等它停放之后。仍然沿用了存储的部署会发现，按事件类型逐个处理的处理函数派生的 ID 变了，所以升级前处理过、升级后又被重新投递的提交，会把它的命令再发送一次。
+在一次处理中向同一目标发多条同类型命令的 Saga，要给每条一个 `CommandRequest.requestId`，即它所涉及的业务键，例如它预留的商品；按事件类型逐个处理的处理函数只在一次调用发多条时才需要键（[向同一目标发多条命令](../guide/sagas#several-commands-to-one-target)）。没有键时，这次处理作为 Saga 自身的错误失败，它的聚合停放，消息会指出处理函数、命令类型与目标。升级之前，先在本版本上运行领域的 `sagaSpec` 与 `scheduleSpec` 测试；但规格只有覆盖到发多条命令的那次处理时才会暴露它，而这可能取决于数据：eShop 的到货作业只有在某次触发读到同一商品的两次到货时（例如补跑错过的早晨），才会向同一库存发两条入库命令。用 `call` 发多条这类命令的处理函数，在第二条被拒绝之前已经发出了第一条，所以加上键之后，第一条会以它的键再执行一次：要在升级之前修好这样的 Saga，而不是等它停放之后。仍然沿用了存储的部署会发现，按事件类型逐个处理的处理函数派生的 ID 变了，所以升级前处理过、升级后又被重新投递的提交，会把它的命令再发送一次。这样的升级之前，要让每个 Saga 与反应器都追上且没有任何停放，读取自己上下文日志的也算在内，而不只是 Kafka 主题的订阅者：它们各自的 `wow.subscription.backlog` 为 0，`wow.subscription.parked.aggregates` 为 0。
 
 决策函数中保留下来的调用，若在命令按更新的状态再次决策时请求了别的东西（同一位置换了目标、命令类型或命令体），现在会让命令以 `wow.command.failed` 失败，过去它被答以第一次调用的提交：撤销这样的调用并改用 `scope.callId()`，或者给它一个业务请求 ID。在 `onAppendFailure` 中撤销 Wow 调用，或作废以 `scope.command.requestId` 为键的第三方动作的决策函数，要用 `scope.callId()` 作为这个动作的键：`CommandRequest.requestId = scope.callId()`，或第三方的幂等键。否则下一次尝试或调用方的重试会被答以已被撤销的动作（[撤销外部动作](../guide/aggregates#undo-an-outside-act)）。
 
@@ -239,10 +239,10 @@ CoSec 8.0.0-beta.8 的其他变化涉及网关、控制面、签发 CoSec 令牌
 
 升级前后，一个聚合的下一条记录可能落在与它之前的记录不同的分区。订阅者于是可能先于一条它尚未读到的较早记录处理它，或越过一条它停放着的记录处理它：停放聚合的分区只拦住放在该分区的记录。Wow 无从分辨，因为版本号的空缺不是证据：一次所有事件都已退役的提交没有记录。对每个在升级中保留其主题的发布服务：
 
-1. 停止发往该服务的命令，或停止它的节点。
+1. 停掉让该服务产生提交的一切：发往它的命令，以及它的定时作业（[定时命令](../guide/scheduling)）。只关闭入口是不够的：作业的一次触发、到期的定时器、Saga 为另一个上下文的记录发出的命令仍会产生提交，而每次提交都会发布。不消费其他服务主题的服务，可以改为停止它的节点。
 2. 等到每个消费服务中读取其主题的每个订阅都已追上，且没有任何停放：对主题的每个分区，`wow.subscription.backlog` 为 0，`wow.subscription.progress` 为 1，并且 `wow.subscription.parked.aggregates` 为 0；[ops 服务与控制台](./ops-console)显示的也一样。先重试或跳过每个停放的条目（[失败处理](../guide/failures)）。
-3. 把它分区少于 `wow.log.partitions` 的主题增加到这个数：`kafka-topics.sh --alter --topic <topic> --partitions <count>`。这期间没有发布，所以没有记录移动。
-4. 升级该服务。
+3. 把它分区少于 `wow.log.partitions` 的状态主题增加到这个数：`kafka-topics.sh --alter --topic <topic> --partitions <count>`。
+4. 再检查一次第 2 步，因为这期间可能有定时器到期，然后升级该服务。在这次检查与升级之间发布的记录，就是仍可能被乱序处理的那一条。
 
 主题与存储一样随本版本新建的部署无需做任何事。
 
