@@ -77,7 +77,7 @@ export const FrameworkErrorCodes = {
   SUBSCRIPTION_PARKED: 'wow.subscription.parked',
   /** 504 Wait timed out: The wait ran out of time; the command may have committed. The problem carries the last stage reached. */
   WAIT_TIMEOUT: 'wow.wait.timeout',
-  /** 400 Malformed route request: A service route's parameter or body cannot be read as its type; the violation names the parameter. */
+  /** 400 Malformed route request: A service route's parameter or body cannot be read as its type, or the request gives a query parameter the route does not declare, or one twice; the violation names the parameter. */
   ROUTE_MALFORMED: 'wow.route.malformed',
   /** 400 Malformed query: The query body cannot be read as a query. */
   QUERY_MALFORMED: 'wow.query.malformed',
