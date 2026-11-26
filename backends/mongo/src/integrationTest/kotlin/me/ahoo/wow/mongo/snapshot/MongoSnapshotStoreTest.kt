@@ -60,6 +60,14 @@ class MongoSnapshotStoreTest : SnapshotStoreSpec() {
             store.claim(AggregateType(context, "order"), 1, SnapshotFill.SUBSCRIPTION, lower = false)
             database.getCollection("wow_format").find(Filters.eq("_id", MongoSnapshotStore.TABLES)).first()
                 .assert().isNotNull()
+            // Its fill is stored by its wire name, as every stored enumeration is.
+            database.getCollection(MongoSnapshotStore.TABLES).find().first()!!.getString("fill").assert()
+                .isEqualTo("subscription")
+            // One this version does not know, its old spelling among them, is refused, naming it.
+            database.getCollection(MongoSnapshotStore.TABLES)
+                .updateMany(Filters.empty(), Updates.set("fill", "SUBSCRIPTION"))
+            assertThrownBy<IllegalStateException> { runBlocking { store.table(AggregateType(context, "order")) } }
+                .message().contains("SUBSCRIPTION")
             // The snapshot collection's own claim of the registry finds it recorded.
             store.createCollection("order")
         } finally {

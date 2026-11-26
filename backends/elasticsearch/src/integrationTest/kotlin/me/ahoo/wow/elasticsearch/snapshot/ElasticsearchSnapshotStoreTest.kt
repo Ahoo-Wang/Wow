@@ -13,11 +13,13 @@
 
 package me.ahoo.wow.elasticsearch.snapshot
 
+import co.elastic.clients.elasticsearch._types.Refresh
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
@@ -28,10 +30,13 @@ import me.ahoo.wow.elasticsearch.ElasticsearchStore
 import me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.StorageRefusedException
+import me.ahoo.wow.spi.snapshot.SnapshotFill
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.tck.snapshot.SnapshotStoreSpec
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.node.JsonNodeFactory
+import tools.jackson.databind.node.ObjectNode
 
 class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
     override fun createStore(context: String): SnapshotStore = ElasticsearchFixture.store().snapshots(context)
@@ -42,6 +47,37 @@ class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
         val ref = AggregateType(ElasticsearchFixture.newContext(), "aggregate").ref("tenant", "a")
         assertThrownBy<IllegalArgumentException> { runBlocking { store.load(ref) } }
     }
+
+    /**
+     * The snapshot table registry is mapped `dynamic: false`, as the snapshot and events indices are: a field a later
+     * version writes within the format is kept in `_source`, unindexed, where `strict` refused the whole document.
+     */
+    @Test
+    fun `the snapshot table registry should keep a field a later version writes, and read the table`(): Unit =
+        runBlocking {
+            val context = ElasticsearchFixture.newContext()
+            val store = ElasticsearchFixture.store().snapshots(context) as ElasticsearchSnapshotStore
+            val type = AggregateType(context, "aggregate")
+            store.claim(type, 1, SnapshotFill.SUBSCRIPTION, lower = false)
+            val id = ElasticsearchFixture.names.snapshots(context, type.name)
+            // Its fill is stored by its wire name, as every stored enumeration is.
+            val tables = ElasticsearchFixture.names.snapshotTables
+            ElasticsearchFixture.client.get({ it.index(tables).id(id) }, ObjectNode::class.java).await()
+                .source()!!.path("fill").stringValue().assert().isEqualTo("subscription")
+            val later = JsonNodeFactory.instance.objectNode().put("revision", 2).put("rebuilding", true)
+                .put("backfilled", false).put("fill", "subscription").put("later", "a 10.1 field")
+            ElasticsearchFixture.client.index<ObjectNode> {
+                it.index(tables).id(id).document(later).refresh(Refresh.True)
+            }.await()
+            store.table(type)!!.revision.assert().isEqualTo(2)
+            // A fill this version does not know, its old spelling among them, is refused, naming it.
+            later.put("fill", "SUBSCRIPTION")
+            ElasticsearchFixture.client.index<ObjectNode> {
+                it.index(tables).id(id).document(later).refresh(Refresh.True)
+            }.await()
+            assertThrownBy<IllegalStateException> { runBlocking { store.table(type) } }
+                .message().contains("SUBSCRIPTION")
+        }
 
     @Test
     fun `validate refuses a missing index and none touches nothing`(): Unit = runBlocking {

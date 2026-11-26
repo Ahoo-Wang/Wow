@@ -31,6 +31,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.elasticsearch.ElasticsearchFailures
 import me.ahoo.wow.elasticsearch.ElasticsearchIndices
 import me.ahoo.wow.elasticsearch.ElasticsearchNames
@@ -539,14 +540,18 @@ class ElasticsearchSnapshotStore internal constructor(
         revision = source.path(REVISION).intValue(),
         rebuilding = source.path(REBUILDING).booleanValue(),
         backfilled = source.path(BACKFILLED).booleanValue(),
-        fill = SnapshotFill.valueOf(source.path(FILL).textValue()),
+        fill = checkNotNull(WireNames.entryOf<SnapshotFill>(source.path(FILL).textValue())) {
+            // By its wire name; no case is added within 10.x (SnapshotFill), so one this version does not know is
+            // refused, naming it.
+            "A snapshot table's fill ${source.path(FILL).textValue()} is not one this version of Wow reads."
+        },
     )
 
     private fun tableDocument(table: SnapshotTable): ObjectNode = JsonNodeFactory.instance.objectNode()
         .put(REVISION, table.revision)
         .put(REBUILDING, table.rebuilding)
         .put(BACKFILLED, table.backfilled)
-        .put(FILL, table.fill.name)
+        .put(FILL, WireNames.of(table.fill))
 
     internal companion object {
         /** [writesInFlight] with `refresh: wait_for`. */
@@ -566,7 +571,7 @@ class ElasticsearchSnapshotStore internal constructor(
             {
               "mappings": {
                 "_meta": { "wow_index": "$TABLE_KIND", "wow_format": $TABLE_FORMAT },
-                "dynamic": "strict",
+                "dynamic": false,
                 "properties": {
                   "$REVISION": { "type": "integer" },
                   "$REBUILDING": { "type": "boolean" },

@@ -36,6 +36,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.mongo.ExactBson
 import me.ahoo.wow.mongo.MongoDatabases
 import me.ahoo.wow.mongo.MongoFailures
@@ -370,7 +371,7 @@ class MongoSnapshotStore(
         try {
             tables.insertOne(
                 Document(ID, structure).append(REVISION, revision).append(REBUILDING, revision != 1)
-                    .append(BACKFILLED, false).append(FILL, fill.name),
+                    .append(BACKFILLED, false).append(FILL, WireNames.of(fill)),
             )
         } catch (failure: MongoWriteException) {
             if (!failure.isDuplicateKey()) {
@@ -423,7 +424,11 @@ class MongoSnapshotStore(
         revision = document.getInteger(REVISION),
         rebuilding = document.getBoolean(REBUILDING),
         backfilled = document.getBoolean(BACKFILLED),
-        fill = SnapshotFill.valueOf(document.getString(FILL)),
+        fill = checkNotNull(WireNames.entryOf<SnapshotFill>(document.getString(FILL))) {
+            // By its wire name; no case is added within 10.x (SnapshotFill), so one this version does not know is
+            // refused, naming it.
+            "A snapshot table's fill ${document.getString(FILL)} is not one this version of Wow reads."
+        },
     )
 
     // Interruptible: the kernel gives up on a load past its timeout, and the read ends with it.
