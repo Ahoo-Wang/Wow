@@ -1,0 +1,644 @@
+{
+ "7079": {
+  "en": [
+   "A decide function that keys an act it undoes in `onAppendFailure` with `scope.callId()` now writes `scope.attemptKey()`: the member is renamed, its meaning unchanged. An after hook (`@AfterCommand`, `afterCommand`) that calls `reject(...)`, or whose `require` or `check` fails, now rejects the command with that code, writing nothing and running the attempt's compensations, where it failed the command with `wow.command.failed`. A saga handler that sends, schedules, cancels or calls a command whose target's id it drew from `context.ids` in the same handling now fails unrecoverable and parks the aggregate; name the target by an id computed from the commit (the source aggregate's id, a business key of the event), or derive the creation without an id and send the commands that follow it from the `@OnCommitted` handler of its receipt. An id drawn into a command's body is not affected."
+  ],
+  "zh": [
+   "决策函数在 `onAppendFailure` 里撤销的动作，原先以 `scope.callId()` 为键的，现在写 `scope.attemptKey()`：成员改名，含义不变。after 钩子（`@AfterCommand`、`afterCommand`）调用 `reject(...)`，或其中的 `require`、`check` 失败时，现在以该码拒绝命令，什么都不写，本次尝试的补偿照常运行；原先命令以 `wow.command.failed` 失败。saga 的处理函数发出、调度、取消或调用的命令，若目标的 ID 是它在同一次处理里从 `context.ids` 取出的，现在以不可恢复的失败结束并停放该聚合；请用从提交算出的 ID 指定目标（源聚合的 ID、事件里的业务键），或者不带 ID 派生创建、在它回执的 `@OnCommitted` 处理函数里发出其后的命令。取来放进命令体的 ID 不受影响。"
+  ],
+  "title": "fix(kernel)!: attemptKey names an attempt's own key, an after hook's refusal rejects, a saga refuses a drawn target"
+ },
+ "7081": {
+  "en": [
+   "**The TypeScript client states every wait plan's timeout.** A command sent with a `wait` and no `within()` or `timeout`, and a `send` without `timeout`, now states 10 seconds as `Wow-Wait-Timeout`, as the Kotlin client always has, and is answered `504 wow.wait.timeout` past it; give such a plan the wait it needs, or send without a plan to keep the service's default. A request's `headers` may no longer carry a header the client writes itself (`Wow-Request-Id`, `Wow-Wait`, `Wow-Wait-Timeout`, `Wow-Scope`, `Wow-Space`, `If-Match`, `If-None-Match`, `Last-Event-ID`): set the request's own field instead."
+  ],
+  "zh": [
+   "**TypeScript 客户端为每个等待计划声明超时。** 带 `wait`、没有 `within()` 或 `timeout` 的命令，以及没有 `timeout` 的 `send`，现在都以 `Wow-Wait-Timeout` 声明 10 秒，与 Kotlin 客户端一向的做法一致，超过即应答 `504 wow.wait.timeout`；请给这样的计划设定它需要的等待，或者不带计划发送以沿用服务的默认等待。请求的 `headers` 不能再携带客户端自己写出的请求头（`Wow-Request-Id`、`Wow-Wait`、`Wow-Wait-Timeout`、`Wow-Scope`、`Wow-Space`、`If-Match`、`If-None-Match`、`Last-Event-ID`）：请改为设置请求自身的对应字段。"
+  ],
+  "title": "fix(client)!: every wait plan states its timeout, the client's own headers are refused, and retry, Retry-After, Wow-Wait and full-name former names read as Kotlin's"
+ },
+ "7087": {
+  "en": [
+   "**TypeScript: a query stream lost past its resumes, a `terms` key, and `/testing`'s problems.** A streamed query cut off, or whose connection is lost, past its resumes now rejects with a `WowProblemError` `wow.peer.unavailable` (the network's error its `cause`), as the Kotlin client's does, where it rejected with a `TypeError` or the network's error. An aggregation's `terms` key over a field the generated types say `string` of (`int64`, `bigint`, `decimal`) arrives as that string, so two groups past 2^53 stay apart. `@ahoo-wang/wow-client/testing`'s `problemOf` and `problemResponse` build what a service writes: the catalog's `retry` and title, and `Retry-After`."
+  ],
+  "zh": [
+   "**TypeScript：续读用尽后丢失的查询流、`terms` 键与 `/testing` 的问题。** 被截断或连接丢失、续读次数用尽的流式查询，现在以 `WowProblemError` `wow.peer.unavailable` 拒绝（网络的错误是它的 `cause`），与 Kotlin 客户端一样，此前以 `TypeError` 或网络的错误拒绝。聚合查询中以生成类型声明为 `string` 的字段（`int64`、`bigint`、`decimal`）分组的 `terms` 键，以该字符串到达，于是超出 2^53 的两个分组不再合并。`@ahoo-wang/wow-client/testing` 的 `problemOf` 与 `problemResponse` 构造服务写出的问题：错误目录的 `retry` 与标题，以及 `Retry-After`。"
+  ],
+  "title": "fix(client)!: a query stream lost past its resumes is wow.peer.unavailable, an aggregation's terms key over an exact field is its text, and /testing builds the problems a service writes"
+ },
+ "7093": {
+  "en": [
+   "**TypeScript view stores: `INVALID` for what a store never issued, the page bound, and fakes as the service.** `WowViewStore` and `MemoryViewStore` refuse a revision or a list cursor they never issued as `INVALID`, where `WowViewStore` answered `CONFLICT`. `WowViewStore` pages the system views, so no list page holds more than `pageSize`. `MemoryViewStore` and `memorySource` of `@ahoo-wang/wow-view-engine/testing` answer as the services do: `MemoryViewStore` refuses a config, a definition id or preferences the view store service refuses and spends no revision on a write that changes nothing; `memorySource` refuses a cursor it never issued (`wow.query.invalid`, `invalid-cursor`) and answers `total: 'none'` with no total. A test that relied on the fakes' leniency changes with them."
+  ],
+  "zh": [
+   "**TypeScript 视图存储：存储从未签发的内容为 `INVALID`、分页上限，以及与服务一致的替身。** `WowViewStore` 与 `MemoryViewStore` 以 `INVALID` 拒绝它们从未签发的 revision 或列表游标，此前 `WowViewStore` 应答 `CONFLICT`。`WowViewStore` 对系统视图分页，所以列表的任何一页都不超过 `pageSize`。`@ahoo-wang/wow-view-engine/testing` 的 `MemoryViewStore` 与 `memorySource` 像服务那样应答：`MemoryViewStore` 拒绝视图存储服务所拒绝的配置、定义 ID 与偏好，对什么也不改变的写入不耗费 revision；`memorySource` 拒绝它从未签发的游标（`wow.query.invalid`、`invalid-cursor`），对 `total: 'none'` 不给出总数。依赖替身宽松行为的测试需要随之调整。"
+  ],
+  "title": "fix(view-store,view-engine)!: a list page holds at most pageSize, a cursor or revision never issued is INVALID, and MemoryViewStore and memorySource answer what the service answers"
+ },
+ "7094": {
+  "en": [
+   "A decide function that returns a `Mono` or a `Flux` and calls a Wow client inside `mono { … }` or `flux { … }`, or a `@Blocking` one that calls it inside `runBlocking { … }`, now sends each call that stands under the request id derived from the deciding request, as a suspending decide function does: a call decided again is answered as a repeat instead of running again, and a call decided again that asks something else fails the command (`wow.command.failed`). Undo a call that may change in `onAppendFailure` with `attemptKey()`, or give it a business request id."
+  ],
+  "zh": [
+   "返回 `Mono` 或 `Flux`、在 `mono { … }`、`flux { … }` 里调用 Wow 客户端的决定函数，以及在 `runBlocking { … }` 里调用它的 `@Blocking` 决定函数，现在像挂起的决定函数一样，以从正在决定的请求推导出的请求 ID 发送每个保留的调用：重新决定时的调用被当作重复回答，而不是再执行一次；重新决定时请求了别的东西的调用会让命令失败（`wow.command.failed`）。可能改变的调用在 `onAppendFailure` 中以 `attemptKey()` 撤销，或者给它一个业务请求 ID。"
+  ],
+  "title": "fix(kernel,reactor): a Mono, Flux or @Blocking decide function's call that stands takes its derived request id"
+ },
+ "7095": {
+  "en": [
+   "A query's numeric operand has at most 16,383 digits after the point and 131,072 before it, PostgreSQL `numeric`'s limits. A wider one (`1e-500000000`) is refused with 400 `wow.query.invalid` (`storage-unsupported`) before any store is asked. A number compared with a ClickHouse dataset's `Float32` or `Float64` column must be a double: past a double's range, or rounding to a subnormal or zero, it is refused alike. A projection that names a field twice counts it once."
+  ],
+  "zh": [
+   "查询的数字操作数小数点后至多 16,383 位、小数点前至多 131,072 位，即 PostgreSQL `numeric` 的上限。更宽的（`1e-500000000`）在问任何存储之前就以 400 `wow.query.invalid`（`storage-unsupported`）拒绝。与 ClickHouse 数据集的 `Float32`、`Float64` 列比较的数字须是双精度能表示的：超出双精度范围、或舍入为次正规数或零的同样被拒绝。投影里同一字段写了两次只算一次。"
+  ],
+  "title": "fix(query)!: a numeric operand past every store's decimal is refused before it is bound, and a projection's repeated entry counts once"
+ },
+ "7096": {
+  "en": [
+   "**PostgreSQL: the keys of Wow's tables are checked at start.** Under `wow.ddl: auto` and `validate`, a PostgreSQL store refuses a table that lacks a unique key of Wow's schema (a log table's version or request key, any table's primary key), naming the table and the key, and under `validate` a missing index of Wow's schema, naming it. A schema created by Wow passes; a schema applied by hand must keep every `PRIMARY KEY` and `UNIQUE` of Wow's statements."
+  ],
+  "zh": [
+   "**PostgreSQL：启动时检查 Wow 各表的键。** 在 `wow.ddl: auto` 与 `validate` 下，PostgreSQL 存储拒绝缺少 Wow schema 中唯一键的表（日志表的版本键或请求键、任何表的主键），并指出表和键；在 `validate` 下也拒绝缺少 Wow schema 中索引的表，并指出该索引。由 Wow 创建的 schema 照常通过；手工应用的 schema 必须保留 Wow 语句中的每个 `PRIMARY KEY` 与 `UNIQUE`。"
+  ],
+  "title": "fix(postgres)!: ddl auto and validate check each table's unique keys and indexes, so a log table without its version key is refused"
+ },
+ "7099": {
+  "en": [
+   "**wow-generator: names as the Kotlin contract's, collisions refused, `idSource` in every descriptor.** Regenerate the clients (`src/generated/`) with this version: every `<Aggregate>Aggregate` descriptor now writes `idSource` (`'assigned'` included). A Manifest name with an upper-case run is spelled as the Kotlin contract spells it (`orderID` is `OrderID`, a command `CreateURLShortcut`'s method `createURLShortcut`). A Manifest two of whose names give one generated name in a context (`order-item` and `order_item`, or a context `order-command` holding an aggregate `order`) is refused with exit 4, naming both: rename one with `@Name`."
+  ],
+  "zh": [
+   "**wow-generator：名称与 Kotlin 契约一致、冲突即拒绝、每个描述都带 `idSource`。** 请用这个版本重新生成客户端（`src/generated/`）：每个 `<Aggregate>Aggregate` 描述现在都写出 `idSource`（包括 `'assigned'`）。含连续大写字母的 Manifest 名称按 Kotlin 契约的写法拼写（`orderID` 是 `OrderID`，命令 `CreateURLShortcut` 的方法是 `createURLShortcut`）。同一上下文中有两个名称生成同一个名字的 Manifest（`order-item` 与 `order_item`，或上下文 `order-command` 中的聚合 `order`）以退出码 4 拒绝并点出两者：请用 `@Name` 给其中一个改名。"
+  ],
+  "title": "fix(generator)!: a Manifest name never ends a comment, names follow Kotlin's pascal and are apart or refused as the specification, a name that is no identifier still compiles, and the descriptor carries what the Kotlin KDoc says"
+ },
+ "7101": {
+  "en": [
+   "`CommandRequest.id` is `aggregateId` (the builder's `aggregateId(...)`, the `aggregateId` parameter of `toCommandRequest`, `send`, `wait`, `stream`, `call` and `schedule`), and a request names its target tenant and scope in one field, `targetScope: TargetScope?`: `targetScope(TargetScope.of(tenant, scope))`, or `targetTenant(tenant)` alone. A target that names only a tenant acts there in the caller's own scope on every path; the node's own command client acted in no scope, so name `Scope.NONE` where that is meant. An id and a ref are two overloads now, so a call naming both no longer compiles. `TargetScope.scope` may be null (the sender's own), `ServerCommandRequest.target` and `QueryCaller.target` are `targetScope`, the enum `me.ahoo.wow.api.problem.Retry` is `RetryAdvice` (its wire spellings unchanged), `Problem.retryAfter` is a `Duration`, `CommandTarget.of` takes the body before the aggregate id, `Origin` takes the service first, and the test DSL's `EventEnvelope` and the test server's `PeerCall` carry the aggregate's `ref`."
+  ],
+  "zh": [
+   "`CommandRequest.id` 改名 `aggregateId`（构建器的 `aggregateId(...)`，以及 `toCommandRequest`、`send`、`wait`、`stream`、`call`、`schedule` 的 `aggregateId` 参数）；请求以一个字段 `targetScope: TargetScope?` 指明目标租户与作用域：`targetScope(TargetScope.of(tenant, scope))`，或只写 `targetTenant(tenant)`。只写租户的目标在每条路径上都以调用方自己的作用域在那个租户里行事；节点自己的命令客户端原先不带作用域，需要不带作用域时请明写 `Scope.NONE`。ID 与 ref 现在是两个重载，同时给出两者的调用编译不过。`TargetScope.scope` 可以为空（保留发送方自己的），`ServerCommandRequest.target` 与 `QueryCaller.target` 改名 `targetScope`，枚举 `me.ahoo.wow.api.problem.Retry` 改名 `RetryAdvice`（线上的拼写不变），`Problem.retryAfter` 改为 `Duration`，`CommandTarget.of` 的命令体在聚合 ID 之前，`Origin` 的服务在最前，测试 DSL 的 `EventEnvelope` 与测试服务器的 `PeerCall` 带聚合的 `ref`。"
+  ],
+  "title": "fix(api)!: a request names its aggregate by aggregateId and its target in one TargetScope, a tenant alone keeps the scope"
+ },
+ "7102": {
+  "en": [
+   "**PostgreSQL and Elasticsearch: an operation timeout must bound something.** A store's `operation-timeout` (`wow.postgres.operation-timeout`, `wow.elasticsearch.operation-timeout`, `wow.stores.<name>.operation-timeout`) of zero or below now refuses the start, naming the key, as MongoDB's already did; on PostgreSQL so does one past about 24.8 days. A PostgreSQL timeout of zero left every call unbounded, and a negative one failed every call."
+  ],
+  "zh": [
+   "**PostgreSQL 与 Elasticsearch：操作超时必须有上限。** 存储的 `operation-timeout`（`wow.postgres.operation-timeout`、`wow.elasticsearch.operation-timeout`、`wow.stores.<name>.operation-timeout`）为零或负数时，现在拒绝启动并指出该键，与 MongoDB 一致；PostgreSQL 上超过约 24.8 天也拒绝。此前 PostgreSQL 的超时为零时每次调用都没有上限，为负数时每次调用都失败。"
+  ],
+  "title": "fix(postgres,elasticsearch)!: a store refuses an operation timeout that bounds nothing when it opens, naming the key"
+ },
+ "7105": {
+  "en": [
+   "The sort and projection DSLs name fields under a path with `\"state\".path { }`, as filters do; `nested(...)` is removed. `beforeNow` and `afterNow` take a `kotlin.time.Duration`. `@QueryReference`'s members are `aggregate` and `context`, and the Manifest's `x-wow-reference` carries `aggregate` and `context`: rebuild to regenerate it. A backend implementing the query SPI renames `SnapshotQueries` and `EventQueries` to `SnapshotStoreQueries` and `EventStoreQueries`, and a `QueryError` reads `message` and `violations`. A read a `ReadAuthorizer` refuses answers the authorizer's problem with no `violations`. The query codes only an aggregation query gives are experimental with it."
+  ],
+  "zh": [
+   "排序与投影 DSL 像过滤一样用 `\"state\".path { }` 指明路径之下的字段，`nested(...)` 已去掉。`beforeNow` 与 `afterNow` 接收 `kotlin.time.Duration`。`@QueryReference` 的成员改为 `aggregate` 与 `context`，Manifest 的 `x-wow-reference` 随之写作 `aggregate` 与 `context`：重新构建即重新生成。实现查询 SPI 的后端把 `SnapshotQueries`、`EventQueries` 改为 `SnapshotStoreQueries`、`EventStoreQueries`，`QueryError` 读 `message` 与 `violations`。被 `ReadAuthorizer` 拒绝的读取以授权器的 problem 应答，不带 `violations`。只有聚合查询会给出的查询错误码随聚合查询一起是实验性的。"
+  ],
+  "title": "fix(query)!: snapshot access and schedule fields compare in the DSL, a refused read carries no violation, sort and projection name paths with path { }, and @QueryReference(aggregate, context)"
+ },
+ "7106": {
+  "en": [
+   "**`wow.node.address` names its port.** An address without a port, with port 0 or past 65535 now refuses the start, naming the key: the other nodes reached such a node at port 80, or nowhere. Write `host:port`, an IPv6 host in brackets."
+  ],
+  "zh": [
+   "**`wow.node.address` 必须写明端口。** 没有端口、端口为 0 或超过 65535 的地址现在拒绝启动并指出该键：其他节点此前会在 80 端口访问这样的节点，或根本无法访问。写成 `host:port`，IPv6 主机放在方括号里。"
+  ],
+  "title": "fix(spring-boot)!: wow.node.address without a port, with port 0 or past 65535 refuses the start"
+ },
+ "7110": {
+  "en": [
+   "**Every `wow.aggregates` entry names a served aggregate type.** An entry of `wow.aggregates.[<context>.<aggregate>]` that names no aggregate type the node serves now refuses the start, whichever of its settings it holds; before, its `query.events.unpinned` and its ClickHouse history were ignored without a word."
+  ],
+  "zh": [
+   "**`wow.aggregates` 的每个条目都必须指向所服务的聚合类型。** `wow.aggregates.[<context>.<aggregate>]` 中指向节点不服务的聚合类型的条目，无论其中设置了什么，现在都拒绝启动；此前它的 `query.events.unpinned` 与 ClickHouse 历史设置会被悄无声息地忽略。"
+  ],
+  "title": "fix(spring-boot)!: an entry of wow.aggregates that names no aggregate type the node serves refuses the start, whichever of its settings it holds"
+ },
+ "7111": {
+  "none": "None: release automation only."
+ },
+ "7112": {
+  "en": [
+   "Every public declaration of `wow-spi` and `wow-query` now says its level. Most are `@WowSpi`: a backend's, which a minor release may change and which asks for `@OptIn(WowSpi::class)`, as do the TCK suites; the rest are `@InternalWowApi`, Wow's own, among them `QueryGateway`, `HttpQueries`, `KernelOptions`, `ManifestMerger` and `ManifestFragment`. Build a `ContractDirectory` of a Manifest with `ContractDirectory.of`. `WowJson`, `ReadAuthorizer`, `MaskStrategyResolver` and `QueryCountCache` stay application API."
+  ],
+  "zh": [
+   "`wow-spi` 与 `wow-query` 的每个公开声明现在都标明了级别。大多数是 `@WowSpi`：后端用的，次版本可能改变，使用时需要 `@OptIn(WowSpi::class)`，TCK 的测试套件也一样；其余是 `@InternalWowApi`，Wow 自己的，其中有 `QueryGateway`、`HttpQueries`、`KernelOptions`、`ManifestMerger` 与 `ManifestFragment`。从一份 Manifest 构造 `ContractDirectory` 用 `ContractDirectory.of`。`WowJson`、`ReadAuthorizer`、`MaskStrategyResolver` 与 `QueryCountCache` 仍是应用 API。"
+  ],
+  "title": "fix(spi,query)!: every public declaration of spi and query carries its level, and the closure rule reads Kotlin's signatures"
+ },
+ "7113": {
+  "en": [
+   "**wow-react: `problem` is the problem body, `StreamExecutor<Q, R>`, and what ends a run.** A hook's `problem` is the RFC 9457 body (`Problem`) the service answered with: its `code`, `status`, `detail` and `violations`. `error` is the `WowProblemError` itself, which still has the retry hint (`retryAfterMs`, `retry`). So code that read `problem.retryAfterMs` now reads `error.retryAfterMs` after checking `error instanceof WowProblemError`. `StreamExecutor` takes the query first, `StreamExecutor<Q, R>`. If the query or `requestOptions` changes while a request is in flight, that request is aborted, `autoExecute` or not. Only the run's own signal aborts a run: an `AbortError` from anywhere else, such as an executor's own timeout, makes the run fail. `useCursorQuery` gives `hasMore: false` while its controlled query is `undefined`."
+  ],
+  "zh": [
+   "**wow-react：`problem` 是 problem 体、`StreamExecutor<Q, R>`，以及什么会结束一次运行。** hook 的 `problem` 是服务应答的 RFC 9457 体（`Problem`）：它的 `code`、`status`、`detail` 和 `violations`。`error` 是 `WowProblemError` 本身，重试提示（`retryAfterMs`、`retry`）仍在它上面。所以，原来读 `problem.retryAfterMs` 的代码，现在先判断 `error instanceof WowProblemError`，再读 `error.retryAfterMs`。`StreamExecutor` 的查询参数放在前面：`StreamExecutor<Q, R>`。请求还在途中时，如果查询或 `requestOptions` 变了，这个请求会被中止，不论 `autoExecute`。只有运行自己的信号能中止它：从别处来的 `AbortError`（例如执行函数自己的超时）会让这次运行失败。受控查询为 `undefined` 时，`useCursorQuery` 的 `hasMore` 为 `false`。"
+  ],
+  "title": "fix(react)!: problem is the service's RFC 9457 body, StreamExecutor takes the query first, a changed query aborts a run by hand, only the run's own signal aborts it, and hasMore is false with no query"
+ },
+ "7114": {
+  "en": [
+   "**A setting the host cannot start with names its key.** A value out of range under `wow.node`, `wow.internal`, `wow.health`, `wow.ops`, `wow.peer`, `wow.log`, `wow.http`, `wow.query` or a store's or transport's options now refuses the start with Wow's failure analysis, naming the key or its group, instead of a bean's stack; a blank `wow.tenant.default` refuses the start in every case."
+  ],
+  "zh": [
+   "**主机无法启动的设置会指出它的键。** `wow.node`、`wow.internal`、`wow.health`、`wow.ops`、`wow.peer`、`wow.log`、`wow.http`、`wow.query` 下或存储、传输选项中越界的值，现在以 Wow 的失败分析拒绝启动并指出键或其所在的组，不再是一串 bean 的堆栈；空的 `wow.tenant.default` 在任何情况下都拒绝启动。"
+  ],
+  "title": "fix(spring-boot)!: every setting the host cannot start with is refused naming its key or its group"
+ },
+ "7115": {
+  "en": [
+   "**wow-client: Kotlin's names for the hops, the resume options and the retry type, one name for the exact-number marks, and fewer exports.**\n- Build a wait chain's hops with `Hop.committed()` (and `accepted`, `snapshot`, `queryable`, `handled`) where `wait.committed()` was.\n- A stream's `resume` takes `maxAttempts` (the first request included, so `maxRetries: n` is `maxAttempts: n + 1`), `backoffMs` and `maxRetryAfterMs`.\n- A hand-written `CommandClient` takes its marks as `textNumbers`, where it took `bodyNumbers`. A dataset's marks are `dataset(context, dataset, textNumbers)`. `textNumberOr` is `textNumbersOr`.\n- Import `CountQuery` and `CountResult` from `@ahoo-wang/wow-client/dsl`.\n- The type `Retry` is `RetryAdvice`.\n- `StateReadOptions` takes one of `version`, `at` and `minVersion`.\n- `QueryViolation` extends `Violation`.\n- These are no longer exported: `DEFAULT_RETRY`, `checkManifest`, `queryPath`, the clients' `client` member, and `StateClient`'s protected readers.\n- Regenerate the generated clients with this version: their hop builders and command options use the new names."
+  ],
+  "zh": [
+   "**wow-client：跳、续读选项与重试类型用 Kotlin 的名字，精确数字的标记只用一个名字，导出更少。**\n- 构建等待链的跳用 `Hop.committed()`（以及 `accepted`、`snapshot`、`queryable`、`handled`），代替 `wait.committed()`。\n- 流的 `resume` 接受 `maxAttempts`、`backoffMs` 和 `maxRetryAfterMs`。`maxAttempts` 含第一次请求，所以 `maxRetries: n` 对应 `maxAttempts: n + 1`。\n- 手写的 `CommandClient` 以 `textNumbers` 接受标记，代替 `bodyNumbers`。数据集的标记写作 `dataset(context, dataset, textNumbers)`。`textNumberOr` 改名 `textNumbersOr`。\n- `CountQuery` 和 `CountResult` 从 `@ahoo-wang/wow-client/dsl` 导入。\n- 类型 `Retry` 改名 `RetryAdvice`。\n- `StateReadOptions` 在 `version`、`at`、`minVersion` 中只取一个。\n- `QueryViolation` 扩展 `Violation`。\n- 以下不再导出：`DEFAULT_RETRY`、`checkManifest`、`queryPath`、各客户端的 `client` 成员，以及 `StateClient` 的 protected 读取方法。\n- 用这个版本重新生成客户端：生成的跳构建器和命令选项使用新名字。"
+  ],
+  "title": "fix(client)!: Hop builds the hops as Kotlin's, the resume options and the exact-number marks take one name each, a client's options are private, CountQuery and CountResult are in /dsl, and Retry is RetryAdvice"
+ },
+ "7116": {
+  "none": "None: the drill's own files."
+ },
+ "7117": {
+  "none": "None: the benchmark harness.\n\nRefs #7109"
+ },
+ "7118": {
+  "en": [
+   "**Renamed configuration keys and values.** `wow.timers.claim-timeout` is `wow.timers.claim-ttl`, `wow.kafka.topics.partition-refresh` is `wow.kafka.topics.partition-refresh-interval`, `wow.subscription.read-retry.error-after` is `wow.subscription.read-retry.error-after-attempts`, and `wow.wait.unknown-contexts: reject` is `refuse`; the former names refuse the start. `0` turns off every bound that can be turned off: `wow.timers.expires-after`, `wow.timers.max-fire-rate` and the retries' `timeout` take it, and `reindex-requests-per-second` takes `0` for no limit instead of `-1`. A store's or transport's duration reads as the host's do (`5S`, `500ms`, `PT5S`); `1m 30s` and `1.5s` are refused."
+  ],
+  "zh": [
+   "**配置键与取值改名。** `wow.timers.claim-timeout` 改为 `wow.timers.claim-ttl`，`wow.kafka.topics.partition-refresh` 改为 `wow.kafka.topics.partition-refresh-interval`，`wow.subscription.read-retry.error-after` 改为 `wow.subscription.read-retry.error-after-attempts`，`wow.wait.unknown-contexts: reject` 改为 `refuse`；旧名称会拒绝启动。`0` 关闭所有可以关闭的上限：`wow.timers.expires-after`、`wow.timers.max-fire-rate` 和各重试的 `timeout` 接受 `0`，`reindex-requests-per-second` 以 `0` 而不再以 `-1` 表示不限速。存储或传输的时长与主机的键读法相同（`5S`、`500ms`、`PT5S`）；`1m 30s` 与 `1.5s` 会被拒绝。"
+  ],
+  "title": "fix(config)!: one spelling of a refusal, 0 turns a bound off, claim-ttl, partition-refresh-interval, error-after-attempts, and one duration grammar for the store and transport keys"
+ },
+ "7120": {
+  "en": [
+   "**A setting that would do nothing refuses the start.** A `wow.http.errors` code under `wow.` that the framework does not answer, `app_id`, `user_agent` or `remote_ip` in `wow.http.request-facts`, a `wow.ops.publish.context` that is no context name, an adaptive query `floor` above its store's `ceiling`, and a Kafka `topics.min-insync-replicas` above `topics.replication-factor` now refuse the start, naming the key; before, each was ignored. A `wow.http.errors` code of the application's that no Manifest on the class path declares starts with a warning."
+  ],
+  "zh": [
+   "**会什么也不做的设置拒绝启动。** `wow.http.errors` 中框架不会回答的 `wow.` 下的错误码、`wow.http.request-facts` 中的 `app_id`、`user_agent` 或 `remote_ip`、不是上下文名称的 `wow.ops.publish.context`、高于其存储 `ceiling` 的自适应查询 `floor`，以及高于 `topics.replication-factor` 的 Kafka `topics.min-insync-replicas`，现在都会拒绝启动并指出键；此前它们都被忽略。类路径上没有任何 Manifest 声明的应用 `wow.http.errors` 错误码以一条警告启动。"
+  ],
+  "title": "fix(config)!: a setting that would start and do nothing refuses the start, and wow.http.errors warns of an application code no Manifest declares"
+ },
+ "7121": {
+  "en": [
+   "**wow-generator: the generated clients' names follow Kotlin's, and the generator never guesses a value it does not know.** Regenerate every client with this version.\n- A command client sends through `commands` where it had `client`.\n- A context's wait hops are `<Context>Contract.Wait` (`EshopCatalogContract.Wait.committed()`) where they were `eshopCatalogWait`.\n- An aggregate's descriptor has no `path`, and its command marks are keyed by full name.\n- A lifecycle body is wow-client's `TransferOwner` or `TransferSpace`.\n- A service route's method is camel-cased, as a command's is.\n- A command body of no properties is `Record<string, never>`.\n- `<Aggregate>StateField` holds the paths the Kotlin contract names.\n- An aggregate, command or service route with a value the generator does not know (a newer Wow's) is left out, with a warning; generate with a newer generator."
+  ],
+  "zh": [
+   "**wow-generator：生成客户端的名字与 Kotlin 一致，生成器不再猜测不认识的值。** 用这个版本重新生成所有客户端。\n- 命令客户端经由 `commands` 发送，原来是 `client`。\n- 上下文的等待各跳在 `<Context>Contract.Wait`（`EshopCatalogContract.Wait.committed()`），原来是 `eshopCatalogWait`。\n- 聚合描述不再有 `path`，命令的精确数字标记按全名作键。\n- 生命周期请求体是 wow-client 的 `TransferOwner` 或 `TransferSpace`。\n- 服务路由的方法与命令的方法一样用驼峰命名。\n- 没有属性的命令请求体是 `Record<string, never>`。\n- `<Aggregate>StateField` 列出 Kotlin 契约所列的路径。\n- 带有生成器不认识的值（较新 Wow 的值）的聚合、命令或服务路由会被省掉，并给出告警；请用较新的生成器生成。"
+  ],
+  "title": "fix(generator)!: generated clients send through commands, hops are the contract's Wait, path is gone, lifecycle bodies are wow-client's, an empty body takes no member, state paths are Kotlin's, and an unknown value leaves out what holds it"
+ },
+ "7122": {
+  "en": [
+   "**Every refused setting names its key.** `wow.log.partitions` and `wow.memory.topic-retention` out of range, a store's query settings, a `wow.subscriptions` entry's retry and parked settings, and `wow.query.budgets.in-process.default-list-size` now refuse the start naming the key that is set, where some named another key, the wrong group, or none."
+  ],
+  "zh": [
+   "**每个被拒绝的设置都指出它的键。** 越界的 `wow.log.partitions` 与 `wow.memory.topic-retention`、存储自己的查询设置、`wow.subscriptions` 条目的重试与停放设置，以及 `wow.query.budgets.in-process.default-list-size`，现在拒绝启动时指出所设置的键；此前有的指向另一个键、错误的组，或者不指出任何键。"
+  ],
+  "title": "fix(spring-boot): every documented key is set by name in a test, and a value a numeric or duration key cannot take is refused naming that key"
+ },
+ "7123": {
+  "en": [
+   "**wow-generator: no tsconfig option, line ends that do not matter, and wow-client an optional peer.**\n- Drop `-t`/`--ts-config-file-path` from the `generate` command and `tsConfigFilePath` from `GeneratorOptions`: the output never depended on them, and the CLI now refuses the option.\n- A checkout that converts line ends (`core.autocrlf`) no longer fails `--check`.\n- A regeneration removes the directories that removing old files leaves empty.\n- A Manifest run warns when the configuration sets `apiClients`, which it never read.\n- `@ahoo-wang/wow-client` is an optional peer of the generator."
+  ],
+  "zh": [
+   "**wow-generator：不再有 tsconfig 选项，行尾不再造成差异，wow-client 改为可选 peer 依赖。**\n- 从 `generate` 命令中去掉 `-t`/`--ts-config-file-path`，从 `GeneratorOptions` 中去掉 `tsConfigFilePath`：输出从不依赖它们，CLI 现在会拒绝这个选项。\n- 转换行尾的检出（`core.autocrlf`）不再让 `--check` 失败。\n- 重新生成时，删掉旧文件后变空的目录也会一并删除。\n- 配置中设置了 `apiClients` 时，Manifest 运行会告警，因为它从不读取这些配置。\n- `@ahoo-wang/wow-client` 改为生成器的可选 peer 依赖。"
+  ],
+  "title": "fix(generator)!: no tsconfig option, hashes and --check read any line end as \\n, an emptied directory goes with its files, a Manifest run warns of apiClients, and wow-client is an optional peer"
+ },
+ "7124": {
+  "en": [
+   "**`wow.dev-profiles` defaults to `dev, local`.** A `test` or `demo` profile no longer makes a node run for development (memory backend, callers from request headers, no durability warning): a node that relies on one refuses to start as a deployment. List the profile in `wow.dev-profiles`, or use `dev`."
+  ],
+  "zh": [
+   "**`wow.dev-profiles` 默认为 `dev, local`。** `test` 或 `demo` profile 不再让节点以开发模式运行（内存后端、从请求头取得调用方、不发出持久性警告）：依赖这类 profile 的节点会像部署一样拒绝启动。请在 `wow.dev-profiles` 中列出该 profile，或改用 `dev`。"
+  ],
+  "title": "fix(spring-boot)!: wow.dev-profiles defaults to dev and local, so a test or demo profile is not development unless a node lists it"
+ },
+ "7125": {
+  "en": [
+   "**wow-client: a command request names its aggregate's id `aggregateId`.**\n- Rename `id` to `aggregateId` in a `CommandRequest` (`commands.wait({ command, body, aggregateId })`) and in a generated creation method's options (`createBrand(body, { aggregateId })`). This matches Kotlin's `CommandRequest.aggregateId`.\n- Regenerate the generated clients.\n- A by-id method's positional `id`, a state read's options and the HTTP requests are unchanged."
+  ],
+  "zh": [
+   "**wow-client：命令请求中聚合的 id 改名为 `aggregateId`。**\n- 在 `CommandRequest`（`commands.wait({ command, body, aggregateId })`）和生成的创建方法的选项（`createBrand(body, { aggregateId })`）中，把 `id` 改名为 `aggregateId`，与 Kotlin 的 `CommandRequest.aggregateId` 一致。\n- 重新生成生成的客户端。\n- 按 id 调用的方法的位置参数 `id`、状态读取的选项和发出的 HTTP 请求都不变。"
+  ],
+  "title": "fix(client)!: a command request names its aggregate's id aggregateId, as Kotlin's CommandRequest does"
+ },
+ "7126": {
+  "en": [
+   "**wow-view-store: wow-client's options, and no reserved scopes on the entry.**\n- `WowViewStoreOptions` and `WowDatasetWordingsOptions` extend wow-client's `WowClientOptions`. A gateway's prefix goes into `basePath` instead of a fetcher that rewrites URLs, and a service with longer default waits sets `defaultWaitMs`. Their members are `readonly`.\n- `SHARED_SCOPE` and `SYSTEM_SCOPE` are no longer exported. Write the `Wow-Scope` your own Wow client needs yourself: `{ ownerId: '(shared)' }`, or `{ tenantId: '(platform)', ownerId: '(system)' }`.\n- `WowDatasetWordings.set` and `clear` refuse a revision the store never issued as `INVALID` before sending."
+  ],
+  "zh": [
+   "**wow-view-store：选项改用 wow-client 的选项，入口不再导出保留作用域。**\n- `WowViewStoreOptions` 与 `WowDatasetWordingsOptions` 继承 wow-client 的 `WowClientOptions`。网关前缀改用 `basePath`，不必再用改写 URL 的 fetcher；服务的默认等待更长时，设置 `defaultWaitMs`。它们的成员都是 `readonly`。\n- 不再导出 `SHARED_SCOPE` 与 `SYSTEM_SCOPE`。自己的 Wow 客户端需要这个 `Wow-Scope` 时自己写：`{ ownerId: '(shared)' }`，或 `{ tenantId: '(platform)', ownerId: '(system)' }`。\n- `WowDatasetWordings.set` 与 `clear` 收到 store 从未发出过的修订时，在发送之前就以 `INVALID` 拒绝。"
+  ],
+  "title": "fix(view-store)!: the options are wow-client's, a write's parameter is options, the reserved scopes stay inside, and a wording revision never issued is INVALID"
+ },
+ "7127": {
+  "en": [
+   "A MongoDB timer store whose account may read `wow_timer_aggregate` but not insert into it serves a timer collection already recorded there again, as before #6792; the account needs `insert` only to record a collection that has no record yet (or insert the record the refusal names). A log store's account still writes `wow_log_aggregate` under every `ddl`, where the log keeps its partition count."
+  ],
+  "zh": [
+   "MongoDB 定时器存储的账号能读 `wow_timer_aggregate` 而不能插入时，已在其中登记的定时器集合重新可用，与 #6792 之前一样；只有登记一个还没有记录的集合才需要 `insert`（或者插入拒绝信息写明的那条记录）。日志存储的账号在任何 `ddl` 下仍要写 `wow_log_aggregate`，日志的分区数记在那里。"
+  ],
+  "title": "fix(mongo): a timer collection already recorded serves an account that may only read the registry"
+ },
+ "7128": {
+  "en": [
+   "**The public port no longer serves the Manifest by default.** `GET /wow/manifest` answers 404 on the public port unless `wow.http.manifest.enabled: true`; the internal port serves it to the cluster's services as before, and `GET /wow/openapi` stays on. The analytics catalog reads the owning services' Manifests from their internal ports (`wow.peer.mode: service`, the default; with `user`, each owning service sets the key). A TypeScript `CommandClient` given no Manifest, and the generator pointed at a service's URL, still read `GET /wow/manifest`: give them the generated Manifest or `manifest/baseline.json`, or set the key on the service. The eShop's end-to-end harness reads the internal port."
+  ],
+  "zh": [
+   "**公开端口默认不再提供 Manifest。** 除非设置 `wow.http.manifest.enabled: true`，公开端口上的 `GET /wow/manifest` 返回 404；内部端口仍像以前一样把它提供给集群中的服务，`GET /wow/openapi` 保持开启。分析目录从所属服务的内部端口读取它们的 Manifest（`wow.peer.mode: service`，默认值；设为 `user` 时，每个所属服务要打开这个键）。没有给定 Manifest 的 TypeScript `CommandClient`，以及指向服务 URL 的生成器，仍读取 `GET /wow/manifest`：请交给它们生成的 Manifest 或 `manifest/baseline.json`，或者在服务上打开这个键。eShop 的端到端测试工具读取内部端口。"
+  ],
+  "title": "fix(spring-boot)!: the public port serves GET /wow/manifest only when wow.http.manifest.enabled turns it on; the internal port keeps it and OpenAPI stays on"
+ },
+ "7130": {
+  "en": [
+   "**View store: a stored system board keeps the views it shows shared.**\n- Claiming a shared view (making it personal) is refused when a stored system dashboard shows it, as when a shared dashboard does: `409 view-store.referenced-by-shared-dashboard`, the boards named in `boards`.\n- `MemoryViewStore` refuses it too, and no longer refuses one a configured system board shows, which the service never checked.\n- To make such a view personal, first remove it from the system board, or unpublish the board."
+  ],
+  "zh": [
+   "**视图存储：存储的系统看板让它展示的视图保持共享。**\n- 存储的系统仪表盘展示着某个共享视图时，认领它（设为个人）会被拒绝，与共享仪表盘展示时一样：`409 view-store.referenced-by-shared-dashboard`，`boards` 列出这些看板。\n- `MemoryViewStore` 同样拒绝；配置的系统看板展示着的视图则不再拒绝，服务从来不查它。\n- 要把这样的视图设为个人，先把它从系统看板上移走，或者取消发布那块看板。"
+  ],
+  "title": "fix(view-store)!: a stored system board keeps the views it shows shared, and the test fake answers as the service does"
+ },
+ "7131": {
+  "none": "None: records only."
+ },
+ "7132": {
+  "en": [
+   "A few declarations no application needs left the public API: `wow-client`'s `ClientMode`, `HttpCommandClient` and `HttpQueryApi` (use `WowClient`'s builder), the test DSL's spec constructors (use `aggregateSpec`, `sagaSpec`, `scheduleSpec`), `JobState`'s setters, the TCK suites' constants (`TAIL_TIMEOUT_MS` is `tailTimeout`), and, now internal to Wow, `CommandWire`, `CallerWire`, `ReplyTo`, `EnvelopeCodec` (the protocol page is the contract of a command topic) and `WowHttpContract`. `ServerCommandRequest` is built with `of`, its facts named: `ServerCommandRequest.of(command, ref, caller = caller, wait = plan)`. `WowContainers`' image tags are no longer constants."
+  ],
+  "zh": [
+   "应用用不到的几个声明离开了公开 API：`wow-client` 的 `ClientMode`、`HttpCommandClient` 与 `HttpQueryApi`（用 `WowClient` 的构建器）、测试 DSL 的 spec 构造函数（用 `aggregateSpec`、`sagaSpec`、`scheduleSpec`）、`JobState` 的 setter、TCK 套件的常量（`TAIL_TIMEOUT_MS` 改为 `tailTimeout`），以及改为 Wow 内部的 `CommandWire`、`CallerWire`、`ReplyTo`、`EnvelopeCodec`（命令主题以协议页为契约）与 `WowHttpContract`。`ServerCommandRequest` 用 `of` 构造，各项以命名参数给出：`ServerCommandRequest.of(command, ref, caller = caller, wait = plan)`。`WowContainers` 的镜像标签不再是常量。"
+  ],
+  "title": "fix(client,runtime,test)!: what only Wow's modules use leaves the public API, and ServerCommandRequest is built with of"
+ },
+ "7133": {
+  "none": "None: records only."
+ },
+ "7134": {
+  "en": [
+   "CoSec's device id, `CoSec-Device-Id`, is no longer recorded in a command's request facts unless the service lists it in `wow.http.request-facts`. It is personal data that the immutable log keeps, so Wow records it only when the application asks. A service with CoSec turned off (`wow.cosec.mode: disabled`) reads no CoSec header, `CoSec-Request-Id` included: a client sends `Wow-Request-Id`."
+  ],
+  "zh": [
+   "CoSec 的设备 ID `CoSec-Device-Id` 不再记入命令的请求事实，除非服务把它列在 `wow.http.request-facts` 里：它是不可删除的日志会保存的个人数据，只有应用要求时 Wow 才记录。关闭 CoSec 的服务（`wow.cosec.mode: disabled`）不读 CoSec 的任何头，`CoSec-Request-Id` 也不读：客户端发送 `Wow-Request-Id`。"
+  ],
+  "title": "fix(cosec)!: CoSec's device id is recorded only when listed as a request fact, and no header of CoSec's is read with CoSec off"
+ },
+ "7138": {
+  "en": [
+   "**PostgreSQL stores are recreated.** The pre-release layout is not read: start from an empty database. The log stores an event's data as `events[].body`; timers and reservations name their aggregate `aggregate_tenant_id`/`aggregate_id`, and a timer's scope and operator are flat columns; `wow_lease_member` is keyed by `service` and records each node's version of Wow (`wow_version`); the failure ledger names `aggregate` and `last_retry_at`; stored enumerations are their lower-kebab names. A column Wow adds within the format later is added by `ddl: auto` and refused, named, by `validate`."
+  ],
+  "zh": [
+   "**PostgreSQL 存储需要重建。** 预发布版的布局不会被读取：请从空数据库开始。日志把事件数据存为 `events[].body`；定时器与预留以 `aggregate_tenant_id`/`aggregate_id` 指明其聚合，定时器的作用域与操作者是扁平的列；`wow_lease_member` 以 `service` 为键，并记录每个节点的 Wow 版本（`wow_version`）；失败台账使用 `aggregate` 与 `last_retry_at`；存储的枚举值是它们的小写连字符名称。之后 Wow 在同一格式内新增的列，由 `ddl: auto` 添加，`validate` 会指名拒绝。"
+  ],
+  "title": "fix(postgres)!: the stores' formats name one thing one way: an event's data is body, timers and reservations name their aggregate, the member is keyed by service and records its version of Wow, enumerations by their wire names, and the snapshot registry has its format record"
+ },
+ "7139": {
+  "en": [
+   "A dataset definition's case-insensitive text test, `containsIgnoreCase`, `startsWithIgnoreCase` or `endsWithIgnoreCase`, now compares both texts after Unicode's simple case folding, as a query's case-insensitive filters do on every store, and takes a literal text as its second operand: a definition that compares two expressions that way is refused when it is drafted or revised, naming the call. Rewrite it to compare with a text in quotes; a published dataset that does so is marked as needing revision at its next recompilation and serves its published version meanwhile. A published dataset whose test compares with a text in quotes gets the folded match at its next recompilation, by itself."
+  ],
+  "zh": [
+   "数据集定义里忽略大小写的文本判断 `containsIgnoreCase`、`startsWithIgnoreCase` 和 `endsWithIgnoreCase` 现在按 Unicode 的简单大小写折叠比较两个文本，与查询里忽略大小写的过滤在每个存储上一样，并且第二个操作数必须是字面文本：以这种方式比较两个表达式的定义在起草或修订时被拒绝，并指出那个调用。把它改为与引号里的文本比较；这样比较的已发布数据集会在下一次重新编译时被标为需要修订，其间照常提供已发布的版本。与引号里的文本比较的已发布数据集，会在下一次重新编译时自行得到折叠后的匹配。"
+  ],
+  "title": "fix(query-api,analytics)!: a dataset definition's ignore-case text tests fold as the query protocol's do, from a literal text"
+ },
+ "7140": {
+  "en": [
+   "`wow.query.require-explicit-entry` and `wow.query.require-authenticated-scope` are removed; delete them, as a node now refuses either at startup as an unknown key. Every query states where it comes from, and every query is already restricted to the tenant of the caller the service resolves from the request: the second key's check read a scope the query routes never set, so with it on every HTTP query of a built-in model was refused, and with it off its removal changes nothing. In code, `QueryEntry.UNSPECIFIED` and `QueryCaller.UNSPECIFIED` are gone: a `QueryCaller` runs in process unless it says otherwise (`QueryCaller.IN_PROCESS`), and the query error code `explicit-entry-required` is gone with them."
+  ],
+  "zh": [
+   "`wow.query.require-explicit-entry` 与 `wow.query.require-authenticated-scope` 已移除，删掉它们：节点启动时会把它们当作未知配置项拒绝。每个查询都说明了自己的来源，而且每个查询本来就限定在服务从请求解析出的调用方的租户内：第二个配置项的检查读的是查询路由从不设置的范围，打开它会拒绝每个查内置模型的 HTTP 查询，关着它，移除它什么都不变。代码里 `QueryEntry.UNSPECIFIED` 与 `QueryCaller.UNSPECIFIED` 已去掉：`QueryCaller` 除非另行说明，都在进程内运行（`QueryCaller.IN_PROCESS`），查询错误码 `explicit-entry-required` 也随之去掉。"
+  ],
+  "title": "fix(query)!: every query states its entry, and the 9.x query keys that guard nothing on V10 are removed"
+ },
+ "7142": {
+  "none": "None: records only."
+ },
+ "7143": {
+  "en": [
+   "**wow-view-engine: the persisted summary and binding names, and names that say one thing.**\n- In stored configs, write a record summary's function as `function` (it was `fn`) and a dashboard panel binding's field as `dashboardField` (it was `globalField`). Nothing migrates a stored config: re-save each affected view, or rewrite its stored JSON.\n- In code:\n  - `/react`'s `ViewListOptions` is `UseViewListOptions`.\n  - The `ViewKind[]` options and members are `viewKinds`.\n  - `ViewEngineOptions.newId` is `newRequestId`.\n  - A query error's context says `code`.\n  - `CreateInput.scope` is `audience`.\n  - The workbench's board is `boardOrigin`, and `DashboardExtensionsOptions.board` is `runtime`.\n  - `DashboardController.kinds` is `undefined` without a board.\n  - `en` and `zhCN` are typed `Readonly<Record<MessageKey, string>>`."
+  ],
+  "zh": [
+   "**wow-view-engine：持久化的汇总与绑定改名，每个名字只说一件事。**\n- 存储的配置里，记录汇总的函数写 `function`（原为 `fn`），仪表盘面板绑定的字段写 `dashboardField`（原为 `globalField`）。已存的配置没有任何迁移：重新保存受影响的视图，或改写存储的 JSON。\n- 代码里：\n  - `/react` 的 `ViewListOptions` 改为 `UseViewListOptions`。\n  - `ViewKind[]` 的选项与成员改为 `viewKinds`。\n  - `ViewEngineOptions.newId` 改为 `newRequestId`。\n  - 查询错误的上下文改用 `code`。\n  - `CreateInput.scope` 改为 `audience`。\n  - 工作台的来源看板改为 `boardOrigin`，`DashboardExtensionsOptions.board` 改为 `runtime`。\n  - 没有看板时 `DashboardController.kinds` 为 `undefined`。\n  - `en` 与 `zhCN` 的类型为 `Readonly<Record<MessageKey, string>>`。"
+  ],
+  "title": "fix(view-engine)!: the persisted summary function and binding field take their settled names, and each name says one thing"
+ },
+ "7144": {
+  "en": [
+   "A `ParkedNotifier` reads a `ParkedNotice`'s own properties: `ref`, `subscription`, `fromVersion`, `reason`, `failedAt`, `retries`, `maxRetries` and `nextRetryAt`. The ledger's records behind it, `notice.entry` and `notice.spec`, and `ParkedNotice.of` are now at the SPI's level (`@OptIn(WowSpi::class)`): a notifier that read `notice.entry.reason` reads `notice.reason`."
+  ],
+  "zh": [
+   "`ParkedNotifier` 读 `ParkedNotice` 自己的属性：`ref`、`subscription`、`fromVersion`、`reason`、`failedAt`、`retries`、`maxRetries` 与 `nextRetryAt`。它背后的台账记录 `notice.entry`、`notice.spec` 以及 `ParkedNotice.of` 现在属于 SPI 级别（`@OptIn(WowSpi::class)`）：原来读 `notice.entry.reason` 的通知器改读 `notice.reason`。"
+  ],
+  "title": "fix(runtime)!: a parked notifier reads a view of the entry, and the ledger's records stay at the SPI's level"
+ },
+ "7146": {
+  "en": [
+   "**TypeScript packages: fetcher 8 accepted.** Wow's TypeScript packages accept fetcher `^5.1.5 || ^6.0.0 || ^8.0.0-rc.1` (`@ahoo-wang/fetcher`, `fetcher-decorator`, `fetcher-eventstream`). An application may move to fetcher 8 with them, from its first release candidate on, or stay on 5.1.5 or later, or on 6.x. Fetcher 8 removes `fetcher-cosec` and `fetcher-react`'s security hooks. An application that used them takes CoSec's own packages (`@ahoo-wang/cosec-fetcher`, `@ahoo-wang/cosec-react`)."
+  ],
+  "zh": [
+   "**TypeScript 包：接受 fetcher 8。** Wow 的 TypeScript 包接受的 fetcher 范围为 `^5.1.5 || ^6.0.0 || ^8.0.0-rc.1`（`@ahoo-wang/fetcher`、`fetcher-decorator`、`fetcher-eventstream`）。应用可以从 fetcher 8 的第一个候选版本起与它们一起升到 8，也可以留在 5.1.5 及以上或 6.x。fetcher 8 去掉了 `fetcher-cosec` 与 `fetcher-react` 的安全 hooks，用到它们的应用改用 CoSec 自己的包（`@ahoo-wang/cosec-fetcher`、`@ahoo-wang/cosec-react`）。"
+  ],
+  "title": "chore(typescript): the published packages accept fetcher 8, from its first release candidate"
+ },
+ "7148": {
+  "en": [
+   "This version runs CoSec 8.0.0-rc.1. From 8.0.0-beta.9 no order is needed: the services, the gateway and a control plane move in any order, as CoSec's [Upgrading: from 8.0.0-beta.9](https://cosec.ahoo.me/operations/upgrading-previews#from-8-0-0-beta-9) says. A service in gateway mode now takes request headers up to 16 KB however its mode is set: CoSec derives the limit from the identity's 8 KB plus 8 KB for the other headers. A service that set `server.max-http-request-header-size: 16KB` for it may remove the key. A request past the limit is answered 431 naming the limit the server applies. An application that builds a `TokenAuthenticator` itself, reads `ChangeEvent.change` or implements CoSec's control store follows CoSec's page; Wow's own code uses none of them. `@ahoo-wang/cosec-fetcher` moves to 8.0.0-rc.1 (`@rc`) with nothing else to change."
+  ],
+  "zh": [
+   "本版本使用 CoSec 8.0.0-rc.1。从 8.0.0-beta.9 升级不需要顺序：服务、网关和控制面可以按任意顺序升级，见 CoSec 的[升级：从 8.0.0-beta.9](https://cosec.ahoo.me/operations/upgrading-previews#from-8-0-0-beta-9)。网关模式的服务现在接受最多 16 KB 的请求头，无论它的模式是怎样设置的：CoSec 用身份的 8 KB 加上其他请求头的 8 KB 推导出这个上限。为此设置了 `server.max-http-request-header-size: 16KB` 的服务可以去掉这个键。超过上限的请求以 431 回答，并指明服务器实际采用的上限。自己构建 `TokenAuthenticator`、读取 `ChangeEvent.change` 或实现 CoSec 控制存储的应用，按 CoSec 的那一页处理；Wow 自己的代码一个都没有用到。`@ahoo-wang/cosec-fetcher` 升级到 8.0.0-rc.1（`@rc`），别的不用改。"
+  ],
+  "title": "chore(deps): CoSec 8.0.0-rc.1: a service in gateway mode takes 16 KB of headers however its mode is set, and its 431 names the limit it applies"
+ },
+ "7149": {
+  "en": [
+   "An events index on Elasticsearch, or the ClickHouse warehouse, is filled again from the log by a new generation of its sink: empty it (delete the concrete index `<name>--1`, or drop the sink's tables), raise `wow.stores.<name>.sink.generation` (Elasticsearch) or `wow.clickhouse.sink.generation` (ClickHouse) by one, and roll the nodes. The setting is 1 by default, which keeps the sinks' names; only raise it. The old generation's checkpoints and parked entries stay, listed as `orphans` by the ops service and warned of at start; skip its parked entries."
+  ],
+  "zh": [
+   "Elasticsearch 上的事件索引或 ClickHouse 数仓，由其 Sink 的新一代从日志重新填满：清空它（删除具体索引 `<name>--1`，或删掉 Sink 的表），把 `wow.stores.<name>.sink.generation`（Elasticsearch）或 `wow.clickhouse.sink.generation`（ClickHouse）加一，再滚动重启节点。这项配置默认 1，保持 Sink 原有的名字；只能调高。旧一代的检查点和停放条目留着，ops 服务把它们列为 `orphans`，启动时也会告警；跳过它的停放条目。"
+  ],
+  "title": "fix(elasticsearch,clickhouse): a sink's raised generation fills its destination again from the log, and the old generation is shown as left behind"
+ },
+ "7150": {
+  "en": [
+   "A parked entry's last automatic retry is `lastRetryAt`, beside `nextRetryAt`: in the SPI (`ParkedAggregate`, `ParkedAmendment.Restate`), in the record a service publishes to ops, in the operator routes' JSON and in the ops console. The failure ledger stores it as `last_retry_at`, on MongoDB as on PostgreSQL (#7138). Upgrade the ops service with the services that publish to it: each refuses the other's record across the rename, and a service publishes its entries again once both run this version. A pre-release store is not carried over; to keep the value in a MongoDB one, rename it before starting this version: `db.wow_failure_ledger.updateMany({retry_at: {$exists: true}}, {$rename: {retry_at: \"last_retry_at\"}})`."
+  ],
+  "zh": [
+   "停放条目最近一次自动重试的开始时刻改名为 `lastRetryAt`，与 `nextRetryAt` 并列：SPI（`ParkedAggregate`、`ParkedAmendment.Restate`）、服务发给 ops 的记录、运维路由的 JSON 与 ops 控制台都随之改名。失败台账把它存为 `last_retry_at`，MongoDB 与 PostgreSQL（#7138）都一样。ops 服务与向它发布的服务一起升级：改名前后的双方互相拒绝对方的记录，两边都运行本版本后服务会重新发布它的条目。预发布版本的存储不带过来；要在已有的 MongoDB 存储里保留这个值，启动本版本之前先改名：`db.wow_failure_ledger.updateMany({retry_at: {$exists: true}}, {$rename: {retry_at: \"last_retry_at\"}})`。"
+  ],
+  "title": "fix(spi,mongo,postgres,ops)!: a parked entry's last retry is lastRetryAt, in the SPI, the stores, the ops wire and the console"
+ },
+ "7156": {
+  "none": "Nothing changes for an application. A backend that runs `StoreTck` no longer has a store left open by its options test.\n\n应用无需任何改动。运行 `StoreTck` 的后端，不会再有选项测试遗留下来未关闭的存储。"
+ },
+ "7158": {
+  "en": [
+   "A subscription's `handle` or `process` span for an entry it skipped behind its aggregate's park, or as a copy a topic delivered again, now ends with `wow.outcome` `skipped` instead of `ok`. A dashboard or alert that reads `ok` on these spans as \"handled\" no longer counts those skips. Reference › Observability lists the outcomes of these spans."
+  ],
+  "zh": [
+   "订阅为停放之后被跳过的条目（或主题再次投递的副本）留下的 `handle` 或 `process` Span，结束时的 `wow.outcome` 现在是 `skipped` 而不是 `ok`。把这些 Span 上的 `ok` 当作「已处理」的看板或告警不再把这些跳过计入。参考 › 可观测性列出了这些 Span 的结果取值。"
+  ],
+  "title": "fix(runtime): an entry a subscription skips ends its span as skipped, and a run that fails while a stop waits ends its rest's spans"
+ },
+ "7160": {
+  "none": "None: records only."
+ },
+ "7161": {
+  "en": [
+   "**MongoDB stores are recreated.** The pre-release layout is not read: start from an empty database. The log stores an event's data as `events[].body`; timers and reservations name their aggregate `aggregate: {tenant_id, id}`; `wow_lease_member` is keyed by `service` and records each node's version of Wow (`wow_version`); the failure ledger names `aggregate`; stored enumerations are their lower-kebab names; a timer's null field is left out of its document."
+  ],
+  "zh": [
+   "**MongoDB 存储需要重建。** 预发布版的布局不会被读取：请从空数据库开始。日志把事件数据存为 `events[].body`；定时器与预留以 `aggregate: {tenant_id, id}` 指明其聚合；`wow_lease_member` 以 `service` 为键，并记录每个节点的 Wow 版本（`wow_version`）；失败台账使用 `aggregate`；存储的枚举值是它们的小写连字符名称；定时器值为 null 的字段不写入文档。"
+  ],
+  "title": "fix(mongo)!: the stores' formats name one thing one way: an event's data is body, timers and reservations name their aggregate, the member is keyed by service and records its version of Wow, enumerations by their wire names, and the snapshot registry has its format record"
+ },
+ "7162": {
+  "en": [
+   "A rejection's or a service route refusal's extension named like a member of the problem (`type`, `title`, `status`, `detail`, `code`, `retry`, `violations`, `result`, `version`, `instance`) is never written, even on a problem without that member. Nor is one named `requestId`, `traceId` or `errors`, which Wow keeps for members of its own. A domain that used one of these names renames the extension. The command's `result` still carries it as written."
+  ],
+  "zh": [
+   "拒绝或服务路由拒绝的扩展，如果与问题的成员同名（`type`、`title`、`status`、`detail`、`code`、`retry`、`violations`、`result`、`version`、`instance`），一律不会写出，即使问题没有那个成员。名为 `requestId`、`traceId` 或 `errors` 的扩展也不会写出，这些名字由 Wow 留给自己的成员。用了这些名字的领域需要给扩展改名。命令的 `result` 仍然按原样携带它。"
+  ],
+  "title": "fix(http)!: a domain's extension named like a problem's member, or as Wow keeps, is left out, even on a problem without that member"
+ },
+ "7163": {
+  "en": [
+   "**A published state event names an event's data `body`.** In the record a Kafka envelope carries, each event is `{name, revision, body}` where it was `{name, revision, payload}`, as in the log and the events query model; the envelope's own `payload`, the record, is unchanged. The published state topics a 10.0 pre-release wrote are recreated with the upgrade, as its other stores are. A record of the old spelling that still reaches a subscription parks its aggregate, visibly: retry it once its publisher is upgraded, or skip it."
+  ],
+  "zh": [
+   "**发布的状态事件把事件数据命名为 `body`。** Kafka 信封承载的记录里，每个事件是 `{name, revision, body}`，原来是 `{name, revision, payload}`，与日志和事件查询模型一致；信封自身的 `payload`（即记录）不变。10.0 预发布版写的已发布状态主题随升级重建，与它的其他存储一样。仍到达订阅的旧写法记录会让其聚合被搁置，且可见：在其发布方升级后重试，或跳过。"
+  ],
+  "title": "fix(spi)!: a published state event names an event's data body, as the log and the events query model do"
+ },
+ "7164": {
+  "en": [
+   "An application can now send a snapshot rebuild by its class and name its type in an authorizer: `RebuildSnapshot.of(ids)` and `SnapshotRebuilds.REBUILD_SNAPSHOT` (`me.ahoo.wow.spi.snapshot`), without opting in to internal API. A class that implements one of the SPI seams the host takes (`GlobalIdGenerator`, `AggregateIdGenerator`, `FailureClassifier`, `Observer`, `CommandCaller`, `QueryObserver`) opts in with `@OptIn(WowSpi::class)`, as the Spring Boot guide now says."
+  ],
+  "zh": [
+   "应用现在可以按类发送快照重建、在授权器里点名它的类型：`RebuildSnapshot.of(ids)` 与 `SnapshotRebuilds.REBUILD_SNAPSHOT`（`me.ahoo.wow.spi.snapshot`），无需选择使用内部 API。实现宿主取用的 SPI 扩展点（`GlobalIdGenerator`、`AggregateIdGenerator`、`FailureClassifier`、`Observer`、`CommandCaller`、`QueryObserver`）的类，用 `@OptIn(WowSpi::class)` 选择使用，Spring Boot 指南现已写明。"
+  ],
+  "title": "fix(spi,docs): RebuildSnapshot is application API, no page offers an internal declaration, user projects' tests opt in to the SPI where they use it, and the API Levels page lists members marked through a use-site target"
+ },
+ "7167": {
+  "en": [
+   "**The ClickHouse Sink's tables name an event's data `body`.** `_state_events.events` is `Array(Tuple(name, revision, body))` and `_events` has `body`, where both said `payload`; a dataset or a query reads `body`, and the catalog's sensitive paths are `events.body.<path>` and `body.<path>`. The tables a 10.0 pre-release wrote are recreated with the upgrade, as its other stores are: the Sink refuses them, naming the column; drop them and raise the Sink's generation, which fills them from the log. A table may hold columns of its operator's own, which the Sink leaves as they are."
+  ],
+  "zh": [
+   "**ClickHouse Sink 的表把事件数据命名为 `body`。** `_state_events.events` 是 `Array(Tuple(name, revision, body))`，`_events` 有 `body` 列，原来都叫 `payload`；数据集与查询读取 `body`，目录中的敏感路径是 `events.body.<path>` 与 `body.<path>`。10.0 预发布版写的表随升级重建，与它的其他存储一样：Sink 会拒绝它们并指出列；删掉它们并提高 Sink 的代数，由新一代从日志重新填充。表里可以有运维自己的列，Sink 不会改动它们。"
+  ],
+  "title": "fix(clickhouse)!: the Sink's tables name an event's data body, and its column check accepts what an operator or a later version adds within the format"
+ },
+ "7169": {
+  "en": [
+   "A command route now refuses any query parameter, on the public and the internal port: `400 wow.request.malformed`, naming it, and the command does not run. A command reads its body and its headers alone, and a parameter used to be dropped without a word. The case most likely to meet it is a client, or a proxy in front of the service, that appends a parameter of its own to a command's URL, such as a cache-buster or a request signature. Send that value as a header instead, or have the gateway strip it before it forwards the request. A service route likewise refuses a query parameter it does not declare, or a declared one given twice: `400 wow.route.malformed`, naming it, where the first value used to be read and the rest dropped."
+  ],
+  "zh": [
+   "命令路由现在拒绝任何查询参数，公共端口和内部端口都一样：返回 `400 wow.request.malformed` 并指明该参数，命令不会执行。命令只读取请求体和请求头；以前多出的参数会被悄悄丢掉。最可能遇到这一点的，是在命令 URL 后附加自己参数的客户端或服务前面的代理，例如防缓存参数或请求签名。改为用请求头发送这个值，或者让网关在转发请求之前去掉它。服务路由同样拒绝它没有声明的查询参数，以及给了两次的已声明参数：返回 `400 wow.route.malformed` 并指明该参数；以前会读第一个值，其余的丢掉。"
+  ],
+  "title": "fix(http)!: a command route refuses any query parameter, and a service route one it does not declare or one given twice, naming it"
+ },
+ "7170": {
+  "en": [
+   "**wow-view-engine: one shape per kernel and option, and Dashboard names.**\n- The compile and project kernels take a trailing options bag: `compileRecord(def, config, { kinds, context, page })`, `projectAnalysis(def, config, result, { totals, kinds, context, limits })`.\n- Every `limits` option takes a partial `RuntimeLimits`. `validateDashboard`'s `definitions` is `lookup`.\n- `actionHarness`'s `now` is a clock (`() => new Date(at)`).\n- `fetchRecord` and a value candidate source's `search` take `{ signal }`.\n- Renamed:\n  - `refusedScopeFilter`, `scopeFilterIssues`, `removeFixed`, `SummaryRow.over`, `RecordExportExtent`;\n  - the `Board…` types are `Dashboard…`, and the workbench's `boardOrigin` is `dashboardOrigin`;\n  - a binding's `reading` is `detail`;\n  - `DashboardWorkbench` takes `defaultFilters` and `defaultTab`;\n  - `DatasetResourcesOptions`, `UseDatasetsOptions`;\n  - `RuntimeLimits.maxExportRows` and `maxListedViews`;\n  - `builtinFieldKindRegistry`.\n- `isRecordRuntime` accepts any runtime, or none."
+  ],
+  "zh": [
+   "**wow-view-engine：每个内核与选项一种形状，看板类型统一叫 Dashboard。**\n- 编译与投影内核改为末位的选项包：`compileRecord(def, config, { kinds, context, page })`、`projectAnalysis(def, config, result, { totals, kinds, context, limits })`。\n- 所有 `limits` 选项都接收部分的 `RuntimeLimits`。`validateDashboard` 的 `definitions` 改为 `lookup`。\n- `actionHarness` 的 `now` 改为时钟（`() => new Date(at)`）。\n- `fetchRecord` 与取值候选源的 `search` 改为接收 `{ signal }`。\n- 改名：\n  - `refusedScopeFilter`、`scopeFilterIssues`、`removeFixed`、`SummaryRow.over`、`RecordExportExtent`；\n  - `Board…` 类型改为 `Dashboard…`，工作台的 `boardOrigin` 改为 `dashboardOrigin`；\n  - 绑定的 `reading` 改为 `detail`；\n  - `DashboardWorkbench` 改为接收 `defaultFilters` 与 `defaultTab`；\n  - `DatasetResourcesOptions`、`UseDatasetsOptions`；\n  - `RuntimeLimits.maxExportRows` 与 `maxListedViews`；\n  - `builtinFieldKindRegistry`。\n- `isRecordRuntime` 接受任意运行时，也接受空值。"
+  ],
+  "title": "fix(view-engine)!: kernels take a trailing options bag, limits are partial everywhere, and the board, scope and option names say one thing each"
+ },
+ "7171": {
+  "en": [
+   "**A snapshot table registry names who fills a table by its wire name.** `fill` is `subscription` or `backfill` in every snapshot store, where a pre-release wrote `SUBSCRIPTION`/`BACKFILL`; the stores a 10.0 pre-release wrote are recreated with the upgrade, as its other stores are. **Elasticsearch indices a 10.0 pre-release created are recreated with the upgrade.** The snapshot table registry is mapped `dynamic: false`, as the snapshot and events indices are, so a field a later version adds is kept rather than refused; an existing registry keeps the mapping it was created with. A snapshot document names its `stateRevision`, and an events document holding access attributes names the `accessVersion` they are of: a pre-release's document without them is refused rather than read with a default."
+  ],
+  "zh": [
+   "**快照表登记以线上名称记录由谁填充。** 每个快照存储里 `fill` 都是 `subscription` 或 `backfill`，预发布版写的是 `SUBSCRIPTION`/`BACKFILL`；10.0 预发布版写的存储随升级重建，与它的其他存储一样。**10.0 预发布版创建的 Elasticsearch 索引随升级重建。** 快照表登记索引的映射改为 `dynamic: false`，与快照索引和事件索引一致，之后版本新增的字段会被保留而不是拒绝；已存在的登记索引保持创建时的映射。快照文档必须带 `stateRevision`，带访问属性的事件文档必须带它们所属的 `accessVersion`：缺少这些字段的预发布版文档会被拒绝，而不是按默认值读取。"
+  ],
+  "title": "fix(elasticsearch,postgres,mongo)!: the snapshot table registry takes a later version's field and names its fill by wire name, and no document is read with a pre-release's default"
+ },
+ "7172": {
+  "en": [
+   "A state topic now has a record for every commit of a published aggregate: a commit whose events the aggregate all retired is published with no events, and a commit that only sets or cancels schedules with its schedule events. An aggregate's versions on its topic are so contiguous from its first record. A Wow subscription passes over a record with no events; an outside consumer reads `events` as possibly empty. Create a state topic written by a 10.0 pre-release again before a 10.0 release publishes to it."
+  ],
+  "zh": [
+   "状态主题现在为发布的聚合的每个提交都有一条记录：事件全部被聚合退役的提交以不含事件的记录发布，只设置或取消调度的提交带着它的调度事件发布。于是一个聚合在主题上的版本从它的第一条记录起连续。Wow 的订阅会略过不含事件的记录；外部消费者要把 `events` 当作可能为空来读。10.0 预发布版写过的状态主题，要在 10.0 正式版向它发布之前重新创建。"
+  ],
+  "title": "feat(spi,runtime)!: every commit of a published aggregate type has a record on its state topic"
+ },
+ "7173": {
+  "en": [
+   "A command's event stream now ends with `end` `{\"reason\":\"complete\",\"resumable\":false}`, the shape of a streamed list's `end`, where it was `{\"reason\":\"complete\"}`. A reader that takes `end` by its name, or reads only its `reason`, as Wow's clients do, is unaffected. The OpenAPI document now lists `end` among the stream's events, and gives an aggregate ref's `id` as a string or null: null in the result of a creation refused before admission chose its id."
+  ],
+  "zh": [
+   "命令的事件流现在以 `end` `{\"reason\":\"complete\",\"resumable\":false}` 结束，与流式 `list` 的 `end` 形状相同；原来是 `{\"reason\":\"complete\"}`。按名字识别 `end`、或只读取它的 `reason` 的读取方（Wow 的客户端就是这样）不受影响。OpenAPI 文档现在把 `end` 列为这个流的事件之一，并把聚合引用的 `id` 写成字符串或 null：在准入选定 ID 之前就被拒绝的创建命令，其结果中的 `id` 为 null。"
+  ],
+  "title": "fix(openapi,http): the document gives a refused creation's ref a null id and a command stream its end event, which says \"resumable\": false as a list's does"
+ },
+ "7174": {
+  "en": [
+   "A node now refuses to start when a type's events queries would be served by a store that cannot keep the history's access attributes current, naming the type, the store and the missing capability. Wow's own backends all keep them current, so no deployment on them is affected. A log written outside Wow cannot keep them current in 10.0, so its store does not serve events queries: a node whose events model it would serve does not start."
+  ],
+  "zh": [
+   "当某个类型的事件查询要由无法让历史访问属性保持最新的存储提供时，节点现在拒绝启动，并点名类型、存储和所缺的能力。Wow 自带的后端都能保持它们最新，所以基于这些后端的部署不受影响。Wow 之外写的日志在 10.0 中做不到，所以它的存储不提供事件查询：事件模型要由它提供的节点不会启动。"
+  ],
+  "title": "fix(runtime,spring-boot): a node refuses to start when a type's events model is served by a store that cannot keep its history's access attributes current"
+ },
+ "7176": {
+  "en": [
+   "**wow-view-engine: the names no host used leave the entries.** The root entry, `/react` and `/ui` no longer export 156 names that only the package itself used: its parts, its internal hooks and helpers, and the types only they named. The release notes list them. A host that imported one has three ways out. It can compose the documented components and hooks instead. It can copy the few lines it needs. Or it can open an issue for the name, which then comes back with a reference page. Import `ViewRouteOf` from the root entry, not `/ui`. Tell a reference-label timeout apart with `isReferenceLabelTimeoutError(error)`."
+  ],
+  "zh": [
+   "**wow-view-engine：没有宿主用的名字退出入口。** 根入口、`/react` 与 `/ui` 不再导出 156 个只有包自己在用的名字：它的内部部件、内部 hooks 与工具函数，以及只有它们引用的类型。发布说明列出了这些名字。用过其中某个名字的宿主有三条路：改用有文档的组件与 hooks，把需要的几行抄到自己的代码里，或者为这个名字提 issue，它会带着参考页回来。`ViewRouteOf` 改从根入口导入，不再从 `/ui` 导入。分辨引用名字的查询超时，用 `isReferenceLabelTimeoutError(error)`。"
+  ],
+  "title": "fix(view-engine)!: the entries stop exporting the 156 names only the package used, and every name they keep has its line in the reference"
+ },
+ "7177": {
+  "en": [
+   "This version runs CoSec 8.0.0, CoSec 8's release. From 8.0.0-rc.1 or rc.2 there is nothing to change and no order to upgrade in: no JVM source of CoSec changed since rc.1. A front end on `@ahoo-wang/cosec-fetcher` installs 8.0.0 without a tag, and may move to fetcher 8 or stay on 6.1. CoSec 8's images publish no `latest`, so pin the gateway by version or digest. `wow-cosec` stays experimental in 10.0: a 10.x minor release drops the marker."
+  ],
+  "zh": [
+   "本版本使用 CoSec 8 的正式版 CoSec 8.0.0。从 8.0.0-rc.1 或 rc.2 升级无需任何改动，也没有升级顺序：自 rc.1 以来 CoSec 的 JVM 源码没有变化。使用 `@ahoo-wang/cosec-fetcher` 的前端不带标签安装 8.0.0，可以换到 fetcher 8，也可以留在 6.1。CoSec 8 的镜像不发布 `latest`，所以按版本或摘要固定网关镜像。`wow-cosec` 在 10.0 中仍是实验性的：一个 10.x 的次版本会去掉这个标记。"
+  ],
+  "title": "chore(deps): CoSec 8.0.0, its release: the services, the GA gateway and cosec-fetcher move to it, and wow-cosec stays experimental in 10.0"
+ },
+ "7178": {
+  "en": [
+   "**`wow_catalog` names its closed sets in lower case, keeps a sensitivity level it does not know, and the ClickHouse Sink refuses an insert a table has no place for.** `ownership` is `owner` or `tenant`, a sensitive `level` `display` or `confidential`, `access` `policy` or `default`; a tool that reads `wow_catalog` itself reads those names. A sensitivity level a node does not know, a later version's, is kept in `wow_catalog` as written and masked as `CONFIDENTIAL`, never less. Every insert of the Sink refuses a field the table has no column or tuple element for, under every `ddl` mode, where ClickHouse dropped it: a pre-release table kept under `ddl: none` parks the aggregate until it is recreated (drop it and raise the Sink's generation). The parked entry's reason names ClickHouse's error code, and the node's warning of the park names the field."
+  ],
+  "zh": [
+   "**`wow_catalog` 以小写名称记录其取值并保留不认识的敏感级别，ClickHouse Sink 会拒绝表里没有位置的插入。** `ownership` 为 `owner` 或 `tenant`，敏感值的 `level` 为 `display` 或 `confidential`，`access` 为 `policy` 或 `default`；自行读取 `wow_catalog` 的工具应读取这些名称。节点不认识的敏感级别（更新版本的）会按原样保存在 `wow_catalog` 中，并按 `CONFIDENTIAL` 脱敏，绝不更少。Sink 的每次插入在任何 `ddl` 模式下都会拒绝表里没有对应列或元组元素的字段，而以前 ClickHouse 会把它丢掉：在 `ddl: none` 下保留的预发布版表会让聚合被搁置，直到重建（删掉它并提高 Sink 的代数）。搁置条目的原因写明 ClickHouse 的错误码，节点搁置时的警告日志写明字段。"
+  ],
+  "title": "fix(clickhouse,analytics,http)!: wow_catalog names its closed sets by wire name and keeps a sensitivity level it does not know, the Sink refuses an insert a table has no place for, and the signal sender keeps batching"
+ },
+ "7179": {
+  "en": [
+   "The runtime's options are named as the configuration keys that set them: `ClusterOptions.maxInFlightPerNode`, `SnapshotOptions.maintenanceInterval`, `rebuildPageSize`, `rebuildMaxPages`, `AccessStampOptions.stampBatch`, `TimerOptions.claimTtl`, `SourceTopics.partitionRefreshInterval` (also `SourceTopics.of`'s parameter), with their defaults. `wow-cosid`'s `CosIdProperties` is `WowCosIdProperties`. A backend's TCK test builds a stream it refuses with `stream.withEvents(...)`."
+  ],
+  "zh": [
+   "运行时的选项改为与设置它们的配置键同名：`ClusterOptions.maxInFlightPerNode`、`SnapshotOptions.maintenanceInterval`、`rebuildPageSize`、`rebuildMaxPages`、`AccessStampOptions.stampBatch`、`TimerOptions.claimTtl`、`SourceTopics.partitionRefreshInterval`（也是 `SourceTopics.of` 的参数），默认值常量随之改名。`wow-cosid` 的 `CosIdProperties` 改名为 `WowCosIdProperties`。后端的 TCK 测试用 `stream.withEvents(...)` 构造它拒绝的流。"
+  ],
+  "title": "fix(runtime,cosid,tck)!: option getters are named as their keys, CosIdProperties is WowCosIdProperties, the TCK builds a refused stream, and @AggregateRoot names its Manifest keys"
+ },
+ "7180": {
+  "en": [
+   "A `wow.storage.unavailable` problem on the operator's parked-entry routes (`/wow/ops/parked/…`) and on the internal port's peer reads is titled \"Storage unavailable\", the code's title everywhere else, where it was \"Service Unavailable\". Its code, status, detail and `Retry-After` are unchanged, and a client keys on the code. The OpenAPI document now lists 414 and 431 on every operation, the server's own refusals of a request line or headers past its limits, and declares the `<context>` tag its service routes carry: a client generated from it gains those two responses."
+  ],
+  "zh": [
+   "运维停放条目路由（`/wow/ops/parked/…`）和内部端口的对端读取上的 `wow.storage.unavailable` problem，标题现在是“Storage unavailable”，与这个错误码在其他地方的标题相同，原来是“Service Unavailable”。它的错误码、状态、detail 和 `Retry-After` 不变，客户端按错误码判断。OpenAPI 文档现在在每个操作上列出 414 和 431（服务器对超过上限的请求行或请求头的拒绝），并声明服务路由所带的 `<context>` 标签：由它生成的客户端多出这两个应答。"
+  ],
+  "title": "fix(openapi,http)!: the reference pages and the OpenAPI document say what the code does, and a wrapped store outage is titled as its code"
+ },
+ "7183": {
+  "en": [
+   "A subscription that reads another context's state topic now parks an aggregate when a record arrives above the version after the last one it saw, at the version missing, and holds the aggregate's later records behind it. Its automatic retries resolve it in order once a late record arrives. An operator's retry accepts the gap and goes on from the next version present, as for a commit the publishing service skipped; a skip drops the held records. The parked reason names `wow.subscription.version-gap`."
+  ],
+  "zh": [
+   "读取另一个上下文状态主题的订阅，现在在一条记录的版本高于它最后见到的版本加一时，把聚合停放在缺失的版本上，并把这个聚合之后的记录扣在后面。迟到的记录到达后，自动重试会按顺序解决它。运维人员的重试接受这个缺口，从下一个存在的版本继续，适用于发布方服务跳过的提交；跳过则丢弃扣下的记录。停放的原因写明 `wow.subscription.version-gap`。"
+  ],
+  "title": "feat(runtime)!: a subscription of a state topic parks an aggregate at a version the topic did not deliver"
+ },
+ "7185": {
+  "en": [
+   "**The internal port's readers compare the format of what they read.** A node refuses a forward of a format it does not read (`refused: \"unknown-format\"`) and one it cannot read at all (`refused: \"malformed\"`, where it answered 400), so its sender runs the command itself; it answers 400 to wait signals of another format and to a `Wow-Call` of another (`wow.command.malformed`), and reads a forward's reply of another format as an unknown outcome. The cluster channel's forward and reply name their format `format`, where they named it `v`, and `Wow-Call` carries one. A batch of wait signals refused as too large is sent again in halves instead of dropped. Every structure is format 1, so nothing changes between nodes of this version."
+  ],
+  "zh": [
+   "**内部端口的读者核对所读内容的格式。** 节点拒绝它不读的格式的转发（`refused: \"unknown-format\"`）与完全读不了的转发（`refused: \"malformed\"`，以前回 400），于是发送方自己执行该命令；对另一格式的等待信号与另一格式的 `Wow-Call` 回 400（`wow.command.malformed`），把另一格式的转发回复读作结果未知。集群通道的转发与回复把格式字段命名为 `format`（以前是 `v`），`Wow-Call` 也带上了格式。因过大被拒的一批等待信号改为对半拆开重发，不再整批丢弃。所有结构都是格式 1，所以本版本的节点之间没有任何变化。"
+  ],
+  "title": "fix(runtime,http,api)!: the internal port's readers compare the format, the cluster channel names it format, Wow-Call carries one, a forward a node does not run is always a refusal, and a batch of signals too large is split"
+ },
+ "7186": {
+  "en": [
+   "The request ids Wow gives its own commands now start with `wow:`: a timer's (`wow:<timer>#<slot>`), a saga's derived commands and compensations, the calls a decide function sends, and the ledger's records. No caller's request id may: a `Wow-Request-Id` (or `CoSec-Request-Id`, or an in-process `CommandRequest.requestId`) that starts with `wow:` is refused as `400 wow.command.malformed`. Otherwise anyone could commit first under an id the framework will send, which settles the framework's command. A command handled again across the upgrade derives the new id, so a saga or a timer whose command an old node already sent would send it again under an id its target does not recognize. Let the sagas and the timers catch up before the rolling update, as for the previous derived-id change: no saga lag, and no timer due within the update."
+  ],
+  "zh": [
+   "Wow 给自己的命令的请求 ID 现在以 `wow:` 开头：定时器的（`wow:<timer>#<slot>`）、Saga 派生的命令和补偿、决定函数发出的调用，以及台账的记录。调用方的请求 ID 都不能以它开头：以 `wow:` 开头的 `Wow-Request-Id`（或 `CoSec-Request-Id`，或进程内的 `CommandRequest.requestId`）会以 `400 wow.command.malformed` 拒绝。否则任何人都能抢先以框架将要发送的 ID 提交，使框架自己的命令被当作已处理。升级前后被再次处理的命令会派生出新的 ID：旧节点已经发出命令的 Saga 或定时器会以目标认不出的 ID 再发一次。滚动升级之前，先让 Saga 和定时器追上来，与上一次派生 ID 的变更一样：Saga 没有积压，升级期间也没有到期的定时器。"
+  ],
+  "title": "fix(spi,runtime,test-dsl)!: the request ids the framework gives its own commands start with wow:, which admission refuses from a caller"
+ },
+ "7189": {
+  "en": [
+   "The service plugin's task that renders the Kubernetes manifests is `generateWowKubernetes` (it was `generateWowManifests`): a build script or CI that names it changes the name. The constants of `WowPlugin`'s companion other than the plugin ids (`ID`, `API_ID`, `SERVICE_ID`) are internal; a build script names the tasks and configurations by their strings."
+  ],
+  "zh": [
+   "服务插件中渲染 Kubernetes 清单的任务改名为 `generateWowKubernetes`（原为 `generateWowManifests`）：点名它的构建脚本或 CI 需要改用新名字。`WowPlugin` 伴生对象中除插件 id（`ID`、`API_ID`、`SERVICE_ID`）以外的常量改为 internal；构建脚本用字符串点名任务与配置。"
+  ],
+  "title": "fix(gradle-plugin)!: the task that renders the Kubernetes manifests is generateWowKubernetes, and the plugin's constants are internal but its ids"
+ },
+ "7191": {
+  "en": [
+   "The internal port's call routes now refuse a path with matrix parameters, as the public port does: a call to `/shop/cart/c-1;x=1/add-item` is answered 400 `wow.request.malformed`. A Wow client is not affected."
+  ],
+  "zh": [
+   "内部端口的调用路由现在与公共端口一样，拒绝带矩阵参数的路径：对 `/shop/cart/c-1;x=1/add-item` 的调用会得到 400 `wow.request.malformed`。Wow 的客户端不受影响。"
+  ],
+  "title": "fix(http)!: the internal port's call routes refuse matrix parameters, as the public port does"
+ },
+ "7192": {
+  "none": "None: records only."
+ },
+ "7194": {
+  "en": [
+   "A record a service publishes on its state topics no longer carries the client's address or `User-Agent` (`remote_ip`, `user_agent`) among its `headers`. They are personal data, which stay with the service the request reached, in its log and its own stores. `app_id` and the request facts the host lists go on. A consumer in another context that read them reads them from the source service's own records instead, if it is allowed to."
+  ],
+  "zh": [
+   "服务发布到状态主题的记录，其 `headers` 不再带客户端的地址和 User-Agent（`remote_ip`、`user_agent`）。它们是个人数据，留在请求到达的那个服务里，在它的日志和它自己的存储中。`app_id` 和宿主列出的请求事实照常发布。原来读取它们的其他上下文的消费方，如有权限，改为从源服务自己的记录中读取。"
+  ],
+  "title": "fix(runtime)!: a record published on a state topic leaves out the client's address and User-Agent, which stay with the service the request reached"
+ },
+ "7195": {
+  "en": [
+   "With `spring.main.lazy-initialization=true`, a refused `wow.health` configuration (`parked-degraded-at` past `wow.node.max-parked`, a liveness stall timeout not longer than the cluster's reconcile timeout) now refuses the node's start, as it does without lazy initialization, instead of failing its first health probe."
+  ],
+  "zh": [
+   "开启 `spring.main.lazy-initialization=true` 时，被拒绝的 `wow.health` 配置（`parked-degraded-at` 超过 `wow.node.max-parked`、存活检测的停滞超时不长于集群的 reconcile 超时）现在会让节点启动失败，与不开懒加载时一样，而不是等到第一次健康探测才失败。"
+  ],
+  "title": "fix(spring-boot)!: the node health's configuration refusals refuse the start under lazy initialization, not the first health probe"
+ },
+ "7197": {
+  "en": [
+   "The `wow-service` chart now refuses a `config` key that names one of the keys it sets itself in any spelling Spring binds (such as `WOW_WAIT_MAX_TIMEOUT` or `server_port`), as it already refused them in `settings` and `env`; such a key used to be rendered and silently shadowed. Remove it, or set the chart's own value the message names."
+  ],
+  "zh": [
+   "`wow-service` chart 现在会拒绝 `config` 里以 Spring 能绑定的任何拼法写出的、它自己设置的键（例如 `WOW_WAIT_MAX_TIMEOUT` 或 `server_port`），与它此前在 `settings` 和 `env` 里的做法一样；这样的键以前会被渲染出来，却被悄悄遮蔽。删掉它，或者设置提示里写的 chart 自己的值。"
+  ],
+  "title": "fix(helm)!: the chart refuses a config key it owns in any spelling Spring binds, as it does in settings and env"
+ },
+ "7202": {
+  "en": [
+   "A request body that stalls, with nothing of it arriving for 30 seconds, is now answered `408` and its connection closed, on the public port and the internal port. So is a body still arriving after its request was answered (a `401`, a `404`) that stalls as long. `wow.http.read-timeout` sets the bound. It times the gap between two reads, not the whole request: an upload that keeps sending is not cut however long it takes, and neither is an answer, a query stream or a wait. A client that must pause its body for longer raises the key on the service. The timeout counts the time nothing of the body is read, whoever stops the reads: an application's own route that reads its body as a stream and asks for none of it for 30 seconds (subscribing late, pausing between pieces) is answered `408` too, while its client is still sending; raise the key, or read the body without pausing. A client that hangs up mid-request is no longer logged as an unexpected error."
+  ],
+  "zh": [
+   "停顿的请求体，即连续 30 秒没有任何内容到达，现在会得到 `408` 回答，连接随之关闭，公共端口和内部端口都是如此。请求已被回答（`401`、`404`）之后仍在到达、并停顿同样久的请求体也一样。`wow.http.read-timeout` 设置这个上限。它计时的是两次读取之间的间隔，而不是整个请求：持续发送的上传无论多久都不会被切断，回答、查询流和等待也不会。确实需要让请求体停顿更久的客户端，在服务上调高这个配置项。它计时的是请求体没有被读取的时间，不论是谁停止了读取：应用自己的路由如果以流的方式读取请求体、并在 30 秒里不再请求任何内容（晚订阅，或在两段之间暂停），也会得到 `408`，即使客户端仍在发送；这时应调高这个配置项，或者不停顿地读取请求体。在请求中途断开的客户端，不再被记录为意外错误。"
+  ],
+  "title": "feat(http)!: a request body that stalls past wow.http.read-timeout, 30 s by default, is answered 408 and its connection closed, on both ports"
+ },
+ "7203": {
+  "en": [
+   "**wow-view-engine: one word for each thing.**\n- The host's resolver for remote candidates is `ViewEngineOptions.optionSource` (it was `resolveOptions`), as the engine's `ViewEngine.optionSource` is.\n- A date column's bucket still under way is `AnalysisColumnView.unfinished` (it was `ongoing`). A metric card whose only period has not ended has `MetricPeriod.unfinished` (it was `partial`).\n- `/react`:\n  - read a view list again with `ViewListState.refresh` (`reload`, with `ViewListRefreshOptions`);\n  - `destinationBoard` is `destinationDashboard`, `toBoard` is `toDashboard`, and `SaveCommands.boards` is `dashboards`.\n- `/ui`: `RecordViewProps` is `RecordViewOptions`, `ExportWindowProps` is `ExportWindowOptions`, and `BUILT_IN_PRESETS`/`BuiltInPreset` are `BUILTIN_PRESETS`/`BuiltinPreset`."
+  ],
+  "zh": [
+   "**wow-view-engine：每样东西一个词。**\n- 宿主提供远端候选来源的选项改为 `ViewEngineOptions.optionSource`（原为 `resolveOptions`），引擎上的 `ViewEngine.optionSource` 同名。\n- 日期列里还没结束的那一桶改为 `AnalysisColumnView.unfinished`（原为 `ongoing`）；指标卡唯一的一期还没结束时，`MetricPeriod.unfinished`（原为 `partial`）。\n- `/react`：\n  - 重新读取视图列表用 `ViewListState.refresh`（原为 `reload`，选项类型 `ViewListRefreshOptions`）；\n  - `destinationBoard` 改为 `destinationDashboard`，`toBoard` 改为 `toDashboard`，`SaveCommands.boards` 改为 `dashboards`。\n- `/ui`：`RecordViewProps` 改为 `RecordViewOptions`，`ExportWindowProps` 改为 `ExportWindowOptions`，`BUILT_IN_PRESETS`／`BuiltInPreset` 改为 `BUILTIN_PRESETS`／`BuiltinPreset`。"
+  ],
+  "title": "fix(view-engine)!: one word for each thing: optionSource, unfinished, refresh, Builtin, the dashboard members, and props types named for what they are"
+ },
+ "7205": {
+  "en": [
+   "A `Wow-Scope` header that does not parse (a member given twice, a member with no value, several tenants on a route other than a query's) is now answered `400 wow.request.malformed` on every route. Before, it was `wow.command.malformed` on a command, `wow.query.malformed` on a read or a dataset route, and `wow.route.malformed` on a service route. What a well-formed `Wow-Scope` names and the type refuses keeps its route's code. A client that matched one of the old codes for this header matches `wow.request.malformed`."
+  ],
+  "zh": [
+   "无法解析的 `Wow-Scope` 请求头（同一个成员给出两次、成员没有值、在查询以外的路由上指明多个租户）现在在每个路由上都回答 `400 wow.request.malformed`。之前，命令上是 `wow.command.malformed`，读取或数据集路由上是 `wow.query.malformed`，服务路由上是 `wow.route.malformed`。格式正确的 `Wow-Scope` 指明了类型拒绝的内容时，仍保留所在路由的码。按旧码识别这个请求头的客户端，改为匹配 `wow.request.malformed`。"
+  ],
+  "title": "fix(http)!: a Wow-Scope that does not parse is wow.request.malformed on every route"
+ },
+ "7206": {
+  "en": [
+   "A state read and a query model's or a dataset's descriptor, the answers Wow tags with an `ETag`, now carry `Cache-Control: private, no-cache`, their 304 too. A shared cache in front of a service (a CDN, a caching proxy) stores none of them, since each depends on its caller. A client's own cache keeps them and revalidates with `If-None-Match`, a 304 when nothing changed. A deployment that cached state reads at its gateway stops doing so; it was answering one caller with another's."
+  ],
+  "zh": [
+   "状态读取，以及查询模型或数据集的描述符，即 Wow 带 `ETag` 的应答，现在都带 `Cache-Control: private, no-cache`，它们的 304 也带。服务前面的共享缓存（CDN、缓存代理）不再存储其中任何一个，因为每一个都取决于调用方。客户端自己的缓存可以保留它们，并用 `If-None-Match` 重新验证，没有变化时得到 304。在网关上缓存状态读取的部署不再缓存它们：那样做会把一个调用方的应答给了另一个调用方。"
+  ],
+  "title": "fix(http): every answer Wow tags is Cache-Control: private, no-cache, its 304 too"
+ },
+ "7208": {
+  "none": "None: records only."
+ }
+}

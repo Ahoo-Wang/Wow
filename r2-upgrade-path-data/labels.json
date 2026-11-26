@@ -1,0 +1,2465 @@
+[
+ {
+  "n": 7208,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "docs(designs): round two is handed back before it is closed: what is done, what is left, and D493",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7206,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(http): every answer Wow tags is Cache-Control: private, no-cache, its 304 too",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7205,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(http)!: a Wow-Scope that does not parse is wow.request.malformed on every route",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7202,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "feat(http)!: a request body that stalls past wow.http.read-timeout, 30 s by default, is answered 408 and its connection closed, on both ports",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7203,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [
+   {
+    "file": "typescript/wow-view-engine/test/api/react.api.md",
+    "n": 12,
+    "first": "ongoing?: unknown;"
+   },
+   {
+    "file": "typescript/wow-view-engine/test/api/root.api.md",
+    "n": 6,
+    "first": "ongoing?: unknown;"
+   },
+   {
+    "file": "typescript/wow-view-engine/test/api/ui.api.md",
+    "n": 20,
+    "first": "ongoing?: unknown;"
+   },
+   {
+    "file": "typescript/wow-view-engine/test/surface/react.txt",
+    "n": 1,
+    "first": "type  ViewListReloadOptions"
+   },
+   {
+    "file": "typescript/wow-view-engine/test/surface/ui.txt",
+    "n": 4,
+    "first": "value BUILT_IN_PRESETS"
+   }
+  ],
+  "t": "fix(view-engine)!: one word for each thing: optionSource, unfinished, refresh, Builtin, the dashboard members, and props types named for what they are",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7201,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "test(benchmarks): a published stream's lag and catch-up, a series a second per partition, and a load of one aggregate",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7200,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "test(benchmarks): the load generator's allocation read waits a bounded time, and a missing figure says why",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7199,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "test(runtime,test-dsl,http): four promises of round one held by tests: the anonymous caller under a policy, receipt handlers' unkeyed commands, an out-of-range query's status, a duplicate's hop end to end",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7198,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "docs(operate): Operate › Upgrades names the task that renders the Kubernetes manifests generateWowKubernetes",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7197,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(helm)!: the chart refuses a config key it owns in any spelling Spring binds, as it does in settings and env",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7195,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(spring-boot)!: the node health's configuration refusals refuse the start under lazy initialization, not the first health probe",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7194,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(runtime)!: a record published on a state topic leaves out the client's address and User-Agent, which stay with the service the request reached",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7189,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [
+   {
+    "file": "compiler/gradle-plugin/api/gradle-plugin.api",
+    "n": 22,
+    "first": "public static final field ALLOW_BREAKING_PROPERTY Ljava/lang/String;"
+   }
+  ],
+  "t": "fix(gradle-plugin)!: the task that renders the Kubernetes manifests is generateWowKubernetes, and the plugin's constants are internal but its ids",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7193,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(test-dsl): a call a decide function sends through answeringCommandClient takes the request id a node's client derives",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7191,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(http)!: the internal port's call routes refuse matrix parameters, as the public port does",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7192,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "docs(designs): D492, the formats lane's last pieces, how a retry walks a park at a version gap, CoSec 8.0.0 and CoSky rc.3, and what round two still owes",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7190,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(runtime): TimerRequestIdClaimTest names the timer claim's TTL claimTtl, so the runtime's tests compile on main again",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7183,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "feat(runtime)!: a subscription of a state topic parks an aggregate at a version the topic did not deliver",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7185,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(runtime,http,api)!: the internal port's readers compare the format, the cluster channel names it format, Wow-Call carries one, a forward a node does not run is always a refusal, and a batch of signals too large is split",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7186,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(spi,runtime,test-dsl)!: the request ids the framework gives its own commands start with wow:, which admission refuses from a caller",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7187,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "chore(deps): CoSky 8.0.0-rc.3, the registry the spring-cloud extension's tests run on",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7179,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [
+   {
+    "file": "core/runtime/api/runtime.api",
+    "n": 12,
+    "first": "public static final field DEFAULT_BATCH I"
+   },
+   {
+    "file": "extensions/cosid/api/cosid.api",
+    "n": 3,
+    "first": "public final class me/ahoo/wow/cosid/CosIdProperties {"
+   }
+  ],
+  "t": "fix(runtime,cosid,tck)!: option getters are named as their keys, CosIdProperties is WowCosIdProperties, the TCK builds a refused stream, and @AggregateRoot names its Manifest keys",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7184,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(client): a command's event stream skips an event this client does not know, and an end of another reason than complete leaves its outcome unknown",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7182,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "chore(typescript): the workspace develops on fetcher 8.0.0, and the floor scripts take a fetcher version to repeat their run on",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7180,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(openapi,http)!: the reference pages and the OpenAPI document say what the code does, and a wrapped store outage is titled as its code",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7181,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "docs(operate): Operate › Upgrades names the Elasticsearch indices a pre-release leaves, what still commits once the edge is closed, every saga caught up, and deploy/'s WOW_KAFKA_DDL",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7178,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(clickhouse,analytics,http)!: wow_catalog names its closed sets by wire name and keeps a sensitivity level it does not know, the Sink refuses an insert a table has no place for, and the signal sender keeps batching",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7177,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "chore(deps): CoSec 8.0.0, its release: the services, the GA gateway and cosec-fetcher move to it, and wow-cosec stays experimental in 10.0",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7176,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [
+   {
+    "file": "typescript/wow-view-engine/test/api/react.api.md",
+    "n": 89,
+    "first": "interface DetailSection {"
+   },
+   {
+    "file": "typescript/wow-view-engine/test/api/root.api.md",
+    "n": 63,
+    "first": "export interface AbsoluteDateTimeValue {"
+   },
+   {
+    "file": "typescript/wow-view-engine/test/api/ui.api.md",
+    "n": 403,
+    "first": "import { ComponentType } from 'react';"
+   },
+   {
+    "file": "typescript/wow-view-engine/test/surface/react.txt",
+    "n": 24,
+    "first": "type  HandedRemovalOptions"
+   },
+   {
+    "file": "typescript/wow-view-engine/test/surface/root.txt",
+    "n": 29,
+    "first": "type  AbsoluteDateTimeValue"
+   },
+   {
+    "file": "typescript/wow-view-engine/test/surface/ui.txt",
+    "n": 103,
+    "first": "value AUDIENCE_ICON"
+   }
+  ],
+  "t": "fix(view-engine)!: the entries stop exporting the 156 names only the package used, and every name they keep has its line in the reference",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7116,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "test(rc-drill): a version that is a commit, the quiesce upgrade and a rolling restart under load, and what the rehearsal against main changed",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7174,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(runtime,spring-boot): a node refuses to start when a type's events model is served by a store that cannot keep its history's access attributes current",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7173,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(openapi,http): the document gives a refused creation's ref a null id and a command stream its end event, which says \"resumable\": false as a list's does",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7171,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(elasticsearch,postgres,mongo)!: the snapshot table registry takes a later version's field and names its fill by wire name, and no document is read with a pre-release's default",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7172,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "feat(spi,runtime)!: every commit of a published aggregate type has a record on its state topic",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7170,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [
+   {
+    "file": "typescript/wow-view-engine/test/api/react.api.md",
+    "n": 34,
+    "first": "export interface BoardChoice {"
+   },
+   {
+    "file": "typescript/wow-view-engine/test/api/root.api.md",
+    "n": 30,
+    "first": "export interface BoardOrigin {"
+   },
+   {
+    "file": "typescript/wow-view-engine/test/api/testing.api.md",
+    "n": 9,
+    "first": "now?: Date;"
+   },
+   {
+    "file": "typescript/wow-view-engine/test/api/ui.api.md",
+    "n": 37,
+    "first": "interface BoardChoice {"
+   },
+   {
+    "file": "typescript/wow-view-engine/test/surface/react.txt",
+    "n": 4,
+    "first": "type  BoardChoice"
+   },
+   {
+    "file": "typescript/wow-view-engine/test/surface/root.txt",
+    "n": 5,
+    "first": "type  BoardOrigin"
+   },
+   {
+    "file": "typescript/wow-view-engine/test/surface/ui.txt",
+    "n": 1,
+    "first": "type  BoardFilterModes"
+   }
+  ],
+  "t": "fix(view-engine)!: kernels take a trailing options bag, limits are partial everywhere, and the board, scope and option names say one thing each",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7169,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(http)!: a command route refuses any query parameter, and a service route one it does not declare or one given twice, naming it",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7168,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "chore(routing-spike): spike H2's stage 2 and its workflow are deleted; stage 1 stays",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7167,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(clickhouse)!: the Sink's tables name an event's data body, and its column check accepts what an operator or a later version adds within the format",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7166,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "test(spring-boot): the sink generation test reads its events index only once the index's shards are assigned",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7165,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(runtime): an envelope whose state event cannot become a stream parks its aggregate instead of stalling its partition's read",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7164,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(spi,docs): RebuildSnapshot is application API, no page offers an internal declaration, user projects' tests opt in to the SPI where they use it, and the API Levels page lists members marked through a use-site target",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7162,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(http)!: a domain's extension named like a problem's member, or as Wow keeps, is left out, even on a problem without that member",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7163,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(spi)!: a published state event names an event's data body, as the log and the events query model do",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7161,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(mongo)!: the stores' formats name one thing one way: an event's data is body, timers and reservations name their aggregate, the member is keyed by service and records its version of Wow, enumerations by their wire names, and the snapshot registry has its format record",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7158,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(runtime): an entry a subscription skips ends its span as skipped, and a run that fails while a stop waits ends its rest's spans",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7156,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(tck,architecture): the TCK closes the store its options test opens, three promises and the contract jar's entry points are held by tests, and published KDoc says what the code does",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7152,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(http): the park webhook writes the aggregate and the parked reason into its Markdown as text, so a client's text adds no line or link to the operators' alert",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7160,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "docs(designs): D491, what 'a record for every commit' means for a published stream, CoSec and fetcher go straight to their releases, and what was decided while the fixes went in",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7154,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(deps): update org.xerial.snappy:snappy-java to v1.1.10.12",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7153,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "docs(operate): Operate › Kafka says how fast one aggregate's stream publishes, where to see it fall behind, and the setting that dominates",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7150,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [
+   {
+    "file": "core/spi/api/spi.api",
+    "n": 2,
+    "first": "public final fun getRetryAt ()Ljava/lang/Long;"
+   },
+   {
+    "file": "platform/ops/ops-api/api/ops-api.api",
+    "n": 1,
+    "first": "public final fun getRetryAt ()Ljava/lang/Long;"
+   }
+  ],
+  "t": "fix(spi,mongo,postgres,ops)!: a parked entry's last retry is lastRetryAt, in the SPI, the stores, the ops wire and the console",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7148,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "chore(deps): CoSec 8.0.0-rc.1: a service in gateway mode takes 16 KB of headers however its mode is set, and its 431 names the limit it applies",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7149,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(elasticsearch,clickhouse): a sink's raised generation fills its destination again from the log, and the old generation is shown as left behind",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7147,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(ci): a Breaking section that opens with None, then says more, labels no pull request",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7138,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [
+   {
+    "file": "core/spi/api/spi.api",
+    "n": 1,
+    "first": "public static synthetic fun of$default (Lme/ahoo/wow/spi/subscription/Member$Companion;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/Set;ILjava/lang/Object;)Lme/ahoo/wow/spi/subscription/Member;"
+   }
+  ],
+  "t": "fix(postgres)!: the stores' formats name one thing one way: an event's data is body, timers and reservations name their aggregate, the member is keyed by service and records its version of Wow, enumerations by their wire names, and the snapshot registry has its format record",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7146,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "chore(typescript): the published packages accept fetcher 8, from its first release candidate",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7145,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(platform): the services' local runs with a profile argument start in development, as their comments say",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7144,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(runtime)!: a parked notifier reads a view of the entry, and the ledger's records stay at the SPI's level",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7143,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [
+   {
+    "file": "typescript/wow-view-engine/test/api/react.api.md",
+    "n": 16,
+    "first": "scope: ViewAudience;"
+   },
+   {
+    "file": "typescript/wow-view-engine/test/api/root.api.md",
+    "n": 5,
+    "first": "scope: ViewAudience;"
+   },
+   {
+    "file": "typescript/wow-view-engine/test/api/testing.api.md",
+    "n": 2,
+    "first": "globalField: string;"
+   },
+   {
+    "file": "typescript/wow-view-engine/test/api/ui.api.md",
+    "n": 2234,
+    "first": "scope: ViewAudience;"
+   },
+   {
+    "file": "typescript/wow-view-engine/test/surface/react.txt",
+    "n": 1,
+    "first": "type  ViewListOptions"
+   }
+  ],
+  "t": "fix(view-engine)!: the persisted summary function and binding field take their settled names, and each name says one thing",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7139,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(query-api,analytics)!: a dataset definition's ignore-case text tests fold as the query protocol's do, from a literal text",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7142,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "docs(designs): D490, Wow's TypeScript packages accept fetcher 8 once tested on its rc, CoSky is on rc.1, and what round two's fixes corrected in D484, D486, D488 and D489",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7140,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [
+   {
+    "file": "api/query-api/api/query-api.api",
+    "n": 1,
+    "first": "public static final field EXPLICIT_ENTRY_REQUIRED Ljava/lang/String;"
+   },
+   {
+    "file": "query/query/api/query.api",
+    "n": 43,
+    "first": "public static final field UNSPECIFIED Lme/ahoo/wow/query/QueryCaller;"
+   },
+   {
+    "file": "typescript/wow-client/test/api/dsl.api.md",
+    "n": 1,
+    "first": "readonly EXPLICIT_ENTRY_REQUIRED: \"explicit-entry-required\";"
+   },
+   {
+    "file": "typescript/wow-view-engine/test/api/ui.api.md",
+    "n": 1,
+    "first": "readonly \"runtime.query.failed.explicit-entry-required\": \"The query named no entry to run against: {reason}\";"
+   },
+   {
+    "file": "typescript/wow-view-engine/test/surface/issues.txt",
+    "n": 1,
+    "first": "runtime.query.failed.explicit-entry-required"
+   },
+   {
+    "file": "typescript/wow-view-engine/test/surface/messages.txt",
+    "n": 1,
+    "first": "runtime.query.failed.explicit-entry-required"
+   }
+  ],
+  "t": "fix(query)!: every query states its entry, and the 9.x query keys that guard nothing on V10 are removed",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7137,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "chore(deps): CoSky 8.0.0-rc.1, the registry the spring-cloud extension's tests run on",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7141,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(client): a Manifest read the service answers 404 says how to route without it",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7135,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(mongo): a tail its node keeps busy reads another node's entry within a probe interval",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7136,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(kafka): kafka-clients' compression codecs at their patched versions, snappy-java 1.1.10.9 and lz4-java 1.11.4",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7134,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [
+   {
+    "file": "host/spring-boot/api/spring-boot.api",
+    "n": 2,
+    "first": "public static final fun wowCoSecRequestFacts ()Lorg/springframework/beans/factory/config/BeanPostProcessor;"
+   }
+  ],
+  "t": "fix(cosec)!: CoSec's device id is recorded only when listed as a request fact, and no header of CoSec's is read with CoSec off",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7128,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(spring-boot)!: the public port serves GET /wow/manifest only when wow.http.manifest.enabled turns it on; the internal port keeps it and OpenAPI stays on",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7132,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [
+   {
+    "file": "core/kernel/api/kernel.api",
+    "n": 10,
+    "first": "public final fun setDue (Ljava/lang/Long;)V"
+   },
+   {
+    "file": "core/runtime/api/runtime.api",
+    "n": 94,
+    "first": "public static final fun builder (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/runtime/admission/ServerCommandRequest$Builder;"
+   },
+   {
+    "file": "core/spi/api/spi.api",
+    "n": 11,
+    "first": "public final class me/ahoo/wow/spi/transport/EnvelopeCodec {"
+   },
+   {
+    "file": "edge/client/api/client.api",
+    "n": 27,
+    "first": "public abstract interface class me/ahoo/wow/client/ClientMode {"
+   },
+   {
+    "file": "edge/openapi/api/openapi.api",
+    "n": 36,
+    "first": "public final class me/ahoo/wow/openapi/WowHttpContract {"
+   },
+   {
+    "file": "test/tck/api/tck.api",
+    "n": 21,
+    "first": "public static final field FAILED_AT J"
+   },
+   {
+    "file": "test/test-dsl/api/test-dsl.api",
+    "n": 5,
+    "first": "public fun <init> (Lme/ahoo/wow/kernel/AggregateModel;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/time/Instant;)V"
+   }
+  ],
+  "t": "fix(client,runtime,test)!: what only Wow's modules use leaves the public API, and ServerCommandRequest is built with of",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7133,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "docs(designs): D489, a built-in sink is filled again from the log by an explicit generation, a dataset's ignore-case test takes a literal and Wow's own folding, and what closes with them",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7130,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(view-store)!: a stored system board keeps the views it shows shared, and the test fake answers as the service does",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7131,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "docs(designs): D488, the formal eShop drill installs the freeze beta fresh, the M5 Max's work comes in as reviewed pull requests, and one aggregate's publish bound is a documented limit",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7111,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "ci(release): read back every publish, hold the release page for the checks, and copy the images with step timeouts (X-131)",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7127,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(mongo): a timer collection already recorded serves an account that may only read the registry",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7117,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "test(bench): MongoDB's port is WOW_BENCH_MONGO_PORT, and a session refuses a store port that answers as another server",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7112,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [
+   {
+    "file": "api/manifest/api/manifest.api",
+    "n": 26,
+    "first": "public final class me/ahoo/wow/manifest/ClassNames {"
+   },
+   {
+    "file": "backends/kafka/api/kafka.api",
+    "n": 6,
+    "first": "public final fun create (Lme/ahoo/wow/kafka/KafkaOptions;)Lme/ahoo/wow/kafka/KafkaPartitionedSource;"
+   },
+   {
+    "file": "backends/mongo/api/mongo.api",
+    "n": 11,
+    "first": "public final class me/ahoo/wow/mongo/query/MongoQueryOptions {"
+   },
+   {
+    "file": "backends/postgres/api/postgres.api",
+    "n": 11,
+    "first": "public final class me/ahoo/wow/postgres/query/PostgresQueryOptions {"
+   },
+   {
+    "file": "core/kernel/api/kernel.api",
+    "n": 21,
+    "first": "public final class me/ahoo/wow/kernel/KernelOptions {"
+   },
+   {
+    "file": "core/runtime/api/runtime.api",
+    "n": 37,
+    "first": "public final class me/ahoo/wow/runtime/client/InProcessCommandClient : me/ahoo/wow/api/client/CommandClient {"
+   },
+   {
+    "file": "core/spi/api/spi.api",
+    "n": 14,
+    "first": "public final class me/ahoo/wow/spi/json/WowEnums {"
+   },
+   {
+    "file": "edge/http/api/http.api",
+    "n": 15,
+    "first": "public final class me/ahoo/wow/http/query/HttpQueries {"
+   },
+   {
+    "file": "host/spring-boot/api/spring-boot.api",
+    "n": 2,
+    "first": "public static final fun wowRetiredQueryPolicies$me_ahoo_wow_wow_spring_boot ()Lorg/springframework/beans/factory/config/BeanFactoryPostProcessor;"
+   },
+   {
+    "file": "query/query/api/query.api",
+    "n": 110,
+    "first": "public abstract interface class me/ahoo/wow/query/QueryGateway {"
+   }
+  ],
+  "t": "fix(spi,query)!: every public declaration of spi and query carries its level, and the closure rule reads Kotlin's signatures",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7126,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [
+   {
+    "file": "typescript/wow-view-store/test/api/root.api.md",
+    "n": 18,
+    "first": "import { TargetScope } from '@ahoo-wang/wow-client';"
+   },
+   {
+    "file": "typescript/wow-view-store/test/surface/root.txt",
+    "n": 2,
+    "first": "value SHARED_SCOPE"
+   }
+  ],
+  "t": "fix(view-store)!: the options are wow-client's, a write's parameter is options, the reserved scopes stay inside, and a wording revision never issued is INVALID",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7125,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [
+   {
+    "file": "typescript/wow-client/test/api/root.api.md",
+    "n": 3,
+    "first": "export type CommandOptions = Omit<CommandRequest, 'command' | 'body' | 'type' | 'id'>;"
+   }
+  ],
+  "t": "fix(client)!: a command request names its aggregate's id aggregateId, as Kotlin's CommandRequest does",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7124,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(spring-boot)!: wow.dev-profiles defaults to dev and local, so a test or demo profile is not development unless a node lists it",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7123,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(generator)!: no tsconfig option, hashes and --check read any line end as \\n, an emptied directory goes with its files, a Manifest run warns of apiClients, and wow-client is an optional peer",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7122,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(spring-boot): every documented key is set by name in a test, and a value a numeric or duration key cannot take is refused naming that key",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7121,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(generator)!: generated clients send through commands, hops are the contract's Wait, path is gone, lifecycle bodies are wow-client's, an empty body takes no member, state paths are Kotlin's, and an unknown value leaves out what holds it",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7120,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(config)!: a setting that would start and do nothing refuses the start, and wow.http.errors warns of an application code no Manifest declares",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7119,
+  "labelled": false,
+  "title": false,
+  "body": true,
+  "removals": [],
+  "t": "fix(client): an event stream skips an event a newer server added, a command's end of another reason leaves its outcome unknown, and the dataset and aggregation queries are @experimental, listed on the compatibility page",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7118,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [
+   {
+    "file": "core/runtime/api/runtime.api",
+    "n": 1,
+    "first": "public static final field REJECT Lme/ahoo/wow/runtime/wait/UnknownContexts;"
+   }
+  ],
+  "t": "fix(config)!: one spelling of a refusal, 0 turns a bound off, claim-ttl, partition-refresh-interval, error-after-attempts, and one duration grammar for the store and transport keys",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7115,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [
+   {
+    "file": "typescript/wow-client/test/api/dsl.api.md",
+    "n": 4,
+    "first": "export interface QueryViolation {"
+   },
+   {
+    "file": "typescript/wow-client/test/api/root.api.md",
+    "n": 45,
+    "first": "export function checkManifest<M extends RoutingManifest>(manifest: M): M;"
+   },
+   {
+    "file": "typescript/wow-client/test/api/routes.api.md",
+    "n": 2,
+    "first": "constructor(client?: WowClientOptions, options?: ServiceRoutesOptions);"
+   },
+   {
+    "file": "typescript/wow-client/test/api/testing.api.md",
+    "n": 2,
+    "first": "readonly retry?: Retry;"
+   },
+   {
+    "file": "typescript/wow-client/test/surface/root.txt",
+    "n": 9,
+    "first": "type  CountQuery"
+   },
+   {
+    "file": "typescript/wow-react/test/api/root.api.md",
+    "n": 2,
+    "first": "import { CountQuery } from '@ahoo-wang/wow-client';"
+   }
+  ],
+  "t": "fix(client)!: Hop builds the hops as Kotlin's, the resume options and the exact-number marks take one name each, a client's options are private, CountQuery and CountResult are in /dsl, and Retry is RetryAdvice",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7114,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(spring-boot)!: every setting the host cannot start with is refused naming its key or its group",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7113,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [
+   {
+    "file": "typescript/wow-react/test/api/root.api.md",
+    "n": 4,
+    "first": "import { WowProblemError } from '@ahoo-wang/wow-client';"
+   }
+  ],
+  "t": "fix(react)!: problem is the service's RFC 9457 body, StreamExecutor takes the query first, a changed query aborts a run by hand, only the run's own signal aborts it, and hasMore is false with no query",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7110,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(spring-boot)!: an entry of wow.aggregates that names no aggregate type the node serves refuses the start, whichever of its settings it holds",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7108,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(view-engine): an ActionInputError is read by its shape, as every engine error is, and the READMEs say a stored config is read as it is and name wow-view-store's root",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7106,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(spring-boot)!: wow.node.address without a port, with port 0 or past 65535 refuses the start",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7107,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "docs(designs): D487, a narrow closing re-check before the freeze, and what was decided while the second round's fixes went in",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7105,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [
+   {
+    "file": "api/query-api/api/query-api.api",
+    "n": 12,
+    "first": "public abstract fun aggregateName ()Ljava/lang/String;"
+   },
+   {
+    "file": "query/query/api/query.api",
+    "n": 22,
+    "first": "public final class me/ahoo/wow/query/error/QueryBindingError {"
+   }
+  ],
+  "t": "fix(query)!: snapshot access and schedule fields compare in the DSL, a refused read carries no violation, sort and projection name paths with path { }, and @QueryReference(aggregate, context)",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7104,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "ci: the dependency submission takes the main runtime class path alone, not the tests'",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7099,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(generator)!: a Manifest name never ends a comment, names follow Kotlin's pascal and are apart or refused as the specification, a name that is no identifier still compiles, and the descriptor carries what the Kotlin KDoc says",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7102,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(postgres,elasticsearch)!: a store refuses an operation timeout that bounds nothing when it opens, naming the key",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7086,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "ci: submit the Gradle dependency graph, so Dependabot alerts cover the published modules' JVM dependencies",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7092,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(deps): update ahoo platform boms to v5.1.0",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7091,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(deps): update me.ahoo.test:fluent-assert-bom to v1.3.1",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7101,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [
+   {
+    "file": "api/api/api/api.api",
+    "n": 44,
+    "first": "public static final fun send (Lme/ahoo/wow/api/client/CommandClient;Ljava/lang/Object;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;"
+   },
+   {
+    "file": "api/manifest/api/manifest.api",
+    "n": 1,
+    "first": "public final fun getRetry ()Lme/ahoo/wow/api/problem/Retry;"
+   },
+   {
+    "file": "core/runtime/api/runtime.api",
+    "n": 7,
+    "first": "public static final fun of (Lme/ahoo/wow/kernel/CommandType;Ljava/lang/String;Ljava/lang/Object;)Lme/ahoo/wow/runtime/admission/CommandTarget;"
+   },
+   {
+    "file": "edge/http/api/http.api",
+    "n": 7,
+    "first": "public final fun getRetry ()Lme/ahoo/wow/api/problem/Retry;"
+   },
+   {
+    "file": "query/query/api/query.api",
+    "n": 1,
+    "first": "public final fun getTarget ()Lme/ahoo/wow/api/caller/TargetScope;"
+   },
+   {
+    "file": "test/test-dsl/api/test-dsl.api",
+    "n": 2,
+    "first": "public final fun getAggregateId ()Ljava/lang/String;"
+   },
+   {
+    "file": "test/test-spring-boot/api/test-spring-boot.api",
+    "n": 2,
+    "first": "public final fun getAggregateId ()Ljava/lang/String;"
+   }
+  ],
+  "t": "fix(api)!: a request names its aggregate by aggregateId and its target in one TargetScope, a tenant alone keeps the scope",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7100,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(kafka): a record of no value is read as no bytes, which fails its own partition's read, not the consumer every partition of the topic shares",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7094,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(kernel,reactor): a Mono, Flux or @Blocking decide function's call that stands takes its derived request id",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7096,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(postgres)!: ddl auto and validate check each table's unique keys and indexes, so a log table without its version key is refused",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7095,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(query)!: a numeric operand past every store's decimal is refused before it is bound, and a projection's repeated entry counts once",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7093,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(view-store,view-engine)!: a list page holds at most pageSize, a cursor or revision never issued is INVALID, and MemoryViewStore and memorySource answer what the service answers",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7090,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "chore(deps): update github actions to v46.3.15",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7089,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(query): a schedule's command is masked as a body of its command type wherever its event is read or published",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7088,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(manifest-tools): the build reads a peer's contract as a node does, leaving out a newer Wow's value with a warning instead of refusing the build",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7087,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(client)!: a query stream lost past its resumes is wow.peer.unavailable, an aggregation's terms key over an exact field is its text, and /testing builds the problems a service writes",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7081,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(client)!: every wait plan states its timeout, the client's own headers are refused, and retry, Retry-After, Wow-Wait and full-name former names read as Kotlin's",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7079,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [
+   {
+    "file": "api/api/api/api.api",
+    "n": 1,
+    "first": "public abstract fun callId ()Ljava/lang/String;"
+   }
+  ],
+  "t": "fix(kernel)!: attemptKey names an attempt's own key, an after hook's refusal rejects, a saga refuses a drawn target",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7080,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(spi): a hop's stage a newer node added reads as UNKNOWN in a log entry's transport, a topic's envelope and a peer's Wow-Call",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7084,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "docs(designs): D484 to D486, the second round's decisions on keys, REST, formats, security, and the TypeScript API",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7082,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(runtime): an ownership's stop ends its lease renewals without their watch taking it for their own end",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7023,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "chore(deps)!: CoSec 8.0.0-beta.9: every credential says whose it is, the stored patterns are checked first, and the upgrade goes in CoSec's order",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7049,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "docs(designs): D483, the public Kotlin API's names and shapes decided row by row before the freeze",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7025,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "docs(designs): D482, the second deep-review round's streams and the decisions it starts with",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7016,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "docs(designs): D481, the first deep-review round's last design decisions, and the round closed with the questions it leaves for the second",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7013,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(clickhouse): a subnormal double constant refuses the query as storage-unsupported, which ClickHouse reads in no form (#7009)",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7017,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "docs(operate): Operate › Upgrades takes the upgrade paragraphs of the pull requests merged since 10.0.0-beta.21",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7015,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(http): a body past the limit is refused from its Content-Length before it is read, and a connection that closes after an early answer lingers, so the 413 is read rather than reset (#7001)",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7012,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(postgres): a computed value is a double, as on every other backend, and one beyond a double's range refuses the query (wow.query.out-of-range) (#6997)",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7011,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(routing-spike): stage 2's Manifest fragment lists the lifecycle commands its model handles, and stage 1's integration tests hold it to the model",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7010,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(host): the public server's graceful shutdown ends at the longest wait and a margin, then cuts what is still open, and the internal port closes its connections as it stops (#6958)",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7008,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [
+   {
+    "file": "core/kernel/api/kernel.api",
+    "n": 9,
+    "first": "public static final fun project (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Class;ZLme/ahoo/wow/kernel/StartFrom;Ljava/util/List;ZLme/ahoo/wow/kernel/HandlerRetry;Ljava/lang/Class;Lkotlin/jvm/functions/Function3;)Lme/ahoo/wow/kernel/ProcessorBinding;"
+   }
+  ],
+  "t": "fix(test-dsl,kernel,compiler)!: a spec's handler runs in the context its binding names, which the compiler gives every binding, reads its own decoded state, its receipts carry the command's scope, a call's compensations park, another context's receipt takes no handler retry, and the answering stream emits every status",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7007,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(query)!: the memory reference refuses what PostgreSQL and MongoDB both refuse, and computes a plain field's sum, average, least and greatest in its decimals (#6968, #6969)",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7005,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(host,test-spring-boot)!: a node runs for development in a profile of wow.dev-profiles alone; a loopback internal host states nothing",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7002,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(manifest-tools,generator)!: an aggregate named as a member its context's contract declares, NAME, Errors or Wait, takes the Aggregate suffix in Kotlin and in TypeScript",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6999,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(http): a request the server refuses before any route, a line or a header block past its limit or malformed HTTP, is answered with a problem of its status on both ports (#6956)",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7004,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(kernel)!: the memory log refuses a group of two contexts or with a gap in an aggregate's versions, and given its context another context's stream, before it writes anything; an aggregate whose first append conflicted is none (#6970)",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7003,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(test-dsl): a spec's timers fire, settle and are given as a node's do, and a pushed-back handling parks after the node's attempts",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7000,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(client): a connect not made within a request's bound fails over as a refused one, the JDK's verdict deciding until the response's head, so the two timers of one deadline no longer race",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6998,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(compiler): a state's query fields read its base class's private fields, named and left out by their Jackson annotations",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6996,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [
+   {
+    "file": "test/test-dsl/api/test-dsl.api",
+    "n": 4,
+    "first": "public static final fun aggregateSpec (Lme/ahoo/wow/kernel/AggregateModel;Ljava/lang/String;Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;Ljava/lang/String;Ljava/time/Instant;Lkotlin/jvm/functions/Function1;)V"
+   }
+  ],
+  "t": "fix(test-dsl)!: aggregateSpec decides under the aggregate's access policy and its callers, a spec names a scheduled command by its target's model or contract, and it admits only what the gateway admits",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6995,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(kafka): a bounded read closes its consumer without waiting for the fetch still in flight, so it no longer takes the broker's fetch wait, half a second (#6869)",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6994,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [
+   {
+    "file": "test/test-spring-boot/api/test-spring-boot.api",
+    "n": 1,
+    "first": "public static final fun fakePeer (Ljava/lang/String;)Lme/ahoo/wow/test/server/FakePeer;"
+   }
+  ],
+  "t": "fix(test-spring-boot)!: a fake peer refuses what its callee's permits refuse, takes the callee's wow.callers, and refuses a body that does not read as its command",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6992,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(runtime): an operator's action is answered for the parking it names, and an answer that leaves the entry as it was ends the request in ops",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6991,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(manifest,manifest-tools): the merge does not depend on fragment order, and the compatibility check compares idProperty and reads a full-name alias, a nullable polymorphic field and an unchanged alternative as written",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6989,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(host): the internal port's message limit follows spring.http.codecs.max-in-memory-size alone, the one codec key Spring Boot 4 binds (#6957)",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6990,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(build): each test task declares the files outside its project that its tests read",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6988,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(view-store)!: sharing a personal view takes view-store.shared-writer, as the package's README says",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6981,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(test-dsl): a saga spec draws its ids on across the specification, as a node draws new ones for each handling, so a target named by a drawn id fails expectDeterministic and is another request when redelivered",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6952,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(compiler): a Java bean state's getters are its query fields, a Java record's or bean's @OccurredAt is read, and a record's @AggregateId is named as Jackson writes it",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6987,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "test(test-spring-boot): WowLocalTest picks its fixed ports at the loopback address without SO_REUSEADDR, so none is a port another server listens on, and a failed start is the broken service's (#6863)",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6986,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(migrate-data)!: the cut-over is recorded where the import ended, never at a head V10 moved; an out-of-memory exit and an unavailable store are retried apart from DIFFERS; streams the tail alone imports claim their type's walk",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6985,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(host): the manifest scan of the configuration keys' test leaves a chart's helm-unittest suites out, and the manifests are an input of the host's tests (#6983)",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6978,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "test(ci): the TERM stub is stopped only once it ignores TERM",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6982,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(view-store): a store's retry goes from where its attempt went, a system view's revision is read at its version now, preferences at a revision never issued are CONFLICT, and a page size below 1 is refused",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6979,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "test(http): the agreement test sends its next probe once the command a probe was answered before has run, so a wait that times out is never refused as busy (#6975)",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6954,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(runtime): an own saga or reactor passes over its log's history up to the cut-over, however it starts, so a second import is acted on by 9.x alone",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6977,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(generator): a Manifest of a malformed shape is refused with exit 4 naming the member, a byte order mark is skipped, and the symbol index lists SchemaDocs",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6980,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(react): a page cursor goes only with the query whose page answered it, and abort() keeps every row a stream read",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6950,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(runtime): each entry of a run that fails part way is observed once, the entries it did not reach never ended as handled",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6953,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(view-engine): an export that read every row is not capped, and the memory store's cursor names a place in the order",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6942,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(client): a command's answer is bounded by its wait and a grace, an answer lost after its head is an unknown outcome, an id a path cannot carry is refused, and a resume does not wait out a long Retry-After",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6955,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "docs(designs): D480, the further design decisions of the first deep-review round, and the round's state by domain",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6951,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(generator): the routing part lists every command with routes, by its former names too, and the context's command client writes exact numbers unquoted",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6949,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(chart)!: a whole number of config is written as its digits, and KEDA's minimum is one node",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6938,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(analytics-catalog)!: a dataset row neither offers nor relays an internal command of the service it refers to",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6948,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(view-engine): a selection, a lane page, a whole record and a remembered tab keep to what is on screen",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6947,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(observability): the timer delay is measured from the slot's due time, and a gauge a sample cannot read keeps its last value while the sampler warns of the read (#6857, #6858)",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6944,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(generator): a sealed body is never defaulted, a recursive parameterized type is declared once, state fields follow arrays and nullable objects, a route parameter's type is declared, and a __proto__ mark is kept",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6946,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(view-engine): a number sent as its exact text reads as the number it is, and a percent comparison measures by the baseline's size",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6941,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(chart)!: the generated peers are kept beside a deployment's, the keys the chart owns are refused in settings and env, and the gateway-only statement needs a from that names pods",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6943,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(view-engine): a day bucket past a skipped midnight, and a date part's calendar, follow how Wow cuts them",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6940,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(host)!: a stall timeout not longer than the reconcile timeout and a negative dataset query bound refuse the start, and a size's default is in the metadata and the reference (#6852, #6853, #6854)",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6939,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(generator)!: every command, aggregate, route and error code gets a member of its own, and an error code's constant is named as the Kotlin contract names it",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6924,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(compiler): a sealed sourcing type takes each concrete event once, a second evolve of one event, an after hook's Decision and an unreachable state constructor are refused, and any Iterable of events is a container",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6883,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(host): a provider's option is read through Spring's binding, as the key check reads it, and the key check runs under lazy initialization",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6923,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(kernel): a batch member rejected without events is observed and logged once, by the decision that answers it",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6922,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(runtime): a duplicate's commit, its plan's committed hop and its wait's end, is emitted once",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6886,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(query)!: an ignore-case match compares both texts after Unicode simple case folding, on every backend",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6885,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(kernel): each command a batch settles is observed as a command alone is, its execution and append ended, in its own caller's trace",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6884,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(gradle-plugin): generateWowContract reruns when its pairing or a context's classes move, the TestKit builds do not watch the file system, and the minimum Kotlin is a real version",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6878,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(http,client)!: a command's answer is bounded after its head, and a command's event stream ends with end, without which its outcome is unknown",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6877,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(kafka): a key's next message of a send goes to the broker only once its previous one is acknowledged, so a message Kafka refuses is never overtaken by its key's later ones",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6876,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(compiler): handlers are told apart by subscription name, a typealias receipt command is read through, and an @OnSchedule job in a class of no kind is refused",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6881,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "test(ga-e2e): the GA run creates its state topics with its log's 8 partitions, which its publishing nodes need since #6862",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6875,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(runtime): a membership left by its last group removes its record: the loops its own stop cancels end no membership",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6873,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(host)!: CoSec's authorizers come after CoSec's pipeline, whose checker their condition needs, so wow.cosec.authorizer.enabled registers them",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6874,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(openapi): the document lists what every route reads and answers, held by a test against the routes",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6871,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(client): a command a node went silent on is never sent to it again, and at most once more, to another live node",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6870,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(compiler): six shapes that generated code which did not compile either compile or are refused, naming the declaration",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6862,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [
+   {
+    "file": "core/runtime/api/runtime.api",
+    "n": 2,
+    "first": "public final fun topics (Lme/ahoo/wow/manifest/Manifest;Lme/ahoo/wow/spi/transport/TopicProducer;Lme/ahoo/wow/runtime/sink/PublicationMasks;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/runtime/sink/PublishedSinks;"
+   }
+  ],
+  "t": "fix(runtime)!: a state record goes to its aggregate's partition in the log, named in a wow-partitions header, so no key moves when its topic gains partitions",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6866,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(client): a gateway's bare 502 or 504 is no decided answer: the caller may send the command again with its request id",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6868,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(runtime): a handler that names aggregates of its own context in @OnEvent(aggregates) reads those alone, as the Manifest says",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6867,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(http,runtime)!: a command's event stream answers 200 once the command is accepted, streams each hop as it is reached, and keeps the connection alive",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6865,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(host): the DataSource the host makes logs where it connects, never a credential its JDBC URL carries",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6864,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(manifest,runtime): a subscription of several events of one peer aggregate reads that aggregate, and no node takes a handler of another context's events for one of its own",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6861,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(client): a command whose outcome is unknown stays unknown when its retry finds no node to connect to",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6847,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "test: the runtime and observability test nodes walk every 100 ms, so a wait for a type's walk ends within a few runs, not at its 10 s bound",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6846,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "test(runtime): a chain into a context the node does not know times out at the saga's hop on a held deadline, not one raced against a second",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6827,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(runtime): a tail whose probe read found nothing reads its partition once more at the next round, for another node's stream that lands after its block was named",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6826,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(http)!: a service route refuses a body that is not JSON and an Accept it cannot answer, and reads its body as a command's is read",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6824,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(mongo): a group never throws once a member may have committed, and this node's closed client is the store unavailable",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6820,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [
+   {
+    "file": "core/kernel/api/kernel.api",
+    "n": 3,
+    "first": "public static final fun derivedId (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Class;I)Ljava/lang/String;"
+   }
+  ],
+  "t": "fix(kernel)!: several commands of one type to one target from one handling each take a business key, or the saga parks naming what to add, and a handler of each event's calls are told apart by their event",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6822,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(runtime): an id of a snapshot rebuild request whose history does not replay is parked, and the request's other ids rebuilt",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6823,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(http): a path segment holding a matrix parameter that names none is refused, not routed without it",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6802,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(mongo): an append's round trips, all of them, are bound by append-timeout from the call's start",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6821,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(api): a Wow-Wait plan is read in time linear in its length, and refused past 4,096 characters or 32 hops before a hop is read",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6805,
+  "labelled": true,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(kernel): a saga's own mistakes are unrecoverable wherever its derivation finds them, as a misused Wow API is",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6804,
+  "labelled": true,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(runtime): a snapshot backfill is not marked caught up while it has aggregates parked, so their retry still writes them",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6803,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(runtime): a node whose membership heartbeats or reads of the members ended steps out of every group it serves there",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6799,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(elasticsearch)!: every index is an alias of one concrete index, written with require_alias, so no write creates an index",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6801,
+  "labelled": true,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(runtime,client): a problem names the failure it ran into by its class, never by the values its message carries, so a parked reason carries none",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6800,
+  "labelled": true,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(runtime): a technical failure its source retries is not an inherited command's outcome, and a command the intake parks ends its wait",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6798,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(spi): a command sent while deciding derives its request id from the deciding request's type and tenant, not its aggregate id",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6792,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(mongo)!: a log or timer collection is recorded in its registry under every ddl, and a block naming one without its record is not sealed",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6791,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(test-dsl): the replay check reads the clock again once its wait is over, so a spinning thread descheduled past the deadline passes a correct spec",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6790,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(runtime): a node whose lease renewals ended steps out of the group instead of acquiring its partitions again",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6788,
+  "labelled": true,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(runtime): a wait the owner already signalled answers what it was told when the broker's acknowledgement is lost or late",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6789,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(mongo): a sequence is settled only on what a majority holds, and a tail stuck at one no block holds says how to repair it",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6784,
+  "labelled": true,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(kernel): a failure of the kernel's own ports or checks under a decide function fails the command, never answered as the caller's refusal",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6781,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "docs(designs): 10.0.0-beta.21 is out, the route to RC1, and the first round of the deep review (D477–D479)",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6780,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(runtime): a creation that names no aggregate takes its id last, so a request admission refuses reads and claims nothing",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6779,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(query)!: the core orders text by code point, as every store does",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6778,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(mongo)!: a store's schema check compares each index's definition, not only its name",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6777,
+  "labelled": true,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(kernel): a cancellation of a decide function's own, a call it bounded timing out, fails the command instead of reading as its caller's",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6775,
+  "labelled": true,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(runtime): a request retried through a command topic answers as a duplicate at COMMITTED, as it does run directly",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6771,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(mongo): the last of 4,096 partitions bounds its positions without overflowing",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6770,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(postgres): of two first starts with different partition counts only the stored one opens the log",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6766,
+  "labelled": true,
+  "title": false,
+  "body": true,
+  "removals": [],
+  "t": "docs(guide): an act a decision undoes is keyed with callId(), and an act that stands on the command",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6769,
+  "labelled": true,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(runtime): a topic's added partition is read from its beginning by every subscription, and JOIN decides who joined per partition",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6765,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(kernel)!: a call a decision undoes takes callId(), and a call that stands must be the same call when decided again",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6764,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(postgres)!: a log or timer table without its registry row is recorded under every ddl, and a stalled tail warns",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6762,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(mongo): the timer store's due read takes its unions in aggregations of at most 500",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 6753,
+  "labelled": true,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(kernel): the log and the state trace hold a decision's events as it returned them, whatever its evolve functions do to them",
+  "author": "Ahoo-Wang"
+ }
+]
