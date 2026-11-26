@@ -87,7 +87,7 @@ dependencies {
 | `wow-clickhouse` | 数仓 Sink 和数据集的查询（[ClickHouse](../operate/clickhouse)）；在 10.0 中是实验性的，在数据集与分析模块正式发布之前仍在孵化中 |
 | `wow-elasticsearch` | 存储类型 `elasticsearch`，用于快照及其查询，以及为检索索引事件流的 Sink |
 | `wow-observability` | 节点工作的追踪和指标 |
-| `wow-cosec` | 公开路由的 CoSec 认证与授权（[保护部署](../operate/security)）；在 10.0 中是实验性的，跟随 CoSec 8 的预发布版本 |
+| `wow-cosec` | 公开路由的 CoSec 认证与授权（[保护部署](../operate/security)）；在 10.0 中是实验性的，直到一个 10.x 的次版本去掉这个标记 |
 | `wow-cosid` | CosId 的 ID 生成器 |
 | `wow-reactor` | 返回 Reactor 的 `Mono` 和 `Flux` 的处理函数 |
 

@@ -113,7 +113,7 @@ The bounded contexts the node serves.
 
 ## `wow.cosec`
 
-The keys wow-cosec reads (`wow.cosec.*`), bound here so they are checked and documented as the others are. Experimental in 10.0 with wow-cosec, which follows CoSec 8's pre-release: they may change within 10.x.
+The keys wow-cosec reads (`wow.cosec.*`), bound here so they are checked and documented as the others are. Experimental in 10.0 with wow-cosec: they may change within 10.x until a 10.x minor release drops the marker.
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
