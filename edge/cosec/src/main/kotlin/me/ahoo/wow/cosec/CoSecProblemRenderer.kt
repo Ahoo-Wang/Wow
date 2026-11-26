@@ -51,8 +51,8 @@ class CoSecProblemRenderer : ProblemRenderer {
         const val COSEC: String = "cosec"
 
         /**
-         * The framework code CoSec's [type] is written with: null for an unexpected failure (`about:blank`) and, in
-         * [UNKNOWN], for a type Wow does not know.
+         * The framework code CoSec's [type] is written with: null for an unexpected failure (`about:blank`) and, outside
+         * [KNOWN], for a type Wow does not know.
          */
         @JvmStatic
         fun codeOf(type: ProblemType): String? = when (type) {

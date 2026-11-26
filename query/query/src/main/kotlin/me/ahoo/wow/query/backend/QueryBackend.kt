@@ -85,7 +85,7 @@ interface QueryBackend {
     /** Encodes and decodes the native [CursorPosition]s [page] returns for a [PageWindow.Keyset]. */
     val cursorPositions: CursorPositionCodec
 
-    /** Streams the records of [query], at most `query.limit` of them, or all when the limit is `0`. */
+    /** Streams the records of [query], at most `query.limit` of them, or all when the limit is `null`. */
     fun stream(query: AdmittedQuery<ListQuery>): Flow<ObjectNode>
 
     /**

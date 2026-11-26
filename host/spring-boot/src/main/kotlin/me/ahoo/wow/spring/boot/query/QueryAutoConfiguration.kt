@@ -80,7 +80,7 @@ import tools.jackson.databind.JsonNode
 import java.nio.file.Path
 
 /**
- * The query plane (–), active when wow-query is on the classpath (wow-http brings it)
+ * The query plane, active when wow-query is on the classpath (wow-http brings it)
  * and `wow.query.enabled` is not off. Over the node's Manifest it builds:
  *
  * - a [SnapshotQueryBackend] chosen by the classpath as the stores are: the application's own

@@ -56,7 +56,7 @@ enum class Routing {
 }
 
 /**
- * The tuning of a [ServiceNode] (names the host's keys for them).
+ * The tuning of a [ServiceNode], which the host sets from its configuration keys.
  *
  * - [cluster]: partition ownership and the cluster channel; [routing]: where commands run.
  * - [wait]: the waits ([WaitOptions]); its default timeout is that of every command whose request names none,

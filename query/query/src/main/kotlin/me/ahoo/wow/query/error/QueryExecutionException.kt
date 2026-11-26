@@ -45,7 +45,7 @@ internal inline fun checkExecution(value: Boolean, message: () -> String) {
 }
 
 /**
- * A query that ran out of the execution time its budget gives it: [QueryErrors.TIMEOUT] (HTTP 503).
+ * A query that ran out of the execution time its budget gives it: [QueryErrors.TIMEOUT] (HTTP 504).
  * The backend received the same [timeout] to bound the statement natively (`statement_timeout`, `maxTimeMS`); the core
  * enforces it as well, so a backend that ignores it still fails here.
  */

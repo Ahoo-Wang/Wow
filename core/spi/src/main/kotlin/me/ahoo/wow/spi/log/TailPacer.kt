@@ -29,8 +29,8 @@ import kotlin.time.Duration.Companion.seconds
  * append are read within [maxInterval].
  *
  * A poll a commit of this log woke, which found entries and is not behind the partition's counter, keeps the backoff
- * as it was instead of polling again after [interval] (B.D diagnostics): this log's next commit wakes the tail anyway,
- * so on a partition only this node appends to ('s partitioned routing) a commit costs one read of the tail,
+ * as it was instead of polling again after [interval]: this log's next commit wakes the tail anyway, so on a
+ * partition only this node appends to (under partitioned routing) a commit costs one read of the tail,
  * not a run of short polls backing off again. Entries found without a wake, from another node, still bring the tail
  * back to [interval].
  *

@@ -3,7 +3,7 @@ package me.ahoo.wow.api.query
 import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
- * Data class implementing a paginated list of items.
+ * One page of a paged query's results, and the total across every page.
  *
  * @param T The type of items in the list.
  * @property total The number of items across all pages; `null` when not counted ([TotalMode.NONE]).
@@ -12,9 +12,9 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * reached its limit passes `false`.
  *
  * ```
- * val exact = PagedList(total = 150, list = listOf(item1, item2, item3))
- * val bounded = PagedList(total = 10000, list = page, exact = false) // at least 10000
- * val uncounted = PagedList(total = null, list = page)
+ * val exact = PagedList.of(total = 150, list = listOf(item1, item2, item3))
+ * val bounded = PagedList.of(total = 10000, list = page, exact = false) // at least 10000
+ * val uncounted = PagedList.of(total = null, list = page)
  * ```
  */
 class PagedList<out T> @InternalWowApi constructor(

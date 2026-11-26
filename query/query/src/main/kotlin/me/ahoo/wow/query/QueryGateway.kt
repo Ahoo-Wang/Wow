@@ -103,7 +103,7 @@ interface QueryGateway {
      * names when given. [after] is a token of this model and effective sort (a stream's or a `cursor` query's); any
      * other is `wow.query.invalid`. The query is admitted like a `cursor` query, so a stream resumed with the same
      * query from another node or after a restart reads on from the same place, under its caller's scope again; at most
-     * [query]'s limit records are read (`0`: all of them), and its budget bounds neither the limit nor the chunks.
+     * [query]'s limit records are read (`null`: all of them), and its budget bounds neither the limit nor the chunks.
      * Each chunk runs within the query's timeout and under one bulkhead permit, given back before its records are
      * emitted. Chunks are not one snapshot: see [chunks]. Only for a query [resumes].
      */

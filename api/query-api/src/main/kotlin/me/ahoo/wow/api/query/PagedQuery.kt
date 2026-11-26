@@ -16,7 +16,7 @@ package me.ahoo.wow.api.query
 import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
- * Data class representing a paginated query with filtering, projection, sorting, and pagination.
+ * A paged query: one page of the records its filter matches, in its order, with its projection.
  *
  * It supports all standard query operations ([Queryable]) and retrieves one page of the results.
  *
@@ -27,11 +27,11 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * @property total How the total is counted; [TotalMode.BOUNDED], the default, stops at the budget's count limit.
  *
  * ```
- * val query = PagedQuery(
- *     filter = EqualFilter(QueryField("status"), value),
- *     projection = Projection(listOf(QueryField("name"), QueryField("email"))),
- *     sort = listOf(Sort(QueryField("name"), Direction.ASC)),
- *     pagination = Pagination(index = 2, size = 20)
+ * val query = PagedQuery.of(
+ *     filter = EqualFilter.of(QueryField("status"), value),
+ *     projection = Projection.of(listOf(QueryField("name"), QueryField("email"))),
+ *     sort = listOf(Sort.of(QueryField("name"), Sort.Direction.ASC)),
+ *     pagination = Pagination.of(index = 2, size = 20),
  * )
  * ```
  */

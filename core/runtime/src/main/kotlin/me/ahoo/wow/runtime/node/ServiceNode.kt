@@ -70,7 +70,7 @@ import java.time.Clock
  * sagas' commands: one [TopicSubscriptions] each, which [TopicAssembly] builds; a node with such subscriptions and no
  * [topics] is not built.
  *
- * **Commands across contexts** (–), when [topics] has a producer: a saga's command to an
+ * **Commands across contexts**, when [topics] has a producer: a saga's command to an
  * aggregate of another context is sent to that context's command topic ([ContextNode.sender]); the receipts of those
  * rejected, and of those committed that the saga asked about, come back on the saga's context's receipts topic, read
  * in the lease group of that topic for the contexts whose sagas have `@OnRejected` or `@OnCommitted` handlers

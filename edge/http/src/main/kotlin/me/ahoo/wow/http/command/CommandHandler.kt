@@ -77,7 +77,7 @@ internal data class CommandTarget(
 }
 
 /**
- * Sends the command of a route through [gateway] (–):
+ * Sends the command of a route through [gateway]:
  *
  * - the caller from [authenticator]; the wait (a plan that names no timeout waits the gateway's
  *   [default][CommandGateway.defaultWaitTimeout]), the target scope, the expected version and the request id from the Wow

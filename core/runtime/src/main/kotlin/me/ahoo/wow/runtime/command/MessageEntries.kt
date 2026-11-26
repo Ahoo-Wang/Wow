@@ -41,7 +41,7 @@ import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.SourceMessage
 
 /**
- * The partitions of a topic of commands or receipts as a subscription runtime reads them (–): each
+ * The partitions of a topic of commands or receipts as a subscription runtime reads them: each
  * message decoded from its envelope ([CommandMessages]) into the entry at the position (partition, offset + 1), so a
  * checkpoint is the offset to read next, carrying what it holds as its [SourcedEntry.message].
  *

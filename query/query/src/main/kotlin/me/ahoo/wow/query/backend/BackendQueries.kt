@@ -143,7 +143,7 @@ suspend fun QueryBackend.single(query: AdmittedQuery<SingleQuery>): ObjectNode? 
     return page.rows.firstOrNull()?.requireStandardRecord()
 }
 
-/** The records of [query], streamed: at most its limit, or all of them when the limit is `0`. */
+/** The records of [query], streamed: at most its limit, or all of them when the limit is `null`. */
 @WowSpi
 fun QueryBackend.list(query: AdmittedQuery<ListQuery>): Flow<ObjectNode> =
     flow { emitAll(stream(query)) }.executing(query.timeout).map(ObjectNode::requireStandardRecord)

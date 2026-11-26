@@ -192,7 +192,7 @@ interface FailureLedger {
  * [fromPosition] is where that stream lies in the subscription's source when the source cannot be read by aggregate:
  * the offset of its record in another context's topic, whose partition the ref's key always maps to.
  * A retry re-scans that partition from it, keeping the records keyed by [ref]. Null for a subscription of the log,
- * which reads an aggregate's streams by version. A topic of commands or receipts (–) commits
+ * which reads an aggregate's streams by version. A topic of commands or receipts commits
  * nothing, so its subscription parks at [fromVersion] 1 and goes by [fromPosition] alone.
  *
  * [skipOnly] is set when the source no longer holds what the entry is parked from: its [fromPosition] is not retained
