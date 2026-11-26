@@ -126,7 +126,7 @@ CoSec's authorization of the commands.
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `wow.cosec.authorizer.enabled` | `Boolean` | `false` | Whether CoSec authorizes every command and service route call of a request as its caller (`CoSecCommandAuthorizer`, `<context>:<command>` on `<aggregate>/<id>`), not only the public routes, where CoSec decides itself. A request-less command gets no objection. Off, and without a `CommandAuthorizer` of the application's, the command gateway allows every command that passed its route: behind a CoSec gateway, authorization is the gateway's. |
+| `wow.cosec.authorizer.enabled` | `Boolean` | `false` | Whether CoSec authorizes every command and service route call of a request as its caller (`CoSecCommandAuthorizer`, `<context>:<command>` on `<aggregate>/<id>`), not only the public routes, where CoSec decides itself. A request-less command gets no objection; a caller of a request that is not the principal CoSec authenticated for it is denied. True where CoSec does not decide the requests in the service (behind a CoSec gateway, or with CoSec off), the node refuses to start. Off, and without a `CommandAuthorizer` of the application's, the command gateway allows every command that passed its route: behind a CoSec gateway, authorization is the gateway's. |
 
 ## `wow.cosec.cross-scope`
 
