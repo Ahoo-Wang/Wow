@@ -1,8 +1,10 @@
 # The statement that only the gateway reaches the public port (COSEC_PIPELINE_IDENTITY_ONLYGATEWAYCANREACH), which
 # networkPolicy.public.onlyGateway makes, holds only while every entry of networkPolicy.public.from names pods by their
 # labels (#6935): an entry that admits every pod of a namespace, of every namespace, or of an address range lets each of
-# those pods claim any identity. A suite of its own: the refusal is the chart's validation.
-suite: the public port's gateway-only statement holds only for the gateway's pods
+# those pods claim any identity. And only while each names its namespace, by kubernetes.io/metadata.name or by being the
+# release's own: pod labels are their namespace's owner's, so a rule by labels in any namespace lets each namespace's
+# owner pass as the gateway. A suite of its own: the refusal is the chart's validation.
+suite: the public port's gateway-only statement holds only for the gateway's pods, in a namespace named
 templates:
   - templates/configmap.yaml
 set:
@@ -54,6 +56,86 @@ tests:
       networkPolicy.public.onlyGateway: false
       networkPolicy.public.from:
         - namespaceSelector: {}
+    asserts:
+      - notExists:
+          path: data.COSEC_PIPELINE_IDENTITY_ONLYGATEWAYCANREACH
+  - it: refuses the default from until the gateway's namespace is named
+    asserts:
+      - failedTemplate:
+          errorPattern: "networkPolicy.public.from\\[0\\] names the gateway's namespace as \"\", which admits no pod"
+  - it: refuses the default from with onlyGateway off too, as it admits no pod
+    set:
+      networkPolicy.public.onlyGateway: false
+    asserts:
+      - failedTemplate:
+          errorPattern: "networkPolicy.public.from\\[0\\] names the gateway's namespace as \"\""
+  - it: refuses onlyGateway for the gateway's pods in any namespace
+    set:
+      networkPolicy.public.from:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/component: gateway
+    asserts:
+      - failedTemplate:
+          errorPattern: "networkPolicy.public.from\\[0\\] names no namespace"
+  - it: refuses onlyGateway for the gateway's pods in the namespaces another label selects
+    set:
+      networkPolicy.public.from:
+        - namespaceSelector:
+            matchLabels:
+              team: gateway
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/component: gateway
+    asserts:
+      - failedTemplate:
+          errorPattern: "networkPolicy.public.from\\[0\\] names no namespace"
+  - it: refuses onlyGateway for an expression on the name that names no namespace, after an entry that names one
+    set:
+      networkPolicy.public.from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: gateway
+        - namespaceSelector:
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: NotIn
+                values: [kube-system]
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/component: gateway
+    asserts:
+      - failedTemplate:
+          errorPattern: "networkPolicy.public.from\\[1\\] names no namespace"
+  - it: makes the statement for the gateway's pods in the release's own namespace, or in one an expression names
+    set:
+      networkPolicy.public.from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: gateway
+        - namespaceSelector:
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values: [gateway]
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/component: gateway
+    asserts:
+      - equal:
+          path: data.COSEC_PIPELINE_IDENTITY_ONLYGATEWAYCANREACH
+          value: "true"
+  - it: takes the gateway's pods in the namespaces another label selects, onlyGateway off
+    set:
+      networkPolicy.public.onlyGateway: false
+      networkPolicy.public.from:
+        - namespaceSelector:
+            matchLabels:
+              team: gateway
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/component: gateway
     asserts:
       - notExists:
           path: data.COSEC_PIPELINE_IDENTITY_ONLYGATEWAYCANREACH

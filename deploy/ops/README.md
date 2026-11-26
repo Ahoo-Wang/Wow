@@ -35,7 +35,7 @@ The build writes the values it knows from the service's contract (`generateWowHe
 
    Every service whose ledger the console shows publishes its entries to `wow.ops.commands` (by itself once this service is deployed: `wow.ops.publish.enabled` is `auto` by default); an operator's action goes to that service's own command topic, `wow.<context>.commands`, which it owns. On a cluster for trying it out, set `WOW_KAFKA_DDL=auto` instead.
 
-4. Put the CoSec gateway in front and route `/` to the `ops-service` service: it verifies each request's access token and forwards the identity it verified in `CoSec-Identity`, which the service reads, holding no secret. Label the gateway's pods `app.kubernetes.io/component: gateway`, or set `networkPolicy.public.from` to match them.
+4. Put the CoSec gateway in front and route `/` to the `ops-service` service: it verifies each request's access token and forwards the identity it verified in `CoSec-Identity`, which the service reads, holding no secret. Label the gateway's pods `app.kubernetes.io/component: gateway` in the release's namespace, or set `networkPolicy.public.from` to match them in the namespace they run in, named by `kubernetes.io/metadata.name`.
 
 ## Install and sign in
 

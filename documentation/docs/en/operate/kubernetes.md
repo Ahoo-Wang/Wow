@@ -78,6 +78,17 @@ resources:
     memory: 768Mi
   limits:
     memory: 1Gi
+# The public port admits the CoSec gateway's pods (app.kubernetes.io/component: gateway) of the release's own
+# namespace, where this deployment runs its gateway: the chart renders only once the gateway's namespace is named. A
+# gateway in a namespace of its own is named by it, in the entry's namespaceSelector:
+#   matchLabels:
+#     kubernetes.io/metadata.name: <the gateway's namespace>
+networkPolicy:
+  public:
+    from:
+      - podSelector:
+          matchLabels:
+            app.kubernetes.io/component: gateway
 ```
 
 Then install it from the OCI registry, at the Wow version the service is built with, or from a checkout of the repository (`deploy/helm/wow-service`):
@@ -251,12 +262,19 @@ networkPolicy:
     # (COSEC_PIPELINE_IDENTITY_ONLYGATEWAYCANREACH=true), the statement a service in wow.cosec.mode: gateway needs to
     # start. It holds only while `from` names the gateway's pods alone: each pod `from` admits can claim any identity to
     # such a service. The chart refuses it for an entry of `from` that names no pods by their labels (an empty or no
-    # podSelector, an ipBlock), which admits every pod it reaches. Set it false when `from` admits anything else; a
-    # service in gateway mode then does not start until you state it yourself (where it is true) or change its mode.
+    # podSelector, an ipBlock), which admits every pod it reaches, and for an entry that names no namespace: pod labels
+    # are their namespace's owner's to set, so a rule by labels in any namespace lets each namespace's owner pass as the
+    # gateway. Set it false when `from` admits anything else; a service in gateway mode then does not start until you
+    # state it yourself (where it is true) or change its mode.
     onlyGateway: true
-    # Who reaches the public port: the gateway's pods by default, in any namespace.
+    # Who reaches the public port: the gateway's pods, labelled app.kubernetes.io/component: gateway, in the gateway's
+    # namespace, which you name here (the chart does not render while onlyGateway is true and an entry names none). An
+    # entry names its namespace by kubernetes.io/metadata.name, the label Kubernetes sets to the namespace's name; leave
+    # the namespaceSelector out when the gateway runs in the release's own namespace.
     from:
-      - namespaceSelector: {}
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: ""
         podSelector:
           matchLabels:
             app.kubernetes.io/component: gateway
@@ -270,9 +288,22 @@ networkPolicy:
         podSelector:
           matchLabels:
             app.kubernetes.io/name: prometheus
+
 ```
 
-- `<name>-public` admits the gateway's pods, labelled `app.kubernetes.io/component: gateway` in any namespace, to the HTTP port. Label your gateway's pods so, or set `networkPolicy.public.from` to match them; an empty list is refused, since it would admit every pod.
+- `<name>-public` admits the gateway's pods, labelled `app.kubernetes.io/component: gateway`, in the gateway's namespace, to the HTTP port. Name that namespace: the chart does not render until you do, since a rule by pod labels in any namespace lets the owner of each namespace label a pod as the gateway's, and in gateway mode this rule is the service's only authentication. An entry names its namespace by `kubernetes.io/metadata.name`, the label Kubernetes sets to the namespace's name, in its `namespaceSelector`'s `matchLabels` or as an `In` expression; an entry without a `namespaceSelector` admits the pods of the release's own namespace. While `onlyGateway` is true every entry names its namespace; with it false any rule renders but the default's unnamed one, which admits no pod. Label your gateway's pods so, or set `networkPolicy.public.from` to match them; an empty list is refused, since it would admit every pod.
+
+  ```yaml
+  networkPolicy:
+    public:
+      from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: gateway
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/component: gateway
+  ```
 - `<name>-internal` admits to the internal port the service's own nodes, the pods of its platform (`partOf`, which labels every object `app.kubernetes.io/part-of`), the pods of the peers it calls, which send the wait signals back, and `networkPolicy.internal.from`.
 
 A network plugin that does not enforce NetworkPolicy ignores them; then keep the internal port off every network but the platform's by other means.

@@ -3,3 +3,13 @@ service:
   name: eshop-catalog-service
 image:
   repository: ghcr.io/example/eshop-catalog-server
+# The gateway's pods and the namespace they run in, which the chart requires named.
+networkPolicy:
+  public:
+    from:
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: gateway
+        podSelector:
+          matchLabels:
+            app.kubernetes.io/component: gateway

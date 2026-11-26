@@ -58,3 +58,13 @@ extraVolumeMounts:
     readOnly: true
 global:
   imageRegistry: registry.example.com
+# The gateway in a namespace of its own, named.
+networkPolicy:
+  public:
+    from:
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: gateway
+        podSelector:
+          matchLabels:
+            app.kubernetes.io/component: gateway

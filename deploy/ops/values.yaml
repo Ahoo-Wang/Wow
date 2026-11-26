@@ -46,3 +46,14 @@ resources:
     memory: 768Mi
   limits:
     memory: 1Gi
+# The public port admits the CoSec gateway's pods (app.kubernetes.io/component: gateway) of the release's own
+# namespace, where this deployment runs its gateway: the chart renders only once the gateway's namespace is named. A
+# gateway in a namespace of its own is named by it, in the entry's namespaceSelector:
+#   matchLabels:
+#     kubernetes.io/metadata.name: <the gateway's namespace>
+networkPolicy:
+  public:
+    from:
+      - podSelector:
+          matchLabels:
+            app.kubernetes.io/component: gateway
