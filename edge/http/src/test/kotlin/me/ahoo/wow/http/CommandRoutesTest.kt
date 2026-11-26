@@ -514,6 +514,10 @@ class CommandRoutesTest {
         node.client.post().uri("/shop/cart/c-1/add-item").header("X-User", "alice")
             .header("Content-Type", "text/plain").bodyValue("apple").answer()
             .assertProblem(415, code = null, withResult = false)
+        // D485 ⑪: a body with no Content-Type at all is no way past it.
+        node.client.post().uri("/shop/cart/c-1/add-item").header("X-User", "alice")
+            .bodyValue("""{"sku":"apple"}""".toByteArray()).answer()
+            .assertProblem(415, code = null, withResult = false)
         node.client.post().uri("/shop/cart/c-1/add-item").header("X-User", "alice")
             .header("Content-Type", "application/vnd.shop+json").bodyValue("""{"sku":"apple"}""").answer()
             .assertSucceeded()
