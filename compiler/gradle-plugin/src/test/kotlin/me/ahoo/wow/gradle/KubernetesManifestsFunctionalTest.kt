@@ -126,7 +126,8 @@ class KubernetesManifestsFunctionalTest {
 
     @Test
     fun `swapping two values files of one name should render again, and the other file win`() {
-        ContextsFixture.write(root, "a-server/deploy/shop/values.yaml", "image:\n  repository: a-server\nreplicas: 3\n$GATEWAY")
+        val shop = "image:\n  repository: a-server\nreplicas: 3\n$GATEWAY"
+        ContextsFixture.write(root, "a-server/deploy/shop/values.yaml", shop)
         ContextsFixture.write(root, "a-server/deploy/shop/prod/values.yaml", "replicas: 5\n")
         val deployment = File(output, "deployment-a-server.yaml")
         try {
