@@ -122,8 +122,8 @@ class HttpProperties {
         /**
          * Whether the public port records each command's client address and `User-Agent` as the request facts
          * `remote_ip` and `user_agent`, for audit. They are personal data, and written into the event
-         * stream, which is never deleted: once recorded, they cannot be erased. On by default; off records
-         * neither.
+         * stream, which is never deleted: once recorded, they cannot be erased. The records the service publishes
+         * to other contexts leave both out. On by default; off records neither.
          */
         var enabled: Boolean = true
     }

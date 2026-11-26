@@ -27,6 +27,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
@@ -110,20 +111,29 @@ class SinkSubscriptionTest {
     private val written = CopyOnWriteArrayList<StateEventRecord>()
     private val commands = AtomicInteger()
 
-    private fun sink(includeState: Boolean = true, masks: RecordMasks? = null, everyCommit: Boolean = false) =
-        SinkSubscription(
-            NAME,
-            type,
-            { written += it },
-            SharedStateReader(NAME, listOf(model), kernel, codec, views),
-            includeState,
-            masks,
-            everyCommit = everyCommit,
-        )
+    private fun sink(
+        includeState: Boolean = true,
+        masks: RecordMasks? = null,
+        everyCommit: Boolean = false,
+        published: Boolean = false,
+    ) = SinkSubscription(
+        NAME,
+        type,
+        { written += it },
+        SharedStateReader(NAME, listOf(model), kernel, codec, views),
+        includeState,
+        masks,
+        everyCommit = everyCommit,
+        published = published,
+    )
 
-    private suspend fun commit(body: Any, scope: Scope = Scope.NONE): EventStreamRecord {
+    private suspend fun commit(
+        body: Any,
+        scope: Scope = Scope.NONE,
+        headers: Map<String, String> = emptyMap(),
+    ): EventStreamRecord {
         val id = commands.incrementAndGet()
-        val command = Command("c-$id", "r-$id", ref, body, scope = scope)
+        val command = Command("c-$id", "r-$id", ref, body, scope = scope, headers = headers)
         return (executor.execute(model, command) as CommandOutcome.Committed).stream
     }
 
@@ -133,6 +143,33 @@ class SinkSubscriptionTest {
     }
 
     private fun tree(json: String) = WowJson.mapper.readTree(json)
+
+    /**
+     * D485 ④: a record the transport sink publishes on the state topic, to other contexts, leaves out the client's
+     * address and `User-Agent`, personal data the log of the service the request reached keeps; the application and the
+     * host's request facts go on. A store's sink, the service's own, keeps the log's headers.
+     */
+    @Test
+    fun `a published record should leave out the client's address and User-Agent, and a store's keep them`(): Unit =
+        runBlocking {
+            val facts = mapOf(
+                RequestFacts.APP_ID to "console",
+                RequestFacts.REMOTE_IP to "203.0.113.7",
+                RequestFacts.USER_AGENT to "curl/8.9",
+                "X-Region" to "eu",
+            )
+            val stream = commit(SetPrice(BigDecimal("2.50")), headers = facts)
+            stream.headers.assert().containsAllEntriesOf(facts)
+            handle(sink(everyCommit = true, published = true), stream)
+            written.single().headers.let { headers ->
+                headers.keys.assert().doesNotContain(RequestFacts.REMOTE_IP, RequestFacts.USER_AGENT)
+                headers.assert().isEqualTo(stream.headers - RequestFacts.REMOTE_IP - RequestFacts.USER_AGENT)
+                    .containsEntry(RequestFacts.APP_ID, "console").containsEntry("X-Region", "eu")
+            }
+            written.clear()
+            handle(sink(), stream)
+            written.single().headers.assert().isEqualTo(stream.headers)
+        }
 
     @Test
     fun `a commit should be written with its facts, current events and the state after it`(): Unit = runBlocking {
