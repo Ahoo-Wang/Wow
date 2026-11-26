@@ -12,13 +12,16 @@ public final class me/ahoo/wow/openapi/OpenApiOptions {
 	public static final field Companion Lme/ahoo/wow/openapi/OpenApiOptions$Companion;
 	public static final field DEFAULT_TITLE Ljava/lang/String;
 	public fun <init> ()V
-	public fun <init> (Ljava/lang/String;Ljava/util/List;ZZZLjava/util/Map;Ljava/util/Map;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;ZZZLjava/util/Map;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Ljava/util/List;ZZZLjava/util/Map;Ljava/util/Map;Ljava/util/Set;Ljava/util/List;Ljava/util/List;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;ZZZLjava/util/Map;Ljava/util/Map;Ljava/util/Set;Ljava/util/List;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getDatasets ()Z
 	public final fun getErrorStatuses ()Ljava/util/Map;
+	public final fun getFilterCodes ()Ljava/util/List;
 	public final fun getManifestEndpoint ()Z
 	public final fun getOpenApiEndpoint ()Z
+	public final fun getRequestFacts ()Ljava/util/Set;
+	public final fun getRequestIdHeaders ()Ljava/util/List;
 	public final fun getSecuritySchemes ()Ljava/util/Map;
 	public final fun getServers ()Ljava/util/List;
 	public final fun getTitle ()Ljava/lang/String;

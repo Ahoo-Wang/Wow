@@ -2,6 +2,7 @@ public final class me/ahoo/wow/http/WowHttpOptions {
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getClientFacts ()Z
 	public final fun getErrorStatuses ()Ljava/util/Map;
+	public final fun getFilterCodes ()Ljava/util/List;
 	public final fun getManifestEndpoint ()Z
 	public final fun getOpenApiEndpoint ()Z
 	public final fun getRequestFacts ()Ljava/util/Set;

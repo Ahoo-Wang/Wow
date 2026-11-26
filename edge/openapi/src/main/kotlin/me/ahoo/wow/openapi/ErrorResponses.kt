@@ -32,9 +32,22 @@ import me.ahoo.wow.manifest.Manifest
  * `Accept` it cannot answer), and a route that reads a body what it answers a body it cannot take (413, 415): the
  * route's own codes come on top, so a route of a new kind lists them too.
  */
-internal class ErrorResponses(manifest: Manifest, private val overrides: Map<String, Int>) {
+internal class ErrorResponses(
+    manifest: Manifest,
+    private val overrides: Map<String, Int>,
+    /** The codes a filter of the host's answers before any route, on every route alike ([OpenApiOptions.filterCodes]). */
+    private val filterCodes: List<String> = emptyList(),
+) {
     private val framework: Map<String, ErrorManifest> =
         FrameworkErrors.BY_CODE + manifest.errors.associateBy { it.code }
+
+    init {
+        val unknown = filterCodes.filter { it !in framework }
+        require(unknown.isEmpty()) {
+            "OpenApiOptions.filterCodes names $unknown, which is neither a framework code nor one the Manifest " +
+                "declares: a filter answers with a code the document can describe."
+        }
+    }
     private val byContext: Map<String, List<ErrorManifest>> = manifest.contexts.associate { it.name to it.errors }
 
     private val registered = LinkedHashMap<String, Map<String, Any?>>()
@@ -63,7 +76,7 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
         body: Boolean = false,
     ): Map<String, Any?> {
         val entries = mutableListOf<Pair<Int, Entry>>()
-        (codes + PUBLIC).distinct().map(framework::getValue)
+        (codes + PUBLIC + filterCodes).distinct().map(framework::getValue)
             .forEach { entries += status(it) to Entry(it.code, it.description) }
         if (ifMatch && FrameworkCodes.AGGREGATE_VERSION_MISMATCH !in overrides) {
             entries += FrameworkErrors.PRECONDITION_FAILED_STATUS to Entry(
@@ -100,7 +113,7 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
     fun ofRoute(context: String, name: String, errors: List<String>, body: Boolean): Map<String, Any?> {
         // A route is one of its context's, which the Manifest lists.
         val table = byContext.getValue(context).associateBy { it.code }
-        val answers = (ROUTE + PUBLIC).distinct().map(framework::getValue)
+        val answers = (ROUTE + PUBLIC + filterCodes).distinct().map(framework::getValue)
             .map { status(it) to Entry(it.code, routeWords(it)) } +
             http(body).map { (status, description) -> status to Entry(null, description) }
         val own = errors.map { code ->

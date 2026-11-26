@@ -25,6 +25,7 @@ import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.cosec.CoSecCallerOptions
 import me.ahoo.wow.cosec.CoSecCallerResolver
 import me.ahoo.wow.cosec.CoSecCommandAuthorizer
+import me.ahoo.wow.cosec.CoSecFilterCodes
 import me.ahoo.wow.cosec.CoSecProblemRenderer
 import me.ahoo.wow.cosec.CoSecRequestIds
 import me.ahoo.wow.cosec.CoSecServiceRouteAuthorizer
@@ -201,12 +202,14 @@ class CoSecAutoConfigurationTest {
             // The device id is recorded only when the application lists it (#7076).
             options.requestFacts.assert().containsExactly("X-Trace")
             options.requestIdHeaders.assert().containsExactly(WowHeaders.REQUEST_ID, CoSecRequestIds.HEADER)
+            options.filterCodes.assert().containsExactlyElementsOf(CoSecFilterCodes.CODES)
         }
         // CoSec's modules on the class path, CoSec off (wow.cosec.mode: disabled): no header of CoSec's is read.
         runner.withUserConfiguration(CoSec::class.java).withPropertyValues("cosec.enabled=false").run { context ->
             val options = context.getBean(WowHttpOptions::class.java)
             options.requestFacts.assert().containsExactly("X-Trace")
             options.requestIdHeaders.assert().containsExactly(WowHeaders.REQUEST_ID)
+            options.filterCodes.assert().isEmpty()
         }
         ApplicationContextRunner().withUserConfiguration(CoSec::class.java).run { context ->
             context.getBean(WowHttpOptions::class.java).requestIdHeaders.assert().containsExactly(WowHeaders.REQUEST_ID)

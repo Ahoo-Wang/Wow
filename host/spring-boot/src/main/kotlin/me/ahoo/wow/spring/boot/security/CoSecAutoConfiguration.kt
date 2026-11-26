@@ -23,6 +23,7 @@ import me.ahoo.wow.cosec.CoSecActions
 import me.ahoo.wow.cosec.CoSecCallerOptions
 import me.ahoo.wow.cosec.CoSecCallerResolver
 import me.ahoo.wow.cosec.CoSecCommandAuthorizer
+import me.ahoo.wow.cosec.CoSecFilterCodes
 import me.ahoo.wow.cosec.CoSecProblemRenderer
 import me.ahoo.wow.cosec.CoSecRequestIds
 import me.ahoo.wow.cosec.CoSecServiceRouteAuthorizer
@@ -130,8 +131,10 @@ class CoSecAutoConfiguration {
         private const val PROBLEM_RENDERER: String = "me.ahoo.cosec.runtime.http.ProblemRenderer"
 
         /**
-         * Adds `CoSec-Request-Id`, the request id of a command without `Wow-Request-Id` ([CoSecRequestIds]), to the
-         * edge's options, whoever defines them, while CoSec is on (`cosec.enabled`, true unless set).
+         * Adds `CoSec-Request-Id`, the request id of a command without `Wow-Request-Id` ([CoSecRequestIds]), and the
+         * codes CoSec answers before any route, 429 and 503 ([CoSecFilterCodes]), which the OpenAPI document lists on
+         * every operation, to the edge's options, whoever defines them, while CoSec is on (`cosec.enabled`, true unless
+         * set).
          */
         @Bean
         @JvmStatic
@@ -139,7 +142,7 @@ class CoSecAutoConfiguration {
         @InternalWowApi
         fun wowCoSecRequestIds(): BeanPostProcessor = object : BeanPostProcessor {
             override fun postProcessAfterInitialization(bean: Any, beanName: String): Any =
-                if (bean is WowHttpOptions) CoSecRequestIds.addTo(bean) else bean
+                if (bean is WowHttpOptions) CoSecFilterCodes.addTo(CoSecRequestIds.addTo(bean)) else bean
         }
 
         /** The caller options of [properties] (`wow.cosec.*`, `wow.tenant.default`). */

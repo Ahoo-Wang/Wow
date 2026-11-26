@@ -36,6 +36,14 @@ outline: deep
 
 springdoc 的文档（`/v3/api-docs`、`/v3/api-docs/wow`）声明调用方怎样出示它的身份，这样 Swagger UI 的 “Try it out” 就会发送它；`GET /wow/openapi` 和构建产出的文档不声明。宿主根据它的调用方解析器填写这部分：CoSec 的解析器接收 bearer 令牌，开发调用方接收 `Wow-*` 身份请求头，每个请求头一个方案。它们的全局 `security` 是一条列出它们全部的要求：它们是同一个身份的各个部分，由请求一起发送，而不是几选一。使用自己的解析器的应用，用一个 `WowOpenApiSecurity` Bean 声明它的方案，这个 Bean 会替换宿主的。
 
+## 宿主添加的内容 {#what-the-host-adds}
+
+运行中的服务提供的文档（`GET /wow/openapi`，以及 springdoc 的）还会列出宿主给路由添加的、Manifest 里没有的内容。构建生成的 `openapi.json` 不包含这些：构建写出它时没有配置宿主。
+
+- **请求事实：** `wow.http.request-facts` 列出的请求头，每个都是每条命令的请求头参数，命令会把它拷进自己的头部。
+- **请求 id 头：** 集成在 `Wow-Request-Id` 之外读取的请求头，是每条命令的参数；开着 CoSec 时是 `CoSec-Request-Id`。
+- **过滤器在路由之前的回答：** 开着 CoSec 时，它的 429 `wow.request.rate-limited` 和 503 `wow.auth.unavailable`，列在每个操作上。
+
 ## 基于文档的客户端 {#clients-from-the-document}
 
 TypeScript 客户端从 Manifest 而不是 OpenAPI 文档生成，这样它们能保留 OpenAPI 表达不了的东西，例如等待计划和查询字段；与文档一样，它们不含内部命令。OpenAPI 文档服务于其他所有语言和工具。
