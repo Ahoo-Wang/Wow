@@ -141,7 +141,9 @@ object WowMetrics {
         ObservedOutcome.CANCELLED
     )
         .map { it.value }
-    private val QUERY_TYPES = QueryType.entries.map { it.tagValue }
+
+    /** The query types a query metric is recorded for: every one but DESCRIBE, a descriptor's read, which runs no query. */
+    private val QUERY_TYPES = QueryType.entries.filter { it != QueryType.DESCRIBE }.map { it.tagValue }
 
     val COMMAND_DURATION: MetricSpec = MetricSpec.timer(
         "wow.command.duration",
