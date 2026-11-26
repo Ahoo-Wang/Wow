@@ -68,7 +68,7 @@ class ClickHouseCatalogIntegrationTest {
                 "ARRAY JOIN sensitive AS s WHERE `table` = 'crm_member_state_flat'",
         ).single()
         sensitive.getString("path").assert().isEqualTo("phone")
-        sensitive.getString("level").assert().isEqualTo("DISPLAY")
+        sensitive.getString("level").assert().isEqualTo("display")
         sensitive.getString("mask").assert().isEqualTo("""{"keepPrefix":3,"keepSuffix":4}""")
     }
 

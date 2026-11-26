@@ -72,7 +72,7 @@ object DatasetFixtures {
     val MEMBERS: SourceState = members()
 
     /** [MEMBERS], their `wow_catalog` row saying [access] of whether an access policy decides their rows. */
-    fun members(access: String = "DEFAULT"): SourceState = SourceState().apply {
+    fun members(access: String = "default"): SourceState = SourceState().apply {
         val columns = listOf(
             SourceColumn("id", "String"),
             SourceColumn("tenant_id", "String"),

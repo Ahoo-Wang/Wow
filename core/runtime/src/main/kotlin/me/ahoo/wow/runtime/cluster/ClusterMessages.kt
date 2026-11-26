@@ -356,8 +356,9 @@ object ClusterCodec {
     fun decodeSignal(bytes: ByteArray): WaitSignal = mapper.readValue(bytes, WaitSignal::class.java)
 
     /**
-     * A batch of signals to one node, a JSON array of what [encode] writes for each. A node that reads
-     * only single signals refuses the array as malformed; its sender then falls back to one signal a request.
+     * A batch of signals to one node, a JSON array of what [encode] writes for each, which every node of this version
+     * reads. A batch a node refuses as malformed is sent again one signal a request, once, so that a signal it cannot
+     * read costs only itself (`HttpSignalSender`).
      */
     fun encodeSignals(signals: List<WaitSignal>): ByteArray = mapper.writeValueAsBytes(signals)
 

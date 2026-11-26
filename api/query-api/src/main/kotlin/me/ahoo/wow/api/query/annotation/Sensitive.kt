@@ -22,7 +22,10 @@ import kotlin.reflect.KClass
  * a revealing read (`TrustedQueries.revealed()`, a subscription handler's `queries.revealed()`) returns a `DISPLAY`
  * value raw, never a `CONFIDENTIAL` one.
  *
- * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch. A level added within 10.x protects
+ * no more than masking: one that protects more than [CONFIDENTIAL] is not added before a major version, since every node
+ * would have to read it first. So a reader that meets a level it does not know reads it as [CONFIDENTIAL], the strongest
+ * it enforces, masked and never compared, and never protects it less than the level asks.
  */
 enum class SensitivityLevel {
     /**

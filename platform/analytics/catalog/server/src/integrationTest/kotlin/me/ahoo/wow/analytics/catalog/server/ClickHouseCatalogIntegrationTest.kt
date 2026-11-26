@@ -89,8 +89,8 @@ class ClickHouseCatalogIntegrationTest {
             "INSERT INTO $DATABASE.wow_catalog (format, `database`, `table`, table_uuid, role, service, context, aggregate, " +
                 "ownership, tenant_column, owner_column, space_column, sensitive, `references`, event_revisions, " +
                 "fingerprint, columns_hash) VALUES (1, '$DATABASE', '$STATE', '${table.uuid}', 'state', 'shop-service', " +
-                "'shop', 'order', 'OWNER', 'tenant_id', 'owner_id', '', " +
-                "[('state.phone', 'DISPLAY', '{\"keepPrefix\":3,\"keepSuffix\":4}', '', 0), " +
+                "'shop', 'order', 'owner', 'tenant_id', 'owner_id', '', " +
+                "[('state.phone', 'display', '{\"keepPrefix\":3,\"keepSuffix\":4}', '', 0), " +
                 "('body.card', 'SECRET', '', 'order_paid', 2)], [('state.memberId', 'crm', 'member')], " +
                 "{'order_paid': 2}, '$fingerprint', '$hash')",
         )
@@ -126,9 +126,9 @@ class ClickHouseCatalogIntegrationTest {
         // A row whose Sink was told neither POLICY nor DEFAULT says nothing of an access policy; one that says, says so.
         row.access.assert().isEmpty()
         execute(
-            "ALTER TABLE $DATABASE.wow_catalog UPDATE access = 'POLICY' WHERE fingerprint = 'f-1' SETTINGS mutations_sync = 1"
+            "ALTER TABLE $DATABASE.wow_catalog UPDATE access = 'policy' WHERE fingerprint = 'f-1' SETTINGS mutations_sync = 1"
         )
-        catalog.catalogRows(DATABASE, STATE).single { it.fingerprint == "f-1" }.access.assert().isEqualTo("POLICY")
+        catalog.catalogRows(DATABASE, STATE).single { it.fingerprint == "f-1" }.access.assert().isEqualTo("policy")
         catalog.catalogChanges(DATABASE).keys.assert().containsExactly(STATE)
         val table = catalog.table(DATABASE, STATE)!!
         CatalogTrust.evaluate(table, listOf(row), TrustedWriters.of(mapOf(container.username to listOf("shop"))))

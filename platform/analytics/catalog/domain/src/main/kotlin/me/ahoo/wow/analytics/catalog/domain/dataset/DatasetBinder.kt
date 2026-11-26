@@ -82,8 +82,12 @@ internal object DatasetBinder {
 
     private val NAME = Regex("[A-Za-z_][A-Za-z0-9_]*")
 
-    /** A Wow source's `access` when its service says the default rule reads its aggregate's rows (`wow_catalog`). */
-    private const val DEFAULT_RULE = "DEFAULT"
+    /**
+     * A Wow source's `access` when its service says the default rule reads its aggregate's rows (`wow_catalog`): the
+     * one value that does. Any other, unknown or misspelled, a pre-release row's `DEFAULT` among them, reads as a
+     * policy's ([governs]).
+     */
+    private const val DEFAULT_RULE = "default"
 
     sealed interface Result {
         data class Bound(val dataset: BoundDataset) : Result

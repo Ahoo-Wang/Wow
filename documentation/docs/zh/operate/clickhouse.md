@@ -288,9 +288,9 @@ Sink 不使用 ClickHouse 的 `async_insert`，也不需要它：Sink 自己把�
 
 `wow.clickhouse.ddl` 决定 Sink 在第一次写入之前以及之后不时怎样对待它的表：`auto`（默认）创建缺失的部分并校验其余部分；`validate` 只检查；`none` 两者都不做。被删除或被修改过的表会让写入失败，订阅会重试，直到它恢复成 Sink 期望的样子。
 
-Sink 保有的每张表和每个视图都在注释里写明 Sink 表的格式：`wow-sink-format:1`。Sink 期望的表或视图存在、至少有上面的列且各列类型相同（顺序不限）、并写明这个格式，才算 Sink 的：其他列，无论是运维自己加的（普通、`MATERIALIZED` 或 `ALIAS`）还是更新版本在同一格式内加的，都不构成理由。否则 Sink 拒绝写入，逐一指出是哪一个、哪里不对（`<table> is not of format 1`、`<table> has no <column> <type>`、`<table> has <column> <type>, not <type>`）。`auto` 用这个注释创建缺失的部分；对已存在的表，只添加 Wow 在同一格式内新增的列（带默认值：`ALTER TABLE <db>.<table> ADD COLUMN IF NOT EXISTS <column> <type> DEFAULT <default>`；10.0 没有这样的列）以及下面的计算列，`validate` 会给出这些语句。别的格式的表，或缺少格式中其他列、或列类型不同的表，在任何模式下都会被拒绝，并保持原样。这些表里没有日志之外的东西：删掉它们，Sink 的新一代即可从日志重新填充（[重建数仓](#rebuild-the-warehouse)）。`none` 什么也不检查。
+Sink 保有的每张表和每个视图都在注释里写明 Sink 表的格式：`wow-sink-format:1`。Sink 期望的表或视图存在、至少有上面的列且各列类型相同（顺序不限）、并写明这个格式，才算 Sink 的：其他列，无论是运维自己加的（普通、`MATERIALIZED` 或 `ALIAS`）还是更新版本在同一格式内加的，都不构成理由。否则 Sink 拒绝写入，逐一指出是哪一个、哪里不对（`<table> is not of format 1`、`<table> has no <column> <type>`、`<table> has <column> <type>, not <type>`）。`auto` 用这个注释创建缺失的部分；对已存在的表，只添加 Wow 在同一格式内新增的列（带默认值：`ALTER TABLE <db>.<table> ADD COLUMN IF NOT EXISTS <column> <type> DEFAULT <default>`；10.0 没有这样的列）以及下面的计算列，`validate` 会给出这些语句。别的格式的表，或缺少格式中其他列、或列类型不同的表，在任何模式下都会被拒绝，并保持原样。这些表里没有日志之外的东西：删掉它们，Sink 的新一代即可从日志重新填充（[重建数仓](#rebuild-the-warehouse)）。`none` 在写入前什么也不检查，但任何写入都不会悄悄丢掉值：每次插入都设置 `input_format_skip_unknown_fields=0` 与 `input_format_json_ignore_unknown_keys_in_named_tuple=0`，所以表里没有对应列、或其具名元组里没有对应元素的字段会让插入被拒绝，并指出该字段；订阅会重试，最终搁置该聚合。搁置条目的原因写的是 ClickHouse 的错误码 `com.clickhouse.client.api.ServerException: clickhouse server error code 117`，不写字段，因为 ClickHouse 的消息还可能接着引用该行；字段见节点搁置时的警告日志 `Subscription wow.clickhouse-sink.<aggregate> parks <context>.<aggregate>/<tenant>/<id> from version <n> after <n> attempts.`，其异常即 ClickHouse 的消息。Sink 不写的列（运维自己的列）取其默认值。
 
-10.0 预发布版写的表随升级重建：它们写明格式 1，但事件的数据在那里叫 `payload`，而现在叫 `body`，Sink 会拒绝它们并指出列（`<ctx>_<agg>_events has no body String`，以及历史表 `events` 的类型不同）。删掉它们并提高 Sink 的代数（[重建数仓](#rebuild-the-warehouse)）。在什么都不检查的 `ddl: none` 下，Sink 会照原样写入它们：ClickHouse 丢弃每个事件的 `body`（旧的元组没有这个元素），`payload` 留空。
+10.0 预发布版写的表随升级重建：它们写明格式 1，但事件的数据在那里叫 `payload`，而现在叫 `body`，Sink 会拒绝它们并指出列（`<ctx>_<agg>_events has no body String`，以及历史表 `events` 的类型不同）。删掉它们并提高 Sink 的代数（[重建数仓](#rebuild-the-warehouse)）。在什么都不检查的 `ddl: none` 下，向它们的插入会被拒绝。
 
 Sink 既不检查也不更改列的编解码器，所以早先版本建的表保留建表时的编解码器。要让它用上面的编解码器，对每一列执行 `ALTER TABLE <db>.<table> MODIFY COLUMN <column> <type> CODEC(<codec>)`，此后写入与合并的部分会用它；或者删掉 Sink 的表并调高它的代数，让它重新填满（[重建数仓](#rebuild-the-warehouse)）。
 
@@ -492,7 +492,7 @@ Wow 9.x 的 BI 同步还会创建一张命令表 `<ctx>_<agg>_command`，由命�
 
 ## wow_catalog {#wow-catalog}
 
-Sink 为它保存的每张表，在数据库的 `wow_catalog` 中追加一行，内容来自 Manifest 而不是表名：表及其角色（`state_events`、`state`、`events`、`state_flat`），它所属的服务、上下文和聚合，聚合的归属以及租户、所有者和空间所在的列，按路径列出的敏感值和引用，它的事件的修订号，以及该聚合的访问策略是否决定它的行（`access`：按服务的访问策略为 `POLICY` 或 `DEFAULT`）。分析工具和分析目录读取它，以了解一张表保存什么、怎样限定范围和脱敏；分析目录的数据集不读取聚合有策略的表。写入它失败只记日志，从不让 Sink 失败。
+Sink 为它保存的每张表，在数据库的 `wow_catalog` 中追加一行，内容来自 Manifest 而不是表名：表及其角色（`state_events`、`state`、`events`、`state_flat`），它所属的服务、上下文和聚合，聚合的归属以及租户、所有者和空间所在的列，按路径列出的敏感值和引用，它的事件的修订号，以及该聚合的访问策略是否决定它的行（`access`：按服务的访问策略为 `policy` 或 `default`；只有 `default` 读作不受策略约束，其他任何值都读作受策略约束）。分析工具和分析目录读取它，以了解一张表保存什么、怎样限定范围和脱敏；分析目录的数据集不读取聚合有策略的表。写入它失败只记日志，从不让 Sink 失败。
 
 ## 数据集 {#datasets}
 
