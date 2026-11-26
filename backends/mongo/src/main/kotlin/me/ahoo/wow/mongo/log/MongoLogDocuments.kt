@@ -23,6 +23,7 @@ import me.ahoo.wow.mongo.log.MongoEventLog.Companion.ACCESS
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.ACCESS_KEY
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.ACCESS_VERSION
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.AGGREGATE_ID
+import me.ahoo.wow.mongo.log.MongoEventLog.Companion.BODY
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.CAUSATION
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.CAUSATION_ID
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.COMMAND_ID
@@ -35,7 +36,6 @@ import me.ahoo.wow.mongo.log.MongoEventLog.Companion.NAME
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.OPERATOR
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.OWNER_ID
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.PARTITION
-import me.ahoo.wow.mongo.log.MongoEventLog.Companion.PAYLOAD
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.REQUEST_ID
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.REVISION
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.SEQUENCE
@@ -71,7 +71,7 @@ internal class MongoLogDocuments(private val context: String) {
         .append(
             EVENTS,
             stream.events.map {
-                Document(NAME, it.name).append(REVISION, it.revision).append(PAYLOAD, ExactBson.document(it.payload))
+                Document(NAME, it.name).append(REVISION, it.revision).append(BODY, ExactBson.document(it.payload))
             },
         )
         .apply {
@@ -128,7 +128,7 @@ internal class MongoLogDocuments(private val context: String) {
             EventRecord(
                 it.getString(NAME),
                 it.getInteger(REVISION),
-                ExactBson.json(it.get(PAYLOAD, Document::class.java)),
+                ExactBson.json(it.get(BODY, Document::class.java)),
             )
         },
         scope = Scope(document.getString(OWNER_ID), document.getString(SPACE_ID)),

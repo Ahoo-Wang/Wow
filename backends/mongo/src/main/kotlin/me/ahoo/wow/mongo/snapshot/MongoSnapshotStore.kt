@@ -68,7 +68,6 @@ import org.bson.BsonMaxKey
 import org.bson.BsonMaximumSizeExceededException
 import org.bson.BsonMinKey
 import org.bson.BsonString
-import org.bson.BsonType
 import org.bson.Document
 import org.bson.conversions.Bson
 import kotlin.time.Duration
@@ -410,7 +409,15 @@ class MongoSnapshotStore(
         marked?.let(::tableOf)
     }
 
-    private val tables: MongoCollection<Document> get() = database.getCollection(TABLES)
+    /**
+     * The registry of the snapshot collections, its format record claimed before this store first reads or writes it:
+     * a revision's claim may come before any snapshot collection is made sure of, and its insert would create the
+     * registry without its record.
+     */
+    private val tables: MongoCollection<Document> by lazy {
+        MongoFormat.claim(database, TABLES, FORMAT, ddl)
+        database.getCollection(TABLES)
+    }
 
     private fun tableOf(document: Document) = SnapshotTable(
         revision = document.getInteger(REVISION),
@@ -506,15 +513,9 @@ class MongoSnapshotStore(
         ): MongoCollection<Document> {
             val name = collectionName(context, aggregate)
             MongoFormat.claim(database, name, FORMAT, ddl)
+            // The registry of the snapshot collections has its format record too, as the log's and the timers' do.
+            MongoFormat.claim(database, TABLES, FORMAT, ddl)
             return database.getCollection(name).also { collection ->
-                // A snapshot's key is its `_id`: an alpha's have the driver's ObjectIds, and a save
-                // would add a second document for the aggregate beside it.
-                check(
-                    collection.find(Filters.type(ID, BsonType.OBJECT_ID)).projection(Projections.include(ID)).first() == null
-                ) {
-                    "$name was written by an earlier 10.0 alpha, whose snapshots have no key as their _id: rebuild " +
-                        "the snapshots from the log, an alpha's data is not migrated."
-                }
                 SCOPE_INDEXES.forEach { (index, field) ->
                     MongoFormat.index(collection, Indexes.ascending(TENANT_ID, field), scopeIndexOptions(index), ddl)
                 }

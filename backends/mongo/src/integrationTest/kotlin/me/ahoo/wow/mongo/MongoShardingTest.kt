@@ -137,8 +137,8 @@ class MongoShardingTest {
             val owner = owners.first()
             val byOwner = Filters.and(
                 Filters.eq("partition", Partitioner.partitionOf(owner, PARTITIONS)),
-                Filters.eq("owner.tenant_id", owner.tenantId),
-                Filters.eq("owner.id", owner.id),
+                Filters.eq("aggregate.tenant_id", owner.tenantId),
+                Filters.eq("aggregate.id", owner.id),
                 Filters.eq("key", "k"),
             )
             shardsOf(timers.find(byOwner).explain()).assert().hasSize(1)

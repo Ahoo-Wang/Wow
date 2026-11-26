@@ -56,7 +56,7 @@ class MongoLeaseStoreTest : LeaseStoreSpec() {
             session.startTransaction()
             try {
                 session.touch("wow_lease", Filters.and(Filters.eq(GROUP, group), Filters.eq("partition", 0)))
-                session.touch("wow_lease_member", Filters.and(Filters.eq(GROUP, group), Filters.eq("node", "node-a")))
+                session.touch("wow_lease_member", Filters.and(Filters.eq(SERVICE, group), Filters.eq("node", "node-a")))
                 within(SHORT) { store.acquire(group, 0, "node-a", SHORT) }
                 within(SHORT) { store.renew(group, listOf(0), "node-a", SHORT) }
                 within(SHORT) { store.heartbeat(group, "node-a", "10.0.0.1:9090", SHORT) }
@@ -81,7 +81,7 @@ class MongoLeaseStoreTest : LeaseStoreSpec() {
                 session.startTransaction()
                 try {
                     // The transaction holds the crashed node's record, so the heartbeat's delete waits for it.
-                    val crashed = Filters.and(Filters.eq(GROUP, group), Filters.eq("node", "node-crashed"))
+                    val crashed = Filters.and(Filters.eq(SERVICE, group), Filters.eq("node", "node-crashed"))
                     session.touch("wow_lease_member", crashed)
                     val started = TimeSource.Monotonic.markNow()
                     store.heartbeat(group, "node-a", "10.0.0.1:9090", HEARTBEAT_TTL).node.assert().isEqualTo("node-a")
@@ -109,7 +109,11 @@ class MongoLeaseStoreTest : LeaseStoreSpec() {
     }
 
     private companion object {
+        /** A lease's group, which a lease document is keyed by. */
         const val GROUP = "subscription_group"
+
+        /** A member's service, which a member document is keyed by with its node. */
+        const val SERVICE = "service"
         val TTL = 10.seconds
 
         /** The TTL of the calls a transaction holds, and the margin they may take past it. */

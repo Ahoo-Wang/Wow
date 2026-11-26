@@ -43,10 +43,20 @@ internal object MongoFormat {
         }
     }
 
-    /** Whether [structure] is recorded; refuses it when it is recorded at another [version]. */
+    /**
+     * Whether [structure] is recorded; refuses it when it is recorded at another [version], and when the collection
+     * exists without a record (Wow did not record its layout), which `ddl: auto` would refuse too: not as a collection
+     * that does not exist.
+     */
     fun validate(database: MongoDatabase, structure: String, version: Int): Boolean {
         val stored = database.getCollection(COLLECTION).find(Filters.eq(ID, structure)).first()?.getInteger(VERSION)
-            ?: return false
+        if (stored == null) {
+            check(database.listCollectionNames().filter(Filters.eq(NAME, structure)).first() == null) {
+                "$structure exists without a format record: Wow did not record its layout, so it is not read. " +
+                    "Drop it, or restore its record with it."
+            }
+            return false
+        }
         check(stored == version) {
             "$structure is stored in format $stored; this version of Wow reads format $version. " +
                 "Open it with the version of Wow that wrote it, or start from an empty store."
