@@ -253,7 +253,8 @@ class EventQueryGatewaysTest {
 
     @Test
     fun `the descriptor lists AGGREGATE_REQUIRED only where the store refuses an unpinned query`(): Unit = runBlocking {
-        gateway(unpinned = UnpinnedEvents.REFUSE).describe(QueryEntry.HTTP, QueryCaller.IN_PROCESS).constraints.orEmpty().map { it.type }
+        val refusing = gateway(unpinned = UnpinnedEvents.REFUSE)
+        refusing.describe(QueryEntry.HTTP, QueryCaller.IN_PROCESS).constraints.orEmpty().map { it.type }
             .assert().contains(UnpinnedEventsPolicy.AGGREGATE_REQUIRED)
         gateway().describe(QueryEntry.HTTP, QueryCaller.IN_PROCESS).constraints.orEmpty().map { it.type }
             .assert().doesNotContain(UnpinnedEventsPolicy.AGGREGATE_REQUIRED)

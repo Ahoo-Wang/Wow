@@ -115,7 +115,8 @@ class AccessQueryEngineTest {
         .map { it[EventStreamFields.AGGREGATE_ID].stringValue() }
 
     private suspend fun QueryEngine.pinned(type: AggregateType): Boolean =
-        events(type)!!.describe(QueryEntry.HTTP, QueryCaller.IN_PROCESS).constraints.any { it.type == UnpinnedEventsPolicy.AGGREGATE_REQUIRED }
+        events(type)!!.describe(QueryEntry.HTTP, QueryCaller.IN_PROCESS).constraints
+            .any { it.type == UnpinnedEventsPolicy.AGGREGATE_REQUIRED }
 
     private suspend fun QueryEngine.ids(type: AggregateType, caller: QueryCaller): List<String> =
         snapshots(type)!!.list(ListQuery(MatchAllFilter, limit = 100), caller).toList()

@@ -361,7 +361,8 @@ class SkillEvalDescriptorsTest {
                 profile = schemas.profile(TYPE),
             )
             val backend = checkNotNull(InMemoryQueryStorage().binding(TYPE)).backend
-            return EventQueryGateways.create(TYPE, backend, provider).describe(QueryEntry.HTTP, QueryCaller.IN_PROCESS, DEFAULT_LIST_SIZE)
+            val gateway = EventQueryGateways.create(TYPE, backend, provider)
+            return gateway.describe(QueryEntry.HTTP, QueryCaller.IN_PROCESS, DEFAULT_LIST_SIZE)
         }
     }
 
@@ -454,7 +455,8 @@ class SkillEvalDescriptorsTest {
             )
             // The descriptor reads the schema alone; the backend only satisfies the gateway.
             val backend = checkNotNull(InMemoryQueryStorage().binding(type)).backend
-            return DefaultQueryGateway(type, backend, provider).describe(QueryEntry.HTTP, QueryCaller.IN_PROCESS, DEFAULT_LIST_SIZE)
+            val gateway = DefaultQueryGateway(type, backend, provider)
+            return gateway.describe(QueryEntry.HTTP, QueryCaller.IN_PROCESS, DEFAULT_LIST_SIZE)
         }
 
         /** `analytics.order_wide`: a tenant's orders by customer level and amount, keyed by the order. */
