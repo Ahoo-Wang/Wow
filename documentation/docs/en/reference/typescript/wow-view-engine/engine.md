@@ -125,7 +125,7 @@ The members a host uses most; the full signature is in the [API report](https://
 |---|---|
 | `list(definitionId)` | The system views declared in code first, then what the store holds. An id in the reserved namespace is dropped and reported: only a definition declares a system view. When the store fails, `failed` says why, and the declared system views are still in `items` |
 | `open(instanceId, options?)` | Opens a saved view, or a view declared in code without touching the store. `options.scopeFilter` is admitted with the config, in force from the first query |
-| `create(definitionId, input)` | An unsaved view, carrying a complete config (from `defaultRecordConfig` and its kin), executed at once. No permission is asked here: the first `save` asks |
+| `create(definitionId, input)` | An unsaved view, carrying a complete config (from `defaultRecordConfig` and its kin), executed at once. It writes nothing to the store, unlike the store's `create`: the first `save` creates the stored view, and asks for permission then |
 | `save(runtime)`, `saveAs(runtime, input)` | The first save creates, later saves overwrite; both need a draft without errors. `saveAs` with `scope: 'system'` makes a stored system view, which needs `editSystem` |
 | `rename`, `delete`, `changeAudience` | Renaming carries no config, so a draft with errors does not block it. `changeAudience` needs the store's optional method of that name, or it is refused (`view.changeAudience.unsupported`) |
 | `publishAsSystem(id)` | "Publish as system view": copies the saved view — as saved, not an open draft — into a stored system view; needs `editSystem` |

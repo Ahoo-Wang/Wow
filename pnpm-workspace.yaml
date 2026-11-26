@@ -34,8 +34,8 @@ catalogs:
 # One version per external dependency across the workspace. Packages reference
 # these with `catalog:`; internal packages use the `workspace:` protocol.
 catalog:
-  # CoSec 8's client, released with CoSec at its version. Exact until CoSec 8.0:
-  # the package's `latest` tag is a deprecated 0.0.0 placeholder until then.
+  # CoSec 8's client, released with CoSec at its version. Exact: it moves with
+  # the CoSec that Wow's JVM modules run (`cosec` in gradle/libs.versions.toml).
   '@ahoo-wang/cosec-fetcher': 8.0.0
   '@ahoo-wang/fetcher': '^8.0.0'
   '@ahoo-wang/fetcher-decorator': '^8.0.0'

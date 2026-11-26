@@ -16,8 +16,10 @@
  * (internal): the checks the service makes of a view's definition id,
  * title, config and preferences before a write reaches its aggregate
  * (`ViewConfigs`, `ViewPreferences.problemOf` of `platform/view-store`), in
- * its words, each as an `INVALID` `ViewStoreError`, and the store's own
- * reading of its list cursors and revisions.
+ * its words, each as an `INVALID` `ViewStoreError`, which panels the
+ * service reads as showing a view, the refusal of a call whose signal is
+ * aborted as `WowViewStore` answers one, and the store's own reading of its
+ * list cursors and revisions.
  */
 
 import {
@@ -46,6 +48,61 @@ const PANEL_REFERENCES = ['instanceId', 'opens', 'click.instanceId'] as const;
 
 function invalid(message: string): ViewStoreError {
   return new ViewStoreError('INVALID', message);
+}
+
+/**
+ * The refusal of a call whose signal is aborted, read or write, before it
+ * does anything. `WowViewStore` hands the signal to fetch, so such a call
+ * never reaches the service, and answers it as it answers any request that
+ * reached nothing: `UNAVAILABLE`, the outcome unknown. Its `cause` here is
+ * the signal's reason; `WowViewStore`'s is what its request threw, which
+ * the port does not promise. A replayed `requestId` is refused alike: it
+ * was never sent.
+ */
+export function abortRefusal(
+  signal: AbortSignal | undefined,
+): ViewStoreError | undefined {
+  if (signal?.aborted !== true) return undefined;
+  const reason: unknown = signal.reason;
+  return new ViewStoreError(
+    'UNAVAILABLE',
+    `The view store could not be reached: ${reasonOf(reason)}`,
+    { cause: reason },
+  );
+}
+
+/** What a refusal said — a `DOMException` is an `Error` only in some realms. */
+export function reasonOf(error: unknown): string {
+  if (typeof error === 'object' && error !== null) {
+    const { name, message } = error as { name?: unknown; message?: unknown };
+    if (typeof message === 'string')
+      return typeof name === 'string' ? `${name}: ${message}` : message;
+  }
+  return String(error);
+}
+
+/**
+ * Whether a stored panel references the saved view `id`, by any of the
+ * three members the server reads (`ViewConfigs.PANEL_REFERENCES`, and
+ * `DashboardPanel`): the view it shows (`instanceId`, unless the board owns
+ * the view, `owned`), the view 「在工作台中打开」 opens (`opens`), and the
+ * one a press opens (`click.instanceId`).
+ */
+export function shows(panel: unknown, id: string): boolean {
+  if (typeof panel !== 'object' || panel === null) return false;
+  const { instanceId, owned, opens, click } = panel as {
+    instanceId?: unknown;
+    owned?: unknown;
+    opens?: unknown;
+    click?: unknown;
+  };
+  if (owned === undefined && instanceId === id) return true;
+  if (opens === id) return true;
+  return (
+    typeof click === 'object' &&
+    click !== null &&
+    (click as { instanceId?: unknown }).instanceId === id
+  );
 }
 
 /** A definition id the service refuses (`ViewConfigs.definitionProblem`). */

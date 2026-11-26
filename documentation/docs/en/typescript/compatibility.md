@@ -132,6 +132,10 @@ The dataset queries, the aggregation queries and their expressions, with the que
 
 The packages follow the support policy of the rest of Wow, stated in the [security policy](https://github.com/Ahoo-Wang/Wow/blob/main/SECURITY.md): fixes land on the latest stable line, and fixes for older lines are decided case by case.
 
+### The `theme-check` command
+
+The view engine's command, `wow-view-engine theme-check`, is part of the 10.0 surface with the options and the exit status [Checking a theme](./view-engine/theming#checking-a-theme) describes. The shape of what `--json` prints is not promised in 10.0: a 10.x release may add, rename or regroup its members. A CI step decides by the exit status; one that reads the JSON pins the package's version.
+
 ## Runtimes and peers
 
 | Requirement | Version | Notes |
