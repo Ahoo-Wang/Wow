@@ -202,7 +202,7 @@ abstract class ViewStoreContract {
             """{"kind":"list","filter":{"op":"match-all"}}""",
             ALICE.with(WowHeaders.SCOPE, "owner=")
         )
-            .assertProblem(BAD_REQUEST, "wow.query.malformed")
+            .assertProblem(BAD_REQUEST, "wow.request.malformed")
     }
 
     @Test

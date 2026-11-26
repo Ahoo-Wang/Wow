@@ -233,6 +233,9 @@ class PeerReadsTest {
             .isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
         post("/shop/cart/events/query", service + (WowHeaders.CALL to root) + (WowHeaders.SCOPE to "owner=\"bob\""))
             .problemCode().assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
+        // One that does not parse is the request's, as on every route.
+        post("/shop/cart/events/query", service + (WowHeaders.CALL to root) + (WowHeaders.SCOPE to "owner"))
+            .problemCode().assert().isEqualTo(FrameworkCodes.REQUEST_MALFORMED)
         routes.get().uri("/shop/cart/events/query").headers {
             it.set(WowHeaders.SERVICE, SERVICE)
             it.set(WowHeaders.CALL, root)

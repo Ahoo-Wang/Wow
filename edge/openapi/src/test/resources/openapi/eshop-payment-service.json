@@ -3494,7 +3494,7 @@
         }
       },
       "wow.datasets.400" : {
-        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.",
+        "description" : "`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -3502,7 +3502,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.query.malformed", "wow.request.malformed" ]
+        "x-wow-error-codes" : [ "wow.request.malformed" ]
       },
       "wow.datasets.401" : {
         "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
@@ -3716,7 +3716,7 @@
         "x-wow-error-codes" : [ "wow.query.timeout" ]
       },
       "wow.dataset-descriptor.400" : {
-        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.",
+        "description" : "`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -3724,7 +3724,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.query.malformed", "wow.request.malformed" ]
+        "x-wow-error-codes" : [ "wow.request.malformed" ]
       },
       "wow.dataset-descriptor.401" : {
         "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",

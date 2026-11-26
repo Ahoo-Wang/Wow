@@ -452,7 +452,7 @@ internal class QueryHandler(
 
     /** What `Wow-Scope` names for the query of [request], or null without it; [targets] decide whether it may. */
     private fun named(request: ServerRequest): ScopeHeader.QueryTarget? =
-        headers.queryTarget(request, FrameworkCodes.QUERY_MALFORMED)
+        headers.queryTarget(request)
 
     /** [caller]'s query caller of the dataset [type] in what it [named], or null when the dataset's tenant is fixed. */
     private fun queryCaller(type: AggregateType, caller: Caller, named: ScopeHeader.QueryTarget?): QueryCaller? = try {

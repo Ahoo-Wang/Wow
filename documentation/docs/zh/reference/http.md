@@ -61,7 +61,7 @@ outline: deep
 | `If-None-Match` | 状态读取、能力描述 | 上一次的 `ETag`；仍然有效时返回 `304`。无法解析的会被忽略：缓存条件失败时放行（[实体标签](./protocols#entity-tags)） |
 | `Accept: text/event-stream` | 命令、`list` 查询 | 服务端推送事件（见下文） |
 | `Last-Event-ID` | 流式的 `list` 查询 | 从哪个位置之后续读 |
-| `Wow-Scope` | 每个路由 | 对被允许跨作用域行事的调用方：要在其中行事的租户、所有者和空间，一个 RFC 8941 字典，`tenant="t1", owner="u1", space="s1"`。它总是指明一个作用域：不写的所有者或空间就是没有，所以只写 `tenant="t1"` 在 `t1` 里行事、不检查所有者与空间；只写了租户的请求，Wow 的客户端会写出调用方自己的作用域，从而保留它。在查询路由上，打开 `wow.query.allow-cross-tenant` 时，`tenant=*` 或 `tenant=("t1" "t2")` 可以跨租户读取。它的多行用逗号连成一个字典；同一个成员给出两次是格式错误（`wow.command.malformed`，读取时为 `wow.query.malformed`） |
+| `Wow-Scope` | 每个路由 | 对被允许跨作用域行事的调用方：要在其中行事的租户、所有者和空间，一个 RFC 8941 字典，`tenant="t1", owner="u1", space="s1"`。它总是指明一个作用域：不写的所有者或空间就是没有，所以只写 `tenant="t1"` 在 `t1` 里行事、不检查所有者与空间；只写了租户的请求，Wow 的客户端会写出调用方自己的作用域，从而保留它。在查询路由上，打开 `wow.query.allow-cross-tenant` 时，`tenant=*` 或 `tenant=("t1" "t2")` 可以跨租户读取。它的多行用逗号连成一个字典。无法解析的（包括同一个成员给出两次），或在查询以外的路由上指明多个租户的，在每个路由上都是 `400 wow.request.malformed` |
 | `Wow-Space` | 每个路由 | 在调用方自己的空间中，要在其中行事的那个 |
 | `traceparent`、`tracestate`、`baggage` | 命令 | W3C 追踪上下文，保存为命令的追踪；没有 `traceparent` 时不读取另外两个 |
 
