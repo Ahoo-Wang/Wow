@@ -405,7 +405,7 @@ outline: deep
 [{ "status": "PUBLISHED", "count": 3, "averagePrice": 7.5 }, { "status": "DELISTED", "count": 1, "averagePrice": 4.0 }]
 ```
 
-每一行包含分组别名和指标别名。
+每一行包含分组别名和指标别名。别名是一个不以 `__wow` 开头的路径段。在 MongoDB 上，指标不能以 `_id` 为别名，那是分组键所在的字段：这样的查询是 `storage-unsupported`；以 `_id` 为别名的分组照常接受。
 
 - **`elements`**：`[{"path": "state.lines", "filter": …}]` 展开一个集合，让分组和指标在它的元素上运行（至多 5 层）；此后字段相对于最内层的元素，带 `"scope": "root"` 的分组则读取记录的绝对路径。
 - **`groupBy`**：`terms`（`field` 或 `expression`，可选的 `missingKey`）、`histogram`（`field` 或 `expression`，`interval`）、`date-histogram`（`field`，`unit`：`year`、`quarter`、`month`、`week`、`day`、`hour`、`minute`、`second`，`timeZone`，`dense`）和 `date-part`（`field`，`part`：`day-of-week`、`day-of-month`、`hour-of-day`、`month-of-year`，`timeZone`，`dense`）；每个都有一个 `alias`。`dense` 填充空的桶，并要求这个分组是唯一的分组。`date-histogram` 的键是记录所在的本地 `unit` 周期在 `timeZone` 中开始的时刻（毫秒时间戳），按该周期自己的偏移：夏令时回拨重复的那个小时是两个桶，春季跳过的那个小时没有桶；沿它的 `previous` 一步走到前一个桶（带 `period` 时走到上一个周期里同一本地时间所在的桶）。有一个限制：在时区偏移的变化量不是单位整数倍的那一天（历史上以分、秒计的变化，如 Africa/Monrovia 在 1972 年的变化），各存储按自己的截断放置那天的 HOUR 与 MINUTE 的桶，可能与这条规则不同。在 ClickHouse 上，1970 年以前的每个这样的日子也是如此，多是时区从地方平太阳时的切换（如 Asia/Shanghai 在 1901-01-01 的切换）。
