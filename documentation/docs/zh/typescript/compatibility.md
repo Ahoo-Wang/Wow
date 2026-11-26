@@ -141,7 +141,7 @@ pnpm add -D --save-exact @ahoo-wang/wow-generator
 | React 和 React DOM（`wow-react`、视图引擎的界面） | `^19.0.0` | 不支持 React 18：构建会导入 `react/compiler-runtime` |
 | React Router（只有 `wow-view-engine/react-router`） | `^7.0.0 \|\| ^8.0.0` | 可选的 peer 依赖：只有那个入口导入它 |
 | TypeScript | `>=6.0` | CI 以使用者的身份，在 TypeScript 6.0 和最新的 7.x 上对打包后的包做类型检查；`moduleResolution` 为 `Bundler`、`NodeNext` 或 `Node16` |
-| `@ahoo-wang/fetcher`、`fetcher-eventstream`、`fetcher-decorator` | `^5.1.5 \|\| ^6.0.0` | 由应用安装的 peer 依赖。CI 在最新的 6.x 上构建和测试，下限作业在 5.1.5 上重新运行测试。只有从 OpenAPI 文档生成的客户端才需要 `fetcher-decorator` |
+| `@ahoo-wang/fetcher`、`fetcher-eventstream`、`fetcher-decorator` | `^5.1.5 \|\| ^6.0.0 \|\| ^8.0.0-rc.1` | 由应用安装的 peer 依赖。fetcher 没有 7；8 从第一个候选版本起即被接受。CI 在最新的 6.x 上构建和测试，下限作业在 5.1.5 上重新运行测试；包检查的消费者安装范围内、且是 fetcher `latest` 的最新版本。只有从 OpenAPI 文档生成的客户端才需要 `fetcher-decorator` |
 | `@ahoo-wang/wow-client`（用于其他 Wow 包） | `~x.y.z` | 同一个次版本 |
 
 pnpm 8 及以上和 npm 7 及以上会自己安装缺失的 peer 依赖；Yarn 不会，所以 Yarn 项目要自己添加每个 peer 依赖。
