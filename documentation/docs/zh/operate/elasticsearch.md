@@ -56,7 +56,7 @@ wow:
 - `ddl: none` 什么都不检查，写入一个缺失的别名会失败，并指名它。
 - 指向多个索引的别名，或不是其索引写入别名的别名，会被拒绝并指名；Wow 不经由这样的别名写入。
 - **节点运行中被删除的索引**会让下一次写入失败，而不是以猜测的映射被重新建出。在 `ddl: auto` 下，再下一次写入会重新建出这一对（空的），并记录一条指名该别名的警告。它原来保存的内容由[重建](#rebuild)找回。
-- **早先预发布版本建出的索引**是一个与别名同名的具体索引。存储会拒绝它并指名：删除它，再重建。
+- **早先预发布版本建出的索引**是一个与别名同名的具体索引。存储会拒绝它并指名：删除它，再从日志重新填充（[重建](#rebuild)）。
 
 `--1` 为以后的版本在同一个别名之后重新索引留出余地；10.0 中没有任何东西会移动它。若节点的账号不能建索引，就用能建索引的账号以 `ddl: auto` 建出这一对一次。或者手工建出：`<name>--1`，带上 `ddl: auto` 会给它的映射，以及 `"aliases": {"<name>": {"is_write_index": true}}`。
 
@@ -144,7 +144,7 @@ curl -X POST "$ELASTICSEARCH_URL/_update_by_query/<node>:<id>/_rethrottle?reques
 
 `query.events.store` 指向 Elasticsearch 存储的聚合，它的 `events` 查询从那个索引提供：事件条件是一个 nested 查询，`expand("events")` 聚合是一个 nested 聚合，不指明聚合的查询会检索索引，而不是扫描日志。索引显示的是 Sink 已写入的内容：一次提交在 Sink 写入并且索引刷新之后才可检索，刷新默认为一秒。
 
-每个 Sink 都作为名为 `wow.elasticsearch-sink.<aggregate>` 的订阅运行，所以它从检查点续读，也可以从日志开头重新开始。宿主会自行启动这些 Sink，不需要单独的配置：对 `query.events.store` 指向的每个 Elasticsearch 存储，它把正好这些聚合的流写入该存储，不论服务是否发布它们。
+每个 Sink 都作为名为 `wow.elasticsearch-sink.<aggregate>` 的订阅运行，所以它从检查点续读；它的新一代，即存储的 `sink.generation` 调到 n 之后的 `wow.elasticsearch-sink-g<n>.<aggregate>`，从日志开头开始（[重建](#rebuild)）。宿主会自行启动这些 Sink，只有存储的这一项配置：对 `query.events.store` 指向的每个 Elasticsearch 存储，它把正好这些聚合的流写入该存储，不论服务是否发布它们。
 
 ## 作聚合唯一的快照存储 {#only-snapshot-store}
 
@@ -186,7 +186,13 @@ wow:
 
 ## 重建 {#rebuild}
 
-两种副本都来自日志。快照索引通过重建聚合的快照来重建（[重建与重放](./replay)）。事件索引通过从日志开头启动它的 Sink 订阅来重新填充。若要先清空一个索引，删除它的具体索引 `<name>--1`，因为 Elasticsearch 不经由别名删除索引；在 `ddl: auto` 下，下一次写入会重新建出这一对。两者都不需要自己的备份（[备份与恢复](./backup)）。
+两种副本都来自日志。快照索引通过重建聚合的快照来重建（[重建与重放](./replay)）。事件索引由它的 Sink 的新一代重新填充，新一代从日志开头开始：
+
+1. 清空索引：删除它的具体索引 `<name>--1`，因为 Elasticsearch 不经由别名删除索引。
+2. 把存储的 Sink 代数加一：`wow.stores.<name>.sink.generation`，默认 1。
+3. 滚动重启节点。
+
+Sink 随后作为新的订阅 `wow.elasticsearch-sink-g<n>.<aggregate>` 运行，该存储的 Sink 写入的每个聚合一个，各自从日志开头写起；在 `ddl: auto` 下，它的第一次写入会重新建出这一对。代数只能调高：调低会续用那一代的检查点，已删除的不会再写。节点滚动期间新旧两代都在写，这无害，因为一个提交的文档只有一个 id。旧一代的检查点留着，它停放的条目也留着：每个节点首次启动时以旧名字告警它们，`GET /wow/ops/subscriptions` 把它们列为 `orphans`（[改名与回卷](./ops-console#rename-and-rewind)）。这些停放条目属于已清空的目标：在 ops 控制台里跳过它们。调低代数，较高的那一代也会这样显示为遗留，这正是代数只能调高的原因。 两者都不需要自己的备份（[备份与恢复](./backup)）。
 
 ## 从 9.x 而来 {#from-9-x}
 

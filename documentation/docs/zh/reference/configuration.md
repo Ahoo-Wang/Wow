@@ -7,7 +7,7 @@ description: "宿主 wow.* 配置的每个键：类型、默认值与含义。"
 
 # 配置项
 
-Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 283 个，由宿主的配置元数据（[`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：`max-concurrent`、`maxConcurrent` 与 `MAX_CONCURRENT` 是同一个键。没有任何属性（宿主的或类路径上某个模块的）对应的 `wow.*` 键会使节点拒绝启动，并指向迁移指南中旧版本键的页面。Wow 分组下的环境变量（`WOW_KAFKA_…`：键的第一个词）按 Spring 的映射读取，同样如此；你自己的变量请起在这些分组之外的名字。映射之下的键，若映射的键含点，要放进方括号：`wow.aggregates.[shop.cart].tenant`；每个映射自己的键列在它下面，条目写作 `<name>` 或 `[<context>.<aggregate>]`。[模块配置项](./module-configuration)列出平台服务、wow-cosid 与 wow-cocache 的键。契约是这些键，而不是宿主的属性类，后者属于 Wow 内部：应用通过 Spring 的 `Environment`、`@Value` 或 `Binder` 读取键。
+Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 285 个，由宿主的配置元数据（[`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：`max-concurrent`、`maxConcurrent` 与 `MAX_CONCURRENT` 是同一个键。没有任何属性（宿主的或类路径上某个模块的）对应的 `wow.*` 键会使节点拒绝启动，并指向迁移指南中旧版本键的页面。Wow 分组下的环境变量（`WOW_KAFKA_…`：键的第一个词）按 Spring 的映射读取，同样如此；你自己的变量请起在这些分组之外的名字。映射之下的键，若映射的键含点，要放进方括号：`wow.aggregates.[shop.cart].tenant`；每个映射自己的键列在它下面，条目写作 `<name>` 或 `[<context>.<aggregate>]`。[模块配置项](./module-configuration)列出平台服务、wow-cosid 与 wow-cocache 的键。契约是这些键，而不是宿主的属性类，后者属于 Wow 内部：应用通过 Spring 的 `Environment`、`@Value` 或 `Binder` 读取键。
 
 ## `wow`
 
@@ -80,6 +80,7 @@ The settings of ClickHouse: the connection the Sink and the dataset backend shar
 | `wow.clickhouse.sink.batch-size` | `Integer` | `1000` | The most records one insert carries. |
 | `wow.clickhouse.sink.deduplication-window` | `Integer` | `1000` | How many recent inserts each table remembers to drop a retried one: the non_replicated_deduplication_window of the tables auto creates. |
 | `wow.clickhouse.sink.enabled` | `Boolean` | `false` | Whether the Manifest's published streams are written to ClickHouse; off unless set, so a ClickHouse client or endpoint alone writes nothing. |
+| `wow.clickhouse.sink.generation` | `Integer` | `1` | The generation of the Sink's subscriptions, 1 by default: raised, they start again as wow.clickhouse-sink-g&lt;generation&gt;.&lt;aggregate&gt;, new subscriptions, and write every published stream again from the beginning of the log, once the Sink's tables were dropped. Only raise it: a lower one resumes that generation's checkpoints. |
 | `wow.clickhouse.sink.insert-interval` | `Duration` | `PT1S` | The least time between the starts of two inserts of one aggregate type's Sink on a node, unless batch-size records are waiting; the commits arriving meanwhile join the next insert. At most half the subscription's handler timeout; 0 inserts as often as one returns. |
 | `wow.clickhouse.username` | `String` | `default` | The user name to sign in with. |
 
@@ -659,6 +660,7 @@ The named store instances, by name: `wow.stores.<name>.type` and its settings. T
 | `wow.stores.<name>.refresh` | `ElasticsearchRefresh` | `none` | On elasticsearch: when a write becomes visible to searches: none (the default: within the index's refresh interval, while a load by id reads it once it returns), wait-for (a snapshot is in a list or a count once its write returns, so a command that waits queryable sees its commit there; each write takes up to a refresh interval longer) or immediate (an immediate refresh, for tests). |
 | `wow.stores.<name>.reindex-requests-per-second` | `Integer` | `1000` | On elasticsearch: how many documents a second the store indexes again when its queries map a field an index lacks, so that the documents written before it are found by it too; a search of the field misses them until the rewrite ends. 1000 by default (a million documents in about 17 minutes); 0 for no limit. |
 | `wow.stores.<name>.sharding` | `MongoSharding` | `auto` | On mongo: whether a store on a sharded cluster shards its log, snapshot, timer and reservation collections when it creates them: auto when connected to a mongos with ddl auto, none for a cluster its operators shard. |
+| `wow.stores.<name>.sink.generation` | `Integer` | `1` | On elasticsearch: the generation of the event search sink that writes into the store, 1 by default: raised, the sink starts again as wow.elasticsearch-sink-g&lt;generation&gt;.&lt;aggregate&gt;, a new subscription, and writes every aggregate it writes into the store again from the beginning of the log, once its events indices (&lt;name&gt;--1) were deleted. Only raise it: a lower one resumes that generation's checkpoints. |
 | `wow.stores.<name>.type` | `String` |  | The store's type: `memory`, `postgres`, `mongo`, `elasticsearch` or a community backend's. |
 
 ## `wow.subscription`

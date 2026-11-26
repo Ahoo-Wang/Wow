@@ -56,7 +56,7 @@ Each index is a pair: a concrete index `<name>--1` behind the alias `<name>`, it
 - `ddl: none` checks nothing, and a write to a missing alias fails, naming it.
 - An alias that points at more than one index, or is not its index's write alias, is refused, naming it. Wow writes through no such alias.
 - **An index deleted under a running node** fails the next write instead of being created again with a guessed mapping. Under `ddl: auto`, the write after it creates the pair again, empty, with a warning naming the alias. What it held comes back from a [rebuild](#rebuild).
-- **An index an earlier pre-release created** is a concrete index of the alias's own name. The store refuses it, naming it: delete it and rebuild it.
+- **An index an earlier pre-release created** is a concrete index of the alias's own name. The store refuses it, naming it: delete it and fill it again from the log ([Rebuild](#rebuild)).
 
 The `--1` leaves room for a later version to reindex behind the same alias; nothing in 10.0 moves it. For a node whose account may not create indices, create the pair once with `ddl: auto` from an account that may. Or create it by hand: `<name>--1` with the mapping `ddl: auto` gives it, and `"aliases": {"<name>": {"is_write_index": true}}`.
 
@@ -144,7 +144,7 @@ The event search sink writes each commit as one document of `[<prefix>_]wow_even
 
 An aggregate whose `query.events.store` names the Elasticsearch store has its `events` queries served from that index: an event condition is a nested query, an `expand("events")` aggregation a nested aggregation, and a query that names no aggregate searches the index instead of scanning the log. The index shows what the sink has written, a commit becoming searchable once the sink has written it and the index refreshed, one second by default.
 
-Each sink runs as a subscription named `wow.elasticsearch-sink.<aggregate>`, so it resumes from its checkpoint and can start again from the beginning of the log. The host starts the sinks by itself, with no setting of their own: for each Elasticsearch store that an aggregate's `query.events.store` names, it writes exactly those aggregates' streams into that store, whether or not the service publishes them.
+Each sink runs as a subscription named `wow.elasticsearch-sink.<aggregate>`, so it resumes from its checkpoint; a new generation of it, `wow.elasticsearch-sink-g<n>.<aggregate>` once the store's `sink.generation` is raised to n, starts from the beginning of the log ([Rebuild](#rebuild)). The host starts the sinks by itself, with that one setting of the store's: for each Elasticsearch store that an aggregate's `query.events.store` names, it writes exactly those aggregates' streams into that store, whether or not the service publishes them.
 
 ## As an aggregate's only snapshot store {#only-snapshot-store}
 
@@ -186,7 +186,13 @@ Each aggregate type picks its stores: its log on PostgreSQL or MongoDB, its snap
 
 ## Rebuild
 
-Both copies come from the log. A snapshot index is rebuilt by rebuilding the aggregates' snapshots ([Rebuild and Replay](./replay)). The events index is filled again by starting its sink subscription from the beginning of the log. To empty an index first, delete its concrete index, `<name>--1`, since Elasticsearch deletes no index through an alias; under `ddl: auto` the next write creates the pair again. Neither needs a backup of its own ([Backup and Recovery](./backup)).
+Both copies come from the log. A snapshot index is rebuilt by rebuilding the aggregates' snapshots ([Rebuild and Replay](./replay)). An events index is filled again by a new generation of its sink, which starts from the beginning of the log:
+
+1. Empty the index: delete its concrete index, `<name>--1`, since Elasticsearch deletes no index through an alias.
+2. Raise the store's sink generation by one: `wow.stores.<name>.sink.generation`, 1 by default.
+3. Roll the nodes.
+
+The sink then runs as new subscriptions, `wow.elasticsearch-sink-g<n>.<aggregate>`, one for every aggregate that store's sink writes, and writes each from the beginning of the log; under `ddl: auto` its first write creates the pair again. Only raise the generation: a lower one resumes that generation's checkpoints, and what was deleted is not written again. While the nodes roll, the old generation and the new one both write; that is harmless, since a commit's document has one id. The old generation's checkpoints stay, and so do the entries it parked: each node warns of them at its first start under the old name, and `GET /wow/ops/subscriptions` lists them as `orphans` ([Rename and rewind](./ops-console#rename-and-rewind)). Those parked entries belong to a destination that was emptied: skip them in the ops console. A lowered generation shows the higher one as an orphan the same way, which is why the generation is only raised. Neither copy needs a backup of its own ([Backup and Recovery](./backup)).
 
 ## From 9.x
 

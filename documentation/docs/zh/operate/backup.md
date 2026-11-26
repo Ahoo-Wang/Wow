@@ -40,7 +40,7 @@ description: Wow 服务必须备份什么、改为重建什么，以及怎样恢
 
 - 投影：以新的订阅名部署它，它会从日志开头开始，追上之后再把读取方切换到它的新视图；
 - 快照：从日志重建，可以针对选定的聚合，也可以针对新的存储；
-- 数仓和搜索索引：从头启动它们的 Sink 订阅。
+- 数仓和搜索索引：清空它们并调高其 Sink 的代数，新一代会从日志开头把它们重新填满（[ClickHouse](./clickhouse#rebuild-the-warehouse)、[Elasticsearch](./elasticsearch#rebuild)）。
 
 在此期间，服务照常处理命令。
 

@@ -412,6 +412,17 @@ class ElasticsearchEventSinks internal constructor(private val store: Elasticsea
         const val PROCESSOR: String = "wow.elasticsearch-sink"
 
         /**
+         * The processor name of the Sink's subscriptions in [generation] (a store's `sink.generation`): [PROCESSOR] in
+         * the first, so that nothing is renamed, and `wow.elasticsearch-sink-g<generation>` from the second on, a
+         * new subscription that writes the store's events indices again from the beginning of the log (#7097).
+         */
+        @JvmStatic
+        fun processorOf(generation: Int): String {
+            require(generation >= 1) { "A sink generation is 1 or more, not $generation." }
+            return if (generation == 1) PROCESSOR else "$PROCESSOR-g$generation"
+        }
+
+        /**
          * The Sinks of the cluster [restClient] reaches, their indices named with [indexPrefix] as a store's
          * `index-prefix` names them, made sure of as [ddl] says: a tool's, outside a host's stores.
          */

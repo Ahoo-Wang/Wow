@@ -288,9 +288,9 @@ Sink 不使用 ClickHouse 的 `async_insert`，也不需要它：Sink 自己把�
 
 `wow.clickhouse.ddl` 决定 Sink 在第一次写入之前以及之后不时怎样对待它的表：`auto`（默认）创建缺失的部分并校验其余部分；`validate` 只检查；`none` 两者都不做。被删除或被修改过的表会让写入失败，订阅会重试，直到它恢复成 Sink 期望的样子。
 
-Sink 保有的每张表和每个视图都在注释里写明 Sink 表的格式：`wow-sink-format:1`。Sink 期望的表或视图存在、有上面的列、并写明这个格式，才算 Sink 的；否则 Sink 拒绝写入，逐一指出是哪一个、哪里不对（`<table> is not of format 1`、`<table> has the columns …`）。`auto` 用这个注释创建缺失的部分，已存在的表保持原样：别的格式的表会被拒绝，和列不同的表一样。这些表里没有日志之外的东西：删掉它们，重置 Sink 的订阅即可从日志重新填充（[重建数仓](#rebuild-the-warehouse)）。`none` 什么也不检查。
+Sink 保有的每张表和每个视图都在注释里写明 Sink 表的格式：`wow-sink-format:1`。Sink 期望的表或视图存在、有上面的列、并写明这个格式，才算 Sink 的；否则 Sink 拒绝写入，逐一指出是哪一个、哪里不对（`<table> is not of format 1`、`<table> has the columns …`）。`auto` 用这个注释创建缺失的部分，已存在的表保持原样：别的格式的表会被拒绝，和列不同的表一样。这些表里没有日志之外的东西：删掉它们，Sink 的新一代即可从日志重新填充（[重建数仓](#rebuild-the-warehouse)）。`none` 什么也不检查。
 
-Sink 既不检查也不更改列的编解码器，所以早先版本建的表保留建表时的编解码器。要让它用上面的编解码器，对每一列执行 `ALTER TABLE <db>.<table> MODIFY COLUMN <column> <type> CODEC(<codec>)`，此后写入与合并的部分会用它；或者删掉 Sink 的表并重置它的订阅，让它重新填满。
+Sink 既不检查也不更改列的编解码器，所以早先版本建的表保留建表时的编解码器。要让它用上面的编解码器，对每一列执行 `ALTER TABLE <db>.<table> MODIFY COLUMN <column> <type> CODEC(<codec>)`，此后写入与合并的部分会用它；或者删掉 Sink 的表并调高它的代数，让它重新填满（[重建数仓](#rebuild-the-warehouse)）。
 
 滚动升级期间，一个服务的两个版本可能同时写入两种状态 schema。展平视图在注释里、格式之后，记住创建它所用的定义的指纹（`wow-sink-format:1 wow-sink-flat:<指纹>,…`），写入者只会用更新的定义替换它，所以重启的旧节点不会撤销新节点的视图。
 
@@ -299,7 +299,7 @@ Sink 既不检查也不更改列的编解码器，所以早先版本建的表保
 `_state` 至少有写入者期望的计算列、且每一列的指纹相同，才算 Sink 的。写入者不期望的计算列（别的写入者的）保持原样。
 
 - **新增属性或访问属性。** `auto` 在展平视图选取它之前加上它的列：`ALTER TABLE <db>.<ctx>_<agg>_state ADD COLUMN IF NOT EXISTS <列> <类型> MATERIALIZED <表达式> COMMENT 'wow:<指纹>' AFTER <它前面的列>`。这只改元数据：之前写入的 part 在读取时计算，直到合并重写它，而 `_state` 随写入不断合并。要立即在每个 part 里算出来，可执行 `ALTER TABLE <db>.<ctx>_<agg>_state MATERIALIZE COLUMN <列>`，这是一次 mutation，可选。在 `validate` 下，Sink 拒绝写入，并给出添加这些列的语句。旧的写入者遇到自己不计算的列，照常写入。
-- **属性的类型变了**（字段变为可空、小数的标度变了、字符串变成数字）。这一列的定义不同，ClickHouse 不重写每一行就无法修改它：Sink 拒绝写入，指出这一列、它的类型以及这个版本计算的类型。类型变化不能滚动进行：旧的写入者会一直写到被替换；之后删除这些表并重置 Sink 的订阅（[重建数仓](#rebuild-the-warehouse)）。
+- **属性的类型变了**（字段变为可空、小数的标度变了、字符串变成数字）。这一列的定义不同，ClickHouse 不重写每一行就无法修改它：Sink 拒绝写入，指出这一列、它的类型以及这个版本计算的类型。类型变化不能滚动进行：旧的写入者会一直写到被替换；之后删除这些表并调高 Sink 的代数（[重建数仓](#rebuild-the-warehouse)）。
 - **删除属性。** 它的列保留，每次插入仍然计算，直到你删除它：没有写入者再计算它之后，执行 `ALTER TABLE <db>.<ctx>_<agg>_state DROP COLUMN <列>`。
 - **后来声明的访问属性** 立即有它的列，但每一行保留写入时的属性：聚合最新的一行在它下一次提交之前没有这个属性的值。
 
@@ -500,4 +500,10 @@ ClickHouse 无法连接或不能写入时（连接被拒绝或超时、存活副
 
 ## 重建数仓 {#rebuild-the-warehouse}
 
-Sink 是一个有自己检查点的订阅，所以数仓从来不是任何东西唯一的副本：它总能从日志开头重新填充。
+Sink 是一个有自己检查点的订阅，所以数仓从来不是任何东西唯一的副本：Sink 的新一代从日志开头把它重新填满。
+
+1. 删掉要重新填充的聚合类型的 Sink 表与视图（[表](#the-tables)），或者 Sink 的整个数据库。
+2. 把 `wow.clickhouse.sink.generation` 加一，默认 1。
+3. 滚动重启节点。
+
+Sink 随后作为新的订阅 `wow.clickhouse-sink-g<n>.<aggregate>` 运行，它写的每个流一个，各自从日志开头写起；在 `ddl: auto` 下，它在第一次插入之前重新建表。代数只能调高：调低会续用那一代的检查点，已删除的不会再写。节点滚动期间新旧两代都在写，表会像吸收重放一样吸收它：它们的 `ReplacingMergeTree` 引擎以提交的 `ref@version` 为键，每个提交只留一份。不删表就调高代数，新一代会把每个提交再写一遍，表会把第二份合并掉：带 `FINAL` 的读取（扁平视图就是这样读的）立刻只数到每个提交和事件一次，不带 `FINAL` 读表则可能在 ClickHouse 合并分片之前数到两次。旧一代的检查点留着，它停放的条目也留着：每个节点首次启动时以旧名字告警它们，`GET /wow/ops/subscriptions` 把它们列为 `orphans`（[改名与回卷](./ops-console#rename-and-rewind)）。这些停放条目属于已清空的目标：在 ops 控制台里跳过它们。调低代数，较高的那一代也会这样显示为遗留，这正是代数只能调高的原因。

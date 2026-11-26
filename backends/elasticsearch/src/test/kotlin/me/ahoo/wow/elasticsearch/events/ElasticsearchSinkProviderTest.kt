@@ -23,6 +23,7 @@ import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.spi.store.StoreResources
 import org.apache.hc.core5.http.HttpHost
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.util.ServiceLoader
 
 /** The event search Sink as a provider (DG-6): found on the classpath, available only over an Elasticsearch store. */
@@ -57,5 +58,31 @@ class ElasticsearchSinkProviderTest {
         sinks.processor.assert().isEqualTo(ElasticsearchEventSinks.PROCESSOR)
         sinks.sinkOf("sales", "order").assert().isInstanceOf(ElasticsearchEventSink::class.java)
         sinks.toString().assert().contains("search")
+    }
+
+    @Test
+    fun `the sink's subscriptions keep their name in the first generation and carry a store's raised one`() {
+        ElasticsearchEventSinks.processorOf(1).assert().isEqualTo(ElasticsearchEventSinks.PROCESSOR)
+        ElasticsearchEventSinks.processorOf(2).assert().isEqualTo("wow.elasticsearch-sink-g2")
+        assertThrows<IllegalArgumentException> { ElasticsearchEventSinks.processorOf(0) }
+        // A sink of no store: the host gives an Elasticsearch sink its store, so another caller is refused.
+        assertThrows<IllegalArgumentException> {
+            ElasticsearchSinkProvider().open(SinkConfig.of("stores.search", ElasticsearchStoreProvider.TYPE))
+        }
+        val raised = ElasticsearchStoreProvider().open(
+            StoreConfig.of(
+                name = "search",
+                type = ElasticsearchStoreProvider.TYPE,
+                options = mapOf(ElasticsearchStoreProvider.SINK_GENERATION.key to "2"),
+                resources = StoreResources.of(mapOf("elasticsearch" to restClient)),
+            ),
+        )
+        val config = SinkConfig.of(
+            "stores.search",
+            ElasticsearchStoreProvider.TYPE,
+            streams = setOf(AggregateType("sales", "order")),
+            store = raised,
+        )
+        ElasticsearchSinkProvider().open(config).processor.assert().isEqualTo("wow.elasticsearch-sink-g2")
     }
 }

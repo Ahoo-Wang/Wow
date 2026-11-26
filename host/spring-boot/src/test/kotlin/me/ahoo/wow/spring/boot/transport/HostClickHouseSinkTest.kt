@@ -141,6 +141,21 @@ class HostClickHouseSinkTest {
         }
     }
 
+    @Test
+    fun `a raised sink generation should name the host's sink subscriptions after it`() {
+        startHost(
+            "wow.clickhouse.sink.enabled" to "true",
+            "wow.clickhouse.sink.generation" to "2",
+            "wow.clickhouse.endpoint" to "http://127.0.0.1:1",
+            "wow.clickhouse.ddl" to "none",
+            sources = listOf(HostTestApp::class.java, PublishingManifest::class.java),
+        ).use { host ->
+            host.node.context(BANK).views.readers.keys.assert()
+                .contains("wow.clickhouse-sink-g2.account")
+                .doesNotContain("wow.clickhouse-sink.account")
+        }
+    }
+
     /** The Manifest of the host's models, publishing every aggregate. */
     @Configuration(proxyBeanMethods = false)
     class PublishingManifest {
