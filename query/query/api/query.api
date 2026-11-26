@@ -655,6 +655,7 @@ public final class me/ahoo/wow/query/filter/QueryType : java/lang/Enum {
 	public static final field AGGREGATION Lme/ahoo/wow/query/filter/QueryType;
 	public static final field COUNT Lme/ahoo/wow/query/filter/QueryType;
 	public static final field CURSOR Lme/ahoo/wow/query/filter/QueryType;
+	public static final field DESCRIBE Lme/ahoo/wow/query/filter/QueryType;
 	public static final field LIST Lme/ahoo/wow/query/filter/QueryType;
 	public static final field PAGED Lme/ahoo/wow/query/filter/QueryType;
 	public static final field SINGLE Lme/ahoo/wow/query/filter/QueryType;
