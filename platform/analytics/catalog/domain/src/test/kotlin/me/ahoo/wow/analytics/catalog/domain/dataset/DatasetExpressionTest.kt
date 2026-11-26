@@ -199,4 +199,11 @@ class DatasetExpressionTest {
         assertThrownBy<DatasetExpressionException> { DatasetExpression.parse("not ".repeat(40) + "o.a") }
             .hasMessageContaining("nests deeper")
     }
+
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', value = ["o.a > ٣|٣", "o.a > ３|３", "١ + 1|١"])
+    fun `a decimal digit that is not ASCII should be refused as no number, naming it`(text: String, digit: String) {
+        assertThrownBy<DatasetExpressionException> { DatasetExpression.parse(text) }
+            .hasMessage("The expression [$text] has $digit.")
+    }
 }
