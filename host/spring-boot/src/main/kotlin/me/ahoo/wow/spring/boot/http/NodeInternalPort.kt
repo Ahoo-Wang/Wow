@@ -114,6 +114,7 @@ internal class NodeInternalPort {
             port = properties.internal.port,
             bindHost = identity.bindHost,
             maxMessageSize = InternalHttp.messageLimit(publicCodecLimit(environment)),
+            readTimeout = properties.http.checkedReadTimeout(),
         )
         return InternalPort.of(
             settings,

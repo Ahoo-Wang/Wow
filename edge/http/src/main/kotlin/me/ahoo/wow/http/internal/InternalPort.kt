@@ -18,6 +18,7 @@ import io.netty.channel.group.DefaultChannelGroup
 import io.netty.util.concurrent.GlobalEventExecutor
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.http.problem.LingeringClose
+import me.ahoo.wow.http.problem.ReadTimeouts
 import me.ahoo.wow.http.problem.ServerRefusals
 import org.springframework.http.server.reactive.ReactorHttpHandlerAdapter
 import org.springframework.web.reactive.function.server.HandlerStrategies
@@ -40,8 +41,12 @@ import kotlin.time.Duration.Companion.seconds
  * within. It keeps Netty's guard against rapid resets: a connection on which it reads more than 200 `RST_STREAM`
  * frames in 30 seconds is closed.
  *
- * Its [stop] closes the connections still open, a request's whose body stalls among them: the host stops it last, once
- * the node's forwards are drained, so nothing on it is waited for (#6958).
+ * A request whose body stalls, nothing of it read for [InternalPortSettings.readTimeout], is answered 408 and its
+ * connection closed (over h2c, its stream), as on the public port ([ReadTimeouts]): the timeout holds from the request's
+ * headers to its body's end, so neither a body that keeps arriving nor an answer, a wait's or a peer read's stream, is
+ * cut. Its [stop] closes the
+ * connections still open, a request's whose body stalls among them: the host stops it last, once the node's forwards are
+ * drained, so nothing on it is waited for (#6958).
  *
  * The internal side is a trusted environment: the network keeps it apart, so building the port checks
  * no credential. An application reads where it is bound ([boundPort]); building and running it is the host's ([of]).
@@ -51,6 +56,7 @@ class InternalPort private constructor(
     private val host: String?,
     routes: RouterFunction<ServerResponse>,
     private val maxMessageSize: Int,
+    private val readTimeout: Duration,
 ) {
     private val adapter = ReactorHttpHandlerAdapter(
         RouterFunctions.toHttpHandler(
@@ -78,7 +84,8 @@ class InternalPort private constructor(
         if (server != null) {
             return
         }
-        var configured = LingeringClose.of(ServerRefusals.of(HttpServer.create(), ServerRefusals.Limits.NETTY))
+        val refusals = LingeringClose.of(ServerRefusals.of(HttpServer.create(), ServerRefusals.Limits.NETTY))
+        var configured = ReadTimeouts.of(refusals, readTimeout)
             .port(port)
             .protocol(HttpProtocol.HTTP11, HttpProtocol.H2C)
             .http2Settings { it.maxConcurrentStreams(InternalHttp.MAX_CONCURRENT_STREAMS.toLong()) }
@@ -110,17 +117,29 @@ class InternalPort private constructor(
         @InternalWowApi
         @JvmStatic
         fun of(settings: InternalPortSettings, routes: RouterFunction<ServerResponse>): InternalPort =
-            InternalPort(settings.port, settings.bindHost, routes, settings.maxMessageSize)
+            InternalPort(settings.port, settings.bindHost, routes, settings.maxMessageSize, settings.readTimeout)
     }
 }
 
 /**
- * What an [InternalPort] is built of: the [port] it binds (0 for one the system chooses) on [bindHost], and the
- * [maxMessageSize] of its codecs.
+ * What an [InternalPort] is built of: the [port] it binds (0 for one the system chooses) on [bindHost], the
+ * [maxMessageSize] of its codecs, and its [readTimeout], the longest a request's body may stall between two reads, which
+ * a host sets from `wow.http.read-timeout`; positive.
  */
 @InternalWowApi
 class InternalPortSettings(
     val port: Int,
     val bindHost: String,
     val maxMessageSize: Int = InternalHttp.MAX_UPGRADE_BODY,
-)
+    val readTimeout: Duration = READ_TIMEOUT,
+) {
+    init {
+        require(readTimeout.isPositive()) { "A read timeout is positive: $readTimeout" }
+    }
+
+    @InternalWowApi
+    companion object {
+        /** The read timeout of both ports unless the host sets one (`wow.http.read-timeout`): 30 seconds. */
+        val READ_TIMEOUT: Duration = 30.seconds
+    }
+}
