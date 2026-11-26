@@ -13,6 +13,10 @@
 
 package me.ahoo.wow.http.problem
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -32,6 +36,7 @@ import me.ahoo.wow.manifest.Manifest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
+import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import kotlin.time.Duration.Companion.seconds
 
@@ -120,6 +125,38 @@ class ProblemTest {
         // Wow's own problem, CoSec's refusal as Wow writes it, keeps them.
         Problem.of(401, "Unauthorized", null, null, extensions = mapOf("requestId" to "r-1", "traceId" to "t-1"))
             .members().assert().containsEntry("requestId", "r-1").containsEntry("traceId", "t-1")
+    }
+
+    /** What [ErrorStatuses] logs while [block] runs. */
+    private fun logged(block: () -> Unit): List<ILoggingEvent> {
+        val logger = LoggerFactory.getLogger(ErrorStatuses::class.java.name) as Logger
+        val appender = ListAppender<ILoggingEvent>().apply { start() }
+        logger.addAppender(appender)
+        try {
+            block()
+        } finally {
+            logger.detachAppender(appender)
+        }
+        return appender.list
+    }
+
+    @Test
+    fun `a kept name left out of a problem should be warned of once, naming it and its code, never its value`() {
+        val statuses = ErrorStatuses(cartManifest())
+        fun rejected(vararg extensions: Pair<String, Any?>) =
+            statuses.problemOf(result(ErrorInfo(CART_EMPTY, "Empty.", extensions = mapOf(*extensions))))
+        val first = logged { rejected("errors" to listOf("secret-value"), "items" to 2) }
+        val warning = first.single()
+        warning.level.assert().isEqualTo(Level.WARN)
+        warning.formattedMessage.assert().isEqualTo(
+            "The extension 'errors' of $CART_EMPTY is left out of its problem: a problem keeps the name 'errors' for a " +
+                "member of its own. The command's result still carries it, in its error's extensions. Rename the " +
+                "extension to have it answered.",
+        )
+        // Once per name, not per request; a name without a value loses nothing, so it is not warned of.
+        logged { rejected("errors" to listOf("secret-value"), "status" to null) }.assert().isEmpty()
+        logged { rejected("status" to "open") }.map { it.formattedMessage }.single().assert()
+            .startsWith("The extension 'status' of $CART_EMPTY is left out of its problem")
     }
 
     @Test
