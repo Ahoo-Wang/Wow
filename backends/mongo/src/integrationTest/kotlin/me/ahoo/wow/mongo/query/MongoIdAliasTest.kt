@@ -23,6 +23,7 @@ import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.mongo.log.MongoLogFixture
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
 import me.ahoo.wow.query.admission.QueryAdmission
@@ -67,15 +68,22 @@ class MongoIdAliasTest {
     }
 
     @Test
-    fun `a group aliased _id should be answered, and a metric under another alias`() {
-        val rows = aggregate(
+    fun `a group aliased _id should answer the rows of the same group under another alias, sorted by it`() {
+        fun grouped(alias: String, direction: Sort.Direction): List<Pair<String?, Long>> = aggregate(
             AggregationQuery(
-                groupBy = listOf(AggregationGroup.Terms(status, "_id")),
+                groupBy = listOf(AggregationGroup.Terms(status, alias, missingKey = "none")),
                 metrics = listOf(AggregationMetric.Count("orders", MatchAllFilter)),
+                sort = listOf(Sort(QueryField(alias), direction)),
             ),
-        )
-        rows.assert().isNotEmpty()
-        rows.forEach { row -> row.has("_id").assert().isTrue() }
-        rows.sumOf { it["orders"].asLong() }.assert().isPositive()
+        ).map { row ->
+            // A key is a scalar, never a document holding it.
+            row[alias].isValueNode.assert().describedAs("$row").isTrue()
+            row[alias].asString() to row["orders"].asLong()
+        }
+        Sort.Direction.entries.forEach { direction ->
+            val reference = grouped("status", direction)
+            reference.size.assert().isGreaterThan(1)
+            grouped("_id", direction).assert().describedAs("$direction").isEqualTo(reference)
+        }
     }
 }
