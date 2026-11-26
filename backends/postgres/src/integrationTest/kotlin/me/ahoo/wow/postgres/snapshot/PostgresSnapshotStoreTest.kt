@@ -27,6 +27,7 @@ import me.ahoo.wow.postgres.PostgresFixture
 import me.ahoo.wow.postgres.PostgresIdentifiers
 import me.ahoo.wow.postgres.PostgresStore
 import me.ahoo.wow.postgres.PostgresStoreProvider
+import me.ahoo.wow.spi.snapshot.SnapshotFill
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.store.CoveredSnapshots
@@ -53,6 +54,30 @@ class PostgresSnapshotStoreTest : SnapshotStoreSpec() {
                 .zipWithNext().forEach { (earlier, later) -> later.assert().isGreaterThanOrEqualTo(earlier) }
             marks.commands.assert().isZero()
         }
+
+    /** A table's fill is stored by its wire name, as every stored enumeration is, and read by it. */
+    @Test
+    fun `a table's fill should be stored by its wire name`(): Unit = runBlocking {
+        val context = PostgresFixture.newContext()
+        val store = PostgresFixture.snapshotStore(context)
+        val type = AggregateType(context, "aggregate")
+        store.claim(type, 1, SnapshotFill.BACKFILL, lower = false).fill.assert().isEqualTo(SnapshotFill.BACKFILL)
+        val stored = PostgresFixture.dataSource.connection.use { connection ->
+            connection.prepareStatement("SELECT fill FROM ${PostgresSnapshotTables.TABLES} WHERE structure = ?").use {
+                it.setString(1, PostgresSnapshotTables(context, type.name).base)
+                it.executeQuery().use { rows ->
+                    rows.next().assert().isTrue()
+                    rows.getString(1)
+                }
+            }
+        }
+        stored.assert().isEqualTo("backfill")
+        store.table(type)!!.fill.assert().isEqualTo(SnapshotFill.BACKFILL)
+        // One this version does not know, its old spelling among them, is refused, naming it.
+        val base = PostgresSnapshotTables(context, type.name).base
+        execute("UPDATE ${PostgresSnapshotTables.TABLES} SET fill = 'BACKFILL' WHERE structure = '$base'")
+        assertThrownBy<IllegalStateException> { runBlocking { store.table(type) } }.message().contains("BACKFILL")
+    }
 
     @Test
     fun `creating the schema twice keeps the snapshots`(): Unit = runBlocking {
