@@ -234,10 +234,10 @@ class StatePointReadRoutesTest {
         node.get("/shop/cart/c-1/state/trace?limit=${StateHandler.MAX_TRACE_LIMIT + 1}")
             .assertInvalid(QueryErrorCodes.INVALID_VALUE, "limit")
         node.get("/shop/cart/c-1/state", headers = mapOf(WowHeaders.SCOPE to "owner=\"alice"))
-            .assertCode(400, FrameworkCodes.QUERY_MALFORMED)
-        // A state read never crosses tenants (decision D254 ⑦).
+            .assertCode(400, FrameworkCodes.REQUEST_MALFORMED)
+        // A state read never crosses tenants (decision D254 ⑦): a Wow-Scope it does not take.
         node.get("/shop/cart/c-1/state", headers = mapOf(WowHeaders.SCOPE to "tenant=*", "X-Admin" to "true"))
-            .assertCode(400, FrameworkCodes.QUERY_MALFORMED)
+            .assertCode(400, FrameworkCodes.REQUEST_MALFORMED)
     }
 
     @Test

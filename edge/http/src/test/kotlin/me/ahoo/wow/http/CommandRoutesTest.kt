@@ -286,12 +286,12 @@ class CommandRoutesTest {
     }
 
     @Test
-    fun `a Wow-Scope that does not parse is malformed without a result`() {
+    fun `a Wow-Scope that does not parse is a malformed request without a result`() {
         node.post(
             "/shop/cart/c-1/add-item",
             """{"sku":"apple"}""",
             headers = mapOf(WowHeaders.SCOPE to "region=\"eu\""),
-        ).assertProblem(400, FrameworkCodes.COMMAND_MALFORMED, withResult = false)
+        ).assertProblem(400, FrameworkCodes.REQUEST_MALFORMED, withResult = false)
     }
 
     @Test
@@ -302,7 +302,7 @@ class CommandRoutesTest {
                 """{"sku":"apple"}""",
                 user = "admin",
                 headers = mapOf("X-Admin" to "true", WowHeaders.SCOPE to scope),
-            ).assertProblem(400, FrameworkCodes.COMMAND_MALFORMED, withResult = false)
+            ).assertProblem(400, FrameworkCodes.REQUEST_MALFORMED, withResult = false)
         }
     }
 

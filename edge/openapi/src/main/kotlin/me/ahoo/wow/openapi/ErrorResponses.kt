@@ -233,22 +233,22 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
         )
 
         /**
-         * The codes a dataset's descriptor answers: a model's, a `Wow-Scope` that does not parse
-         * (`wow.query.malformed`: its caller reads in the scope it names), and the dataset's own: not served to the
-         * caller, or served but not queryable now.
+         * The codes a dataset's descriptor answers: a model's, and the dataset's own: not served to the caller, or
+         * served but not queryable now. A `Wow-Scope` that does not parse is the public port's
+         * `wow.request.malformed`, as on every route ([PUBLIC]).
          */
-        val DATASET_DESCRIPTOR: List<String> = DESCRIPTOR + FrameworkCodes.QUERY_MALFORMED + DATASET_ONLY
+        val DATASET_DESCRIPTOR: List<String> = DESCRIPTOR + DATASET_ONLY
 
-        /** The codes the dataset list answers. */
+        /** The codes the dataset list answers: a `Wow-Scope` that does not parse among the public port's ([PUBLIC]). */
         val DATASET_LIST: List<String> = listOf(
             FrameworkCodes.AUTH_UNAUTHENTICATED,
             FrameworkCodes.AUTH_FORBIDDEN,
-            FrameworkCodes.QUERY_MALFORMED,
         )
 
         /**
          * What the public port answers any request with before its route reads it: an unknown `Wow-` header, one given
-         * twice, or matrix parameters in the path (400 `wow.request.malformed`); `Wow-Call` or `Wow-Reveal`, a space
+         * twice, or matrix parameters in the path (400 `wow.request.malformed`, as is a `Wow-Scope` that does not parse,
+         * on every route that reads it); `Wow-Call` or `Wow-Reveal`, a space
          * the caller does not act in (`Wow-Space`), or a service identity (403 `wow.auth.forbidden`); and no
          * credentials (401 `wow.auth.unauthenticated`). Every route lists them.
          */

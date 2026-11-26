@@ -262,6 +262,15 @@ class DatasetRoutesTest {
     }
 
     @Test
+    fun `a Wow-Scope that does not parse should be a malformed request on the list, a descriptor and a query`() {
+        val malformed = mapOf(WowHeaders.SCOPE to "tenant=()", "X-Admin" to "yes")
+        node.get("/wow/dataset", "alice", malformed).assertQueryProblem(400, FrameworkCodes.REQUEST_MALFORMED)
+        node.get(SALES, "alice", malformed).assertQueryProblem(400, FrameworkCodes.REQUEST_MALFORMED)
+        node.query("""{"kind":"count","filter":{"op":"match-all"}}""", headers = malformed)
+            .assertQueryProblem(400, FrameworkCodes.REQUEST_MALFORMED)
+    }
+
+    @Test
     fun `a dataset the node does not serve, or the caller does not see, should be a 404`() {
         val notFound = FrameworkCodes.QUERY_DATASET_NOT_FOUND
         node.query("""{"kind":"count","filter":{"op":"match-all"}}""", path = "/wow/dataset/shop/none/query")

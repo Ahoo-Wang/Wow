@@ -96,9 +96,9 @@ class OutsideTheBodyRoutesTest {
             .body!!["version"].asInt().assert().isEqualTo(2)
         // The lines of Wow-Scope are one dictionary: a member given in two of them is given twice.
         post("/shop/cart/c-1/add-item", WowHeaders.SCOPE to listOf("owner=\"bob\"", "owner=\"carol\""))
-            .refused(400, FrameworkCodes.COMMAND_MALFORMED, "owner twice")
+            .refused(400, FrameworkCodes.REQUEST_MALFORMED, "owner twice")
         post("/shop/cart/c-1/add-item", WowHeaders.SCOPE to listOf("tenant=a, tenant=b"))
-            .refused(400, FrameworkCodes.COMMAND_MALFORMED, "tenant twice")
+            .refused(400, FrameworkCodes.REQUEST_MALFORMED, "tenant twice")
         // Members in two lines are read together: here a scope alice may not act in.
         post("/shop/cart/c-1/add-item", WowHeaders.SCOPE to listOf("owner=\"bob\"", "space=\"s1\""))
             .refused(403, FrameworkCodes.AUTH_FORBIDDEN)

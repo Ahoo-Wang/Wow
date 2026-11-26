@@ -97,7 +97,7 @@ class QueryRoutesTest {
             ),
         ).assert().containsExactly("c-1", "c-2")
         node.query("""{"kind":"list","filter":{"op":"match-all"}}""", headers = mapOf(WowHeaders.SCOPE to "owner"))
-            .assertQueryProblem(400, FrameworkCodes.QUERY_MALFORMED)
+            .assertQueryProblem(400, FrameworkCodes.REQUEST_MALFORMED)
     }
 
     @Test
@@ -130,7 +130,7 @@ class QueryRoutesTest {
         ids(across.query(list, headers = mapOf(WowHeaders.SCOPE to "tenant=*, owner=bob", "X-Admin" to "yes")))
             .assert().containsExactly("c-3")
         across.query(list, headers = mapOf(WowHeaders.SCOPE to "tenant=()", "X-Admin" to "yes"))
-            .assertQueryProblem(400, FrameworkCodes.QUERY_MALFORMED)
+            .assertQueryProblem(400, FrameworkCodes.REQUEST_MALFORMED)
     }
 
     @Test

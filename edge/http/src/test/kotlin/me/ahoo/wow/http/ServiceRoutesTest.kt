@@ -297,6 +297,13 @@ class ServiceRoutesTest {
     }
 
     @Test
+    fun `a Wow-Scope that does not parse should be a malformed request, not the route's`() {
+        val refused = node.get("/$CONTEXT/summaries/mon?limit=1", headers = mapOf(WowHeaders.SCOPE to "owner"))
+        refused.status.assert().isEqualTo(400)
+        refused.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.REQUEST_MALFORMED)
+    }
+
+    @Test
     fun `a route without a handler, or a handler of no route, stops the node`() {
         assertThrows<IllegalStateException> {
             HttpNode(

@@ -36,7 +36,9 @@ class InternalCommandRoutesTest {
     private val calls = callRoutes(manifest, node.gateway, DeclaredServices.resolver(TENANT))
     private val internal: WebTestClient = WebTestClient.bindToRouterFunction(calls).build()
 
-    private fun call(path: String, body: String): Answer = internal.post().uri(path)
+    private fun call(path: String, body: String, headers: Map<String, String> = emptyMap()): Answer = internal.post()
+        .uri(path)
+        .headers { http -> headers.forEach { (name, value) -> http.set(name, value) } }
         .header(WowHeaders.SERVICE, SERVICE)
         .header(
             WowHeaders.CALL,
@@ -88,6 +90,14 @@ class InternalCommandRoutesTest {
             refused.body["violations"][0]["path"].asString().assert().isEqualTo(parameter)
             refused.body["detail"].asString().assert().startsWith("'$parameter' is a query parameter")
         }
+        node.commands.assert().isEmpty()
+    }
+
+    @Test
+    fun `a call whose Wow-Scope does not parse should be a malformed request, as on the public port`() {
+        val refused = call("/shop/cart/cart-1/checkout", "{}", mapOf(WowHeaders.SCOPE to "owner"))
+        refused.status.assert().isEqualTo(400)
+        refused.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.REQUEST_MALFORMED)
         node.commands.assert().isEmpty()
     }
 
