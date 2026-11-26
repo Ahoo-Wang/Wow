@@ -63,6 +63,7 @@ Any other request under a context's path is a `404` problem.
 | `Last-Event-ID` | Streamed `list` queries | The position to resume after |
 | `Wow-Scope` | Every route | For a caller allowed to act across scopes: the tenant, owner and space to act in, an RFC 8941 dictionary, `tenant="t1", owner="u1", space="s1"`. It always names a scope: an owner or a space it leaves out is none, so `tenant="t1"` alone acts in `t1` with no owner or space checked; Wow's clients write the caller's own scope for a request that names only a tenant, which keeps it. On a query route, `tenant=*` or `tenant=("t1" "t2")` reads across tenants when `wow.query.allow-cross-tenant` is on. Its lines are one dictionary, joined by commas; a member given twice is malformed (`wow.command.malformed`, `wow.query.malformed` on a read) |
 | `Wow-Space` | Every route | The space, among the caller's own, to act in |
+| `traceparent`, `tracestate`, `baggage` | Commands | The W3C trace context, kept as the command's trace; without `traceparent`, the other two are not read |
 
 The headers `wow.http.request-facts` lists are copied into the command and written into its event stream.
 
@@ -77,6 +78,7 @@ Nothing a client sends outside the body is read as something else, or dropped:
 | A `Wow-` header the port does not take (`Wow-Wiat`, a typo of `Wow-Wait`) | `400 wow.request.malformed`, naming it |
 | A Wow header given in two lines or more (`Wow-Request-Id: r1` and `Wow-Request-Id: r2`), but `Wow-Scope` | `400 wow.request.malformed`, naming it: a proxy that appends a line does not choose the value |
 | `Wow-Call`, the header of a service's synchronous call, on any route: a command, a query, a state read, a service route | `403 wow.auth.forbidden`, whatever the credential: calls are taken on the internal port alone |
+| `Wow-Reveal`, a service's read of its peer's `DISPLAY` values, on any route | `403 wow.auth.forbidden`, whatever the credential: a read on the public port is a caller's, whose `DISPLAY` values are masked |
 | Matrix parameters in the path (`/shop/cart/c-1;x=1/add-item`), a `;` that names none included (`c-1;`, `c-1;=v`) | `400 wow.request.malformed`: no route takes them |
 | A body of another type than `application/json` or `application/<name>+json`, any parameters aside (`*/*`, `application/*`, `image/x+json`) | `415` |
 | An aggregate id the [id rule](#aggregate-ids) refuses: a control character (`a%00b`), white space at either end (`%20c-1`), `.` or `..`, a `/`, `;` or `\` (`a%2Fb`), longer than 256 characters, or longer than 512 bytes in UTF-8 | `400 wow.command.malformed`. A unicode id (`%E8%B4%AD`) is taken as it is: a client encodes the ids it sends. An id long enough that the request line passes its limit is refused first, `414` ([before any route](#server-refusals)) |
@@ -158,6 +160,12 @@ A hop without a context is in the command's context. After a saga's `handled` ho
 | `202` | A command whose wait ends at `accepted` |
 | `304` | A state or a descriptor whose `ETag` the request named |
 | `4xx`, `5xx` | An RFC 9457 problem (below), with `Retry-After` when a retry may succeed later |
+
+| Response header | On | Means |
+| --- | --- | --- |
+| `ETag` | State reads, descriptors | The answer's version as a strong tag (a state read's `"3-…"`), for `If-None-Match`, and for `If-Match` on a command ([Entity tags](./protocols#entity-tags)) |
+| `Wow-Rebuilding` | Snapshot queries, descriptors | `true` while the aggregate type's snapshots are being rebuilt or backfilled: the answer may lack what the rebuild has not reached yet |
+| `Retry-After` | Problems | When a retry may get past the problem, in whole seconds |
 
 **Server-sent events.** A command with `Accept: text/event-stream` answers `200` once accepted, then one event per result as each hop its plan names is reached (a hop that several derived commands reach gives one each), its `id` the result's index, its name the hop's stage, its data the result, until the wait ends. A refusal before it is accepted is a problem with its own status instead: an admission refusal, a full node (`429 wow.command.busy`), an invalid plan, a command topic that did not take it. After the head, a rejection, a timeout or a failure is the stream's last result, a failure a FAILED result with its code (`wow.storage.unavailable`, `wow.command.unknown`), and so is a chain that ended before its plan did (`chainEnded`). After the last result, one more event, `end` with `{"reason":"complete","resumable":false}` and no `id`, says the stream is whole; it is no result, and has a streamed list's `end`'s shape. A stream that ends without it, however cleanly (a node that stopped, a connection cut), leaves the command's outcome unknown: send it again with the same `Wow-Request-Id`. A reader does not infer the end from the plan. A comment, `: keep-alive`, is written at once and every 15 seconds while the stream runs, so a gateway's idle timeout does not close the stream; a reader of server-sent events skips it. A streamed `list` answers one `row` event per record, its `id` the cursor of the row's position (none when the list's sort cannot be resumed), then an `end` event `{"reason", "resumable"}`: `complete` (`"resumable":false`) once every record was sent, `hold-expired` after `wow.query.stream.max-hold`, `node-stopping` when the node stops, or `permit-reclaimed` when the store had no query permit for the next chunk in time. In a resumable stream every reason but `complete` resumes with `Last-Event-ID`. A failure after the first row ends the stream with an `error` event holding the problem.
 

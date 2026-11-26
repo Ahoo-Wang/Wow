@@ -50,7 +50,7 @@ wow:
 
 ### 索引及其别名 {#indices-and-aliases}
 
-每个索引都是一对：别名 `<name>` 之后的具体索引 `<name>--1`，是别名的写入索引。存储按这个名字读写。每次写入都要求 Elasticsearch 在这个名字不是别名时拒绝它（`require_alias`），所以无论索引为何缺失，写入都不会建出一个由 Elasticsearch 猜测映射的索引：
+存储的索引有：每个聚合的快照 `[<prefix>_]wow_snapshot__<context>__<aggregate>`、事件搜索 Sink 的事件 `[<prefix>_]wow_events__<context>__<aggregate>`（[事件检索](#event-search)），以及另一个 `[<prefix>_]wow_snapshot_table`：每个快照索引一个文档，记录这个索引持有的状态修订版本，就像 PostgreSQL 和 MongoDB 的 `wow_snapshot_table` 为它们的表记录的那样。每个索引都是一对：别名 `<name>` 之后的具体索引 `<name>--1`，是别名的写入索引。存储按这个名字读写。每次写入都要求 Elasticsearch 在这个名字不是别名时拒绝它（`require_alias`），所以无论索引为何缺失，写入都不会建出一个由 Elasticsearch 猜测映射的索引：
 - `ddl: auto` 用一个请求同时建出这一对：索引和它的别名。
 - `ddl: validate` 在别名缺失时拒绝存储，指名这一对，并检查别名之后那个索引的布局。
 - `ddl: none` 什么都不检查，写入一个缺失的别名会失败，并指名它。

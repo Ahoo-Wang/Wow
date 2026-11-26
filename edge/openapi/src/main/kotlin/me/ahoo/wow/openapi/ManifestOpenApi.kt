@@ -94,7 +94,10 @@ object ManifestOpenApi {
         )
     }
 
-    /** One tag per aggregate, `<context>.<aggregate>`, then the framework's, [FRAMEWORK_TAG]. */
+    /**
+     * One tag per aggregate, `<context>.<aggregate>`, the context's jobs, `<context>.<job aggregate>`, and its service
+     * routes, `<context>`, the tag their operations carry; then the framework's, [FRAMEWORK_TAG].
+     */
     private fun tags(manifest: Manifest): List<Map<String, Any?>> = manifest.contexts.flatMap { context ->
         context.aggregates.map { aggregate ->
             Json.obj(
@@ -106,6 +109,8 @@ object ManifestOpenApi {
                 "name" to "${context.name}.${WowSchemas.JOB_AGGREGATE}",
                 "description" to "The context's scheduled jobs.",
             ).takeIf { context.commands.isNotEmpty() },
+            Json.obj("name" to context.name, "description" to "The context's service routes.")
+                .takeIf { context.routes.isNotEmpty() },
         )
     } + Json.obj("name" to FRAMEWORK_TAG, "description" to "The framework's own endpoints.")
 
