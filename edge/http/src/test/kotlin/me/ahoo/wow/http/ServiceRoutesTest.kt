@@ -120,7 +120,12 @@ class ServiceRoutesTest {
             val limit = request.query("limit", Int::class)
                 ?: throw MalformedRouteRequestException("limit", "The query parameter limit is required.")
             when (day) {
-                "closed" -> throw RouteRefusal(CLOSED, "The day is closed.", mapOf("day" to day))
+                // A refusal's extensions named like a member, or as Wow keeps, are not written (#7052, D484 N7).
+                "closed" -> throw RouteRefusal(
+                    CLOSED,
+                    "The day is closed.",
+                    mapOf("day" to day, "violations" to "none", "requestId" to "r-1"),
+                )
                 "odd" -> throw RouteRefusal("shop.summary.odd", "Not listed.")
                 else -> mapOf("day" to day, "limit" to limit, "tenant" to call.tenantId, "owner" to call.scope.ownerId)
             }
@@ -207,6 +212,8 @@ class ServiceRoutesTest {
         closed.status.assert().isEqualTo(409)
         closed.body!!["code"].asString().assert().isEqualTo(CLOSED)
         closed.body["day"].asString().assert().isEqualTo("closed")
+        closed.body.has("violations").assert().isFalse()
+        closed.body.has("requestId").assert().isFalse()
         val odd = node.get("/$CONTEXT/summaries/odd?limit=1")
         odd.status.assert().isEqualTo(422)
         odd.body!!["code"].asString().assert().isEqualTo("shop.summary.odd")

@@ -348,7 +348,8 @@ internal object WowSchemas {
         ),
         listOf("type", "title", "status", "retry"),
         "An RFC 9457 problem; `result` is the command's when it has one, and the rejection's " +
-            "extensions are members of their own names.",
+            "extensions are members of their own names, except one named like a member here, `instance`, " +
+            "`requestId`, `traceId` or `errors`.",
     )
 
     private fun commitView(): Map<String, Any?> = objectSchema(

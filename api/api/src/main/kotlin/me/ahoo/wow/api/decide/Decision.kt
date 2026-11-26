@@ -117,7 +117,8 @@ sealed interface Decision {
  * is for people. [extensions] are the rejection's structured data, by name, each a JSON value (a
  * string, a number, a boolean, a list, a map, or a data class of them), such as the ids and titles of what blocks the
  * command: the command's result carries them ([me.ahoo.wow.api.result.ErrorInfo.extensions]), and an HTTP answer
- * writes each as an extension member of its problem.
+ * writes each as an extension member of its problem, except one named like a problem's member or as Wow keeps
+ * (`instance`, `requestId`, `traceId`, `errors`), which it leaves out.
  *
  * Fields may be added: a decide function rejects with [Decision.reject]; construct a rejection itself
  * with [of]. The constructor is internal to Wow.

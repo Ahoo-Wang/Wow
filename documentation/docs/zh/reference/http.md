@@ -174,7 +174,7 @@ hop  := "accepted" ["(" context ")"]
 | `retry` | 每个 problem 都有：重试能做什么，`none`、`same-request`（用同一个 `Wow-Request-Id` 重发）或 `new-request`；不是 `none` 时带 `Retry-After`，`wow.auth.unavailable` 除外，它的响应头是 CoSec 的（见下） |
 | `result` | 命令产生了结果时，命令完整的结果 |
 | `version` | problem 所回答的聚合版本：拒绝的版本，或低于 `minVersion` 的状态读取时的当前版本 |
-| 其他任何成员 | 拒绝的结构化扩展，按名字；与上面某个成员或 `instance` 同名的扩展会被略去 |
+| 其他任何成员 | 拒绝或服务路由拒绝的结构化扩展，按名字。与上面某个成员或 `instance` 同名的扩展会被略去，即使问题没有那个成员。名为 `requestId`、`traceId` 或 `errors` 的扩展也会被略去，这些名字由 Wow 留给自己的成员：CoSec 的拒绝带有 `requestId` 和 `traceId`（[CoSec 的拒绝](../operate/security#cosec-refusals)）。服务第一次略去某个名字时，会记一条警告，指明这个名字和错误码，从不记录值；拒绝的结果仍携带它 |
 
 领域错误码的状态是它的 `@ErrorCode(status)`，默认 422，可以用 `wow.http.errors.[<code>].status` 按错误码覆盖。框架的错误码见[错误码](./error-codes)。其中框架不会回答的 `wow.` 下的错误码会拒绝启动，并列出最接近的框架错误码；服务的 Manifest 和类路径上的对等方契约都没有声明的应用错误码以一条警告启动，因为它仍可能是对的（没有 `@ErrorCode` 声明的拒绝错误码、`ProblemMapper` 的错误码、对等方的错误码）。应用自己的路由也以 problem 回答它们的失败（`wow.http.global-errors.enabled`，默认打开）。
 

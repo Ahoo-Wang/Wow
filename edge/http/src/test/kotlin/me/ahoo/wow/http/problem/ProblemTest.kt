@@ -13,6 +13,10 @@
 
 package me.ahoo.wow.http.problem
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -30,6 +34,9 @@ import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
+import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import kotlin.time.Duration.Companion.seconds
 
@@ -63,7 +70,8 @@ class ProblemTest {
             mapOf("items" to listOf(mapOf("id" to "i-1")), "code" to "other", "instance" to "/x", "none" to null)
         val result = result(ErrorInfo(CART_EMPTY, "The cart is empty.", extensions = extensions))
         val problem = statuses.problemOf(result)
-        problem.extensions.assert().isEqualTo(extensions)
+        // A member's name, or RFC 9457's instance, is no extension of a domain's (#7052).
+        problem.extensions.assert().isEqualTo(extensions - "code" - "instance")
         problem.members().let { members ->
             members["items"].assert().isEqualTo(listOf(mapOf("id" to "i-1")))
             members["code"].assert().isEqualTo(CART_EMPTY)
@@ -92,6 +100,63 @@ class ProblemTest {
         statuses.problemOf(named).members()["version"].assert().isEqualTo(3)
         statuses.problemOf(result(ErrorInfo(CART_EMPTY, "Empty.", extensions = mapOf("version" to "v2")))).members()
             .keys.assert().doesNotContain("version")
+    }
+
+    /**
+     * #7052: an extension named like a member is no member of Wow's, even on a problem without that member; else a
+     * client would read a domain's value as Wow's (the TypeScript client takes `violations` as its list of violations).
+     */
+    @ParameterizedTest
+    @ValueSource(
+        strings = ["type", "title", "status", "detail", "code", "retry", "violations", "result", "version", "instance"],
+    )
+    fun `an extension named like a member should be left out, even on a problem without that member`(name: String) {
+        val problem = Problem.of(422, "Rejected", null, null, extensions = mapOf(name to "the domain's value"))
+        problem.members()[name].assert().isNotEqualTo("the domain's value")
+    }
+
+    @Test
+    fun `a rejection's extensions should leave out the names Wow keeps, which Wow's own problems write (D484 N7)`() {
+        val statuses = ErrorStatuses(cartManifest())
+        val extensions = mapOf("requestId" to "r-1", "traceId" to "t-1", "errors" to listOf("e"), "items" to 2)
+        val members = statuses.problemOf(result(ErrorInfo(CART_EMPTY, "Empty.", extensions = extensions))).members()
+        members.keys.assert().doesNotContain("requestId", "traceId", "errors")
+        members["items"].assert().isEqualTo(2)
+        // Wow's own problem, CoSec's refusal as Wow writes it, keeps them.
+        Problem.of(401, "Unauthorized", null, null, extensions = mapOf("requestId" to "r-1", "traceId" to "t-1"))
+            .members().assert().containsEntry("requestId", "r-1").containsEntry("traceId", "t-1")
+    }
+
+    /** What [ErrorStatuses] logs while [block] runs. */
+    private fun logged(block: () -> Unit): List<ILoggingEvent> {
+        val logger = LoggerFactory.getLogger(ErrorStatuses::class.java.name) as Logger
+        val appender = ListAppender<ILoggingEvent>().apply { start() }
+        logger.addAppender(appender)
+        try {
+            block()
+        } finally {
+            logger.detachAppender(appender)
+        }
+        return appender.list
+    }
+
+    @Test
+    fun `a kept name left out of a problem should be warned of once, naming it and its code, never its value`() {
+        val statuses = ErrorStatuses(cartManifest())
+        fun rejected(vararg extensions: Pair<String, Any?>) =
+            statuses.problemOf(result(ErrorInfo(CART_EMPTY, "Empty.", extensions = mapOf(*extensions))))
+        val first = logged { rejected("errors" to listOf("secret-value"), "items" to 2) }
+        val warning = first.single()
+        warning.level.assert().isEqualTo(Level.WARN)
+        warning.formattedMessage.assert().isEqualTo(
+            "The extension 'errors' of $CART_EMPTY is left out of its problem: a problem keeps the name 'errors' for a " +
+                "member of its own. The command's result still carries it, in its error's extensions. Rename the " +
+                "extension to have it answered.",
+        )
+        // Once per name, not per request; a name without a value loses nothing, so it is not warned of.
+        logged { rejected("errors" to listOf("secret-value"), "status" to null) }.assert().isEmpty()
+        logged { rejected("status" to "open") }.map { it.formattedMessage }.single().assert()
+            .startsWith("The extension 'status' of $CART_EMPTY is left out of its problem")
     }
 
     @Test

@@ -205,7 +205,13 @@ internal class ServiceRouteHandling(
                     refusal.code,
                     refusal.message,
                     context.name
-                ).copyWith(extensions = refusal.extensions),
+                ).copyWith(
+                    extensions = statuses.domainExtensions(
+                        refusal.extensions,
+                        refusal.code,
+                        ErrorStatuses.KEPT_NOWHERE,
+                    ),
+                ),
             )
         }
 
