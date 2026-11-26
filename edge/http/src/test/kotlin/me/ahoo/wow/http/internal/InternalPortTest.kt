@@ -116,7 +116,7 @@ class InternalPortTest {
                 // Answered and closed once nothing came for the read timeout, long before the client's own timeout.
                 val answer = stalled.getInputStream().readAllBytes().toString(Charsets.UTF_8)
                 answer.assert().startsWith("HTTP/1.1 408").contains(
-                    "The request's body stalled longer than this server waits: 300ms (wow.http.read-timeout).",
+                    "Nothing of the request's body was read for 300ms (wow.http.read-timeout): the client sent none, or the route took none.",
                 )
             }
         } finally {

@@ -30,12 +30,14 @@ import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.reactive.function.server.bodyToFlux
 import org.springframework.web.reactive.function.server.router
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.time.Duration
+import java.util.concurrent.CompletableFuture
 
 /**
  * `wow.http.read-timeout` on both ports of a host, with raw requests: a body that stalls, nothing of it read for the
@@ -54,7 +56,7 @@ class ReadTimeoutTest {
                 client.send(head("/bank/account/a-1/deposit", length = 100) + """{"amount":""")
                 val answer = client.getInputStream().readAllBytes().toString(Charsets.UTF_8)
                 answer.assert().startsWith("HTTP/1.1 408").contains("application/problem+json").contains(
-                    "The request's body stalled longer than this server waits: 500ms (wow.http.read-timeout).",
+                    "Nothing of the request's body was read for 500ms (wow.http.read-timeout): the client sent none, or the route took none.",
                 )
             }
         }
@@ -95,6 +97,46 @@ class ReadTimeoutTest {
                     .flatMap { size -> ServerResponse.ok().bodyValue(size.toString()) }
             }
             GET("/later") { Mono.delay(Duration.ofSeconds(1)).flatMap { ServerResponse.ok().bodyValue("later") } }
+            // Subscribes to its body a second and a half late.
+            POST("/late") { request ->
+                Mono.delay(Duration.ofMillis(1_500)).flatMap { count(request.bodyToFlux<DataBuffer>()) }
+            }
+            // Takes its body a buffer at a time, a second and a half apart.
+            POST("/paused") { request ->
+                count(request.bodyToFlux<DataBuffer>().delayElements(Duration.ofMillis(1_500)))
+            }
+        }
+
+        private fun count(body: Flux<DataBuffer>): Mono<ServerResponse> = body
+            .map { buffer -> buffer.readableByteCount().also { DataBufferUtils.release(buffer) } }
+            .reduce(0L) { sum, bytes -> sum + bytes }
+            .flatMap { size -> ServerResponse.ok().bodyValue(size.toString()) }
+    }
+
+    @Test
+    fun `a route that takes none of its body for longer than the timeout should be answered 408, the client still sending`() {
+        // The timeout counts the time nothing of the body is read, whoever stops the reads: an application's route that
+        // asks for none of its body reads none, as Reactor Netty stops reading when the route's demand runs out.
+        startHost(TIMEOUT, sources = listOf(HostTestApp::class.java, SlowRoutes::class.java)).use { host ->
+            listOf("/late", "/paused").forEach { path ->
+                Socket().use { client ->
+                    client.open(host.publicPort)
+                    // Larger than any socket buffers: the client is still writing when it is cut.
+                    val size = 32 * 1_024 * 1_024
+                    client.send(head(path, length = size))
+                    val writing = CompletableFuture.supplyAsync {
+                        runCatching {
+                            val chunk = ByteArray(64 * 1_024) { 'x'.code.toByte() }
+                            repeat(size / chunk.size) { client.getOutputStream().write(chunk) }
+                        }
+                    }
+                    val read = client.getInputStream().readUntilClosed()
+                    read.text.assert().describedAs(path).startsWith("HTTP/1.1 408")
+                        .contains("the client sent none, or the route took none")
+                    read.closed.assert().isTrue()
+                    writing.get().exceptionOrNull().assert().describedAs("$path: the client's writes").isNotNull()
+                }
+            }
         }
     }
 

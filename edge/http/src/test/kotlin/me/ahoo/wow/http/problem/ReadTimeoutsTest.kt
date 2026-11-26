@@ -168,7 +168,10 @@ class ReadTimeoutsTest {
         response.headers()[HttpHeaderNames.CONNECTION].assert().isEqualTo("close")
         val body = response.content().toString(Charsets.UTF_8)
         response.release()
-        body.assert().contains("The request's body stalled longer than this server waits: 30s (wow.http.read-timeout).")
+        body.assert().contains(
+            "Nothing of the request's body was read for 30s (wow.http.read-timeout): the client sent none, or the " +
+                "route took none.",
+        )
         // The route is not handed the timeout: nothing reached the end of the pipeline.
         channel.checkException()
         channel.finishAndReleaseAll()

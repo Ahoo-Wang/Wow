@@ -44,6 +44,10 @@ import kotlin.time.toJavaDuration
  * A server's read timeout (#6973): the longest a request's body may stall, nothing of it read, from the request's
  * headers to the body's end. It never bounds the answer: a stream or a wait runs as long as it does.
  *
+ * It counts the time nothing of the body is read, whoever stops the reads. Reactor Netty stops reading when the
+ * route's demand runs out, so a route that reads its body as a stream and asks for none of it for as long (subscribing
+ * late, pausing between pieces) is answered 408 too, the client still sending. Wow's own routes read a body at once.
+ *
  * - **While its request is handled**, Reactor Netty times the body (`HttpServer.readTimeout`) and closes the connection
  *   past the timeout, and [Answers] answers 408 first, its detail naming the timeout and its key as the server's other
  *   refusals do ([ServerRefusals]). The route's body ends as a client's that went away. Over HTTP/2 the stream is reset
@@ -103,10 +107,13 @@ object ReadTimeouts {
         }
     }
 
-    /** The answer to a request whose body stalls past [timeout]: a 408 naming the timeout and [KEY]. */
+    /**
+     * The answer to a request nothing of whose body was read for [timeout]: a 408 naming the timeout and [KEY], and
+     * either of its causes, since the server cannot tell them apart.
+     */
     fun stalled(timeout: Duration): Problem = Problem.ofStatus(
         HttpStatus.REQUEST_TIMEOUT,
-        "The request's body stalled longer than this server waits: $timeout ($KEY).",
+        "Nothing of the request's body was read for $timeout ($KEY): the client sent none, or the route took none.",
     )
 
     /** Whether [msg] begins an answer: a response that is no interim one. */

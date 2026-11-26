@@ -696,7 +696,7 @@
   }, {
     "name" : "wow.http.read-timeout",
     "type" : "java.time.Duration",
-    "description" : "The longest a request's body may stall on the public port and the internal port: the time between two reads of it, from the request's headers to the body's end, whether or not a route has answered by then. A request whose body stalls longer, sent slowly or not at all, is answered 408, unless it was answered already, and its connection closed (over HTTP/2, its stream). An upload that keeps sending is not cut, however long it takes, and neither is the answer: a stream or a wait runs as long as it does. Positive.",
+    "description" : "The longest a request's body may stall on the public port and the internal port: the time between two reads of it, from the request's headers to the body's end, whether or not a route has answered by then. A request whose body stalls longer, sent slowly or not at all, is answered 408, unless it was answered already, and its connection closed (over HTTP/2, its stream). An upload that keeps sending is not cut, however long it takes, and neither is the answer: a stream or a wait runs as long as it does. It counts the time nothing of the body is read, whoever stops the reads: an application's own route that reads its body as a stream and asks for none of it for as long (subscribing late, pausing between pieces) is answered 408 too, though its client keeps sending. Wow's own routes read a body at once. Positive.",
     "sourceType" : "me.ahoo.wow.spring.boot.http.HttpProperties",
     "defaultValue" : "PT30S"
   }, {
