@@ -38,6 +38,7 @@ import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.kernel.FailureClassification
 import me.ahoo.wow.manifest.AggregateManifest
@@ -613,7 +614,8 @@ class HttpCommandClientTest {
             fun events(vararg results: CommandResult, whole: Boolean = true) = Reply.events(
                 *(
                     results.mapIndexed { index, result ->
-                        "id: $index\nevent: x\ndata: ${WowJson.mapper.writeValueAsString(result)}\n\n"
+                        val stage = WireNames.of(result.hop.stage)
+                        "id: $index\nevent: $stage\ndata: ${WowJson.mapper.writeValueAsString(result)}\n\n"
                     } + listOfNotNull(END.takeIf { whole })
                     ).toTypedArray(),
             )
