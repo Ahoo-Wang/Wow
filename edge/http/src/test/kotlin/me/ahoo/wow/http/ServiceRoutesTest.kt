@@ -97,7 +97,15 @@ class ServiceRoutesTest {
                             response = Manifest.refSchema("Summary"),
                             errors = listOf(CLOSED),
                         ),
-                        ServiceRouteManifest(name = "kinds", route = RouteManifest("GET", "/$CONTEXT/kinds/{n}")),
+                        // The query parameters its handler reads, as the compiler declares a route's (#7053).
+                        ServiceRouteManifest(
+                            name = "kinds",
+                            route = RouteManifest("GET", "/$CONTEXT/kinds/{n}"),
+                            parameters = mapOf("d" to "number", "b" to "boolean", "level" to "string").map {
+                                val query = RouteParameterManifest.Location.QUERY
+                                RouteParameterManifest(it.key, query, mapOf("type" to it.value))
+                            },
+                        ),
                         ServiceRouteManifest(name = "relay", route = RouteManifest("POST", "/$CONTEXT/relay")),
                         ServiceRouteManifest(name = "read", route = RouteManifest("GET", "/$CONTEXT/read")),
                         ServiceRouteManifest(name = "peer", route = RouteManifest("POST", "/$CONTEXT/peer/{answer}")),
@@ -217,6 +225,29 @@ class ServiceRoutesTest {
         val odd = node.get("/$CONTEXT/summaries/odd?limit=1")
         odd.status.assert().isEqualTo(422)
         odd.body!!["code"].asString().assert().isEqualTo("shop.summary.odd")
+    }
+
+    /**
+     * #7053: a query parameter the route does not declare, a typo of one it does among them, and a declared one given
+     * twice are refused, naming it, before the handler runs: the handler reads the first value of a name it asks
+     * for and none of another, so either would be dropped.
+     */
+    @Test
+    fun `a query parameter the route does not declare, or one given twice, is malformed, naming it`() {
+        listOf(
+            "/$CONTEXT/summaries/mon?limit=1&limt=2" to "limt",
+            "/$CONTEXT/summaries/mon?limit=1&limit=2" to "limit",
+            "/$CONTEXT/read?_=1700000000" to "_",
+        ).forEach { (path, parameter) ->
+            val refused = node.get(path)
+            refused.status.assert().describedAs(path).isEqualTo(400)
+            refused.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.ROUTE_MALFORMED)
+            refused.body["violations"][0]["path"].asString().assert().isEqualTo(parameter)
+        }
+        node.get("/$CONTEXT/read?_=1").body!!["detail"].asString().assert()
+            .isEqualTo("'_' is no query parameter of this route; it takes none.")
+        node.get("/$CONTEXT/summaries/mon?limt=2").body!!["detail"].asString().assert()
+            .isEqualTo("'limt' is no query parameter of this route; it takes 'limit'.")
     }
 
     @Test

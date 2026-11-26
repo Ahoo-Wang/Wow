@@ -83,6 +83,8 @@ outline: deep
 | 状态读取上的空白 ID（`/shop/cart/%20/state`） | `400 wow.query.malformed` |
 | 状态读取或 trace 不接收的参数（`?verison=1`），或给出两次的参数（`?version=1&version=9`） | `400 wow.query.invalid`，违规项指出它 |
 | 不是不带符号、不带前导零的 ASCII 数字的 `version`、`minVersion`、`from`、`to` 或 `limit`（`%2B1`、`001`、`١`） | `400 wow.query.invalid`，违规项指出它 |
+| 命令路由上的查询参数（`/shop/cart/c-1/add-item?x=1`），内部端口上也一样：命令只读取请求体和请求头 | `400 wow.request.malformed`，违规项指明它；命令不会执行 |
+| 服务路由没有声明的查询参数（`?limt=1`），或给了两次的已声明参数（`?limit=1&limit=2`） | `400 wow.route.malformed`，违规项指明它；处理器不会执行 |
 | 服务路由的数字参数不是 JSON 写法的数字（`NaN`、`Infinity`、空格、`+1`、`01`；整数带小数或指数） | `400 wow.route.malformed`，违规项指出它 |
 
 ### 服务器在路由之前拒绝什么 {#server-refusals}

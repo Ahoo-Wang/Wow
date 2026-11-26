@@ -83,6 +83,8 @@ Nothing a client sends outside the body is read as something else, or dropped:
 | A blank id on a state read (`/shop/cart/%20/state`) | `400 wow.query.malformed` |
 | A parameter of a state read or a trace it does not take (`?verison=1`), or one given twice (`?version=1&version=9`) | `400 wow.query.invalid`, the violation naming it |
 | `version`, `minVersion`, `from`, `to` or `limit` that is not ASCII digits without a sign or a leading zero (`%2B1`, `001`, `١`) | `400 wow.query.invalid`, the violation naming it |
+| A query parameter on a command route (`/shop/cart/c-1/add-item?x=1`), on the internal port too: a command reads its body and its headers alone | `400 wow.request.malformed`, the violation naming it; the command does not run |
+| A query parameter a service route does not declare (`?limt=1`), or a declared one given twice (`?limit=1&limit=2`) | `400 wow.route.malformed`, the violation naming it; the handler does not run |
 | A number parameter of a service route that is not a number as JSON writes one (`NaN`, `Infinity`, a space, `+1`, `01`; for a whole number, a fraction or an exponent) | `400 wow.route.malformed`, the violation naming it |
 
 ### What the server refuses before any route {#server-refusals}

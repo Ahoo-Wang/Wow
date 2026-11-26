@@ -38,6 +38,7 @@ import me.ahoo.wow.kernel.route.RouteRequest
 import me.ahoo.wow.kernel.route.ServiceRouteHandler
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.RouteParameterManifest
 import me.ahoo.wow.manifest.ServiceRouteManifest
 import me.ahoo.wow.query.admission.QueryTargetException
 import me.ahoo.wow.query.admission.QueryTargets
@@ -140,7 +141,10 @@ internal class ServiceRouteHandling(
             client = routes.commands,
             queryApi = routes.queries,
         )
-        val answer = answer(context, route) { handler.handle(call, Parameters(request, body)) }
+        val answer = answer(context, route) {
+            checkQuery(request, route)
+            handler.handle(call, Parameters(request, body))
+        }
         if (answer == null || answer == Unit) return ServerResponse.noContent().buildAndAwait()
         return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValueAndAwait(HttpJson.write(answer))
     }
@@ -168,6 +172,28 @@ internal class ServiceRouteHandling(
         val decision = authorizer.authorize(caller, action)
         if (decision is Authorization.Denied) throw problem(decision.code, decision.message)
         return acting
+    }
+
+    /**
+     * Refuses a query parameter [route] does not declare, and a declared one given twice, of which no value would be
+     * the one read (#7053), as a state read does: the handler reads the first value of a name it asks for, and none of
+     * another, so either would be dropped.
+     */
+    private fun checkQuery(request: ServerRequest, route: ServiceRouteManifest) {
+        val declared = route.parameters.filter { it.location == RouteParameterManifest.Location.QUERY }
+            .map { it.name }
+        request.queryParams().forEach { (name, values) ->
+            if (name !in declared) {
+                val takes = declared.joinToString { "'$it'" }.ifEmpty { "none" }
+                throw MalformedRouteRequestException(
+                    name,
+                    "'$name' is no query parameter of this route; it takes $takes.",
+                )
+            }
+            if (values.size > 1) {
+                throw MalformedRouteRequestException(name, "'$name' is given ${values.size} times; it is given once.")
+            }
+        }
     }
 
     /** A service's call (`Wow-Call`) is taken on the internal port alone. */

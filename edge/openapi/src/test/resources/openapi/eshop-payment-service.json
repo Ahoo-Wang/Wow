@@ -3653,7 +3653,7 @@
         }
       },
       "eshop-payment.command.400" : {
-        "description" : "`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.\n`wow.command.malformed`: The command body cannot be read as the command type.\n`wow.command.invalid`: The command failed validation; the problem lists the violations.\n`wow.wait.invalid`: The wait is not a chain the runtime can follow; the command was not run.\n`wow.command.unhandled`: The aggregate does not handle this command.\n`wow.schedule.job-invalid`: The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled.\n`wow.route.malformed`: A service route's parameter or body cannot be read as its type; the violation names the parameter.",
+        "description" : "`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.\n`wow.command.malformed`: The command body cannot be read as the command type.\n`wow.command.invalid`: The command failed validation; the problem lists the violations.\n`wow.wait.invalid`: The wait is not a chain the runtime can follow; the command was not run.\n`wow.command.unhandled`: The aggregate does not handle this command.\n`wow.schedule.job-invalid`: The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled.\n`wow.route.malformed`: A service route's parameter or body cannot be read as its type, or the request gives a query parameter the route does not declare, or one twice; the violation names the parameter.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -3834,7 +3834,7 @@
         "x-wow-error-codes" : [ "wow.wait.timeout" ]
       },
       "wow.command.400" : {
-        "description" : "`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.\n`wow.command.malformed`: The command body cannot be read as the command type.\n`wow.command.invalid`: The command failed validation; the problem lists the violations.\n`wow.wait.invalid`: The wait is not a chain the runtime can follow; the command was not run.\n`wow.command.unhandled`: The aggregate does not handle this command.\n`wow.schedule.job-invalid`: The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled.\n`wow.route.malformed`: A service route's parameter or body cannot be read as its type; the violation names the parameter.",
+        "description" : "`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.\n`wow.command.malformed`: The command body cannot be read as the command type.\n`wow.command.invalid`: The command failed validation; the problem lists the violations.\n`wow.wait.invalid`: The wait is not a chain the runtime can follow; the command was not run.\n`wow.command.unhandled`: The aggregate does not handle this command.\n`wow.schedule.job-invalid`: The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled.\n`wow.route.malformed`: A service route's parameter or body cannot be read as its type, or the request gives a query parameter the route does not declare, or one twice; the violation names the parameter.",
         "content" : {
           "application/problem+json" : {
             "schema" : {

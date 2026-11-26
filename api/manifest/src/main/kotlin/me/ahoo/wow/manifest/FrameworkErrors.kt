@@ -226,7 +226,8 @@ object FrameworkErrors {
         ErrorManifest(
             FrameworkCodes.ROUTE_MALFORMED,
             400,
-            "A service route's parameter or body cannot be read as its type; the violation names the parameter.",
+            "A service route's parameter or body cannot be read as its type, or the request gives a query parameter " +
+                "the route does not declare, or one twice; the violation names the parameter.",
         ),
         ErrorManifest(FrameworkCodes.QUERY_MALFORMED, 400, "The query body cannot be read as a query."),
         ErrorManifest(

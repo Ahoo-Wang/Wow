@@ -27,6 +27,7 @@ import kotlinx.coroutines.reactor.ReactorContext
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Stage
+import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.HttpJson
@@ -126,6 +127,7 @@ internal class CommandHandler(
 ) {
     suspend fun handle(request: ServerRequest, target: CommandTarget): ServerResponse {
         val caller = authenticator.authenticate(request)
+        refuseQueryParameters(request)
         if (target.operational && !internal && !gateway.decidesOperational) {
             throw ProblemException(statuses.problemOf(FrameworkCodes.AUTH_FORBIDDEN, refusedWithoutAuthorizer(target)))
         }
@@ -163,6 +165,21 @@ internal class CommandHandler(
         )
         val ifMatch = request.headers().firstHeader(WowHeaders.IF_MATCH) != null
         return if (eventStream) stream(command, ifMatch) else execute(command, ifMatch)
+    }
+
+    /**
+     * A command route takes no query parameter, on either port (#7053): one is refused, naming it, so that nothing a
+     * client sends outside the body is dropped (a misspelled parameter, or one a proxy appends), and no parameter can
+     * later be given a meaning that changes what a request already does.
+     */
+    private fun refuseQueryParameters(request: ServerRequest) {
+        val name = request.queryParams().keys.firstOrNull() ?: return
+        val detail = "'$name' is a query parameter, which no command route takes: a command reads its body and its " +
+            "headers alone."
+        throw ProblemException(
+            statuses.problemOf(FrameworkCodes.REQUEST_MALFORMED, detail)
+                .copyWith(violations = listOf(Violation(name, FrameworkCodes.REQUEST_MALFORMED, detail))),
+        )
     }
 
     private suspend fun execute(command: ServerCommandRequest, ifMatch: Boolean): ServerResponse {

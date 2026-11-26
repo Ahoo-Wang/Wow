@@ -43,7 +43,7 @@ Every code the framework answers a request with, as `code` of the `application/p
 | `wow.ledger.stale` | 409 | `none` | Stale ledger action | The action names a parking the entry no longer is: the aggregate was resolved and parked again since; read the entry again before acting on it. |
 | `wow.subscription.parked` | 500 | `none` | Subscription parked | A subscription on the wait chain parked the aggregate; the wait cannot be reached until the aggregate is retried. |
 | `wow.wait.timeout` | 504 | `same-request` | Wait timed out | The wait ran out of time; the command may have committed. The problem carries the last stage reached. |
-| `wow.route.malformed` | 400 | `none` | Malformed route request | A service route's parameter or body cannot be read as its type; the violation names the parameter. |
+| `wow.route.malformed` | 400 | `none` | Malformed route request | A service route's parameter or body cannot be read as its type, or the request gives a query parameter the route does not declare, or one twice; the violation names the parameter. |
 | `wow.query.malformed` | 400 | `none` | Malformed query | The query body cannot be read as a query. |
 | `wow.query.invalid` | 400 | `none` | Invalid query | The query failed admission; the problem lists the violations, each with its code (unknown-field, ...). |
 | `wow.query.failed` | 500 | `none` | Query failed | The query backend failed to run the query. |
