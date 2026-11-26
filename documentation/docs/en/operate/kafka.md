@@ -71,6 +71,12 @@ The topic keeps them for as long as it retains them, so the topic's ACL is what 
 
 For both kinds of topic, a reading node looks for new partitions every `wow.kafka.topics.partition-refresh-interval` (30 seconds) and reads them from their beginning, without a restart. For records placed by the key's hash, an aggregate a subscription had parked at the growth cannot be retried afterwards: its earlier records are in the partition it left, its later ones in the new one. The owner of the new partition holds the later records back and marks the entry skip-only (`skipOnly`): it is never retried, by an operator either, and its reason names both partitions. Resolve those parked entries before you add partitions, or expect to skip them once their earlier records are dealt with ([Failures](../guide/failures)). An aggregate parked on a record placed by its log's partition is retried where it was read, whatever partitions the topic gained.
 
+### Publish rate
+
+The transport sink publishes one aggregate's records one after another: each is a send of its own that waits for the producer to send it and for its acknowledgement, so the aggregate's next commit is published after it, in version order. A single aggregate so sustains about 150 records a second with the default producer settings. Measured on an Apple M5 Max (PostgreSQL and Kafka on one virtual CPU each), one aggregate committing 150 times a second was published as fast; at 300 a second its stream fell 19 seconds behind in 30 seconds, and was level again 38 seconds after the load. Many aggregates are not bound by it: their records are published side by side, and with keys spread over 100,000 aggregates the sink kept up with the node's own saturation, about 25,000 commits a second. A stream that falls behind is late, never out of order, and catches up once the aggregate's rate drops; the aggregate's commands are answered meanwhile.
+
+Watch it on the transport sink's subscription, `wow.transport-sink.<aggregate>`: `wow.subscription.backlog` and `wow.subscription.progress` for the aggregate's partition ([Observability](./observability#metrics-and-traces)). Most of a record's time is the producer's `linger.ms`, Kafka's 5 ms by default, which `wow.kafka.properties.linger.ms` sets for every producer of the node ([Client settings](#client-settings)); no other value has been measured.
+
 ### Creating topics
 
 At startup, a node checks the topics its contexts own, as `wow.kafka.ddl` says; it follows `wow.ddl` when not set, so the stores and the topics share one setting:
