@@ -166,7 +166,7 @@ wow-generator 生成的 TypeScript 客户端按 Kotlin 契约的命名给错误�
 
 预发布版启动时接受的两个设置，现在会拒绝启动，并说出其配置项和界限。`wow.health.liveness.stall-timeout` 必须长于 `wow.cluster.reconcile-timeout`（默认 `1m`），这样卡住的节点会在其存活检查失败之前离开成员：*wow.health.liveness.stall-timeout is 1m, not longer than wow.cluster.reconcile-timeout.* `wow.query.dataset.max-concurrent` 必须为 `0` 或更大，而预发布版把负值当作不设界限运行：不设界限请设为 `0`（*wow.query.dataset.max-concurrent is -1, below 0.*）。
 
-服务的构建现在可以渲染它的 Kubernetes 清单：`wow { kubernetes { values.from(…); namespace = … } }` 让 `generateWowManifests` 进入 `assemble`，它把插件自带的 `wow-service` chart 渲染成纯 YAML 的 Kustomize base，即 `build/wow/k8s/`，供 `kubectl apply -k` 使用（[配合 Kustomize](./kubernetes#with-kustomize)）。没有任何破坏：安装 chart 的部署无需改动，没有写 values 的构建什么也不渲染。写了 values 的构建第一次渲染时把 Helm v4.3.1 获取到 Gradle 用户目录；`wow.helm.mirror` 与 `wow.helm.executable` 供无法访问 `get.helm.sh` 的构建使用。原先用 `helm template` 手工渲染 chart 的部署，可以改为在构建里写明同样的 values 文件。
+服务的构建现在可以渲染它的 Kubernetes 清单：`wow { kubernetes { values.from(…); namespace = … } }` 让 `generateWowKubernetes` 进入 `assemble`，它把插件自带的 `wow-service` chart 渲染成纯 YAML 的 Kustomize base，即 `build/wow/k8s/`，供 `kubectl apply -k` 使用（[配合 Kustomize](./kubernetes#with-kustomize)）。没有任何破坏：安装 chart 的部署无需改动，没有写 values 的构建什么也不渲染。写了 values 的构建第一次渲染时把 Helm v4.3.1 获取到 Gradle 用户目录；`wow.helm.mirror` 与 `wow.helm.executable` 供无法访问 `get.helm.sh` 的构建使用。原先用 `helm template` 手工渲染 chart 的部署，可以改为在构建里写明同样的 values 文件。
 
 预发布版本拒绝把 Elasticsearch 存储作为聚合类型自己的快照存储；这个版本接受它（[Elasticsearch](./elasticsearch#only-snapshot-store)）。快照留在数据库、在 Elasticsearch 上另有副本的部署无需改动。想让类型的状态只存一份的部署，在类型的 `snapshot.store` 中指定 Elasticsearch 存储。这个存储随后从日志回填，期间该类型答 `rebuilding`（[重建与重放](./replay)）。
 
