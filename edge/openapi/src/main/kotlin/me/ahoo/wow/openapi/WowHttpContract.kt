@@ -45,6 +45,12 @@ object WowHttpContract {
     const val IF_MATCH_HEADER: String = "If-Match"
     const val IF_NONE_MATCH_HEADER: String = "If-None-Match"
     const val ETAG_HEADER: String = "ETag"
+
+    /** The `Cache-Control` of a tagged answer: `private, no-cache`. */
+    const val CACHE_CONTROL_HEADER: String = "Cache-Control"
+
+    /** The value of [CACHE_CONTROL_HEADER] on every tagged answer. */
+    const val CACHE_CONTROL: String = "private, no-cache"
     const val RETRY_AFTER_HEADER: String = "Retry-After"
 
     /** On a snapshot model's answers, `true` while its snapshots are being rebuilt or backfilled. */

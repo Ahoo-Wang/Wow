@@ -263,7 +263,9 @@ class OpenApiPathsTest {
                 "properties" to mapOf("state" to ref("schemas", "sample.Cart_State")),
             ),
         )
-        ok["headers"].assert().isEqualTo(mapOf("ETag" to ref("headers", "ETag")))
+        ok["headers"].assert().isEqualTo(
+            mapOf("ETag" to ref("headers", "ETag"), "Cache-Control" to ref("headers", "Cache-Control")),
+        )
         responses(
             state
         ).keys.assert()
@@ -419,13 +421,16 @@ class OpenApiPathsTest {
         val query = operation("post", "/shop/cart/snapshot/query")
         headers(query, "200").assert().isEqualTo(rebuilding)
         val describe = operation("get", "/shop/cart/snapshot/query")
-        headers(describe, "200").assert().isEqualTo(mapOf("ETag" to ref("headers", "ETag")) + rebuilding)
-        headers(describe, "304").assert().isEqualTo(mapOf("ETag" to ref("headers", "ETag")) + rebuilding)
-        // A 304 carries the tag it was answered for, as the 200 does.
-        headers(operation("get", "/shop/cart/{id}/state"), "304").keys.assert().containsExactly("ETag")
+        val tagged = mapOf("ETag" to ref("headers", "ETag"), "Cache-Control" to ref("headers", "Cache-Control"))
+        headers(describe, "200").assert().isEqualTo(tagged + rebuilding)
+        headers(describe, "304").assert().isEqualTo(tagged + rebuilding)
+        // A 304 carries the tag it was answered for, and its Cache-Control, as the 200 does.
+        val tags = listOf("ETag", "Cache-Control")
+        headers(operation("get", "/shop/cart/{id}/state"), "304").keys.assert().containsExactlyElementsOf(tags)
         headers(operation("post", "/shop/order/events/query"), "200").assert().isEmpty()
-        headers(operation("get", "/shop/order/events/query"), "200").keys.assert().containsExactly("ETag")
-        headers(operation("get", "/wow/dataset/{context}/{dataset}/query"), "200").keys.assert().containsExactly("ETag")
+        headers(operation("get", "/shop/order/events/query"), "200").keys.assert().containsExactlyElementsOf(tags)
+        headers(operation("get", "/wow/dataset/{context}/{dataset}/query"), "200").keys.assert()
+            .containsExactlyElementsOf(tags)
         (document.components("headers")["Wow-Rebuilding"] as Map<*, *>)["schema"].assert()
             .isEqualTo(mapOf("type" to "string", "enum" to listOf("true")))
     }

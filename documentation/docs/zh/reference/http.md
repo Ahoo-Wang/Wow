@@ -166,6 +166,7 @@ hop  := "accepted" ["(" context ")"]
 | 响应头 | 用于 | 含义 |
 | --- | --- | --- |
 | `ETag` | 状态读取、描述符 | 应答的版本，强标签（状态读取写的是 `"3-…"`），供 `If-None-Match` 使用，也供命令的 `If-Match` 使用（[实体标签](./protocols#entity-tags)） |
+| `Cache-Control` | 状态读取、描述符，以及它们的 `304` | `private, no-cache`：谁能读到这个应答、读到的是什么（状态读取所在的租户和作用域，调用方能看到的数据集），都取决于调用方。共享缓存不存储它；私有缓存可以保留它，但每次都带 `If-None-Match` 重新询问（[实体标签](./protocols#entity-tags)） |
 | `Wow-Rebuilding` | 快照查询、描述符 | 聚合类型的快照正在重建或回填时为 `true`：应答可能缺少重建尚未到达的内容 |
 | `Retry-After` | problem | 重试何时可能越过这个 problem，以整秒计 |
 

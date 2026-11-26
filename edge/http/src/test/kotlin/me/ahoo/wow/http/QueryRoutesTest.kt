@@ -442,11 +442,14 @@ class QueryRoutesTest {
         val version = described.body!!["version"].asString()
         version.assert().startsWith("sha256:")
         described.headers.eTag.assert().isEqualTo("\"$version\"")
+        // Who may read it is the caller's: a shared cache must not answer another caller.
+        described.headers.cacheControl.assert().isEqualTo("private, no-cache")
         described.body!!["limits"]["defaultListSize"].asInt().assert().isEqualTo(HttpQueries.DEFAULT_LIST_SIZE)
         described.body!!["fields"].values().map { it["path"].asString() }.assert().contains("state.items", "ownerId")
         node.describe(headers = mapOf("If-None-Match" to "\"$version\"")).let {
             it.status.assert().isEqualTo(304)
             it.headers.eTag.assert().isEqualTo("\"$version\"")
+            it.headers.cacheControl.assert().isEqualTo("private, no-cache")
         }
         node.describe(headers = mapOf("If-None-Match" to "\"sha256:other\", W/\"$version\"")).status.assert()
             .isEqualTo(304)

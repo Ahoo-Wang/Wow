@@ -29,6 +29,7 @@ import me.ahoo.wow.http.caller.Authenticator
 import me.ahoo.wow.http.command.CommandHandler
 import me.ahoo.wow.http.command.Negotiation
 import me.ahoo.wow.http.command.RequestHeaders
+import me.ahoo.wow.http.entityTag
 import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.http.problem.ProblemException
 import me.ahoo.wow.http.query.HttpQueries
@@ -145,9 +146,9 @@ internal class StateHandler(
         val notModified = request.headers().header(HttpHeaders.IF_NONE_MATCH)
             .mapNotNull(EntityTags::parse).any { EntityTags.matchesWeakly(it, tag) }
         if (notModified) {
-            return ServerResponse.status(NOT_MODIFIED).eTag(tag).buildAndAwait()
+            return ServerResponse.status(NOT_MODIFIED).entityTag(tag).buildAndAwait()
         }
-        return ServerResponse.ok().eTag(tag).contentType(MediaType.APPLICATION_JSON).bodyValueAndAwait(body)
+        return ServerResponse.ok().entityTag(tag).contentType(MediaType.APPLICATION_JSON).bodyValueAndAwait(body)
     }
 
     suspend fun trace(request: ServerRequest, type: AggregateType): ServerResponse {
