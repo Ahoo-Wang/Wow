@@ -55,12 +55,16 @@ class MissingContentTypeTest {
 
     private fun fixed(text: String) = HttpRequest.BodyPublishers.ofString(text)
 
-    private fun chunked(text: String) = HttpRequest.BodyPublishers.ofInputStream { ByteArrayInputStream(text.toByteArray()) }
+    /** [text] of no announced length: chunked on HTTP/1.1, a stream of data without `content-length` on HTTP/2. */
+    private fun chunked(text: String): HttpRequest.BodyPublisher {
+        val bytes = text.toByteArray()
+        return HttpRequest.BodyPublishers.ofInputStream { ByteArrayInputStream(bytes) }
+    }
 
     private fun HttpResponse<String>.assertRefused(what: String) {
         statusCode().assert().isEqualTo(415)
         headers().firstValue("Content-Type").get().assert().isEqualTo("application/problem+json")
-        body().assert().contains("$what is sent with Content-Type application/json or application/*+json; none was given.")
+        body().assert().contains("$what $REFUSED")
     }
 
     @Test
@@ -112,5 +116,6 @@ class MissingContentTypeTest {
         const val QUERY = "/shop/cart/snapshot/query"
         const val ITEM = """{"sku":"apple"}"""
         const val COUNT = """{"kind":"count","filter":{"op":"match-all"}}"""
+        const val REFUSED = "is sent with Content-Type application/json or application/*+json; none was given."
     }
 }

@@ -273,30 +273,15 @@ internal object Negotiation {
 
     /**
      * Fails with 415 when the request body is given as another type than JSON, `application/json` or an
-     * `application/<name>+json` type (any parameters, such as `charset`), or is given with no `Content-Type` at all
-     * (D485 ⑪); [what] names what the body is. A range (any type, or any subtype of `application`) is no type, and a
+     * `application/<name>+json` type (any parameters, such as `charset`), or is given with no `Content-Type` at all;
+     * [what] names what the body is. A range (any type, or any subtype of `application`) is no type, and a
      * `+json` suffix under another top-level type (`image/x+json`) is no JSON body. The 415 is the defence against a
      * cross-site request, which a browser sends without a preflight only as a simple type or with no type, so a
      * missing header is no way past it. A request without a body (no `Content-Length` above zero, no
      * `Transfer-Encoding`, which Netty also gives an HTTP/2 stream that carries data) needs no `Content-Type`.
      */
     fun checkJsonBody(request: ServerRequest, what: String = "A command") {
-        val type = try {
-            request.headers().contentType().orElse(null)
-        } catch (_: InvalidMediaTypeException) {
-            throw ProblemException(Problem.ofStatus(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Content-Type does not parse."))
-        }
-        if (type == null) {
-            if (hasBody(request)) {
-                throw ProblemException(
-                    Problem.ofStatus(
-                        HttpStatus.UNSUPPORTED_MEDIA_TYPE,
-                        "$what is sent with Content-Type application/json or application/*+json; none was given.",
-                    ),
-                )
-            }
-            return
-        }
+        val type = contentType(request) ?: return checkNoBody(request, what)
         val json = type.type == MediaType.APPLICATION_JSON.type &&
             (type.subtype == MediaType.APPLICATION_JSON.subtype || type.subtype.endsWith(JSON_SUFFIX))
         if (!json) {
@@ -310,6 +295,25 @@ internal object Negotiation {
     }
 
     private const val JSON_SUFFIX = "+json"
+
+    /** The request's `Content-Type`, null without one; 415 when it does not parse. */
+    private fun contentType(request: ServerRequest): MediaType? = try {
+        request.headers().contentType().orElse(null)
+    } catch (_: InvalidMediaTypeException) {
+        throw ProblemException(Problem.ofStatus(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Content-Type does not parse."))
+    }
+
+    /** Fails with 415 when [request], which gives no `Content-Type`, announces a body; [what] names what it is. */
+    private fun checkNoBody(request: ServerRequest, what: String) {
+        if (hasBody(request)) {
+            throw ProblemException(
+                Problem.ofStatus(
+                    HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+                    "$what is sent with Content-Type application/json or application/*+json; none was given.",
+                ),
+            )
+        }
+    }
 
     /** Whether [request] announces a body: a `Content-Length` above zero, or a `Transfer-Encoding`. */
     private fun hasBody(request: ServerRequest): Boolean {
