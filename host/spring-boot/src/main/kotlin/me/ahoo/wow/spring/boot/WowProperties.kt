@@ -169,7 +169,7 @@ class WowProperties {
 
     /**
      * The keys wow-cosec reads (`wow.cosec.*`), bound here so they are checked and documented as the others are.
-     * Experimental in 10.0 with wow-cosec, which follows CoSec 8's pre-release: they may change within 10.x.
+     * Experimental in 10.0 with wow-cosec: they may change within 10.x until a 10.x minor release drops the marker.
      */
     var cosec: CoSecProperties = CoSecProperties()
 

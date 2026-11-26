@@ -39,7 +39,7 @@
  *   token's tenant, subject and roles, in that app and the default space, no
  *   memberships, whose credential it is (the token's `cosec.kind`), its
  *   `jti`, expiry and issue time, and the request's id, as CoSec
- *   8.0.0-rc.1's gateway forwards it.
+ *   8.0.0's gateway forwards it.
  *
  * It decides nothing else: the suite's tokens carry their roles, so there is
  * no policy, no document and no Redis to consult.
@@ -122,7 +122,7 @@ function authenticate(authorization, secret, revoked, now) {
 /**
  * The `CoSec-Identity` of `claims` in `app` for the request `requestId`:
  * base64url, without padding, of compact JSON with exactly the members CoSec
- * 8.0.0-rc.1's gateway forwards, in its order (whose credential it is and
+ * 8.0.0's gateway forwards, in its order (whose credential it is and
  * the token's issue time in `auth`, no memberships, the request's id as
  * `rid`).
  */

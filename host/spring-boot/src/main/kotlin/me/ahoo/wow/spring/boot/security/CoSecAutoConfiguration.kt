@@ -72,7 +72,8 @@ import org.springframework.util.ClassUtils
  *   auto-configuration of their own after CoSec's pipeline, which defines the checker they ask
  *   ([CoSecAuthorizersAutoConfiguration]).
  *
- * Experimental as wow-cosec is, which follows CoSec 8's pre-release: the class and its constant may change within 10.x.
+ * Experimental as wow-cosec is in 10.0: the class and its constant may change within 10.x until a 10.x minor release
+ * drops the marker.
  */
 @ExperimentalWowApi
 @AutoConfiguration(before = [WowAutoConfiguration::class])
