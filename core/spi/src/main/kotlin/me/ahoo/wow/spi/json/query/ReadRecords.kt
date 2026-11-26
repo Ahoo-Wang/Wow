@@ -86,7 +86,8 @@ fun Operator?.toRecordValue(): JsonNode = if (this == null) {
 
 /**
  * This events query record (`EventQueryGateways.kt`) of [type], each event's body decoded as the
- * class [eventType] gives its name, an [ObjectNode] when it gives none.
+ * class [eventType] gives its name, an [ObjectNode] when it gives none. A body masked whole, an event the node's
+ * Manifest does not know, stays the JSON `null` it was answered as (a `NullNode`).
  */
 @InternalWowApi
 fun ObjectNode.toEventStream(type: AggregateType, eventType: (String) -> Class<*>?): EventStream =
@@ -101,10 +102,11 @@ fun ObjectNode.toEventStream(type: AggregateType, eventType: (String) -> Class<*
         operator = operator(EventStreamFields.OPERATOR),
         events = present(EventStreamFields.EVENTS).elements().map { event ->
             val name = event.present(EventFields.NAME).asString()
+            val masked = event.get(EventFields.BODY)?.takeIf { it.isNull }
             CommittedEvent.of(
                 name = name,
                 revision = event.present(EventFields.REVISION).asInt(),
-                body = decode(event.present(EventFields.BODY), eventType(name) ?: ObjectNode::class.java),
+                body = masked ?: decode(event.present(EventFields.BODY), eventType(name) ?: ObjectNode::class.java),
             )
         },
     )

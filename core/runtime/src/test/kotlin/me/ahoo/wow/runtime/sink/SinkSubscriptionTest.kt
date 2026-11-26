@@ -515,6 +515,19 @@ class SinkSubscriptionTest {
         }
 
     @Test
+    fun `an entry of an event revision newer than the model's fails too, never published as stored (D485)`(): Unit =
+        runBlocking {
+            // A newer node's record during a rolling upgrade: the masks know no schema of it, so it is not written.
+            val sink = Batching()
+            val subscription = sink.subscription()
+            val run = runOf(subscription, second = listOf(EventRecord("shop.order.Priced", 99, """{"amount":1}""")))
+            val handled = subscription.runHandler!!(run)
+            handled.done.assert().isEqualTo(1)
+            handled.failure.assert().isNotNull()
+            sink.writes.assert().containsExactly(listOf(1))
+        }
+
+    @Test
     fun `a fatal error of the sink is thrown by the run, not answered`(): Unit = runBlocking {
         val sink = object : Sink {
             override val maxBatch: Int = MAX_BATCH

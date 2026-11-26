@@ -50,6 +50,7 @@ import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.ErrorManifest
+import me.ahoo.wow.manifest.EventManifest
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.FunctionManifest
 import me.ahoo.wow.manifest.JobManifest
@@ -163,6 +164,9 @@ fun cartModel(commands: MutableList<Command<*>>, mounted: Boolean = false) = agg
  * rebuild, [ImportCart] mounted when [mounted], the commands [unaddressed] lists `@Unaddressed`: routed without an
  * id too, which a transformer finds the aggregate of, and those [internal] lists `@InternalCommand`.
  */
+/** The cart's events, by their Manifest names. */
+private val CART_EVENTS = listOf("CartOpened", "ItemAdded")
+
 fun cartManifest(
     lifecycle: List<String> = Lifecycle.COMMANDS.keys.sorted(),
     mounted: Boolean = false,
@@ -199,6 +203,9 @@ fun cartManifest(
                             ).takeIf { mounted },
                         ) + lifecycle.map { SystemCommands.lifecycle(CONTEXT, "cart", it) } +
                             SystemCommands.rebuild(CONTEXT, "cart"),
+                        // The node's events, as a generated Manifest lists them: an event it does not know is masked
+                        // whole on a read.
+                        events = CART_EVENTS.map { EventManifest(it, schema = Manifest.schemaRef(it)) },
                     ),
                 ),
                 errors = listOf(ErrorManifest(CART_EMPTY, 409, "The cart has no item.")),

@@ -155,6 +155,8 @@ data class OrderState(
 
 脱敏的字段对每个调用方都脱敏：在查询、状态读取、事件查询和轨迹中都一样，在数仓的目录中、在[状态视图缓存](./extensions/cocache)中也一样。它在 Wow 作为读取返回它的地方和 Wow 把它发布给别的上下文的地方脱敏，而在 Wow 存储它的地方不脱敏：见[脱敏止步之处](#where-masking-stops)。`DISPLAY` 值有两个例外，都要明确说出来：服务自己明确要求读取的（[见下文](#read-a-display-value-raw)），以及属主声明为揭示它的发布事件流（[脱敏止步之处](#where-masking-stops)）。定时的命令在发出之前保存在它的事件 `wow.schedule.ScheduleSet` 里，按它的命令类型的请求体脱敏，用那条命令的 schema，发往别的上下文的命令用对端契约里的 schema（[定时](./scheduling)）。
 
+节点找不到 schema 的内容整体脱敏，绝不原样返回：节点的 Manifest 不认识的事件（名字不认识，或修订比 Manifest 的新，例如滚动升级时更新的节点写入的事件），以及没有任何 Manifest 列出其类型的定时命令。事件查询把它的 `body`（或定时的 `command`）答为 `null`，名字与修订照存储的给出。轨迹要重放事件，所以对节点读不了的提交拒绝作答而不是返回它；发布事件流不写它。Wow 自己的事件（`wow.lifecycle.*`、`wow.schedule.*`）每个节点都认识。
+
 ### 读取 `DISPLAY` 值的原值 {#read-a-display-value-raw}
 
 服务自己的代码可能需要 `DISPLAY` 值本身：要发短信的手机号，要写信的邮箱地址。它要明确说出来。`revealed()` 给出的查询会返回每个 `DISPLAY` 值的原值：
