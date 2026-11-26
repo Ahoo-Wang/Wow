@@ -42,7 +42,33 @@ class OpenApiOptionsTest {
         valueSemantics(options, hosted(), OpenApiOptions())
         options.withSecuritySchemes(emptyMap()).filterCodes.assert().containsExactly("wow.request.rate-limited")
         // A request id header first, then the facts; the framework's own parameters keep their names.
-        OpenApiParameters.host(options).keys.assert().containsExactly("CoSec-Request-Id", "X-Region")
+        OpenApiParameters.host(options).map { it.key }.assert().containsExactly("CoSec-Request-Id", "X-Region")
+    }
+
+    @Test
+    fun `a host's header should be named once, ignoring case, and written inline when its name is no component key`() {
+        val options = OpenApiOptions(
+            requestFacts = linkedSetOf("if-match", "cosec-request-id", "X-Region", "x-region", "X~Region", "Wow!Tag"),
+            requestIdHeaders = listOf("CoSec-Request-Id"),
+        )
+        val hosted = OpenApiParameters.host(options)
+        // If-Match is the framework's, cosec-request-id the request id header's, x-region X-Region's.
+        hosted.map { it.parameter["name"] }.assert()
+            .containsExactly("CoSec-Request-Id", "X-Region", "X~Region", "Wow!Tag")
+        hosted.map { it.key }.assert().containsExactly("CoSec-Request-Id", "X-Region", null, null)
+        val document = ManifestOpenApi.write(EShopOpenApiSnapshotTest.manifest("catalog"), options)
+        OpenApiChecks.check(document)
+        val parameters = (document["components"] as Map<*, *>)["parameters"] as Map<*, *>
+        parameters.keys.assert().contains("CoSec-Request-Id", "X-Region").doesNotContain("X~Region", "Wow!Tag")
+    }
+
+    @Test
+    fun `a filter code the document cannot describe should be refused, naming it`() {
+        val catalog = EShopOpenApiSnapshotTest.manifest("catalog")
+        assertThrows<IllegalArgumentException> {
+            ManifestOpenApi.write(catalog, OpenApiOptions(filterCodes = listOf("shop.no-such-code")))
+        }.message.assert().contains("OpenApiOptions.filterCodes names [shop.no-such-code]")
+        ManifestOpenApi.write(catalog, OpenApiOptions(filterCodes = listOf("wow.request.rate-limited")))
     }
 
     @Test

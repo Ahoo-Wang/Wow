@@ -355,7 +355,7 @@ internal class OpenApiPaths(
     private fun commandParameters(byId: Boolean): List<Map<String, Any?>> = buildList {
         if (byId) add(OpenApiParameters.ref(OpenApiParameters.ID))
         OpenApiParameters.COMMAND_HEADERS.forEach { add(OpenApiParameters.ref(it)) }
-        OpenApiParameters.host(options).keys.forEach { add(OpenApiParameters.ref(it)) }
+        OpenApiParameters.host(options).forEach { host -> add(host.key?.let(OpenApiParameters::ref) ?: host.parameter) }
     }
 
     private fun body(schema: Map<String, Any?>): Map<String, Any?> = obj(

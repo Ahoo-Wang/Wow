@@ -109,6 +109,13 @@ object OpenApiChecks {
             val reference = (parameter as Map<*, *>)["\$ref"]
             reference?.let { resolve(document, it.toString()) as Map<*, *> } ?: parameter
         }
+        // A parameter is unique by its location and name, a header's name compared ignoring case, as HTTP does.
+        declared.groupBy { parameter ->
+            val name = parameter["name"].toString()
+            parameter["in"] to if (parameter["in"] == "header") name.lowercase() else name
+        }.filterValues { it.size > 1 }.keys.forEach { (location, parameter) ->
+            add("$name declares the $location parameter $parameter more than once")
+        }
         TEMPLATE.findAll(path).map { it.groupValues[1] }.forEach { variable ->
             if (declared.none { it["in"] == "path" && it["name"] == variable }) {
                 add("$name declares no path parameter $variable")

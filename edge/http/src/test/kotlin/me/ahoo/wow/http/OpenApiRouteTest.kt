@@ -115,7 +115,36 @@ class OpenApiRouteTest {
     }
 
     private fun refs(operation: JsonNode): List<String> =
-        operation["parameters"]?.values()?.map { it["\$ref"].asString().substringAfterLast('/') }.orEmpty()
+        operation["parameters"]?.values()?.mapNotNull { it["\$ref"]?.asString()?.substringAfterLast('/') }.orEmpty()
+
+    @Test
+    fun `a host's header should be listed once ignoring case, and inline when its name is no component key`() {
+        // A request fact named as a framework header in another case, and one with token characters no key takes.
+        val options = WowHttpOptions(
+            requestFacts = setOf("if-match", "cosec-request-id", "X~Region"),
+            requestIdHeaders = listOf(WowHeaders.REQUEST_ID, "CoSec-Request-Id"),
+        )
+        val document = HttpNode(options = options).get(WowPaths.OPENAPI).body!!
+        // The Components Object's keys (OpenAPI 3.1): every one of every kind.
+        document["components"].properties().flatMap { (_, kind) -> kind.propertyNames() }.forEach { key ->
+            COMPONENT_KEY.matches(key).assert().describedAs(key).isTrue()
+        }
+        val operations = document["paths"].properties().flatMap { (_, path) -> path.properties().map { it.value } }
+        val commands = operations.filter { operation -> refs(operation).contains(WowHeaders.REQUEST_ID) }
+        commands.assert().isNotEmpty()
+        commands.forEach { command ->
+            val headers = command["parameters"].values().map { parameter ->
+                val resolved = parameter["\$ref"]?.asString()?.substringAfterLast('/')
+                    ?.let { document["components"]["parameters"][it] } ?: parameter
+                resolved["name"].asString().lowercase()
+            }
+            // Each header once (OpenAPI 3.1, Operation Object): If-Match and CoSec-Request-Id not a second time.
+            headers.groupBy { it }.filterValues { it.size > 1 }.keys.assert().isEmpty()
+            headers.assert().contains("if-match", "cosec-request-id", "x~region")
+            command["parameters"].values().first { it["name"]?.asString() == "X~Region" }["in"].asString().assert()
+                .isEqualTo("header")
+        }
+    }
 
     @Test
     fun `the document should list the route without an id of an unaddressed command`() {
@@ -254,5 +283,6 @@ class OpenApiRouteTest {
 
     private companion object {
         val REGISTRY: SchemaRegistry = SchemaRegistry.withDefaultDialect(SpecificationVersion.DRAFT_2020_12)
+        val COMPONENT_KEY: Regex = Regex("^[a-zA-Z0-9._-]+$")
     }
 }

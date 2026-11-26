@@ -40,6 +40,14 @@ internal class ErrorResponses(
 ) {
     private val framework: Map<String, ErrorManifest> =
         FrameworkErrors.BY_CODE + manifest.errors.associateBy { it.code }
+
+    init {
+        val unknown = filterCodes.filter { it !in framework }
+        require(unknown.isEmpty()) {
+            "OpenApiOptions.filterCodes names $unknown, which is neither a framework code nor one the Manifest " +
+                "declares: a filter answers with a code the document can describe."
+        }
+    }
     private val byContext: Map<String, List<ErrorManifest>> = manifest.contexts.associate { it.name to it.errors }
 
     private val registered = LinkedHashMap<String, Map<String, Any?>>()
