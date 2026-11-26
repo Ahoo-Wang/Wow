@@ -193,6 +193,12 @@ overrides the ConfigMap (#6934): each key read as Spring's relaxed binding reads
 {{- fail (printf "env %s is set by the chart itself%s" $name .) -}}
 {{- end -}}
 {{- end -}}
+{{- /* A config key spelled otherwise than the names above (WOW_WAIT_MAX_TIMEOUT, server_port), read as Spring reads it. */ -}}
+{{- range $name, $value := .Values.config -}}
+{{- with get $owned (regexReplaceAll "[^A-Za-z0-9]" $name "" | upper) | default (get $envOnly (regexReplaceAll "[^A-Za-z0-9]" $name "" | upper)) -}}
+{{- fail (printf "config.%s is set by the chart itself%s" $name .) -}}
+{{- end -}}
+{{- end -}}
 {{- /*
 The chart's labels are the chart's: a map of labels the values lay over them (the pods', the monitors') sets none of
 them. The pods are selected by app.kubernetes.io/name, and the platform's internal policies admit them by
