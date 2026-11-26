@@ -99,6 +99,14 @@ class QueryAdmission @InternalWowApi constructor(
     private val filters = filters.sortedBy(QueryFilter::order)
     private val policies = policies.sortedBy(QueryPolicy::order)
 
+    /**
+     * Asks [authorizer] whether [caller] may read the model's descriptor ([QueryType.DESCRIBE]), from its entry; a
+     * refusal is thrown as its problem, before the schema loads.
+     */
+    internal suspend fun authorizeDescribe(caller: QueryCaller) {
+        authorizer.authorizeOrThrow(caller) { ReadAction(aggregateType, model, QueryType.DESCRIBE, caller.entry) }
+    }
+
     /** Admits [query] for [operation] against [schema], under [caller]'s entry and scope. */
     internal suspend fun <Q : RewritableFilter<Q>> admit(
         operation: QueryOperation<Q>,

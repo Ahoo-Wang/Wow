@@ -18,7 +18,9 @@ import me.ahoo.wow.api.annotation.WowSpi
 /**
  * What a query or a read asks: the gateway operations, and the state point reads an entry runs through
  * `me.ahoo.wow.query.engine.ReadFacade`, observed and audited as queries are: [STATE], an
- * aggregate's state (its latest, at a version or as of a time), and [TRACE], its commits.
+ * aggregate's state (its latest, at a version or as of a time), and [TRACE], its commits. [DESCRIBE] reads a model's
+ * descriptor (its fields, operators and budget, the `GET` of its query route), which a read authorizer is asked
+ * about as about a query; it runs no query, so nothing observes or audits it.
  *
  * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
@@ -32,4 +34,5 @@ enum class QueryType {
     AGGREGATION,
     STATE,
     TRACE,
+    DESCRIBE,
 }

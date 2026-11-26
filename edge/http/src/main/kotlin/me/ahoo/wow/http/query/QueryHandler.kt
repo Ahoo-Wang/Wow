@@ -140,10 +140,11 @@ internal class QueryHandler(
 
     suspend fun describe(request: ServerRequest, target: QueryTarget): ServerResponse =
         answering(target.type.context) {
-            authenticator.authenticate(request)
+            // The caller a query of this request would run as, which the read authorizers are asked about first.
+            val caller = caller(request, target.type)
             Negotiation.checkAcceptable(request, alsoEventStream = false)
             val gateway = checkNotNull(queries.gateway(target.type, target.model))
-            val described = gateway.describe(QueryEntry.HTTP, gateway.entryPolicy.http.listDefault())
+            val described = gateway.describe(QueryEntry.HTTP, caller, gateway.entryPolicy.http.listDefault())
             tagged(request, described.version, QueryJson.mapper.writeValueAsBytes(described), target.rebuilding())
         }
 
@@ -167,9 +168,10 @@ internal class QueryHandler(
     /** `GET /wow/dataset/{context}/{dataset}/query`: the dataset's descriptor, with its version as the `ETag`. */
     suspend fun describeDataset(request: ServerRequest, name: AggregateType): ServerResponse =
         answering(name.context) {
-            val gateway = dataset(name, caller(request, name))
+            val caller = caller(request, name)
+            val gateway = dataset(name, caller)
             Negotiation.checkAcceptable(request, alsoEventStream = false)
-            val described = gateway.describe(QueryEntry.HTTP, gateway.entryPolicy.http.listDefault())
+            val described = gateway.describe(QueryEntry.HTTP, caller, gateway.entryPolicy.http.listDefault())
             tagged(request, described.version, QueryJson.mapper.writeValueAsBytes(described))
         }
 

@@ -63,7 +63,7 @@ curl -X POST localhost:8081/eshop-catalog/product/snapshot/query \
        "sort":[{"field":"state.price","direction":"asc"}],"pagination":{"index":1,"size":20}}'
 ```
 
-`GET` on the same path answers the model's capability descriptor: its fields and their types, the operators each takes, and the limits; its version is its `ETag`. Clients and the view engine read it to offer only what the model can answer.
+`GET` on the same path answers the model's capability descriptor: its fields and their types, the operators each takes, and the limits; its version is its `ETag`. The service's read authorizers are asked first, as for a query: a caller they refuse is answered their refusal and sees nothing of the model. Clients and the view engine read it to offer only what the model can answer.
 
 A `list` with `Accept: text/event-stream` streams its rows as server-sent events, one `row` per record, then an `end`:
 
