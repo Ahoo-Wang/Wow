@@ -24,6 +24,7 @@ import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spring.boot.WowProperties
 import org.junit.jupiter.api.Test
+import org.springframework.boot.LazyInitializationBeanFactoryPostProcessor
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint
 import org.springframework.boot.autoconfigure.AutoConfigurations
@@ -93,6 +94,28 @@ class HealthAutoConfigurationTest {
             )
         }
         runner.withPropertyValues("wow.health.liveness.stall-timeout=61s").run { context ->
+            context.startupFailure.assert().isNull()
+        }
+    }
+
+    @Test
+    fun `the node health's refusals should refuse the start under lazy initialization too, not at the first probe`() {
+        val lazy = runner.withInitializer { context ->
+            context.addBeanFactoryPostProcessor(LazyInitializationBeanFactoryPostProcessor())
+        }
+        val refused = listOf(
+            arrayOf("wow.health.liveness.stall-timeout=60s") to "wow.health.liveness.stall-timeout",
+            arrayOf("wow.node.max-parked=10", "wow.health.subscriptions.parked-degraded-at=11") to
+                "wow.health.subscriptions.parked-degraded-at",
+        )
+        refused.forEach { (properties, key) ->
+            lazy.withPropertyValues(*properties).run { context ->
+                val failure = generateSequence(context.startupFailure) { it.cause }
+                    .filterIsInstance<WowConfigurationException>().firstOrNull()
+                failure?.key.assert().describedAs("the start's refusal under lazy initialization").isEqualTo(key)
+            }
+        }
+        lazy.withPropertyValues("wow.health.liveness.stall-timeout=61s").run { context ->
             context.startupFailure.assert().isNull()
         }
     }
