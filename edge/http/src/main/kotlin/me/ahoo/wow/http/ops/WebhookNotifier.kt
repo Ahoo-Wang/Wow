@@ -143,12 +143,15 @@ class WebhookNotifier(
         /**
          * [value] as Markdown text on one line: each control character and line separator a space, so it starts no line
          * of its own, and each character of [INLINE_MARKUP] escaped with a backslash, so it opens no code, emphasis,
-         * link or HTML of its own.
+         * link or HTML of its own. A `<` is also followed by a zero-width space, so it opens no tag of a renderer that
+         * reads no backslash escape either: WeCom's, whose mentions (`<@userid>`, `<@all>`) and `<font color="…">`
+         * start with `<` and would otherwise reach the group as markup.
          */
         internal fun markdownText(value: String): String = buildString(value.length) {
             value.forEach { char ->
                 when {
                     char.isISOControl() || char == LINE_SEPARATOR || char == PARAGRAPH_SEPARATOR -> append(' ')
+                    char == '<' -> append('\\').append(char).append(ZERO_WIDTH_SPACE)
                     char in INLINE_MARKUP -> append('\\').append(char)
                     else -> append(char)
                 }
@@ -157,5 +160,6 @@ class WebhookNotifier(
 
         private const val LINE_SEPARATOR = '\u2028'
         private const val PARAGRAPH_SEPARATOR = '\u2029'
+        private const val ZERO_WIDTH_SPACE = '\u200B'
     }
 }

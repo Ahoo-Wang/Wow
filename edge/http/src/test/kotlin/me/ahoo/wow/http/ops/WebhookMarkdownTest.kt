@@ -74,7 +74,7 @@ class WebhookMarkdownTest {
         )
         text.assert().contains(
             """> reason: refused: \[resolved\](https://example.com) \*\*now\*\* \`int\` \~\~x\~\~ \_y\_ """ +
-                """\<font color="info">ok\</font> \\""" + "\n",
+                """\<$ZWSP""" + """font color="info">ok\<$ZWSP/font> \\""" + "\n",
         )
     }
 
@@ -85,6 +85,21 @@ class WebhookMarkdownTest {
             .isEqualTo("""**shop.CartSaga.onOrderCreated parked: shop.cart/t/c-1\*\*\[resolved\](mailto:ops)**""")
     }
 
+    /**
+     * WeCom reads no backslash escape: its mentions (`<@userid>`, `<@all>`) and `<font>` start with `<`, which a
+     * zero-width space after it breaks, whatever renders the message, while the line reads the same.
+     */
+    @Test
+    fun `a reason or an aggregate id should mention no one and color nothing, the backslash aside`() {
+        val markup = """<@all> <font color="warning">x</font>"""
+        val text = notifier.textOf(notice("c-1$markup", "refused: $markup"))
+        val broken = """\<$ZWSP@all> \<${ZWSP}font color="warning">x\<$ZWSP/font>"""
+        // The ref writes the id's `/` as `%2F` (AggregateRef.toString).
+        text.lines().first().assert().endsWith("c-1${broken.replace("/", "%2F")}**")
+        text.assert().contains("> reason: refused: $broken\n")
+        text.assert().doesNotContain("<@", "<font", "</font")
+    }
+
     @Test
     fun `a summary without markup should be written as it is`() {
         WebhookNotifier.markdownText("java.lang.IllegalStateException: down (shop.cart/t/c-1)").assert()
@@ -93,5 +108,6 @@ class WebhookMarkdownTest {
 
     private companion object {
         const val AT = 1_700_000_000_000L
+        const val ZWSP = "\u200B"
     }
 }
