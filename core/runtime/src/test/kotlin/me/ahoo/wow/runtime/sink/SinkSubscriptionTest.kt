@@ -30,6 +30,7 @@ import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.EventCodec
@@ -109,14 +110,16 @@ class SinkSubscriptionTest {
     private val written = CopyOnWriteArrayList<StateEventRecord>()
     private val commands = AtomicInteger()
 
-    private fun sink(includeState: Boolean = true, masks: RecordMasks? = null) = SinkSubscription(
-        NAME,
-        type,
-        { written += it },
-        SharedStateReader(NAME, listOf(model), kernel, codec, views),
-        includeState,
-        masks,
-    )
+    private fun sink(includeState: Boolean = true, masks: RecordMasks? = null, everyCommit: Boolean = false) =
+        SinkSubscription(
+            NAME,
+            type,
+            { written += it },
+            SharedStateReader(NAME, listOf(model), kernel, codec, views),
+            includeState,
+            masks,
+            everyCommit = everyCommit,
+        )
 
     private suspend fun commit(body: Any, scope: Scope = Scope.NONE): EventStreamRecord {
         val id = commands.incrementAndGet()
@@ -272,6 +275,49 @@ class SinkSubscriptionTest {
         record.version.assert().isEqualTo(1)
         record.events.map { it.name }.assert().containsExactly("shop.order.Priced")
         record.state!!.state.assert().isEqualTo(tree("""{"amount":1.20,"currency":"EUR"}"""))
+    }
+
+    @Test
+    fun `a sink of every commit should write a stream of only retired events as a record that holds none`(): Unit =
+        runBlocking {
+            val discounted = EventRecord(DISCOUNTED, 1, """{"percent":10}""")
+            val priced = EventRecord("shop.order.Priced", 2, """{"amount":1.20,"currency":"EUR"}""")
+            listOf(listOf(discounted, priced), listOf(discounted)).forEachIndexed { index, events ->
+                val version = index + 1
+                val stream = EventStreamRecord(
+                    ref = ref,
+                    version = version,
+                    commandId = "c-$version",
+                    requestId = "r-$version",
+                    commandType = "shop.order.SetPrice",
+                    commitTime = version.toLong(),
+                    events = events,
+                    scope = Scope.NONE,
+                )
+                log.append(stream).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            }
+            val sink = sink(everyCommit = true)
+            log.read(ref).collect { handle(sink, it) }
+            // The transport sink's: version 2 is published too, so the aggregate's versions on its topic are contiguous.
+            written.map { it.version }.assert().containsExactly(1, 2)
+            written[1].events.assert().isEmpty()
+            written[1].state!!.version.assert().isEqualTo(2)
+        }
+
+    @Test
+    fun `a sink of every commit should take a stream that only changes schedules, which a store's sink passes over`() {
+        val scheduled = EventStreamRecord(
+            ref = ref,
+            version = 2,
+            commandId = "c-2",
+            requestId = "r-2",
+            commandType = "wow.schedule.SetSchedule",
+            commitTime = 2L,
+            events = Schedules.EVENTS.keys.take(1).map { EventRecord(it, 1, "{}") },
+            scope = Scope.NONE,
+        )
+        sink(everyCommit = true).subscription.takes(scheduled).assert().isTrue()
+        sink().subscription.takes(scheduled).assert().isFalse()
     }
 
     @Test

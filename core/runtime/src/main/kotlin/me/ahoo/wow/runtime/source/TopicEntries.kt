@@ -25,6 +25,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.runtime.subscription.EntrySource
+import me.ahoo.wow.runtime.subscription.RetiredOnly
 import me.ahoo.wow.runtime.subscription.SourcedEntry
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
 import me.ahoo.wow.runtime.subscription.TimedEntry
@@ -177,9 +178,12 @@ internal class TopicEntries(
 
     @Suppress("TooGenericExceptionCaught") // Whatever cannot be decoded is parked, or passed over.
     private fun entryOf(partition: Int, message: SourceMessage): SourcedEntry? {
-        // A state event that is no stream (an event stream checks more) cannot be decoded either.
+        // A state event that is no stream (an event stream checks more) cannot be decoded either. One that holds no
+        // event, a commit its model retired every event of, stands for its version alone.
         val (record, stream) = try {
-            EnvelopeCodec.stateEventOf(message.value).let { it to streamOf(it) }
+            EnvelopeCodec.stateEventOf(message.value).let {
+                it to if (it.events.isEmpty()) RetiredOnly.streamOf(it) else streamOf(it)
+            }
         } catch (failure: Exception) {
             if (!EnvelopeCodec.isEnvelope(message.value)) {
                 throw ForeignTopicRecordException(topic, partition, message.offset, failure)
