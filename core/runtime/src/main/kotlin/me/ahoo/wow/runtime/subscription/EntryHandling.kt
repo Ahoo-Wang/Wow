@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.subscription
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -28,6 +29,7 @@ import me.ahoo.wow.runtime.health.NodeFatals
 import me.ahoo.wow.runtime.wait.ResultCodes
 import me.ahoo.wow.spi.observation.Observation
 import me.ahoo.wow.spi.observation.ObservedEvent
+import me.ahoo.wow.spi.observation.ObservedOutcome
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.observe
 import me.ahoo.wow.spi.subscription.FailureClass
@@ -263,3 +265,21 @@ private val logger = KotlinLogging.logger(SubscriptionWorker::class.java.name)
 
 /** The causes [EntryHandling.codeOf] looks through at most. */
 private const val MAX_CAUSES = 16
+
+/**
+ * Ends this observation of an entry's handling as skipped ([ObservedOutcome.SKIPPED]): the subscription passed over the
+ * entry, behind its aggregate's park or as a copy of one it handled, instead of handling it.
+ */
+internal fun Observation.skipped() {
+    outcome(ObservedOutcome.SKIPPED)
+    end()
+}
+
+/** What a stop tells the work it abandons: an operator's action queued, and an entry's handling not finished. */
+internal const val STOPPED = "The subscription runtime stopped."
+
+/** Ends this observation of an entry's handling with the stop's cancellation: a stop abandoned the entry. */
+internal fun Observation.abandoned() {
+    failed(CancellationException(STOPPED))
+    end()
+}

@@ -334,10 +334,10 @@ internal class SubscriptionWorker(
         val entry = item.entry
         val (skipped, parked) = synchronized(this) { skippedInLane(entry) to parkedAt(entry) }
         // A run that did not finish it started its observation, which its handling goes on in; a skipped entry,
-        // not handled, ends it plainly before it completes: a skip has no outcome of its own.
+        // not handled, ends it as skipped before it completes (ObservedOutcome.SKIPPED).
         val held = item.observation?.also { item.observation = null }
         val handled = if (skipped) {
-            held?.end()
+            held?.skipped()
             Result.success(HandledEntry.NOTHING)
         } else {
             handling.handle(entry, held ?: handling.observation(entry))
@@ -370,16 +370,18 @@ internal class SubscriptionWorker(
             handled: Boolean,
             lane: Lane<Item>,
             rest: List<Taken<Item.Live>>,
-        ) {
-            synchronized(this@SubscriptionWorker) {
-                if (handled) {
-                    done.filterNot { it.skipped }.forEach { remember(it.entry) }
-                }
-                done.forEach { complete(it.item.slot) }
+        ): Boolean = synchronized(this@SubscriptionWorker) {
+            if (handled) {
+                done.filterNot { it.skipped }.forEach { remember(it.entry) }
+            }
+            done.forEach { complete(it.item.slot) }
+            // Abandoned, the worker forgot its lanes: the rest would wait in one no stop reaches ([abandon]).
+            if (!abandoned) {
                 // Actions go first in a lane and live entries last, so the first live entry ends the actions.
                 val behindActions = lane.items.indexOfFirst { it is Item.Live }.takeIf { it >= 0 } ?: lane.items.size
                 lane.items.addAll(behindActions, rest.map { it.item })
             }
+            !abandoned
         }
 
         override suspend fun handleAlone(item: Item.Live) = runLive(item)
@@ -589,13 +591,9 @@ internal class SubscriptionWorker(
             queued.clear()
         }
         cleared.forEach {
-            val stopped = CancellationException("The subscription runtime stopped.")
             when (it) {
-                is Item.Action -> it.result.cancel(stopped)
-                is Item.Live -> it.observation?.run {
-                    failed(stopped)
-                    end()
-                }
+                is Item.Action -> it.result.cancel(CancellationException(STOPPED))
+                is Item.Live -> it.observation?.abandoned()
             }
         }
     }
@@ -608,7 +606,7 @@ internal class SubscriptionWorker(
         /**
          * A live entry of a lane, and the [observation] of its handling a run started and did not finish: the lane's
          * coroutine sets it before the lane takes the entry again, which its monitor orders. Its handling goes on in
-         * it; a skip ends it plainly, a stop with its cancellation.
+         * it; a skip ends it as skipped, a stop with its cancellation.
          */
         class Live(val entry: SourcedEntry, val slot: Slot) : Item {
             var observation: Observation? = null
