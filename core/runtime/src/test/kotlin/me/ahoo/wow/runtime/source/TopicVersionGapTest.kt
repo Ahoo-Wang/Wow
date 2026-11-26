@@ -13,6 +13,11 @@
 
 package me.ahoo.wow.runtime.source
 
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.ledger.LedgerRequest
@@ -24,14 +29,20 @@ import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
 import me.ahoo.wow.runtime.subscription.RunHandled
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
+import me.ahoo.wow.runtime.subscription.SubscriptionWorker
+import me.ahoo.wow.runtime.subscription.VersionGapException
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.subscription.testOptions
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedAmendment
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.state.StateEventPayload
 import me.ahoo.wow.spi.transport.EnvelopeCodec
+import me.ahoo.wow.spi.transport.PartitionedSource
+import me.ahoo.wow.spi.transport.SourceMessage
 import org.junit.jupiter.api.Test
+import org.slf4j.LoggerFactory
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -43,12 +54,12 @@ import kotlin.time.Duration.Companion.milliseconds
  */
 class TopicVersionGapTest : TopicSubscriptionsFixtures() {
     /** A node of [board] whose parked entries are retried automatically every 10 ms, at most [retries] times. */
-    private suspend fun startRetrying(retries: Int = 50): TopicSubscriptions = TopicSubscriptions(
+    private suspend fun startRetrying(retries: Int = 50, source: PartitionedSource = topics) = TopicSubscriptions(
         service = SERVICE,
         topic = ORDER_TOPIC,
         node = "node-1",
         addressOf = { "node-1.internal:9090" },
-        source = topics,
+        source = source,
         checkpoints = checkpoints,
         leases = leases,
         ledger = ledger,
@@ -195,6 +206,87 @@ class TopicVersionGapTest : TopicSubscriptionsFixtures() {
         ledger.parked(BOARD_ID, order("o-1"))!!.fromVersion.assert().isEqualTo(3)
         handled.versionsOf("o-1").assert().containsExactly(1, 2)
         runs.flatten().assert().doesNotContain(4, 5)
+    }
+
+    @Test
+    fun `a park at an undecodable record should be no gap park once a version reads the record, automatically`():
+        Unit = runBlocking {
+        val source = UpgradedReader(topics)
+        startRetrying(source = source)
+        val parked = readableAfterPark(source)
+        // The record reads now: the automatic retry handles it and the version after it, and resolves the park.
+        eventually { ledger.parked(BOARD_ID, order("o-1")) == null }
+        parked.reason.assert().doesNotContain(VersionGapException.CODE)
+        handled.versionsOf("o-1").assert().contains(5, 6)
+    }
+
+    @Test
+    fun `a park at an undecodable record should be no gap park once a version reads the record, by hand`(): Unit =
+        runBlocking {
+            val source = UpgradedReader(topics)
+            val subscriptions = startRetrying(retries = 0, source = source)
+            val logged = workerLines {
+                readableAfterPark(source)
+                subscriptions.retry(BOARD, order("o-1")).assert().isTrue()
+            }
+            ledger.parked(BOARD_ID, order("o-1")).assert().isNull()
+            handled.versionsOf("o-1").assert().contains(5, 6)
+            logged.assert().noneMatch { "did not deliver" in it }
+        }
+
+    /**
+     * Versions 1 to 4 of o-1 handled, version 5 a record this node cannot decode, which parks o-1 there, at the
+     * placeholder version 1, and version 6 after it; then [source] reads the record, as a node upgraded does. The
+     * parked entry, as the park left it.
+     */
+    private suspend fun readableAfterPark(source: UpgradedReader): ParkedAggregate {
+        topics.publish(*(1..4).map { orderRecord("o-1", it) }.toTypedArray())
+        eventually { handled.versionsOf("o-1") == listOf(1, 2, 3, 4) }
+        source.hidden = partitionOf("o-1") to offsetOf("o-1", 4) + 1
+        topics.publish(orderRecord("o-1", 5), orderRecord("o-1", 6))
+        eventually { ledger.parked(BOARD_ID, order("o-1")) != null }
+        val parked = ledger.parked(BOARD_ID, order("o-1"))!!
+        parked.fromVersion.assert().isEqualTo(1)
+        source.readable = true
+        return parked
+    }
+
+    /** The lines the worker logs while [block] runs. */
+    private suspend fun workerLines(block: suspend () -> Unit): List<String> {
+        val logger = LoggerFactory.getLogger(SubscriptionWorker::class.java.name) as Logger
+        val appender = ListAppender<ILoggingEvent>().apply { start() }
+        logger.addAppender(appender)
+        try {
+            block()
+            return appender.list.map { it.formattedMessage }
+        } finally {
+            logger.detachAppender(appender)
+        }
+    }
+
+    /**
+     * [delegate], whose record at [hidden] (partition and offset) reads as an envelope of a later format, which this
+     * node cannot decode, until it is [readable]: as a node upgraded reads it.
+     */
+    private class UpgradedReader(private val delegate: PartitionedSource) : PartitionedSource by delegate {
+        @Volatile
+        var hidden: Pair<Int, Long>? = null
+
+        @Volatile
+        var readable = false
+
+        override fun read(topic: String, partition: Int, from: Long): Flow<SourceMessage> =
+            delegate.read(topic, partition, from).map { hide(partition, it) }
+
+        override fun read(topic: String, partition: Int, from: Long, until: Long): Flow<SourceMessage> =
+            delegate.read(topic, partition, from, until).map { hide(partition, it) }
+
+        private fun hide(partition: Int, message: SourceMessage): SourceMessage =
+            if (!readable && hidden == partition to message.offset) {
+                SourceMessage.of(message.offset, message.key, message.headers, BAD.toByteArray())
+            } else {
+                message
+            }
     }
 
     @Test

@@ -48,17 +48,29 @@ internal class VersionGaps {
 
     companion object {
         /**
-         * The version a retry's entries are expected to start at: the one an aggregate parked at a gap is parked
-         * from, which [scanned] (its re-scan in the source's order) starts above, the record that showed the gap
-         * being the first; null for any other park, whose first entry is the one it is parked at.
+         * The version a retry's entries are expected to start at: the one [parked] is parked from when it is parked
+         * at a gap, which its reason records ([isGapPark]); null for any other park, whose first entry is the one it
+         * is parked at. The shape of a re-scan does not tell: a park at an undecodable record is recorded at the
+         * placeholder version 1, so its re-scan starts above it too once a version that reads the record retries it.
          */
-        fun expectedFirst(scanned: List<SourcedEntry>, parked: ParkedAggregate): Int? =
-            scanned.firstOrNull()?.takeUnless { UndecodableMessage.isUndecodable(it) }
-                ?.takeIf { it.stream.version > parked.fromVersion }?.let { parked.fromVersion }
+        fun expectedFirst(parked: ParkedAggregate): Int? = parked.fromVersion.takeIf { isGapPark(parked) }
+
+        /**
+         * Whether [parked] is parked at a version the source did not deliver: its reason is a [VersionGapException]'s,
+         * which a reason names first by its class ([me.ahoo.wow.kernel.FailureReasons]), whatever an operator did to
+         * the entry since. A retry that parks it again at a gap keeps it one; one that fails otherwise does not.
+         */
+        fun isGapPark(parked: ParkedAggregate): Boolean = parked.reason.startsWith(GAP_REASON)
+
+        /** How a gap park's reason starts: the class name of [VersionGapException]. */
+        private val GAP_REASON: String = VersionGapException::class.java.name
 
         /**
          * [scanned] in version order, as a retry handles them: a late record, delivered after the one that showed its
-         * gap, comes before it; an undecodable entry, of no version, comes last.
+         * gap, comes before it; an undecodable entry, of no version, comes last. So an operator's retry that accepts
+         * a gap handles the versions after an undecodable record before it parks the aggregate at that record, whose
+         * offset the park then records: should the record later decode, the versions after it that this retry
+         * handled are in the next re-scan, and are handled again.
          */
         fun ordered(scanned: List<SourcedEntry>): List<SourcedEntry> =
             scanned.sortedBy { if (UndecodableMessage.isUndecodable(it)) Int.MAX_VALUE else it.stream.version }
@@ -77,7 +89,7 @@ internal class RetryWalk(
     private val acceptGaps: Boolean,
     private val subscription: String,
 ) {
-    private var expected: Int? = if (contiguous) VersionGaps.expectedFirst(scanned, parked) else null
+    private var expected: Int? = if (contiguous) VersionGaps.expectedFirst(parked) else null
 
     /** The entries in the order the retry handles them. */
     val entries: List<SourcedEntry> = if (expected == null) scanned else VersionGaps.ordered(scanned)
