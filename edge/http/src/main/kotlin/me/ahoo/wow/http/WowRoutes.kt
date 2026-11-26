@@ -267,8 +267,9 @@ private fun CoRouterFunctionDsl.document(
  * jobs, whose routes are the public port's too) only when listed; any other is answered 403
  * [CallPermits.COMMAND_FORBIDDEN]. A call of a command route the Manifest does not have, in a context it serves, is
  * answered 400 `wow.command.unhandled` with its REJECTED result, not 404: the caller's contract names a
- * command this service does not decide, which a retry does not mend. The streamed answers are produced in [scope], as
- * [wowRoutes]'s are.
+ * command this service does not decide, which a retry does not mend. A path with matrix parameters is refused 400
+ * `wow.request.malformed` before any route ([MatrixParameters]), as on the public port. The streamed answers are
+ * produced in [scope], as [wowRoutes]'s are.
  */
 @InternalWowApi
 fun callRoutes(
@@ -315,7 +316,7 @@ fun callRoutes(
                 problems.answering { commands.handle(request, unknownTarget(context.name, request, byId = false)) }
             }
         }
-    }
+    }.filter(MatrixParameters(statuses))
 }
 
 /**

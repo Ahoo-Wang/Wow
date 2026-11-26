@@ -275,6 +275,23 @@ class ServiceCallRoutesTest {
     }
 
     @Test
+    fun `a service's call with matrix parameters in its path should be malformed, not routed without them`() {
+        // As on the public port (#6816): `c-1;` and `c-1;=v` name no parameter, which the path's parse cuts at `;`.
+        listOf("/shop/cart/cart-1;x=1/add-item", "/shop/cart/cart-1;/add-item", "/shop/cart/cart-1;=v/add-item")
+            .forEach { path ->
+                val answer = internal.post().uri(URI.create(path))
+                    .header(WowHeaders.SERVICE, SERVICE)
+                    .header(WowHeaders.CALL, callHeader())
+                    .header("Content-Type", "application/json")
+                    .bodyValue("""{"sku":"mug"}""")
+                    .answer()
+                answer.status.assert().describedAs(path).isEqualTo(400)
+                answer.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.REQUEST_MALFORMED)
+            }
+        node.commands.assert().isEmpty()
+    }
+
+    @Test
     fun `a service's Wow-Call that does not parse should be malformed`() {
         val answer = internalPost(
             "/shop/cart/cart-1/add-item",

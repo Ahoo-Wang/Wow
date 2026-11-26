@@ -19,7 +19,6 @@ import me.ahoo.wow.api.wire.DevelopmentHeaders
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.http.problem.Problem
-import org.springframework.http.server.PathContainer
 import org.springframework.web.reactive.function.server.HandlerFilterFunction
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -42,9 +41,8 @@ import java.util.TreeSet
  *   `If-Match`'s are a list (RFC 9110 §5.3).
  * - **`Wow-Call`** (403 `wow.auth.forbidden`), whatever the request's credential: a service's call is taken on the
  *   internal port alone, on every route.
- * - **Matrix parameters** in the path (`/shop/cart/c-1;x=1/add-item`, 400 `wow.request.malformed`): Wow defines
- *   none, and the router would drop them. Any `;` in a segment counts, one that names no parameter too (`c-1;`,
- *   `c-1;=v`), which the path's own parse lists none for and would route as `c-1` (#6816).
+ * - **Matrix parameters** in the path (`/shop/cart/c-1;x=1/add-item`, 400 `wow.request.malformed`), as the internal
+ *   port's call routes refuse them too ([MatrixParameters]).
  *
  * Its cost per request is one pass over the request's header names, a case-insensitive comparison of four characters
  * each and, for each `Wow-` one, a case-insensitive lookup in a sorted set of a dozen names (no copy of the name), and
@@ -55,6 +53,7 @@ internal class PublicRequests(
     listed: Collection<String> = emptyList(),
 ) : HandlerFilterFunction<ServerResponse, ServerResponse> {
     private val known: Set<String> = (KNOWN + listed).toCollection(TreeSet(String.CASE_INSENSITIVE_ORDER))
+    private val matrix = MatrixParameters(statuses)
 
     override fun filter(request: ServerRequest, next: HandlerFunction<ServerResponse>): Mono<ServerResponse> {
         val refusal = refusal(request) ?: return next.handle(request)
@@ -69,7 +68,7 @@ internal class PublicRequests(
                 refusal = header(name, values.size)
             }
         }
-        return refusal ?: matrix(request)
+        return refusal ?: matrix.refusal(request)
     }
 
     /** The problem of the Wow header [name] given in [lines] lines, or null when it is read. */
@@ -93,13 +92,6 @@ internal class PublicRequests(
             malformed("$name is given $lines times; it is given once.")
 
         else -> null
-    }
-
-    /** The problem of a path segment with matrix parameters, any `;` in its raw value, or null when it has none. */
-    private fun matrix(request: ServerRequest): Problem? {
-        val segment = request.requestPath().pathWithinApplication().elements()
-            .firstOrNull { it is PathContainer.PathSegment && ';' in it.value() } ?: return null
-        return malformed("The path segment '${segment.value()}' has matrix parameters, which no route of Wow takes.")
     }
 
     private fun malformed(detail: String): Problem = statuses.problemOf(FrameworkCodes.REQUEST_MALFORMED, detail)
