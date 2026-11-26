@@ -66,7 +66,7 @@ import {
 import { PanelWiring, useFilterWiring } from './FilterWiring.js';
 import { panelPress } from './press.js';
 import { boardWideHost, recordHostOf } from './PanelBodies.js';
-import { filterModeOf, type BoardFilterModes } from './filterModes.js';
+import { filterModeOf, type DashboardFilterModes } from './filterModes.js';
 import {
   Empty,
   EmptyContent,
@@ -142,7 +142,7 @@ export interface DashboardGridProps {
    * filter the page hid (「不受…影响」 would name what the reader cannot
    * see).
    */
-  filterModes?: BoardFilterModes;
+  filterModes?: DashboardFilterModes;
   className?: string;
 }
 
@@ -618,7 +618,7 @@ function DashboardEmpty({
 function unreachedBy(
   panel: DashboardPanelView,
   dashboard: DashboardController,
-  modes: BoardFilterModes | undefined,
+  modes: DashboardFilterModes | undefined,
 ): string[] {
   if (panel.panel.kind !== 'view' || panel.broken) return [];
   return dashboard.filterFields.flatMap(field =>

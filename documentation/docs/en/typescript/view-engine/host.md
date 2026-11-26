@@ -144,7 +144,7 @@ Every surface under `ViewHost` takes only what differs where it stands: `<DataWo
 | --- | --- |
 | `route(instanceId, target?)` | The path of the page that opens this resource on a view; `null` for a view nobody saved, which lands on the page's default |
 | `actions` | The commands on its records ([Actions](./actions)) |
-| `reading` | How one record reads in its detail: `title(row)` names it, `sections(context)` adds regions, `render(context)` replaces the body |
+| `detail` | How one record reads in its detail: `title(row)` names it, `sections(context)` adds regions, `render(context)` replaces the body |
 | `slots` | The escape hatch: `row`, `bulk` and `global` draw your own markup after the declared actions |
 
 <!-- typecheck: file=routes.ts -->
@@ -166,7 +166,7 @@ export function withView(path: string, view: string | null): string {
 export const BINDINGS = [
   bind('orders', {
     route: view => withView('/orders', view),
-    reading: { title: row => `Order ${String(row.key)}` },
+    detail: { title: row => `Order ${String(row.key)}` },
     actions: orderActions,
   }),
   bind('overview', { route: board => withView('/boards', board) }),

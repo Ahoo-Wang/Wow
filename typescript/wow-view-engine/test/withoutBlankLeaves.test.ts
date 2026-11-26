@@ -12,14 +12,14 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { builtinFieldKinds, type FilterTree } from '../src/index.js';
+import { builtinFieldKindRegistry, type FilterTree } from '../src/index.js';
 import { withoutBlankLeaves } from '../src/filter/index.js';
 import { ordersDefinition } from './fixtures.js';
 import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 
 const fields = ordersDefinition().fields;
 const strip = (tree: FilterTree) =>
-  withoutBlankLeaves(fields, tree, builtinFieldKinds);
+  withoutBlankLeaves(fields, tree, builtinFieldKindRegistry);
 
 describe('withoutBlankLeaves', () => {
   it('takes out blank conditions and the groups that leaves empty', () => {

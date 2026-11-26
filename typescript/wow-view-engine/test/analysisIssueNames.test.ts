@@ -31,7 +31,7 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   validateAnalysis,
   type AnalysisViewConfig,
   type Issue,
@@ -242,7 +242,11 @@ function said(found: readonly Issue[], of: AnalysisViewConfig) {
 
 describe('an analysis finding says what the screen shows', () => {
   it.each(CASES)('$code', ({ code, config: shape, en, zh }) => {
-    const raised = validateAnalysis(definition, shape, builtinFieldKinds);
+    const raised = validateAnalysis(
+      definition,
+      shape,
+      builtinFieldKindRegistry,
+    );
     expect(raised.map(found => found.code)).toContain(code);
     const [english, chinese] = said(
       raised.filter(found => found.code === code),
@@ -259,7 +263,11 @@ describe('an analysis finding says what the screen shows', () => {
     const shape = config({
       sort: [{ alias: 'm_gone', direction: SortDirection.DESC }],
     });
-    const raised = validateAnalysis(definition, shape, builtinFieldKinds);
+    const raised = validateAnalysis(
+      definition,
+      shape,
+      builtinFieldKindRegistry,
+    );
     expect(raised.map(found => found.code)).toContain(
       'analysis.sort.unknown-alias',
     );

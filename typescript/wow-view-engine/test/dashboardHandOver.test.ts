@@ -139,7 +139,7 @@ describe('DashboardViewRuntime takes no outer condition (D26 Q32)', () => {
     expect(codes(runtime.setScopeFilter(OUTER))).toEqual([
       'dashboard.scope.unsupported',
     ]);
-    expect(codes(runtime.refusedScope)).toEqual([
+    expect(codes(runtime.refusedScopeFilter)).toEqual([
       'dashboard.scope.unsupported',
     ]);
     expect(runtime.scopeFilter).toBeNull();
@@ -147,14 +147,14 @@ describe('DashboardViewRuntime takes no outer condition (D26 Q32)', () => {
     expect(pagedQueries(board.source)).toHaveLength(1);
     // What it has is taken, and the refusal goes with it.
     expect(runtime.setScopeFilter(null)).toEqual([]);
-    expect(runtime.refusedScope).toEqual([]);
+    expect(runtime.refusedScopeFilter).toEqual([]);
   });
 
   it('refuses one asked for as it opens, and runs without it', async () => {
     const board = await harness();
     const runtime = await board.open(boundConfig(), OUTER);
 
-    expect(codes(runtime.refusedScope)).toEqual([
+    expect(codes(runtime.refusedScopeFilter)).toEqual([
       'dashboard.scope.unsupported',
     ]);
     expect(codes(runtime.getSnapshot().issues)).not.toContain(

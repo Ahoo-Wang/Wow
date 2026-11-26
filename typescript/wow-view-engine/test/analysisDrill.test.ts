@@ -23,7 +23,7 @@ import {
   splitBy,
 } from '../src/analysis/index.js';
 import { bucketStart } from '../src/analysis/buckets.js';
-import { builtinFieldKinds } from '../src/filter/index.js';
+import { builtinFieldKindRegistry } from '../src/filter/index.js';
 import type {
   AggregationDateUnitName,
   AnalysisGroup,
@@ -308,7 +308,7 @@ describe('drillConditions', () => {
       drillConditions(
         config,
         FIELDS,
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
         { warehouse: 'CN', status: 'PENDING', customer: 'c-1' },
         context,
       ),
@@ -338,7 +338,7 @@ describe('drillConditions', () => {
       drillConditions(
         config,
         FIELDS,
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
         { warehouse },
         context,
       );
@@ -365,7 +365,7 @@ describe('drillConditions', () => {
       drillConditions(
         config,
         FIELDS,
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
         { band: 1000 },
         context,
       ),
@@ -392,7 +392,7 @@ describe('drillConditions', () => {
       drillConditions(
         config,
         FIELDS,
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
         { month: start },
         { timeZone: NEW_YORK },
       ),
@@ -426,7 +426,7 @@ describe('drillConditions', () => {
       drillConditions(
         config,
         FIELDS,
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
         { day: SANTIAGO_SEP_6 },
         { timeZone: 'UTC' },
       ),
@@ -460,7 +460,7 @@ describe('drillConditions', () => {
     const [leaf] = drillConditions(
       config,
       FIELDS,
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
       { day: String(start) },
       { timeZone: NEW_YORK },
     )!;
@@ -500,7 +500,7 @@ describe('drillConditions', () => {
         drillConditions(
           band,
           FIELDS,
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
           { band: key, warehouse: 'CN' },
           context,
         ),
@@ -521,7 +521,7 @@ describe('drillConditions', () => {
         drillConditions(
           month,
           FIELDS,
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
           { month: key },
           context,
         ),
@@ -534,7 +534,7 @@ describe('drillConditions', () => {
       drillConditions(
         analysisConfig({ elements: [{ path: 'items' }] }),
         FIELDS,
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
         { warehouse: 'CN' },
         context,
       ),
@@ -551,7 +551,7 @@ describe('drillConditions', () => {
           ],
         }),
         FIELDS,
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
         { ghost: 'x' },
         context,
       ),
@@ -585,7 +585,7 @@ describe('drillGroups', () => {
     const drilled = drillGroups(
       config,
       FIELDS,
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
       row,
       context,
     );
@@ -608,7 +608,7 @@ describe('drillGroups', () => {
     ]);
     // Flattened, they are `drillConditions` exactly.
     expect(drilled?.flatMap(entry => entry.conditions)).toEqual(
-      drillConditions(config, FIELDS, builtinFieldKinds, row, context),
+      drillConditions(config, FIELDS, builtinFieldKindRegistry, row, context),
     );
     expect(
       drillGroups(
@@ -622,7 +622,7 @@ describe('drillGroups', () => {
           ],
         }),
         FIELDS,
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
         row,
         context,
       ),
@@ -993,7 +993,7 @@ describe('groupFor', () => {
           ],
           dateUnits: [],
         },
-        builtinFieldKinds.get('string'),
+        builtinFieldKindRegistry.get('string'),
       ),
     ).toEqual({
       type: AggregationGroupType.TERMS,
@@ -1200,12 +1200,12 @@ describe('a dimension groupFor builds, drilled back', () => {
       const group = groupFor(
         field,
         { groups: [type], dateUnits: unit ? [unit] : [] },
-        builtinFieldKinds.get(field.kind),
+        builtinFieldKindRegistry.get(field.kind),
       );
       const conditions = drillConditions(
         analysisConfig({ groups: [group] }),
         FIELDS,
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
         { [group.alias]: key },
         context,
       );

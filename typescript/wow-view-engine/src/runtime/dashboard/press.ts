@@ -103,7 +103,9 @@ export type PressDestination =
   | { fallback: Issue };
 
 /** Another board as a click reads it: the instance, its config a board's. */
-export type DestinationBoard = ViewInstance & { config: DashboardViewConfig };
+export type DestinationDashboard = ViewInstance & {
+  config: DashboardViewConfig;
+};
 
 /** What the presses need of the runtime that holds the board. */
 interface PressHost {
@@ -325,7 +327,7 @@ export class PanelPresses {
    * the read re-judges the click (a reference settling admits the board
    * again); `null` for one gone, unreadable or not a board.
    */
-  async board(instanceId: string): Promise<DestinationBoard | null> {
+  async board(instanceId: string): Promise<DestinationDashboard | null> {
     const reference = await this.host.reference(instanceId);
     const config = reference?.instance.config;
     return reference && config?.kind === 'dashboard'

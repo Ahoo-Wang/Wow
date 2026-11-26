@@ -13,7 +13,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
   ViewEngine,
@@ -52,7 +52,7 @@ function analysis(source: ViewSource = testSource()) {
     title: 'By warehouse',
     scope: 'personal',
     saved: null,
-    kinds: builtinFieldKinds,
+    kinds: builtinFieldKindRegistry,
     limits: DEFAULT_RUNTIME_LIMITS,
     environment: clock.environment,
     source: recordSource(source),
@@ -178,7 +178,7 @@ describe('改了就跑: the analysis runs again on its own', () => {
       title: 'Orders',
       scope: 'personal',
       saved: null,
-      kinds: builtinFieldKinds,
+      kinds: builtinFieldKindRegistry,
       limits: DEFAULT_RUNTIME_LIMITS,
       environment: clock.environment,
       source: recordSource(source),

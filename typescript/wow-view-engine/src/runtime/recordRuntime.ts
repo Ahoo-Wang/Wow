@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { ReadOptions } from '../store/ViewStore.js';
 import { QueryErrorCodes } from '@ahoo-wang/wow-client/dsl';
 import { dequal } from 'dequal';
 import type {
@@ -175,8 +176,9 @@ export class RecordDataViewRuntime
 
   fetchRecord(
     key: RecordKey,
-    signal?: AbortSignal,
+    options: ReadOptions = {},
   ): Promise<RecordData | null> {
+    const { signal } = options;
     if (this.disposed)
       return Promise.reject(new Error(`View ${this.id} is closed`));
     return fetchRecord(
@@ -390,7 +392,7 @@ export function dataViewRuntime(
  * a dashboard panel's runtime (`DashboardPanelState.runtime`) is either kind.
  */
 export function isRecordRuntime(
-  runtime: ViewRuntime<DataViewConfig>,
+  runtime: ViewRuntime | null | undefined,
 ): runtime is RecordViewRuntime {
-  return runtime instanceof RecordDataViewRuntime;
+  return runtime?.kind === 'record';
 }

@@ -220,21 +220,21 @@ export interface FieldKind {
 
 ### The registry {#api-FieldKindRegistry}
 
-A registry is a read-only map by id. `builtinFieldKinds` is a ready one; `withFieldKinds` adds or replaces kinds over it without changing it, and the result goes to `ViewEngineOptions.kinds` and to `defineView`'s `options.kinds`.
+A registry is a read-only map by id. `builtinFieldKindRegistry` is a ready one; `withFieldKinds` adds or replaces kinds over it without changing it, and the result goes to `ViewEngineOptions.kinds` and to `defineView`'s `options.kinds`.
 
 <!-- typecheck-context
 declare const moneyKind: import('@ahoo-wang/wow-view-engine').FieldKind
 -->
 
 ```ts
-import { builtinFieldKinds, withFieldKinds } from '@ahoo-wang/wow-view-engine';
+import { builtinFieldKindRegistry, withFieldKinds } from '@ahoo-wang/wow-view-engine';
 
-export const kinds = withFieldKinds(builtinFieldKinds, [moneyKind]);
+export const kinds = withFieldKinds(builtinFieldKindRegistry, [moneyKind]);
 ```
 
 ```ts
 export type FieldKindRegistry = ReadonlyMap<FieldKindId, FieldKind>;
-export declare const builtinFieldKinds: FieldKindRegistry;
+export declare const builtinFieldKindRegistry: FieldKindRegistry;
 export declare const BUILTIN_FIELD_KINDS: readonly FieldKind[];
 export declare function withFieldKinds(registry: FieldKindRegistry, kinds: readonly FieldKind[]): FieldKindRegistry;
 export declare function createFieldKindRegistry(kinds: readonly FieldKind[]): FieldKindRegistry;

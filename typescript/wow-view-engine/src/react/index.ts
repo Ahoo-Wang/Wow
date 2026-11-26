@@ -91,7 +91,7 @@ export {
   useDashboard,
 } from './useDashboard.js';
 export {
-  type DatasetsReading,
+  type UseDatasetsOptions,
   type DatasetsState,
   useDatasets,
 } from './useDatasets.js';
@@ -115,8 +115,8 @@ export {
   type RecordExportOptions,
   type RecordExportOutcome,
   type RecordExportProgress,
-  type RecordExportScope,
-  type RecordExportScopes,
+  type RecordExportExtent,
+  type RecordExportExtents,
   type RecordExportTable,
   useRecordExport,
 } from './useRecordExport.js';
@@ -133,7 +133,7 @@ export {
 export {
   type SaveAbilities,
   type SaveCommandState,
-  type BoardChoice,
+  type DashboardChoice,
   type SaveCommands,
   useSaveCommands,
 } from './useSaveCommands.js';

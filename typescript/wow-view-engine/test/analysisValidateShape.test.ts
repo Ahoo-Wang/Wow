@@ -30,7 +30,7 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   compileAnalysis,
   validateAnalysis,
   type AnalysisDerivedExpression,
@@ -48,7 +48,9 @@ import {
 } from './fixtures/analysis.js';
 
 const check = (overrides: Partial<AnalysisViewConfig>) =>
-  codes(validateAnalysis(definition(), config(overrides), builtinFieldKinds));
+  codes(
+    validateAnalysis(definition(), config(overrides), builtinFieldKindRegistry),
+  );
 
 describe('expression budgets', () => {
   // Every tree here is built iteratively: the point is that validation must
@@ -133,9 +135,14 @@ describe('expression budgets', () => {
     overrides: Partial<AnalysisViewConfig>,
     limits = DEFAULT_RUNTIME_LIMITS,
   ) =>
-    validateAnalysis(definition(), config(overrides), builtinFieldKinds, {
-      limits,
-    });
+    validateAnalysis(
+      definition(),
+      config(overrides),
+      builtinFieldKindRegistry,
+      {
+        limits,
+      },
+    );
 
   it('refuses a chain nested far beyond the budget without overflowing', () => {
     expect(found({ metrics: [orders, sum('deep', chain(100_000))] })).toEqual([
@@ -227,7 +234,7 @@ describe('a malformed skeleton', () => {
     validateAnalysis(
       definition(),
       { ...config(), ...overrides } as unknown as AnalysisViewConfig,
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
 
   it.each([
@@ -281,8 +288,7 @@ describe('a malformed skeleton', () => {
       compileAnalysis(
         definition(),
         { ...config(), metrics: [median] } as unknown as AnalysisViewConfig,
-        builtinFieldKinds,
-        context,
+        { kinds: builtinFieldKindRegistry, context },
       ),
     ).toThrow('MEDIAN');
   });

@@ -34,7 +34,7 @@ import {
 } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
   validateFilter,
@@ -95,7 +95,7 @@ async function recordPanel(): Promise<{ filter(): FilterEditorController }> {
     title: 'Orders',
     scope: 'personal',
     saved: null,
-    kinds: builtinFieldKinds,
+    kinds: builtinFieldKindRegistry,
     limits: DEFAULT_RUNTIME_LIMITS,
     environment: testEnvironment().environment,
     source: recordSource(testSource()),
@@ -189,7 +189,7 @@ describe('a condition on a field whose kind is not registered', () => {
 describe('a registered kind that asks for an editor nobody wrote', () => {
   /** A kind whose descriptor names an input outside the closed union. */
   const swatch: FieldKind = {
-    ...(builtinFieldKinds.get('string') as FieldKind),
+    ...(builtinFieldKindRegistry.get('string') as FieldKind),
     id: 'swatch',
     editor: () => ({ input: 'colourWheel' as never }),
   };
@@ -203,7 +203,7 @@ describe('a registered kind that asks for an editor nobody wrote', () => {
           { field: 'colour', operator: FilterOperator.EQ, value: 'red' },
         ],
       },
-      withFieldKinds(builtinFieldKinds, [swatch]),
+      withFieldKinds(builtinFieldKindRegistry, [swatch]),
     );
 
     expect(issues).toEqual([

@@ -22,7 +22,7 @@ import type {
 import { drillFilter } from '../analysis/index.js';
 import { defaultRecordConfig } from '../record/index.js';
 import type {
-  BoardOrigin,
+  DashboardOrigin,
   GroupNaming,
   HandOver,
   ViewNavigation,
@@ -183,6 +183,6 @@ function naming(
 }
 
 /** The board a view leaves, when it has one to go back to. */
-function origin(from: BoardOrigin | undefined): { from?: BoardOrigin } {
+function origin(from: DashboardOrigin | undefined): { from?: DashboardOrigin } {
   return from ? { from } : {};
 }

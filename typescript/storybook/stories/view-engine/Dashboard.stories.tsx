@@ -257,7 +257,7 @@ function DashboardDemo({
             // The 'filtered' board opens with 仓库 set to 华南 on its filter
             // bar, as a host's address would hand it over (D27): the
             // reader's value, not a condition saved in the board.
-            initialFilters={variant === 'filtered' ? SOUTH : undefined}
+            defaultFilters={variant === 'filtered' ? SOUTH : undefined}
             onFiltersChange={onFiltersChange}
             {...HOST_LANGUAGE}
           />
@@ -304,7 +304,7 @@ function RoutedHost({
     } else setAway(to);
   };
   const reader = {
-    initialFilters: filters,
+    defaultFilters: filters,
     onFiltersChange: (next: DashboardFilters) => {
       setFilters(next);
       onFiltersChange?.(next);
@@ -328,7 +328,7 @@ function RoutedHost({
         engine={engine}
         definitionId="overview"
         instanceId={savedDashboard.id}
-        initialTab={tab}
+        defaultTab={tab}
         {...reader}
       />
     );
@@ -362,7 +362,7 @@ function RoutedHost({
           engine={engine}
           definitionId={away.definitionId}
           instanceId={away.instanceId}
-          initialFilters={away.filters}
+          defaultFilters={away.filters}
           {...HOST_LANGUAGE}
         />
       )}

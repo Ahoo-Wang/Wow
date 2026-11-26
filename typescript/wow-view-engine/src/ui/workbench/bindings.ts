@@ -44,7 +44,7 @@ export interface ViewBindingOptions {
    * `DataWorkbench` takes as `record.detail`, and what an `EmbeddedView`'s
    * `detail` opens with. A surface's own prop wins.
    */
-  reading?: RecordDetailOptions;
+  detail?: RecordDetailOptions;
   /**
    * The commands its records take, declared (`actions()`,
    * host-integration.md 5): the engine places them wherever its records are

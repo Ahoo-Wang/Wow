@@ -20,7 +20,7 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   compileRecord,
   DEFAULT_RUNTIME_LIMITS,
   defaultRecordConfig,
@@ -115,7 +115,9 @@ describe('defaultRecordConfig', () => {
       'warehouse',
       'createdAt',
     ]);
-    expect(validateRecord(definition(), built, builtinFieldKinds)).toEqual([]);
+    expect(
+      validateRecord(definition(), built, builtinFieldKindRegistry),
+    ).toEqual([]);
   });
 
   /** A view that opens as cards starts on whole rows. */
@@ -172,9 +174,9 @@ describe('defaultRecordConfig', () => {
 
 describe('validateRecord', () => {
   it('admits a config that matches its definition', () => {
-    expect(validateRecord(definition(), config(), builtinFieldKinds)).toEqual(
-      [],
-    );
+    expect(
+      validateRecord(definition(), config(), builtinFieldKindRegistry),
+    ).toEqual([]);
   });
 
   it('reports a layout the capability does not offer', () => {
@@ -182,7 +184,13 @@ describe('validateRecord', () => {
       record: { rowKey: 'id', paging: 'paged', layouts: ['table'] },
     });
     expect(
-      codes(validateRecord(def, config({ layout: 'card' }), builtinFieldKinds)),
+      codes(
+        validateRecord(
+          def,
+          config({ layout: 'card' }),
+          builtinFieldKindRegistry,
+        ),
+      ),
     ).toEqual(['record.layout.unsupported']);
   });
 
@@ -192,7 +200,7 @@ describe('validateRecord', () => {
         validateRecord(
           definition(),
           config({ pageSize: 0 }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['record.pageSize.not-positive']);
@@ -201,7 +209,7 @@ describe('validateRecord', () => {
         validateRecord(
           definition(),
           config({ pageSize: 5000 }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['record.pageSize.too-large']);
@@ -213,7 +221,7 @@ describe('validateRecord', () => {
         validateRecord(
           definition(),
           config({ sort: [{ field: 'amount', direction: SortDirection.ASC }] }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['record.sort.not-sortable']);
@@ -223,7 +231,7 @@ describe('validateRecord', () => {
         validateRecord(
           definition(),
           config({ sort: [{ field: 'gone', direction: SortDirection.ASC }] }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['record.field.unknown']);
@@ -245,7 +253,7 @@ describe('validateRecord', () => {
     const issues = validateRecord(
       definition(),
       config({ sort: bad }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
 
     expect(codes(issues)).toEqual([
@@ -271,7 +279,7 @@ describe('validateRecord', () => {
       direction: SortDirection.ASC as const,
     }));
     expect(
-      codes(validateRecord(def, config({ sort }), builtinFieldKinds)),
+      codes(validateRecord(def, config({ sort }), builtinFieldKindRegistry)),
     ).toContain('record.sort.too-many');
   });
 
@@ -282,7 +290,7 @@ describe('validateRecord', () => {
         table: { columns: [{ field: 'gone' }] },
         card: { title: 'missing', fields: ['amount', 'other'], image: 'nope' },
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(codes(issues)).toEqual([
       'record.field.unknown',
@@ -307,7 +315,7 @@ describe('validateRecord', () => {
           { field: 'amount', function: AggregationFunction.SUM },
         ],
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(codes(issues)).toEqual([
       'record.sort.duplicate',
@@ -334,7 +342,7 @@ describe('validateRecord', () => {
         validateRecord(
           def,
           config({ card: { title: 'q', fields: ['q'] } }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['record.field.not-a-column', 'record.field.not-a-column']);
@@ -348,7 +356,7 @@ describe('validateRecord', () => {
           config({
             summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
           }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual([]);
@@ -359,7 +367,7 @@ describe('validateRecord', () => {
           config({
             summaries: [{ field: 'amount', function: AggregationFunction.MAX }],
           }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['record.summary.unsupported']);
@@ -370,7 +378,7 @@ describe('validateRecord', () => {
           config({
             summaries: [{ field: 'gone', function: AggregationFunction.SUM }],
           }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['record.field.unknown']);
@@ -382,7 +390,7 @@ describe('validateRecord', () => {
         validateRecord(
           definition(),
           config({ refresh: { interval: 1 } }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['config.refresh.too-short']);
@@ -391,7 +399,7 @@ describe('validateRecord', () => {
         validateRecord(
           definition(),
           config({ refresh: { interval: 999_999 } }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['config.refresh.too-long']);
@@ -400,7 +408,7 @@ describe('validateRecord', () => {
         validateRecord(
           definition(),
           config({ refresh: { interval: 1.5 } }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['config.refresh.not-an-integer']);
@@ -414,7 +422,7 @@ describe('validateRecord', () => {
           children: [{ field: 'id', operator: FilterOperator.EQ, value: 'A' }],
         },
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(codes(advanced)).toEqual([]);
     expect(advanced.map(i => i.code)).toEqual(['config.filterMode.not-simple']);
@@ -426,7 +434,7 @@ describe('validateRecord', () => {
         validateRecord(
           definition({ record: undefined }),
           config(),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['record.capability.missing']);
@@ -443,7 +451,7 @@ describe('a record config that lost its shape', () => {
     validateRecord(
       definition(),
       { ...config(), ...overrides } as RecordViewConfig,
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
 
   it.each([
@@ -543,7 +551,7 @@ describe('a record config that lost its shape', () => {
   it('reports a config that is not an object at all', () => {
     for (const broken of [null, undefined, 5, []])
       expect(
-        validateRecord(definition(), broken as never, builtinFieldKinds),
+        validateRecord(definition(), broken as never, builtinFieldKindRegistry),
       ).toEqual([{ code: 'config.invalid', severity: 'error', path: [] }]);
   });
 
@@ -565,9 +573,7 @@ describe('compileRecord', () => {
     const query = compileRecord(
       definition(),
       config({ sort: [{ field: 'createdAt', direction: SortDirection.DESC }] }),
-      builtinFieldKinds,
-      context,
-      FIRST_PAGE.paged,
+      { kinds: builtinFieldKindRegistry, context, page: FIRST_PAGE.paged },
     );
     expect(query).toMatchObject({
       filter: { op: FilterOperator.MATCH_ALL },
@@ -585,22 +591,18 @@ describe('compileRecord', () => {
     });
 
   it('compiles a cursor query whose first page is a null cursor', () => {
-    const query = compileRecord(
-      cursorDefinition(),
-      config(),
-      builtinFieldKinds,
+    const query = compileRecord(cursorDefinition(), config(), {
+      kinds: builtinFieldKindRegistry,
       context,
-      FIRST_PAGE.cursor,
-    );
+      page: FIRST_PAGE.cursor,
+    });
     expect(query).toMatchObject({ size: 20, cursor: null });
 
-    const next = compileRecord(
-      cursorDefinition(),
-      config(),
-      builtinFieldKinds,
+    const next = compileRecord(cursorDefinition(), config(), {
+      kinds: builtinFieldKindRegistry,
       context,
-      { cursor: 'c1' },
-    );
+      page: { cursor: 'c1' },
+    });
     expect(next).toMatchObject({ cursor: 'c1' });
   });
 
@@ -608,31 +610,25 @@ describe('compileRecord', () => {
     // A cursor target against a paged source used to compile a cursor query
     // the source cannot answer, silently; the mode is the definition's.
     expect(() =>
-      compileRecord(
-        definition(),
-        config(),
-        builtinFieldKinds,
+      compileRecord(definition(), config(), {
+        kinds: builtinFieldKindRegistry,
         context,
-        FIRST_PAGE.cursor,
-      ),
+        page: FIRST_PAGE.cursor,
+      }),
     ).toThrow(/pages by index/);
     expect(() =>
-      compileRecord(
-        cursorDefinition(),
-        config(),
-        builtinFieldKinds,
+      compileRecord(cursorDefinition(), config(), {
+        kinds: builtinFieldKindRegistry,
         context,
-        FIRST_PAGE.paged,
-      ),
+        page: FIRST_PAGE.paged,
+      }),
     ).toThrow(/pages by cursor/);
     expect(() =>
-      compileRecord(
-        definition({ record: undefined }),
-        config(),
-        builtinFieldKinds,
+      compileRecord(definition({ record: undefined }), config(), {
+        kinds: builtinFieldKindRegistry,
         context,
-        FIRST_PAGE.paged,
-      ),
+        page: FIRST_PAGE.paged,
+      }),
     ).toThrow(/no record capability/);
   });
 
@@ -645,9 +641,7 @@ describe('compileRecord', () => {
           children: [{ field: 'id', operator: FilterOperator.EQ, value: 'A1' }],
         },
       }),
-      builtinFieldKinds,
-      context,
-      { index: 2 },
+      { kinds: builtinFieldKindRegistry, context, page: { index: 2 } },
     );
     expect(query).toMatchObject({
       filter: { op: FilterOperator.EQ, field: 'id', value: 'A1' },
@@ -659,7 +653,12 @@ describe('compileRecord', () => {
 describe('compileSummaries', () => {
   it('returns null when the config asks for none', () => {
     expect(
-      compileSummaries(definition(), config(), builtinFieldKinds, context),
+      compileSummaries(
+        definition(),
+        config(),
+        builtinFieldKindRegistry,
+        context,
+      ),
     ).toBeNull();
   });
 
@@ -673,7 +672,7 @@ describe('compileSummaries', () => {
           { field: 'id', function: AggregationMetricType.COUNT },
         ],
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
       context,
     );
     expect(query?.groupBy).toBeUndefined();
@@ -859,7 +858,11 @@ describe('projectRecord', () => {
       },
     } as unknown as Partial<RecordViewConfig>);
 
-    const issues = validateRecord(definition(), config_, builtinFieldKinds);
+    const issues = validateRecord(
+      definition(),
+      config_,
+      builtinFieldKindRegistry,
+    );
     expect(codes(issues)).toEqual(['record.column.pin-invalid']);
     expect(issues[0].path).toEqual(['table', 'columns', 0, 'pinned']);
 
@@ -889,7 +892,7 @@ describe('projectRecord', () => {
     } as unknown as Partial<RecordViewConfig>);
 
     expect(
-      codes(validateRecord(definition(), config_, builtinFieldKinds)),
+      codes(validateRecord(definition(), config_, builtinFieldKindRegistry)),
     ).toEqual(['record.column.pin-invalid', 'record.column.pin-invalid']);
 
     const view = projectRecord(definition(), config_, {
@@ -920,7 +923,7 @@ describe('projectRecord', () => {
               columns: [{ field: 'id' }, { field: 'amount', pinned: false }],
             },
           } as unknown as Partial<RecordViewConfig>),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual([]);
@@ -995,10 +998,10 @@ describe('projectRecord', () => {
     /** It is a column like any other while it is off; only `hidden` moves. */
     it('is admitted, and so is a config that never heard of the member', () => {
       expect(
-        codes(validateRecord(definition(), hidden, builtinFieldKinds)),
+        codes(validateRecord(definition(), hidden, builtinFieldKindRegistry)),
       ).toEqual([]);
       expect(
-        codes(validateRecord(definition(), config(), builtinFieldKinds)),
+        codes(validateRecord(definition(), config(), builtinFieldKindRegistry)),
       ).toEqual([]);
     });
 
@@ -1015,7 +1018,7 @@ describe('projectRecord', () => {
             ],
           },
         }),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       );
 
       expect(codes(issues)).toEqual([
@@ -1041,7 +1044,11 @@ describe('projectRecord', () => {
         },
       } as unknown as Partial<RecordViewConfig>);
 
-      const issues = validateRecord(definition(), config_, builtinFieldKinds);
+      const issues = validateRecord(
+        definition(),
+        config_,
+        builtinFieldKindRegistry,
+      );
       expect(codes(issues)).toEqual(['record.column.hidden-invalid']);
       expect(issues[0].path).toEqual(['table', 'columns', 1, 'hidden']);
 

@@ -89,14 +89,10 @@ function card(
   rows: RecordData[] = ROWS,
   context: { now?: Date } = {},
 ) {
-  const view = projectAnalysis(
-    dailyOrdersDefinition(),
-    config,
-    rows,
-    [{ orders: 99 }],
-    undefined,
-    { timeZone: 'UTC', ...context },
-  );
+  const view = projectAnalysis(dailyOrdersDefinition(), config, rows, {
+    totals: [{ orders: 99 }],
+    context: { timeZone: 'UTC', ...context },
+  });
   return render(
     <ViewSurface locale="en-US" timeZone="UTC">
       <AnalysisChart
@@ -437,14 +433,9 @@ describe('the change against the period before, by its unit', () => {
   );
 
   it('says it in Chinese', () => {
-    const view = projectAnalysis(
-      dailyOrdersDefinition(),
-      daily(),
-      ROWS,
-      undefined,
-      undefined,
-      { timeZone: 'UTC' },
-    );
+    const view = projectAnalysis(dailyOrdersDefinition(), daily(), ROWS, {
+      context: { timeZone: 'UTC' },
+    });
     render(
       <ViewSurface messages={zhCN} timeZone="UTC">
         <AnalysisChart

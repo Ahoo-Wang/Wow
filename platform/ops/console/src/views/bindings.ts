@@ -46,7 +46,7 @@ export function consoleBindings(commands: ParkedCommands) {
   return [
     bind(PARKED, {
       route: parkedPath,
-      reading: parkedDetail,
+      detail: parkedDetail,
       actions: parkedActions(commands),
     }),
     // The overview has one board, the home page's; the console keeps no

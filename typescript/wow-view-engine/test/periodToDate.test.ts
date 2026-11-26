@@ -23,7 +23,7 @@ import { describe, expect, it } from 'vitest';
 import {
   resolveDateTimeRange,
   validateFilter,
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   type DateTimePreset,
 } from '../src/index.js';
 import { DATE_TIME_PRESETS } from '../src/filter/values.js';
@@ -175,7 +175,7 @@ describe('a period so far', () => {
               operator: FilterOperator.BETWEEN,
               value: { type: 'preset', preset },
             }),
-            builtinFieldKinds,
+            builtinFieldKindRegistry,
           ),
         ),
       ).toEqual([]);

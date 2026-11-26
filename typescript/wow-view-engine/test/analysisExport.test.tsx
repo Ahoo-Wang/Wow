@@ -145,7 +145,9 @@ describe('analysisFile', () => {
   const messages = formatters(defaultMessages);
 
   it('is the table’s reading: groups first, the first N, the totals last', () => {
-    const view = projectAnalysis(definition(), config(), GROUPS, [WHOLE]);
+    const view = projectAnalysis(definition(), config(), GROUPS, {
+      totals: [WHOLE],
+    });
     // The table draws the metrics first, as dragged; the file puts the
     // dimension first and keeps the metrics in the table's order.
     expect(view.columns.map(column => column.alias)).toEqual([
@@ -176,7 +178,7 @@ describe('analysisFile', () => {
       definition(),
       config(),
       GROUPS.slice(0, 2),
-      [WHOLE],
+      { totals: [WHOLE] },
     );
     expect(analysisFile(totalled, formatters(zhCN), {}).rows[2]?.[0]).toBe(
       '合计',
@@ -192,7 +194,9 @@ describe('analysisFile', () => {
       { warehouse: 'US', orders: 1, amount_sum: -1204.5 },
     ];
     const whole: RecordData = { orders: 3, amount_sum: -1216.5 };
-    const view = projectAnalysis(definition(), config(), groups, [whole]);
+    const view = projectAnalysis(definition(), config(), groups, {
+      totals: [whole],
+    });
 
     const file = analysisFile(view, messages, {});
     expect(file.text).toBe(
@@ -220,7 +224,7 @@ describe('analysisFile', () => {
       definition(),
       config({ groups: [], table: { columns: [], totals: true } }),
       [WHOLE],
-      [WHOLE],
+      { totals: [WHOLE] },
     );
     const file = analysisFile(view, messages, {});
     expect(file.rows).toEqual([['1,214', '$5,313.50']]);

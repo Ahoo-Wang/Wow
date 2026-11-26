@@ -28,7 +28,7 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   compileAnalysis,
   projectAnalysis,
   validateAnalysis,
@@ -144,7 +144,10 @@ const durationConfig = (
 const check = (
   overrides: Partial<AnalysisViewConfig>,
   on: DataViewDefinition = definition(),
-) => codes(validateAnalysis(on, durationConfig(overrides), builtinFieldKinds));
+) =>
+  codes(
+    validateAnalysis(on, durationConfig(overrides), builtinFieldKindRegistry),
+  );
 
 describe('the units a duration is measured in', () => {
   it('are every one where computed expressions are on, and none where they are off', () => {
@@ -261,8 +264,7 @@ describe('a duration as a metric', () => {
           },
         ],
       }),
-      builtinFieldKinds,
-      context,
+      { kinds: builtinFieldKindRegistry, context },
     );
     expect(query.metrics[0]).toMatchObject({
       function: AggregationFunction.AVG,
@@ -321,8 +323,10 @@ describe('a duration as a band dimension', () => {
       }),
     ).toEqual(['warehouse']);
     expect(
-      compileAnalysis(definition(), banded(), builtinFieldKinds, context)
-        .groupBy,
+      compileAnalysis(definition(), banded(), {
+        kinds: builtinFieldKindRegistry,
+        context,
+      }).groupBy,
     ).toEqual([
       {
         type: AggregationGroupType.HISTOGRAM,
@@ -340,14 +344,14 @@ describe('a duration as a band dimension', () => {
 
   it('is admitted as a formula is, and a band as a band is', () => {
     expect(
-      codes(validateAnalysis(definition(), banded(), builtinFieldKinds)),
+      codes(validateAnalysis(definition(), banded(), builtinFieldKindRegistry)),
     ).toEqual([]);
     expect(
       codes(
         validateAnalysis(
           definition({ expressions: false }),
           banded(),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['analysis.expressions.undeclared']);
@@ -356,7 +360,7 @@ describe('a duration as a band dimension', () => {
         validateAnalysis(
           definition(),
           banded({ groups: [{ ...bands, interval: 0 }] }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['analysis.group.interval-not-positive']);
@@ -373,7 +377,7 @@ describe('a duration as a band dimension', () => {
               } as never,
             ],
           }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toContain('analysis.config.malformed');
@@ -393,7 +397,7 @@ describe('a duration as a band dimension', () => {
       drillGroups(
         banded(),
         definition().fields,
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
         { band: 0, orders: 3 },
         context,
       ),
@@ -431,7 +435,7 @@ describe('narrowing by the descriptor', () => {
     const { definition: narrowed } = narrowDefinition(
       definition(),
       described([DateDiffUnit.HOUR, DateDiffUnit.DAY]),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(narrowed.analysis?.dateDiffUnits).toEqual([
       DateDiffUnit.HOUR,
@@ -443,7 +447,7 @@ describe('narrowing by the descriptor', () => {
     const { definition: narrowed } = narrowDefinition(
       definition(),
       described([], false),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(narrowed.analysis?.expressions).toBe(false);
     expect(dateDiffUnitsOf(narrowed.analysis)).toEqual([]);

@@ -215,7 +215,7 @@ describe('the tab bar', () => {
         engine={engine}
         definitionId="overview"
         instanceId="board"
-        initialTab="detail"
+        defaultTab="detail"
       />,
     );
     await waitFor(() =>
@@ -233,7 +233,7 @@ describe('the tab bar', () => {
       <DashboardWorkbench
         engine={engine}
         definitionId="overview"
-        initialTab="detail"
+        defaultTab="detail"
       />,
     );
     await waitFor(() =>
@@ -510,7 +510,7 @@ describe('a new analysis made in the dashboard', () => {
         engine={engine}
         definitionId="overview"
         instanceId="board"
-        initialTab="detail"
+        defaultTab="detail"
       />,
     );
     await startBuilding(user);

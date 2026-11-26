@@ -147,7 +147,7 @@ export function useRecordDetail(
     if (!runtime || key === null) return;
     const controller = new AbortController();
     const answered = { landed, attempt };
-    runtime.fetchRecord(key, controller.signal).then(
+    runtime.fetchRecord(key, { signal: controller.signal }).then(
       whole => {
         if (controller.signal.aborted) return;
         setRead({

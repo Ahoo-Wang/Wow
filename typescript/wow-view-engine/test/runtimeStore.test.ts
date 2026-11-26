@@ -141,21 +141,21 @@ describe('RuntimeStore', () => {
 
   describe('a refused scope', () => {
     it('opens on what the caller settled and notifies nobody for it', () => {
-      const { store, seen } = harness({ refusedScope: [BROKEN] });
-      expect(store.refusedScope).toEqual([BROKEN]);
+      const { store, seen } = harness({ refusedScopeFilter: [BROKEN] });
+      expect(store.refusedScopeFilter).toEqual([BROKEN]);
       expect(seen).toHaveLength(0);
     });
 
     it('notifies when the answer changed, and hands the new one back', () => {
       const { store, seen } = harness();
       expect(store.refuse([BROKEN])).toEqual([BROKEN]);
-      expect(store.refusedScope).toEqual([BROKEN]);
+      expect(store.refusedScopeFilter).toEqual([BROKEN]);
       expect(seen).toHaveLength(1);
     });
 
     it('keeps the array it has while the answer says the same thing', () => {
-      const { store, seen } = harness({ refusedScope: [BROKEN] });
-      const held = store.refusedScope;
+      const { store, seen } = harness({ refusedScopeFilter: [BROKEN] });
+      const held = store.refusedScopeFilter;
       expect(store.refuse([{ ...BROKEN }])).toBe(held);
       expect(seen).toHaveLength(0);
     });

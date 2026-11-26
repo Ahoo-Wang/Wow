@@ -17,7 +17,7 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   validateRecord,
   type DataViewDefinition,
   type Issue,
@@ -89,7 +89,7 @@ describe('projectSummaries', () => {
       scope: 'page',
       rows: [{ amount: 10 }, { amount: 30 }, { amount: null }],
     });
-    expect(row.scope).toBe('page');
+    expect(row.over).toBe('page');
     expect(row.cells.map(cell => cell.value)).toEqual([40, 20, 3]);
     expect(row.cells[0].label).toBe('Amount');
     expect(row.cells[0].numberFormat).toEqual({
@@ -103,7 +103,7 @@ describe('projectSummaries', () => {
       scope: 'total',
       result: [{ amount_sum: 400, amount_avg: 20, id_count: 20 }],
     });
-    expect(row.scope).toBe('total');
+    expect(row.over).toBe('total');
     expect(row.cells.map(cell => cell.value)).toEqual([400, 20, 20]);
   });
 
@@ -308,7 +308,7 @@ describe('a date column summarised', () => {
       { key: 'A', data: { createdAt: '2026-09-16T01:05:00.000Z' } },
       { key: 'B', data: { createdAt: '2026-09-15T02:10:00.000Z' } },
     ]);
-    expect(page.scope).toBe('page');
+    expect(page.over).toBe('page');
     // Both cells come back from the rows on screen — including the latest,
     // which the aggregation never answered.
     expect(page.cells.map(cell => cell.value)).toEqual([
@@ -336,7 +336,7 @@ describe('a date column summarised', () => {
 
   it('admits the earliest and the latest, and refuses the maths', () => {
     expect(
-      codes(validateRecord(definition(), dates, builtinFieldKinds)),
+      codes(validateRecord(definition(), dates, builtinFieldKindRegistry)),
     ).toEqual([]);
     // Declared or not, a sum of instants answers nothing and an average of
     // them is a moment nothing happened at.
@@ -365,7 +365,7 @@ describe('a date column summarised', () => {
               { field: 'createdAt', function: AggregationFunction.MIN },
             ],
           }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['record.summary.unsupported', 'record.summary.unsupported']);
@@ -399,9 +399,9 @@ describe('a date column summarised', () => {
     });
     expect(row.cells[0].value).toBe(1689723315014);
     expect(row.cells[0].cell).toBe('date');
-    expect(codes(validateRecord(borrowed, asked, builtinFieldKinds))).toEqual(
-      [],
-    );
+    expect(
+      codes(validateRecord(borrowed, asked, builtinFieldKindRegistry)),
+    ).toEqual([]);
     expect(
       codes(
         validateRecord(
@@ -411,7 +411,7 @@ describe('a date column summarised', () => {
               { field: 'closedAt', function: AggregationFunction.SUM },
             ],
           }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['record.summary.unsupported']);

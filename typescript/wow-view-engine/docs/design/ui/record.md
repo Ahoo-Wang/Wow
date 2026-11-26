@@ -51,7 +51,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 
 **按钮只在有结果可导时存在**，判据是 `table.hasResult` 而不是 `status`：首查失败时结果块还在但只会导出空文件；刷新失败留住的行仍可导。缺席而不是置灰；宿主用 `features.export` 关掉时同理（test/resultToolbar.test.tsx「ResultToolbar export」；浏览器故事 `QueryFailed` 与 `WithData`）。
 
-- **一、先摆清楚要导什么**：有勾选时一组 `RadioGroup`——「选中（N）」（默认）与「所有（N，按当前筛选）」；没勾选只有「所有」（D4）。「所有」是唯一其行不在屏幕上的口径，所以要说「按当前筛选」；总数报不出时（游标源）不编数。底下四行说**文件里会有什么**：多少条；按什么条件（`summaryText`，视图条件加宿主作用域，导出跑的就是合并后那份）；哪几列（`table.columns` 可见列，投影顺序，按 `label.filter.join` 连起来）；文件名（`<视图名>-<yyyy-MM-dd>.csv`，`ui/kit/download.ts` 的 `fileName`）。**名字在窗口打开那一刻定下**，这一趟（含重试）都用它——跨午夜再算，承诺的与交出去的就不是同一个名字。条数超过 `limits.exportMax` 时多一行「超过上限 {max} 条，文件只会有前 {max} 条」——**按下「导出」就是同意**，所以 `useRecordExport` 没有另外的超上限问句；
+- **一、先摆清楚要导什么**：有勾选时一组 `RadioGroup`——「选中（N）」（默认）与「所有（N，按当前筛选）」；没勾选只有「所有」（D4）。「所有」是唯一其行不在屏幕上的口径，所以要说「按当前筛选」；总数报不出时（游标源）不编数。底下四行说**文件里会有什么**：多少条；按什么条件（`summaryText`，视图条件加宿主作用域，导出跑的就是合并后那份）；哪几列（`table.columns` 可见列，投影顺序，按 `label.filter.join` 连起来）；文件名（`<视图名>-<yyyy-MM-dd>.csv`，`ui/kit/download.ts` 的 `fileName`）。**名字在窗口打开那一刻定下**，这一趟（含重试）都用它——跨午夜再算，承诺的与交出去的就不是同一个名字。条数超过 `limits.maxExportRows` 时多一行「超过上限 {max} 条，文件只会有前 {max} 条」——**按下「导出」就是同意**，所以 `useRecordExport` 没有另外的超上限问句；
 - **二、跑起来**：shadcn `Progress`（`role="progressbar"`）加「已拉取 {fetched} / {total} 条」，总数未知时不定态（`value={null}`）；只有「取消」，**在途时 Esc 与点遮罩就是取消**。「选中」那一路直接到结果，不闪进度条；
 - **三、结果**：「已导出 {count} 条」加文件名，被上限截断时多一句（总数未知时不编数），只有「关闭」。关窗 `reset()`，下次重新问；
 - **四、失败**：`export.failed` 旁边「重试」与「关闭」，原地重试。所以状态行里没有导出的事，`RecordWorkbench` 的 `strips` 只有查询失败；取消什么也不说；

@@ -63,7 +63,7 @@ const column = (
 const COLUMNS = ['key', 'a', 'b', 'c', 'd'].map(field => column(field));
 
 const row = (...fields: string[]): SummaryRow => ({
-  scope: 'total',
+  over: 'total',
   cells: fields.map(field => ({
     field,
     label: field.toUpperCase(),
@@ -280,7 +280,7 @@ describe('the hint in a record table', () => {
   const table = () =>
     twoColumnTable({
       summaries: {
-        scope: 'total',
+        over: 'total',
         cells: [
           {
             field: 'amount',
@@ -336,7 +336,7 @@ describe('the hint in a record table', () => {
         table={twoColumnTable({
           columns: [base.columns[0], { ...base.columns[1], pinned: 'right' }],
           summaries: {
-            scope: 'total',
+            over: 'total',
             cells: [
               {
                 field: 'amount',
@@ -419,7 +419,7 @@ describe('the hint in a record table', () => {
         <RecordTable
           table={twoColumnTable({
             summaries: {
-              scope: 'total',
+              over: 'total',
               cells: [
                 {
                   field: 'amount',

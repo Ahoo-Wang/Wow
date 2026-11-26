@@ -14,7 +14,7 @@
 import type { PagedList } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it, vi } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   DEFAULT_RUNTIME_LIMITS,
   type ViewSource,
 } from '../src/index.js';
@@ -52,7 +52,7 @@ function record(source: ViewSource): RecordDataViewRuntime {
     title: 'Mine',
     scope: 'personal',
     saved: null,
-    kinds: builtinFieldKinds,
+    kinds: builtinFieldKindRegistry,
     limits: DEFAULT_RUNTIME_LIMITS,
     environment: testEnvironment().environment,
     source: recordSource(source),

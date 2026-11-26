@@ -48,7 +48,7 @@ import type {
 import type { FilterValues } from './filterValues.js';
 import type {
   CrossFilterOutcome,
-  DestinationBoard,
+  DestinationDashboard,
   PanelPresses,
   PressDestination,
 } from './press.js';
@@ -378,8 +378,8 @@ export abstract class BoardCommands
   setTimeGrouping(grouping: DashboardTimeGrouping | null): void {
     this.edits.setTimeGrouping(grouping);
   }
-  removeFixedScope(): void {
-    this.edits.removeFixedScope();
+  removeFixed(): void {
+    this.edits.removeFixed();
   }
   place(
     panelId: string,
@@ -440,7 +440,7 @@ export abstract class BoardCommands
   ): Promise<PressDestination | null> {
     return this.presses.destination(panelId, row);
   }
-  destinationBoard(instanceId: string): Promise<DestinationBoard | null> {
+  destinationBoard(instanceId: string): Promise<DestinationDashboard | null> {
     return this.presses.board(instanceId);
   }
 }

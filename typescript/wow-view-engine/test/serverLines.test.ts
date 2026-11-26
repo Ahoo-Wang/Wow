@@ -37,7 +37,7 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   compileAnalysis,
   type AnalysisViewConfig,
   type CartesianData,
@@ -84,7 +84,10 @@ function daily(
 }
 
 const hidden = (definition = windowed(), config = daily([])) =>
-  compileAnalysis(definition, config, builtinFieldKinds, context)
+  compileAnalysis(definition, config, {
+    kinds: builtinFieldKindRegistry,
+    context,
+  })
     .metrics.slice(config.metrics.length)
     .map(metric => metric as DerivedAggregationMetric);
 
@@ -348,7 +351,7 @@ describe('the windows a source computes', () => {
             ...(windows === undefined ? {} : { windows }),
           },
         },
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       ).definition.analysis;
     expect(
       narrow([WindowFunction.RUNNING, WindowFunction.TOTAL])?.windows,

@@ -14,7 +14,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CHART_TYPES,
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   compileAnalysis,
   type AnalysisViewConfig,
   type DataViewDefinition,
@@ -46,12 +46,10 @@ async function answer(id: string): Promise<RecordData[]> {
   const definition = RETAIL_BOARD_DEFINITIONS.find(
     candidate => candidate.id === definitionId,
   ) as DataViewDefinition;
-  const query = compileAnalysis(
-    definition,
-    config as AnalysisViewConfig,
-    builtinFieldKinds,
-    { now: new Date(RETAIL_NOW), timeZone: RETAIL_ZONE },
-  );
+  const query = compileAnalysis(definition, config as AnalysisViewConfig, {
+    kinds: builtinFieldKindRegistry,
+    context: { now: new Date(RETAIL_NOW), timeZone: RETAIL_ZONE },
+  });
   return (await retailSource(definition.source as RetailSourceKey).aggregate(
     query,
   )) as RecordData[];

@@ -81,8 +81,8 @@ export interface SummaryCell {
 }
 
 export interface SummaryRow {
-  /** `page` is computed from the visible rows; `total` from its own query. */
-  scope: 'page' | 'total';
+  /** What it is over: `page`, the visible rows; `total`, its own query. */
+  over: 'page' | 'total';
   cells: SummaryCell[];
 }
 
@@ -236,7 +236,7 @@ export function projectSummaries(
     };
   });
 
-  return { scope: source.scope, cells };
+  return { over: source.scope, cells };
 }
 
 /** The currency of a column's amounts over these rows (`currencyOfRows`). */
@@ -293,7 +293,7 @@ export function pageSummaries(
 ): SummaryRow {
   const data = rows.map(row => row.data);
   return {
-    scope: 'page',
+    over: 'page',
     cells: cells.map(cell => {
       // The reading travels on the cell, so this scope reduces a date column
       // to a date exactly as the projection did — two scopes reading one

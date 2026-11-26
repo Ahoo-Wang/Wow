@@ -118,7 +118,7 @@ export const BINDINGS = [
   bind('orders', {
     route: view => withView('/orders', view),
     // The row key is the order number (the definition's `rowKey`).
-    reading: { title: row => `#${String(row.key)}` },
+    detail: { title: row => `#${String(row.key)}` },
     // actions.md: the commands, and the declarations over them.
     actions: orderActions(orderCommands(appFetcher)),
   }),
@@ -214,7 +214,7 @@ To show a decided view inside a business page, embed it (`EmbeddedView`, `Embedd
 
 ## The record reading
 
-`reading` is how one record of the resource reads in its detail, wherever it opens (workbench, board panel, embed): `title(row)` names it in the header, `sections(context)` adds the host's own regions (a related view embedded, a form), `render(context)` replaces the body for a record better told in a layout of its own. See [`bind`](https://wow.ahoo.me/typescript/view-engine/host#bind).
+`detail` is how one record of the resource reads in its detail, wherever it opens (workbench, board panel, embed): `title(row)` names it in the header, `sections(context)` adds the host's own regions (a related view embedded, a form), `render(context)` replaces the body for a record better told in a layout of its own. See [`bind`](https://wow.ahoo.me/typescript/view-engine/host#bind).
 
 ## Routes, tested
 

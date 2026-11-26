@@ -585,32 +585,6 @@ interface AxisSpec {
 }
 
 // @public
-export interface BoardChoice {
-    // (undocumented)
-    definitionId: string;
-    definitionTitle: string;
-    // (undocumented)
-    id: string;
-    // (undocumented)
-    title: string;
-}
-
-// @public
-interface BoardOrigin {
-    // (undocumented)
-    back: DashboardTarget;
-    // (undocumented)
-    title: string;
-}
-
-// @public
-type BoardValueSource = {
-    dimension: string;
-} | {
-    filter: string;
-};
-
-// @public
 interface BoxplotBox {
     group: unknown;
     // (undocumented)
@@ -1013,6 +987,17 @@ interface CursorPaging {
 }
 
 // @public
+export interface DashboardChoice {
+    // (undocumented)
+    definitionId: string;
+    definitionTitle: string;
+    // (undocumented)
+    id: string;
+    // (undocumented)
+    title: string;
+}
+
+// @public
 type DashboardContentPanel = DashboardPanelBase & ({
     kind: 'heading';
     content: string;
@@ -1038,7 +1023,7 @@ export interface DashboardController {
     columns: number;
     crossFilter(panelId: string, row: RecordData): CrossFilterOutcome;
     destination(panelId: string, row: RecordData): Promise<PressDestination | null>;
-    destinationBoard(instanceId: string): Promise<DestinationBoard | null>;
+    destinationBoard(instanceId: string): Promise<DestinationDashboard | null>;
     // (undocumented)
     dirty: boolean;
     edit: (DashboardEditing & DashboardFilterEditing) | null;
@@ -1133,7 +1118,7 @@ interface DashboardFilterEditing {
     bindPanel(name: string, panelId: string, panelField: string): string[];
     moveFilter(name: string, index: number): void;
     removeFilter(name: string): void;
-    removeFixedScope(): void;
+    removeFixed(): void;
     renameFilter(name: string, label: string): void;
     retypeFilter(name: string, type: DashboardFilterType): void;
     setFilterDefault(name: string, value: FilterValue | null): void;
@@ -1171,6 +1156,14 @@ interface DashboardLink {
 
 // @public
 export type DashboardOpening = Pick<OpenOptions, 'tab' | 'filters' | 'held'>;
+
+// @public
+interface DashboardOrigin {
+    // (undocumented)
+    back: DashboardTarget;
+    // (undocumented)
+    title: string;
+}
 
 // @public (undocumented)
 type DashboardPanel = DashboardViewPanel | DashboardContentPanel;
@@ -1229,7 +1222,7 @@ interface DashboardRuntime extends ViewRuntime<DashboardViewConfig>, DashboardEd
     clearFilters(): void;
     crossFilter(panelId: string, row: RecordData): CrossFilterOutcome;
     destination(panelId: string, row: RecordData): Promise<PressDestination | null>;
-    destinationBoard(instanceId: string): Promise<DestinationBoard | null>;
+    destinationBoard(instanceId: string): Promise<DestinationDashboard | null>;
     // (undocumented)
     getSnapshot(): DashboardRuntimeState;
     handOver(panelId: string): HandOver | null;
@@ -1290,6 +1283,13 @@ interface DashboardTimeGrouping {
     default: AggregationDateUnitName;
     units: AggregationDateUnitName[];
 }
+
+// @public
+type DashboardValueSource = {
+    dimension: string;
+} | {
+    filter: string;
+};
 
 // @public (undocumented)
 interface DashboardViewConfig extends ViewConfigBase {
@@ -1389,24 +1389,18 @@ interface DatasetResource {
 
 // @public
 class DatasetResources {
-    constructor(engine: DatasetRegistrar, init: DatasetResourcesInit);
+    constructor(engine: DatasetRegistrar, init: DatasetResourcesOptions);
     refresh(options?: ReadOptions): Promise<DatasetRefresh>;
     get resources(): readonly DatasetResource[];
 }
 
 // @public
-interface DatasetResourcesInit {
+interface DatasetResourcesOptions {
     catalogs: DatasetCatalog | readonly DatasetCatalog[];
     onCatalogError?(catalog: number, error: unknown): void;
     onDuplicate?(duplicate: DatasetDuplicate): void;
     onError?(entry: DatasetDirectoryEntry, error: unknown): void;
     onWordingError?(error: unknown): void;
-}
-
-// @public
-export interface DatasetsReading {
-    key?: string;
-    paused?: boolean;
 }
 
 // @public
@@ -1557,7 +1551,7 @@ interface DerivedSeries {
 }
 
 // @public
-type DestinationBoard = ViewInstance & {
+type DestinationDashboard = ViewInstance & {
     config: DashboardViewConfig;
 };
 
@@ -1609,7 +1603,7 @@ interface Dropped {
 }
 
 // @public
-type EditCommand = 'addPanel' | 'removePanel' | 'duplicatePanel' | 'renamePanel' | 'replacePanelView' | 'editPanelContent' | 'movePanelToTab' | 'setPresentation' | 'referToSaved' | 'setPanelClick' | 'place' | 'reorderPanel' | 'addTab' | 'renameTab' | 'moveTab' | 'removeTab' | 'addFilter' | 'renameFilter' | 'retypeFilter' | 'removeFilter' | 'setFilterDefault' | 'setFilterRequired' | 'setFilterMultiple' | 'setFilterOneDay' | 'setFilterOptions' | 'moveFilter' | 'bindPanel' | 'unbindPanels' | 'setTimeGrouping' | 'removeFixedScope' | 'setWidth';
+type EditCommand = 'addPanel' | 'removePanel' | 'duplicatePanel' | 'renamePanel' | 'replacePanelView' | 'editPanelContent' | 'movePanelToTab' | 'setPresentation' | 'referToSaved' | 'setPanelClick' | 'place' | 'reorderPanel' | 'addTab' | 'renameTab' | 'moveTab' | 'removeTab' | 'addFilter' | 'renameFilter' | 'retypeFilter' | 'removeFilter' | 'setFilterDefault' | 'setFilterRequired' | 'setFilterMultiple' | 'setFilterOneDay' | 'setFilterOptions' | 'moveFilter' | 'bindPanel' | 'unbindPanels' | 'setTimeGrouping' | 'removeFixed' | 'setWidth';
 
 // @public
 interface EditHistoryState {
@@ -2300,7 +2294,7 @@ export interface HandedRemovalOptions {
 // @public
 interface HandOver {
     filter: FilterTree | null;
-    from?: BoardOrigin;
+    from?: DashboardOrigin;
     scopeFilter: FilterTree | null;
 }
 
@@ -2349,7 +2343,7 @@ interface HeldFilters {
 
 // @public
 export interface HeldView {
-    boardOrigin?: BoardOrigin;
+    dashboardOrigin?: DashboardOrigin;
     // (undocumented)
     draft: ViewConfig;
     from: HeldView | null;
@@ -2696,7 +2690,7 @@ export interface OpenViewState {
     retry(): void;
     // (undocumented)
     runtime: AnyViewRuntime | null;
-    scopeIssues: Issue[];
+    scopeFilterIssues: Issue[];
     status: QueryStatus;
 }
 
@@ -2773,14 +2767,14 @@ type PanelClick =
 * as the author mapped them (D23 Q17, 「另一块仪表盘」): `values` is keyed
 * like the `DashboardFilters.values` it becomes — each of the target's
 * filters the press sets, by name — and says where each one's value comes
-* from (`BoardValueSource`). A filter not named is not carried and starts
+* from (`DashboardValueSource`). A filter not named is not carried and starts
 * at its default. Never matched by name: only what the author mapped goes
 * along.
 */
 | {
     kind: 'dashboard';
     instanceId: string;
-    values: Record<string, BoardValueSource>;
+    values: Record<string, DashboardValueSource>;
     tab?: string;
 }
 /**
@@ -3232,15 +3226,24 @@ export interface RecordExportController {
     // (undocumented)
     progress: RecordExportProgress | null;
     reset(): void;
-    run(scope: RecordExportScope, fileName: string): void;
-    running: RecordExportScope | null;
+    run(scope: RecordExportExtent, fileName: string): void;
+    running: RecordExportExtent | null;
     // (undocumented)
-    scopes: RecordExportScopes;
+    scopes: RecordExportExtents;
+}
+
+// @public
+export type RecordExportExtent = 'selected' | 'all';
+
+// @public (undocumented)
+export interface RecordExportExtents {
+    all: number | null;
+    selected?: number;
 }
 
 // @public (undocumented)
 export interface RecordExportOptions {
-    deliver(rows: readonly RecordData[], scope: RecordExportScope, fileName: string): void | Promise<void>;
+    deliver(rows: readonly RecordData[], scope: RecordExportExtent, fileName: string): void | Promise<void>;
     table: RecordExportTable;
 }
 
@@ -3249,7 +3252,7 @@ export interface RecordExportOutcome {
     capped: boolean;
     rows: number;
     // (undocumented)
-    scope: RecordExportScope;
+    scope: RecordExportExtent;
     total?: number;
 }
 
@@ -3257,17 +3260,8 @@ export interface RecordExportOutcome {
 export interface RecordExportProgress {
     fetched: number;
     // (undocumented)
-    scope: RecordExportScope;
+    scope: RecordExportExtent;
     total?: number;
-}
-
-// @public
-export type RecordExportScope = 'selected' | 'all';
-
-// @public (undocumented)
-export interface RecordExportScopes {
-    all: number | null;
-    selected?: number;
 }
 
 // @public
@@ -3469,7 +3463,7 @@ interface RecordViewConfig extends DataViewConfigBase {
 // @public
 interface RecordViewRuntime<P extends RecordPagingMode = RecordPagingMode> extends ViewRuntime<RecordViewConfig> {
     exportRows(options?: ExportRowsOptions): Promise<ExportedRows>;
-    fetchRecord(key: RecordKey, signal?: AbortSignal): Promise<RecordData | null>;
+    fetchRecord(key: RecordKey, options?: ReadOptions): Promise<RecordData | null>;
     loadLane(laneId: string): void;
     // (undocumented)
     page(target: RecordPageTarget<P>): void;
@@ -3639,15 +3633,15 @@ interface RuntimeLimits {
     defaultCardFields: number;
     defaultColumns: number;
     defaultPageSize: number;
-    exportMax: number;
     exportNeutralizeFormulas: boolean;
-    listedViews: number;
     maxAnalysisRows: number;
     maxConcurrentQueries: number;
     maxDashboardPanels: number;
+    maxExportRows: number;
     maxFilterDepth: number;
     maxFilterNodes: number;
     maxFilterValues: number;
+    maxListedViews: number;
     maxPageSize: number;
     maxPageWindow: number;
     maxQueryFilterNodes: number;
@@ -3722,7 +3716,7 @@ interface SaveAsInput {
 export interface SaveCommands {
     abandon(write?: WriteState): void;
     addToDashboard?(boardId: string): Promise<ViewInstance | null>;
-    boards?(): Promise<readonly BoardChoice[]>;
+    boards?(): Promise<readonly DashboardChoice[]>;
     // (undocumented)
     can: SaveAbilities;
     changeAudience?(audience: ViewAudience): Promise<ViewInstance | null>;
@@ -3877,7 +3871,7 @@ type SummaryFunction = `${AggregationFunction.SUM | AggregationFunction.AVG | Ag
 interface SummaryRow {
     // (undocumented)
     cells: SummaryCell[];
-    scope: 'page' | 'total';
+    over: 'page' | 'total';
 }
 
 // @public
@@ -3963,7 +3957,7 @@ interface UnsavedViewTarget {
     // (undocumented)
     definitionId: string;
     // (undocumented)
-    from?: BoardOrigin;
+    from?: DashboardOrigin;
     // (undocumented)
     kind: 'unsaved';
     named?: GroupNaming;
@@ -3989,7 +3983,13 @@ export function useCreateViewEngine(options: ViewEngineOptions): ViewEngine;
 export function useDashboard(runtime: DashboardRuntime | null): DashboardController;
 
 // @public
-export function useDatasets(resources: Pick<DatasetResources, 'refresh'>, input?: DatasetsReading): DatasetsState;
+export function useDatasets(resources: Pick<DatasetResources, 'refresh'>, input?: UseDatasetsOptions): DatasetsState;
+
+// @public
+export interface UseDatasetsOptions {
+    key?: string;
+    paused?: boolean;
+}
 
 // @public
 export function useEngine(own?: ViewEngine): ViewEngine;
@@ -4112,7 +4112,7 @@ export interface ValueCandidatesOptions {
 // @public
 interface ValueCandidateSource {
     readonly field: string;
-    search(query: string, signal?: AbortSignal): Promise<ValueCandidates>;
+    search(query: string, options?: ReadOptions): Promise<ValueCandidates>;
 }
 
 // @public (undocumented)
@@ -4504,7 +4504,7 @@ interface ViewRuntime<C extends ViewConfig = ViewConfig> {
     readonly limits: RuntimeLimits;
     optionSource(remote: string): OptionSource | null;
     refresh(): void;
-    readonly refusedScope: Issue[];
+    readonly refusedScopeFilter: Issue[];
     removeUnavailable(): void;
     revert(): void;
     readonly scopeFilter: FilterTree | null;
@@ -4626,13 +4626,13 @@ type WindowFunctionName = `${WindowFunction}`;
 export interface WorkbenchController {
     autoRun: boolean;
     back(): void;
-    boardOrigin: BoardOrigin | null;
     canDrill: boolean;
     choose(id: string | null): void;
     // (undocumented)
     commands: SaveCommands;
     creatable: readonly ViewKind[];
     create(kind: ViewKind): void;
+    dashboardOrigin: DashboardOrigin | null;
     declaredAt: number | null;
     definitionIssues: Issue[];
     drill(conditions: readonly FilterNode[], title: string, subject?: string): void;

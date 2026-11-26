@@ -14,7 +14,7 @@
 import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   compileFilter,
   describeFilter,
   elementFields,
@@ -76,7 +76,7 @@ function errors(issues: { severity: string; code: string }[]): string[] {
 }
 
 function compile(tree: FilterTree) {
-  return compileFilter(fields, tree, builtinFieldKinds, context);
+  return compileFilter(fields, tree, builtinFieldKindRegistry, context);
 }
 
 describe('element fields', () => {
@@ -172,7 +172,7 @@ describe('the elementMatch kind', () => {
               value: 'A',
             }) as never,
           ),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual([]);
@@ -192,7 +192,7 @@ describe('the elementMatch kind', () => {
               value: 'CN',
             }) as never,
           ),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['filter.field.unknown']);
@@ -204,7 +204,7 @@ describe('the elementMatch kind', () => {
         validateFilter(
           fields,
           outer(FilterOperator.ELEMENT_MATCH, 'nonsense'),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['filter.value.expected-predicate']);
@@ -224,7 +224,7 @@ describe('the elementMatch kind', () => {
             }) as never,
             'bare',
           ),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['filter.field.holds-no-elements']);
@@ -233,12 +233,12 @@ describe('the elementMatch kind', () => {
   it('treats an empty predicate as a question not yet asked', () => {
     const empty = outer(FilterOperator.ELEMENT_MATCH, predicate() as never);
 
-    expect(errors(validateFilter(fields, empty, builtinFieldKinds))).toEqual(
-      [],
-    );
+    expect(
+      errors(validateFilter(fields, empty, builtinFieldKindRegistry)),
+    ).toEqual([]);
     expect(compile(empty)).toEqual({ op: FilterOperator.MATCH_ALL });
     // It never reached the query, so it is not a condition in force.
-    expect(describeFilter(fields, empty, builtinFieldKinds)).toEqual([]);
+    expect(describeFilter(fields, empty, builtinFieldKindRegistry)).toEqual([]);
   });
 
   it('treats a predicate whose only condition is unfilled the same way', () => {
@@ -256,11 +256,11 @@ describe('the elementMatch kind', () => {
       },
     );
     const alone = outer(FilterOperator.ELEMENT_MATCH, unfilled as never);
-    expect(errors(validateFilter(fields, alone, builtinFieldKinds))).toEqual(
-      [],
-    );
+    expect(
+      errors(validateFilter(fields, alone, builtinFieldKindRegistry)),
+    ).toEqual([]);
     expect(compile(alone)).toEqual({ op: FilterOperator.MATCH_ALL });
-    expect(describeFilter(fields, alone, builtinFieldKinds)).toEqual([]);
+    expect(describeFilter(fields, alone, builtinFieldKindRegistry)).toEqual([]);
 
     // Beside a real condition, the tree compiles and reads as if the match
     // were not there at all.
@@ -276,9 +276,9 @@ describe('the elementMatch kind', () => {
       ],
     };
     const without: FilterTree = { op: 'and', children: [beside.children[0]] };
-    expect(errors(validateFilter(fields, beside, builtinFieldKinds))).toEqual(
-      [],
-    );
+    expect(
+      errors(validateFilter(fields, beside, builtinFieldKindRegistry)),
+    ).toEqual([]);
     expect(compile(beside)).toEqual(compile(without));
     expect(compile(beside)).toEqual({
       op: FilterOperator.EQ,
@@ -286,9 +286,13 @@ describe('the elementMatch kind', () => {
       value: 'SH',
     });
     expect(
-      describeFilter(fields, beside, builtinFieldKinds).map(item => item.text),
+      describeFilter(fields, beside, builtinFieldKindRegistry).map(
+        item => item.text,
+      ),
     ).toEqual(
-      describeFilter(fields, without, builtinFieldKinds).map(i => i.text),
+      describeFilter(fields, without, builtinFieldKindRegistry).map(
+        i => i.text,
+      ),
     );
   });
 
@@ -312,7 +316,7 @@ describe('the elementMatch kind', () => {
           validateFilter(
             fields,
             outer(FilterOperator.ELEMENT_MATCH, predicate(leaf) as never),
-            builtinFieldKinds,
+            builtinFieldKindRegistry,
           ),
         ),
       ).toEqual([code]);
@@ -338,7 +342,7 @@ describe('the elementMatch kind', () => {
               value: '',
             }) as never,
           ),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['filter.kind.unregistered']);
@@ -346,14 +350,14 @@ describe('the elementMatch kind', () => {
 
   it('starts from an empty condition', () => {
     expect(
-      builtinFieldKinds
+      builtinFieldKindRegistry
         .get('elementMatch')!
         .emptyValue(FilterOperator.ELEMENT_MATCH, fields[1]),
     ).toEqual({ op: 'and', children: [] });
   });
 
   it('asks the editor for a condition rather than a value', () => {
-    const kind = builtinFieldKinds.get('elementMatch')!;
+    const kind = builtinFieldKindRegistry.get('elementMatch')!;
 
     expect(kind.editor(FilterOperator.ELEMENT_MATCH, fields[1])).toEqual({
       input: 'predicate',
@@ -380,7 +384,7 @@ describe('the elementMatch kind', () => {
       describeFilter(
         fields,
         outer(FilterOperator.ELEMENT_MATCH, either as never),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       ).map(item => item.text),
     ).toEqual(['Items has an entry where SKU is A or Qty more than 2']);
   });
@@ -392,7 +396,7 @@ describe('the elementMatch kind', () => {
       describeFilter(
         fields,
         outer(FilterOperator.ELEMENT_MATCH, 'nonsense'),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       ).map(item => item.text),
     ).toEqual(['Items']);
   });
@@ -400,7 +404,7 @@ describe('the elementMatch kind', () => {
   it('refuses a custom kind that compiles to a root filter', () => {
     // The rule is Wow's, and it is about what the kind compiles to, not about
     // which ids this package happens to ship.
-    const kinds = withFieldKinds(builtinFieldKinds, [
+    const kinds = withFieldKinds(builtinFieldKindRegistry, [
       { ...searchFieldKind, id: 'fullText' },
     ]);
     const custom: FieldDefinition[] = [
@@ -446,9 +450,11 @@ describe('the elementMatch kind', () => {
     'summarises %s',
     (operator, value, want) => {
       expect(
-        describeFilter(fields, outer(operator, value), builtinFieldKinds).map(
-          item => item.text,
-        ),
+        describeFilter(
+          fields,
+          outer(operator, value),
+          builtinFieldKindRegistry,
+        ).map(item => item.text),
       ).toEqual([want]);
     },
   );
@@ -474,7 +480,7 @@ describe('the budget reaches into a predicate', () => {
         validateFilter(
           fields,
           outer(FilterOperator.ELEMENT_MATCH, deep as never),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['filter.tree.too-deep']);
@@ -494,7 +500,7 @@ describe('the budget reaches into a predicate', () => {
         validateFilter(
           fields,
           outer(FilterOperator.ELEMENT_MATCH, many as never),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual(['filter.tree.too-many-nodes']);
@@ -522,7 +528,7 @@ describe('the budget reaches into a predicate', () => {
         validateFilter(
           fields,
           outer(FilterOperator.ELEMENT_MATCH, many as never),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
           { limits: { maxFilterDepth: 8, maxFilterNodes: 1000 } },
         ),
       ),
@@ -546,7 +552,7 @@ describe('the budget reaches into a predicate', () => {
         validateFilter(
           fields,
           outer(FilterOperator.IS_EMPTY, deep as never),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual([]);
@@ -565,7 +571,7 @@ describe('the budget reaches into a predicate', () => {
               value: 1,
             }) as never,
           ),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual([]);

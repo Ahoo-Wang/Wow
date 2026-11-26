@@ -485,7 +485,7 @@ function RecordWorkbenchDemo({
             // and `failing` answer the view normally and treat the export's
             // whole-page request differently, and `capped` only lowers the
             // ceiling — six orders against a ceiling of two.
-            ...(exporting === 'capped' ? { limits: { exportMax: 2 } } : {}),
+            ...(exporting === 'capped' ? { limits: { maxExportRows: 2 } } : {}),
             ...(exporting === 'slow' || exporting === 'failing'
               ? {
                   source: storyExportSource(
@@ -984,7 +984,7 @@ export const TableSettings: Story = { args: { keepStore: true } };
  * **第一步先摆清楚**：有勾选时上面是一组单选——「选中（N）」（默认选它）与
  * 「所有（N，按当前筛选）」；没勾选就没有单选，只有「所有」。底下四行说的是
  * 文件里会有什么：多少条、按什么条件（和结果条件带同一套读法）、哪几列（列设
- * 置里可见的那几列，按表上的顺序）、文件叫什么名字。条数超过 `limits.exportMax`
+ * 置里可见的那几列，按表上的顺序）、文件叫什么名字。条数超过 `limits.maxExportRows`
  * 时这里多一行警告——**按下「导出」就是同意**，所以同意的是什么得先摆在眼前，
  * 而不是下载完才说。
  *
@@ -1017,7 +1017,7 @@ export const ExportRunning: Story = {
 };
 
 /**
- * 超过上限：把 `limits.exportMax` 压到 2，这个视图匹配的四条就超了。警告在按钮
+ * 超过上限：把 `limits.maxExportRows` 压到 2，这个视图匹配的四条就超了。警告在按钮
  * 之前，导出完窗口再说一遍文件里实际有几条、总共匹配几条。
  */
 export const ExportCapped: Story = {

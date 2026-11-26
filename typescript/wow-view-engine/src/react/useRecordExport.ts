@@ -36,9 +36,9 @@ const RUN = 'all';
  * size that nobody asked for. A sample is the header's select-all followed
  * by "selected".
  */
-export type RecordExportScope = 'selected' | 'all';
+export type RecordExportExtent = 'selected' | 'all';
 
-export interface RecordExportScopes {
+export interface RecordExportExtents {
   /**
    * Rows picked, and **absent** while nothing is picked: the dialog offers
    * what the view can actually do (D4), and "export the 0 selected rows" is
@@ -54,7 +54,7 @@ export interface RecordExportScopes {
 }
 
 export interface RecordExportProgress {
-  scope: RecordExportScope;
+  scope: RecordExportExtent;
   /** Rows in hand so far. */
   fetched: number;
   /** How many there are in all, where the source says. */
@@ -63,7 +63,7 @@ export interface RecordExportProgress {
 
 /** What one finished export produced, until the next run or `reset()`. */
 export interface RecordExportOutcome {
-  scope: RecordExportScope;
+  scope: RecordExportExtent;
   /** Rows the file holds. */
   rows: number;
   /** The ceiling stopped the fetch short of everything that matched. */
@@ -73,9 +73,9 @@ export interface RecordExportOutcome {
 }
 
 export interface RecordExportController {
-  scopes: RecordExportScopes;
+  scopes: RecordExportExtents;
   /** The scope being exported, or `null` while nothing runs. */
-  running: RecordExportScope | null;
+  running: RecordExportExtent | null;
   progress: RecordExportProgress | null;
   /** The export that finished, so the window can report what it produced. */
   outcome: RecordExportOutcome | null;
@@ -93,7 +93,7 @@ export interface RecordExportController {
    * than worked out again when the rows are in hand: the name holds a day,
    * and the export may outlive one (D14).
    */
-  run(scope: RecordExportScope, fileName: string): void;
+  run(scope: RecordExportExtent, fileName: string): void;
   /** Stops the run in flight. */
   cancel(): void;
   /** Forgets the last outcome or failure; it does not stop a run. */
@@ -122,13 +122,13 @@ export interface RecordExportOptions {
    */
   deliver(
     rows: readonly RecordData[],
-    scope: RecordExportScope,
+    scope: RecordExportExtent,
     fileName: string,
   ): void | Promise<void>;
 }
 
 interface ExportState {
-  running: RecordExportScope | null;
+  running: RecordExportExtent | null;
   progress: RecordExportProgress | null;
   outcome: RecordExportOutcome | null;
   error: Issue | null;
@@ -194,7 +194,7 @@ export function useRecordExport(
     paging?.mode === 'paged' && paging.exact !== false
       ? (paging.total ?? null)
       : null;
-  const scopes: RecordExportScopes = {
+  const scopes: RecordExportExtents = {
     ...(table.selection.length > 0 ? { selected: table.selection.length } : {}),
     all: counted,
   };
@@ -303,7 +303,7 @@ export function useRecordExport(
   );
 
   const run = useCallback(
-    (scope: RecordExportScope, fileName: string) => {
+    (scope: RecordExportExtent, fileName: string) => {
       if (!runtime || busy.current) return;
       busy.current = true;
       // Every run takes its ticket, the picked rows' too: whatever it ends

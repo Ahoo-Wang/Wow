@@ -146,9 +146,7 @@ async function lanePage(
   const query = compileRecord(
     definition,
     laneConfig(definition, config, lane),
-    kinds,
-    filterContext,
-    target,
+    { kinds, context: filterContext, page: target },
   );
   const answer: PagedList<RecordData> | CursorPage<RecordData> =
     'cursor' in target

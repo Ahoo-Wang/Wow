@@ -41,7 +41,7 @@ import {
 } from './tree.js';
 
 export interface ValidateFilterOptions {
-  limits?: Pick<RuntimeLimits, 'maxFilterDepth' | 'maxFilterNodes'>;
+  limits?: Partial<RuntimeLimits>;
   /**
    * The caller already walked this tree's shape and budget, so skip that
    * pass.
@@ -71,7 +71,7 @@ export function validateFilter(
   kinds: FieldKindRegistry,
   options: ValidateFilterOptions = {},
 ): Issue[] {
-  const limits = options.limits ?? DEFAULT_RUNTIME_LIMITS;
+  const limits = { ...DEFAULT_RUNTIME_LIMITS, ...options.limits };
   const issues: Issue[] = [];
   if (!options.shapeChecked) {
     const { shape, duplicates } = checkShape(tree, fields, kinds, limits);

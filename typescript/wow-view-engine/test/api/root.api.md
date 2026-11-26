@@ -472,21 +472,6 @@ export interface AxisSpec {
     scale?: 'linear' | 'log';
 }
 
-// @public
-export interface BoardOrigin {
-    // (undocumented)
-    back: DashboardTarget;
-    // (undocumented)
-    title: string;
-}
-
-// @public
-export type BoardValueSource = {
-    dimension: string;
-} | {
-    filter: string;
-};
-
 // @public (undocumented)
 export type BooleanFilterValue = boolean;
 
@@ -532,7 +517,7 @@ export const BUILTIN_FIELD_KINDS: readonly FieldKind[];
 export type BuiltinFieldKindId = 'string' | 'number' | 'boolean' | 'date' | 'datetime' | 'enum' | 'reference' | 'array' | 'elementMatch' | 'search' | MetadataFieldKindId;
 
 // @public
-export const builtinFieldKinds: FieldKindRegistry;
+export const builtinFieldKindRegistry: FieldKindRegistry;
 
 // @public (undocumented)
 export interface CalendarData {
@@ -768,13 +753,27 @@ export type ColumnEdge = 'left' | 'right';
 export type ComparisonOperatorName = 'gt' | 'gte' | 'lt' | 'lte' | 'eq' | 'ne';
 
 // @public
-export function compileAnalysis(definition: DataViewDefinition, config: AnalysisViewConfig, kinds: FieldKindRegistry, context: FilterCompileContext, limits?: Pick<RuntimeLimits, 'maxAnalysisRows'>): AggregationQuery;
+export function compileAnalysis(definition: DataViewDefinition, config: AnalysisViewConfig, options: CompileAnalysisOptions): AggregationQuery;
+
+// @public
+export interface CompileAnalysisOptions {
+    context: FilterCompileContext;
+    kinds: FieldKindRegistry;
+    limits?: Partial<RuntimeLimits>;
+}
 
 // @public
 export function compileFilter(fields: readonly FieldDefinition[], tree: FilterTree, kinds: FieldKindRegistry, context: FilterCompileContext): FilterExpression;
 
 // @public
-export function compileRecord(definition: DataViewDefinition, config: RecordViewConfig, kinds: FieldKindRegistry, context: FilterCompileContext, page: RecordPageTarget): FilterPagedQuery | CursorQuery;
+export function compileRecord(definition: DataViewDefinition, config: RecordViewConfig, options: CompileRecordOptions): FilterPagedQuery | CursorQuery;
+
+// @public
+export interface CompileRecordOptions {
+    context: FilterCompileContext;
+    kinds: FieldKindRegistry;
+    page: RecordPageTarget;
+}
 
 // @public
 export type ConfigOfKind<K extends ViewKind> = Extract<ViewConfig, {
@@ -931,7 +930,7 @@ export interface DashboardFilterEditing {
     bindPanel(name: string, panelId: string, panelField: string): string[];
     moveFilter(name: string, index: number): void;
     removeFilter(name: string): void;
-    removeFixedScope(): void;
+    removeFixed(): void;
     renameFilter(name: string, label: string): void;
     retypeFilter(name: string, type: DashboardFilterType): void;
     setFilterDefault(name: string, value: FilterValue | null): void;
@@ -965,6 +964,14 @@ export interface DashboardLink {
     href: string;
     // (undocumented)
     label: string;
+}
+
+// @public
+export interface DashboardOrigin {
+    // (undocumented)
+    back: DashboardTarget;
+    // (undocumented)
+    title: string;
 }
 
 // @public (undocumented)
@@ -1003,7 +1010,7 @@ export interface DashboardRuntime extends ViewRuntime<DashboardViewConfig>, Dash
     clearFilters(): void;
     crossFilter(panelId: string, row: RecordData): CrossFilterOutcome;
     destination(panelId: string, row: RecordData): Promise<PressDestination | null>;
-    destinationBoard(instanceId: string): Promise<DestinationBoard | null>;
+    destinationBoard(instanceId: string): Promise<DestinationDashboard | null>;
     // (undocumented)
     getSnapshot(): DashboardRuntimeState;
     handOver(panelId: string): HandOver | null;
@@ -1064,6 +1071,13 @@ export interface DashboardTimeGrouping {
     default: AggregationDateUnitName;
     units: AggregationDateUnitName[];
 }
+
+// @public
+export type DashboardValueSource = {
+    dimension: string;
+} | {
+    filter: string;
+};
 
 // @public (undocumented)
 export interface DashboardViewConfig extends ViewConfigBase {
@@ -1163,13 +1177,13 @@ export interface DatasetResource {
 
 // @public
 export class DatasetResources {
-    constructor(engine: DatasetRegistrar, init: DatasetResourcesInit);
+    constructor(engine: DatasetRegistrar, init: DatasetResourcesOptions);
     refresh(options?: ReadOptions): Promise<DatasetRefresh>;
     get resources(): readonly DatasetResource[];
 }
 
 // @public
-export interface DatasetResourcesInit {
+export interface DatasetResourcesOptions {
     catalogs: DatasetCatalog | readonly DatasetCatalog[];
     onCatalogError?(catalog: number, error: unknown): void;
     onDuplicate?(duplicate: DatasetDuplicate): void;
@@ -1368,7 +1382,7 @@ export interface DerivedSeries {
 }
 
 // @public
-export type DestinationBoard = ViewInstance & {
+export type DestinationDashboard = ViewInstance & {
     config: DashboardViewConfig;
 };
 
@@ -1400,7 +1414,7 @@ export interface DurationFilterValue {
 }
 
 // @public
-export type EditCommand = 'addPanel' | 'removePanel' | 'duplicatePanel' | 'renamePanel' | 'replacePanelView' | 'editPanelContent' | 'movePanelToTab' | 'setPresentation' | 'referToSaved' | 'setPanelClick' | 'place' | 'reorderPanel' | 'addTab' | 'renameTab' | 'moveTab' | 'removeTab' | 'addFilter' | 'renameFilter' | 'retypeFilter' | 'removeFilter' | 'setFilterDefault' | 'setFilterRequired' | 'setFilterMultiple' | 'setFilterOneDay' | 'setFilterOptions' | 'moveFilter' | 'bindPanel' | 'unbindPanels' | 'setTimeGrouping' | 'removeFixedScope' | 'setWidth';
+export type EditCommand = 'addPanel' | 'removePanel' | 'duplicatePanel' | 'renamePanel' | 'replacePanelView' | 'editPanelContent' | 'movePanelToTab' | 'setPresentation' | 'referToSaved' | 'setPanelClick' | 'place' | 'reorderPanel' | 'addTab' | 'renameTab' | 'moveTab' | 'removeTab' | 'addFilter' | 'renameFilter' | 'retypeFilter' | 'removeFilter' | 'setFilterDefault' | 'setFilterRequired' | 'setFilterMultiple' | 'setFilterOneDay' | 'setFilterOptions' | 'moveFilter' | 'bindPanel' | 'unbindPanels' | 'setTimeGrouping' | 'removeFixed' | 'setWidth';
 
 // @public
 export interface EditHistoryState {
@@ -1995,7 +2009,7 @@ export interface GroupNaming {
 // @public
 export interface HandOver {
     filter: FilterTree | null;
-    from?: BoardOrigin;
+    from?: DashboardOrigin;
     scopeFilter: FilterTree | null;
 }
 
@@ -2112,7 +2126,7 @@ export function isDateTimeFilterValue(value: unknown): value is DateTimeFilterVa
 export function isExportCancelledError(error: unknown): error is ExportCancelledError;
 
 // @public
-export function isRecordRuntime(runtime: ViewRuntime<DataViewConfig>): runtime is RecordViewRuntime;
+export function isRecordRuntime(runtime: ViewRuntime | null | undefined): runtime is RecordViewRuntime;
 
 // @public
 export interface Issue {
@@ -2514,14 +2528,14 @@ export type PanelClick =
 * as the author mapped them (D23 Q17, 「另一块仪表盘」): `values` is keyed
 * like the `DashboardFilters.values` it becomes — each of the target's
 * filters the press sets, by name — and says where each one's value comes
-* from (`BoardValueSource`). A filter not named is not carried and starts
+* from (`DashboardValueSource`). A filter not named is not carried and starts
 * at its default. Never matched by name: only what the author mapped goes
 * along.
 */
 | {
     kind: 'dashboard';
     instanceId: string;
-    values: Record<string, BoardValueSource>;
+    values: Record<string, DashboardValueSource>;
     tab?: string;
 }
 /**
@@ -2654,7 +2668,15 @@ export type PressDestination = {
 };
 
 // @public
-export function projectAnalysis(definition: DataViewDefinition, config: AnalysisViewConfig, result: readonly RecordData[], totals?: readonly RecordData[], kinds?: FieldKindRegistry, context?: ShapeContext, limits?: Pick<RuntimeLimits, 'maxAnalysisRows'>): AnalysisProjection;
+export function projectAnalysis(definition: DataViewDefinition, config: AnalysisViewConfig, result: readonly RecordData[], options?: ProjectAnalysisOptions): AnalysisProjection;
+
+// @public
+export interface ProjectAnalysisOptions {
+    context?: ShapeContext;
+    kinds?: FieldKindRegistry;
+    limits?: Partial<RuntimeLimits>;
+    totals?: readonly RecordData[];
+}
 
 // @public (undocumented)
 export interface ProjectedAnalysis extends ProjectedBase {
@@ -2682,7 +2704,13 @@ export interface ProjectedRecord extends ProjectedBase {
 export type ProjectedView = ProjectedRecord | ProjectedAnalysis;
 
 // @public
-export function projectRecord(definition: DataViewDefinition, config: RecordViewConfig, page: PagedList<RecordData> | CursorPage<RecordData>, pageIndex?: number, limits?: Pick<RuntimeLimits, 'maxPageWindow'>): RecordProjection;
+export function projectRecord(definition: DataViewDefinition, config: RecordViewConfig, page: PagedList<RecordData> | CursorPage<RecordData>, options?: ProjectRecordOptions): RecordProjection;
+
+// @public
+export interface ProjectRecordOptions {
+    limits?: Partial<RuntimeLimits>;
+    pageIndex?: number;
+}
 
 // @public
 export type QueryOperation = 'query' | 'summaries' | 'totals' | 'split' | 'record' | 'kanban' | 'candidates' | 'labels';
@@ -2928,7 +2956,7 @@ export interface RecordViewConfig extends DataViewConfigBase {
 // @public
 export interface RecordViewRuntime<P extends RecordPagingMode = RecordPagingMode> extends ViewRuntime<RecordViewConfig> {
     exportRows(options?: ExportRowsOptions): Promise<ExportedRows>;
-    fetchRecord(key: RecordKey, signal?: AbortSignal): Promise<RecordData | null>;
+    fetchRecord(key: RecordKey, options?: ReadOptions): Promise<RecordData | null>;
     loadLane(laneId: string): void;
     // (undocumented)
     page(target: RecordPageTarget<P>): void;
@@ -3086,15 +3114,15 @@ export interface RuntimeLimits {
     defaultCardFields: number;
     defaultColumns: number;
     defaultPageSize: number;
-    exportMax: number;
     exportNeutralizeFormulas: boolean;
-    listedViews: number;
     maxAnalysisRows: number;
     maxConcurrentQueries: number;
     maxDashboardPanels: number;
+    maxExportRows: number;
     maxFilterDepth: number;
     maxFilterNodes: number;
     maxFilterValues: number;
+    maxListedViews: number;
     maxPageSize: number;
     maxPageWindow: number;
     maxQueryFilterNodes: number;
@@ -3257,7 +3285,7 @@ export type SummaryFunction = `${AggregationFunction.SUM | AggregationFunction.A
 export interface SummaryRow {
     // (undocumented)
     cells: SummaryCell[];
-    scope: 'page' | 'total';
+    over: 'page' | 'total';
 }
 
 // @public
@@ -3345,7 +3373,7 @@ export interface UnsavedViewTarget {
     // (undocumented)
     definitionId: string;
     // (undocumented)
-    from?: BoardOrigin;
+    from?: DashboardOrigin;
     // (undocumented)
     kind: 'unsaved';
     named?: GroupNaming;
@@ -3361,7 +3389,7 @@ export function validateAnalysis(definition: DataViewDefinition, config: Analysi
 // @public (undocumented)
 export interface ValidateAnalysisOptions {
     // (undocumented)
-    limits?: RuntimeLimits;
+    limits?: Partial<RuntimeLimits>;
 }
 
 // @public
@@ -3369,9 +3397,9 @@ export function validateDashboard(config: DashboardViewConfig, scope: ViewScope,
 
 // @public (undocumented)
 export interface ValidateDashboardOptions {
-    definitions?: (definitionId: string) => PanelDefinition | null;
     // (undocumented)
-    limits?: RuntimeLimits;
+    limits?: Partial<RuntimeLimits>;
+    lookup?: DefinitionLookup;
 }
 
 // @public
@@ -3381,7 +3409,7 @@ export function validateDefinition(definition: ViewDefinition, kinds: FieldKindR
 export interface ValidateDefinitionOptions {
     definitions?: (definitionId: string) => ViewDefinition | undefined;
     // (undocumented)
-    limits?: RuntimeLimits;
+    limits?: Partial<RuntimeLimits>;
 }
 
 // @public
@@ -3390,7 +3418,7 @@ export function validateFilter(fields: readonly FieldDefinition[], tree: FilterT
 // @public (undocumented)
 export interface ValidateFilterOptions {
     // (undocumented)
-    limits?: Pick<RuntimeLimits, 'maxFilterDepth' | 'maxFilterNodes'>;
+    limits?: Partial<RuntimeLimits>;
     shapeChecked?: boolean;
 }
 
@@ -3400,7 +3428,7 @@ export function validateRecord(definition: DataViewDefinition, config: RecordVie
 // @public (undocumented)
 export interface ValidateRecordOptions {
     // (undocumented)
-    limits?: RuntimeLimits;
+    limits?: Partial<RuntimeLimits>;
 }
 
 // @public
@@ -3420,7 +3448,7 @@ export interface ValueCandidates {
 // @public
 export interface ValueCandidateSource {
     readonly field: string;
-    search(query: string, signal?: AbortSignal): Promise<ValueCandidates>;
+    search(query: string, options?: ReadOptions): Promise<ValueCandidates>;
 }
 
 // @public (undocumented)
@@ -3792,7 +3820,7 @@ export interface ViewRuntime<C extends ViewConfig = ViewConfig> {
     readonly limits: RuntimeLimits;
     optionSource(remote: string): OptionSource | null;
     refresh(): void;
-    readonly refusedScope: Issue[];
+    readonly refusedScopeFilter: Issue[];
     removeUnavailable(): void;
     revert(): void;
     readonly scopeFilter: FilterTree | null;

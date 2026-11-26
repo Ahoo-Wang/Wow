@@ -38,7 +38,7 @@ import { validateSortAndColumns } from './validateSort.js';
 import { validateLimits } from './validateLimits.js';
 
 export interface ValidateAnalysisOptions {
-  limits?: RuntimeLimits;
+  limits?: Partial<RuntimeLimits>;
 }
 
 /**
@@ -60,7 +60,7 @@ export function validateAnalysis(
   kinds: FieldKindRegistry,
   options: ValidateAnalysisOptions = {},
 ): Issue[] {
-  const limits = options.limits ?? DEFAULT_RUNTIME_LIMITS;
+  const limits = { ...DEFAULT_RUNTIME_LIMITS, ...options.limits };
   const capability = definition.analysis;
   if (!capability)
     return [

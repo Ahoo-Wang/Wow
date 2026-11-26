@@ -29,7 +29,7 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   compileFilter,
   defineView,
   projectRecord,
@@ -226,7 +226,7 @@ describe('admitting a sort on a reference read as names', () => {
       recordConfig({
         sort: [{ field: 'customerId', direction: SortDirection.ASC }],
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
 
   it('refuses it where the field does not sort, naming the fix', () => {
@@ -256,7 +256,7 @@ describe('admitting a sort on a reference read as names', () => {
         recordConfig({
           sort: [{ field: 'warehouse', direction: SortDirection.ASC }],
         }),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       ).map(found => found.code),
     ).toEqual(['record.sort.not-sortable']);
   });
@@ -274,7 +274,7 @@ describe('admitting a search on a reference read as names', () => {
   it('refuses it, naming the field and the fix', () => {
     const found = validateDefinition(
       ordersDefinition({ fields: searching() }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     ).filter(entry => entry.code === 'definition.search.reference-label');
     expect(found).toEqual([
       expect.objectContaining({
@@ -292,7 +292,7 @@ describe('admitting a search on a reference read as names', () => {
     expect(
       validateDefinition(
         ordersDefinition({ fields: searching({ remote: undefined }) }),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       ).map(entry => entry.code),
     ).not.toContain('definition.search.reference-label');
   });
@@ -316,7 +316,7 @@ describe('a reference with no entries', () => {
           }),
         ],
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     ).definition.fields[1];
   const offered = (field: FieldDefinition) =>
     field.operators ?? referenceFieldKind.operators;
@@ -354,7 +354,7 @@ describe('a reference with no entries', () => {
       referenceFieldKind.editor(FilterOperator.IS_EMPTY, customers),
     ).toEqual({ input: 'none' });
     expect(
-      compileFilter(definition.fields, tree, builtinFieldKinds, {
+      compileFilter(definition.fields, tree, builtinFieldKindRegistry, {
         now: new Date(0),
         timeZone: 'UTC',
       }),
@@ -363,7 +363,7 @@ describe('a reference with no entries', () => {
       filter.or([filter.isEmpty('customerIds'), filter.isNull('customerIds')]),
     );
     expect(
-      describeFilter(definition.fields, tree, builtinFieldKinds),
+      describeFilter(definition.fields, tree, builtinFieldKindRegistry),
     ).toMatchObject([{ relation: 'has-no-entries', value: { kind: 'none' } }]);
   });
 });

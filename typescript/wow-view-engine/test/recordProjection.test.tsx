@@ -25,7 +25,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,
   ViewEngine,
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   compileRecord,
   validateDefinition,
   type DataViewDefinition,
@@ -289,20 +289,16 @@ describe('compileRecord carries the projection', () => {
   const context = { now: NOW, timeZone: 'UTC' };
 
   it('into a paged query and into a cursor query alike', () => {
-    const paged = compileRecord(
-      definition(),
-      config(),
-      builtinFieldKinds,
+    const paged = compileRecord(definition(), config(), {
+      kinds: builtinFieldKindRegistry,
       context,
-      FIRST_PAGE.paged,
-    );
-    const cursor = compileRecord(
-      definition({ paging: 'cursor' }),
-      config(),
-      builtinFieldKinds,
+      page: FIRST_PAGE.paged,
+    });
+    const cursor = compileRecord(definition({ paging: 'cursor' }), config(), {
+      kinds: builtinFieldKindRegistry,
       context,
-      FIRST_PAGE.cursor,
-    );
+      page: FIRST_PAGE.cursor,
+    });
     const expected = {
       include: [
         'state.id',
@@ -318,7 +314,7 @@ describe('compileRecord carries the projection', () => {
 
 describe('RecordCapability.rowFields admission', () => {
   const codes = (rowFields: string[]) =>
-    validateDefinition(definition({ rowFields }), builtinFieldKinds).map(
+    validateDefinition(definition({ rowFields }), builtinFieldKindRegistry).map(
       found => [found.code, found.path],
     );
 
@@ -336,7 +332,7 @@ describe('RecordCapability.rowFields admission', () => {
 
 describe('RecordCapability.rowName', () => {
   const codes = (rowName: string) =>
-    validateDefinition(definition({ rowName }), builtinFieldKinds).map(
+    validateDefinition(definition({ rowName }), builtinFieldKindRegistry).map(
       found => [found.code, found.path],
     );
 

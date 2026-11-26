@@ -149,7 +149,7 @@ export interface DatasetRefresh {
  * callbacks for what it cannot serve. Every callback is optional; one left
  * out hears nothing, and the refresh goes on as it would.
  */
-export interface DatasetResourcesInit {
+export interface DatasetResourcesOptions {
   /** One service's directory, or several, the first winning a dataset two list. */
   catalogs: DatasetCatalog | readonly DatasetCatalog[];
   /** Told of a dataset that could not be described or registered; it is left as it was. */
@@ -228,11 +228,11 @@ export class DatasetResources {
       descriptor: Parameters<typeof defineDataset>[0];
     }
   >();
-  private readonly options: DatasetResourcesInit;
+  private readonly options: DatasetResourcesOptions;
 
   constructor(
     private readonly engine: DatasetRegistrar,
-    init: DatasetResourcesInit,
+    init: DatasetResourcesOptions,
   ) {
     this.options = init;
     const { catalogs } = init;

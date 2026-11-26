@@ -67,7 +67,7 @@ export interface OpenViewState {
    * keeps the result it had — un-narrowed on an open — so the refusal has to
    * reach the screen rather than be dropped here.
    */
-  scopeIssues: Issue[];
+  scopeFilterIssues: Issue[];
   /**
    * Opens the same id again: the way back from a failure that may pass — the
    * store unreachable, or answering with an error of its own
@@ -150,7 +150,7 @@ const NO_REOPEN: Reopen = { after: null, attempt: 0 };
  * leave. It is read when the view opens and then followed, so a caller may
  * pass a fresh object every render without reopening anything. One the
  * definition refuses is not in force at all — the view runs un-narrowed and
- * `scopeIssues` says which condition did not take (D17-5).
+ * `scopeFilterIssues` says which condition did not take (D17-5).
  *
  * `opening` says which tab a dashboard opens on and what its filters hold
  * (`OpenOptions.tab`, `OpenOptions.filters`), and which definition the
@@ -245,17 +245,17 @@ export function useOpenView(
   // opens in an effect, which no server runs, so `runtime` is null on the
   // server and on the first client frame alike, and both answer `NO_ISSUES`
   // — the markup hydrates as it was sent.
-  const refusedScope = useCallback(
-    () => runtime?.refusedScope ?? NO_ISSUES,
+  const refusedScopeFilter = useCallback(
+    () => runtime?.refusedScopeFilter ?? NO_ISSUES,
     [runtime],
   );
-  const scopeIssues = useSyncExternalStore(
+  const scopeFilterIssues = useSyncExternalStore(
     useCallback(
       (listener: () => void) => runtime?.subscribe(listener) ?? NO_OP,
       [runtime],
     ),
-    refusedScope,
-    refusedScope,
+    refusedScopeFilter,
+    refusedScopeFilter,
   );
 
   // A runtime is disposed without a notification — `dispose` drops its
@@ -295,17 +295,24 @@ export function useOpenView(
             runtime: opened.runtime,
             status: answeredStatus(instanceId, opened.error),
             error: opened.error,
-            scopeIssues,
+            scopeFilterIssues,
             retry,
           }
         : {
             runtime: null,
             status: instanceId === null ? 'idle' : 'loading',
             error: null,
-            scopeIssues: NO_ISSUES,
+            scopeFilterIssues: NO_ISSUES,
             retry,
           },
-    [answered, opened.runtime, opened.error, instanceId, scopeIssues, retry],
+    [
+      answered,
+      opened.runtime,
+      opened.error,
+      instanceId,
+      scopeFilterIssues,
+      retry,
+    ],
   );
 }
 

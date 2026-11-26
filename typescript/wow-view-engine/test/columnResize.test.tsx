@@ -61,7 +61,7 @@ function table(
       table={recordTableController({
         columns: [{ ...AMOUNT, ...column }],
         summaries: {
-          scope: 'total',
+          over: 'total',
           cells: [
             {
               field: 'amount',

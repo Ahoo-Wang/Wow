@@ -38,7 +38,7 @@ import type {
   DashboardFilterEditing,
   DashboardPanelState,
   DashboardRuntime,
-  DestinationBoard,
+  DestinationDashboard,
   EditHistoryState,
   HandOver,
   OptionSource,
@@ -257,7 +257,7 @@ export interface DashboardController {
    * Another board a click opens, read for 「点击时…」 to list its filters
    * (`DashboardRuntime.destinationBoard`); `null` for one gone or unreadable.
    */
-  destinationBoard(instanceId: string): Promise<DestinationBoard | null>;
+  destinationBoard(instanceId: string): Promise<DestinationDashboard | null>;
   /**
    * What one data panel's view takes off the board as it stands
    * (`DashboardRuntime.handOver`, D26 Q30): every way off it — 「在工作台中

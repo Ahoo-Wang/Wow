@@ -14,7 +14,7 @@
 import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   MemoryViewStore,
   ViewEngine,
   withFieldKinds,
@@ -115,7 +115,7 @@ async function openBoard(config: DashboardViewConfig) {
     ),
     store,
     environment: testEnvironment().environment,
-    kinds: withFieldKinds(builtinFieldKinds, [brittle]),
+    kinds: withFieldKinds(builtinFieldKindRegistry, [brittle]),
   });
   const board = await store.create(
     { definitionId: 'overview', title: 'Overview', scope: 'shared', config },

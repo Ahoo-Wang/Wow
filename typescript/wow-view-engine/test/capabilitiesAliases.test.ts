@@ -24,7 +24,7 @@ import {
   SearchMode,
 } from '@ahoo-wang/wow-client/dsl';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   defaultRecordConfig,
   MemoryViewStore,
   ViewEngine,
@@ -86,7 +86,7 @@ describe('a field the definition names by an alias', () => {
     const { definition, findings } = narrowDefinition(
       declared,
       renamedDescriptor(),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
 
     expect(definition.fields.map(field => field.name)).toEqual([
@@ -352,7 +352,7 @@ describe('a field the definition names by an alias', () => {
     const { definition } = narrowDefinition(
       declared,
       descriptor,
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
 
     const items = definition.fields.find(field => field.name === 'items');
@@ -394,7 +394,7 @@ describe('a definition whose record defaults name a field by an alias', () => {
     const { definition } = narrowDefinition(
       declared,
       renamedDescriptor(),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
 
     expect(definition.record?.defaults).toEqual({
@@ -426,7 +426,7 @@ describe('a definition whose record defaults name a field by an alias', () => {
     const { definition } = narrowDefinition(
       declared,
       renamedDescriptor(),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(definition.record?.defaults).toBe(defaults);
   });

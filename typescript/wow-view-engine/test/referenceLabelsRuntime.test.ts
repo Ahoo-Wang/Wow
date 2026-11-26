@@ -27,7 +27,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,
   ViewEngine,
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   isExportCancelledError,
   type RecordViewRuntime,
   type DashboardPanel,
@@ -592,13 +592,25 @@ describe('a press writes the name beside the id', () => {
   it('names a drilled reference by `labelOf`, and by its id without one', () => {
     const fields = definition().fields;
     const row = { customer: 'c1', orders: 2 };
-    const named = drillGroups(byCustomer(), fields, builtinFieldKinds, row, {
-      timeZone: 'UTC',
-      labelOf: (remote, id) => `${remote}:${id}`,
-    });
-    const bare = drillGroups(byCustomer(), fields, builtinFieldKinds, row, {
-      timeZone: 'UTC',
-    });
+    const named = drillGroups(
+      byCustomer(),
+      fields,
+      builtinFieldKindRegistry,
+      row,
+      {
+        timeZone: 'UTC',
+        labelOf: (remote, id) => `${remote}:${id}`,
+      },
+    );
+    const bare = drillGroups(
+      byCustomer(),
+      fields,
+      builtinFieldKindRegistry,
+      row,
+      {
+        timeZone: 'UTC',
+      },
+    );
 
     expect(named?.[0]?.conditions[0]?.value).toEqual({
       items: [{ id: 'c1', label: 'customers:c1' }],

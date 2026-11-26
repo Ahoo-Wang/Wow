@@ -324,7 +324,7 @@ describe('holdFilters', () => {
 
     const offered = runtime.valueCandidates('region');
     expect(offered).not.toBeNull();
-    await offered?.search('', new AbortController().signal);
+    await offered?.search('', { signal: new AbortController().signal });
     const asked = vi
       .mocked(source.aggregate)
       .mock.calls.map(([query]) => JSON.stringify(query))

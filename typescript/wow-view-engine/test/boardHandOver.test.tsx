@@ -207,7 +207,7 @@ function Host({
       interaction="interactive"
       filterModes={{ region: 'locked' }}
       pageValues={{ values: { region: ['CN'] } }}
-      initialFilters={filters}
+      defaultFilters={filters}
       onNavigate={go}
     />
   );

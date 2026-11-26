@@ -33,7 +33,7 @@ export interface RuntimeLimits {
    * definition's saved views are few, so this is a guard against a store
    * that never ends rather than a page size; a host with more raises it.
    */
-  listedViews: number;
+  maxListedViews: number;
   /**
    * The most reference ids one `OptionSource.resolve` is asked. A
    * page asks once per remote for the ids it does not know yet, which a
@@ -80,7 +80,7 @@ export interface RuntimeLimits {
    * string of them in a browser tab; over it, the count is put to the user
    * before anything is fetched.
    */
-  exportMax: number;
+  maxExportRows: number;
   /** Shortest auto-refresh interval, in seconds. */
   minRefreshInterval: number;
   /** Longest auto-refresh interval, in seconds; keeps the timer in range. */
@@ -180,7 +180,7 @@ export const DEFAULT_RUNTIME_LIMITS: Readonly<RuntimeLimits> = Object.freeze({
   // The guard refuses a page of more than 100 rows (its `maxPageSize`) …
   maxPageSize: 100,
   // Not a server budget: the engine's own bound on a definition's list.
-  listedViews: 1_000,
+  maxListedViews: 1_000,
   // Not a server budget either: how many ids one label lookup carries.
   referenceBatch: 200,
   // Nor this: how many such lookups are out at once.
@@ -195,7 +195,7 @@ export const DEFAULT_RUNTIME_LIMITS: Readonly<RuntimeLimits> = Object.freeze({
   maxQueryFilterNodes: 128,
   // … and a node holding more than 1,000 values (`max-filter-values`).
   maxFilterValues: 1_000,
-  exportMax: 10_000,
+  maxExportRows: 10_000,
   minRefreshInterval: 5,
   maxRefreshInterval: 86_400,
   maxFilterDepth: 8,

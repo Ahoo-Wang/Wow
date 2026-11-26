@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine exports, generated from its 
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine` exports — 456 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 45 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine` exports — 460 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 45 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -59,8 +59,6 @@ Every name `@ahoo-wang/wow-view-engine` exports — 456 — with its kind and th
 | `Availability` | type | `true`, or why not — a key (`text(…)`) or words, said where shown. | — |
 | `AxisSpec` | interface | — | — |
 | `BUILTIN_FIELD_KINDS` | const | The kinds this package ships, in the order `FieldKindId` lists them. | [Definitions and Field Kinds](./definitions#api-FieldKindRegistry) |
-| `BoardOrigin` | interface | The board a view was opened from: what 「返回〈仪表盘〉」 names, and where it goes — the board on the tab and under the filters it was left on. | — |
-| `BoardValueSource` | type | Where one of another board's filters takes its value from, when a press opens that board: - `dimension` — the group pressed, on this panel's dimension over that field (「这一组的〈维度〉」); - `filter` — this board's filter of that name, as the reader has it at the press (「这块板的〈筛选〉」, approved 2026-09-23): its value, which is its default until a reader sets another; one left blank sends nothing. | — |
 | `BooleanFilterValue` | type | — | — |
 | `BoxplotBox` | interface | One box: a group and its five numbers, lowest first. | — |
 | `BoxplotData` | interface | — | — |
@@ -89,6 +87,8 @@ Every name `@ahoo-wang/wow-view-engine` exports — 456 — with its kind and th
 | `ColumnCurrency` | interface | How a metric column of money in a currency each record holds is read, row by row: the companions telling each row's currency (`CurrencyCompanion`) — its own, or a derived metric's operands' — and whether its number is written in that currency. | — |
 | `ColumnEdge` | type | Which edge the table holds a column against. | — |
 | `ComparisonOperatorName` | type | A comparison a time since another moment may make. | — |
+| `CompileAnalysisOptions` | interface | How `compileAnalysis` compiles a config, beside the config itself. | — |
+| `CompileRecordOptions` | interface | How `compileRecord` compiles a config, beside the config itself. | — |
 | `ConfigOfKind` | type | Narrows a config union member by its kind. | — |
 | `ConflictChoice` | type | — | — |
 | `ConflictingState` | interface | What the server holds, said by which of the two it is. | — |
@@ -108,14 +108,16 @@ Every name `@ahoo-wang/wow-view-engine` exports — 456 — with its kind and th
 | `DashboardFilterType` | type | The six kinds of board filter, each a family of the field kinds it can be wired to: a date filter reaches a `date` or a `datetime`, a text one a `string` or an `enum`, an id one a `reference`, a number and a yes-or-no their own, and a search one a record view's search box — a `search` field, whose `searchFields` say where it looks. | — |
 | `DashboardFilters` | interface | What a board's filters hold right now: the reader's, never the config's (「筛选值写进地址，不写进配置」). | — |
 | `DashboardLink` | interface | — | — |
+| `DashboardOrigin` | interface | The board a view was opened from: what 「返回〈仪表盘〉」 names, and where it goes — the board on the tab and under the filters it was left on. | — |
 | `DashboardPanel` | type | — | — |
 | `DashboardPanelBase` | interface | — | — |
 | `DashboardPanelState` | interface | One panel as the grid renders it. | — |
 | `DashboardRuntime` | interface | The public face of a dashboard runtime: a view runtime whose snapshot also carries the panels. | — |
 | `DashboardRuntimeState` | interface | — | — |
 | `DashboardTab` | interface | One tab of a board: panels are grouped under it, and the global filter sits above them all. | — |
-| `DashboardTarget` | interface | A dashboard, opened with `filters` as its reader's values — the host hands them to `DashboardWorkbench`'s `initialFilters` (or `OpenOptions.filters`), never into the board's config. | — |
+| `DashboardTarget` | interface | A dashboard, opened with `filters` as its reader's values — the host hands them to `DashboardWorkbench`'s `defaultFilters` (or `OpenOptions.filters`), never into the board's config. | — |
 | `DashboardTimeGrouping` | interface | The board's time grouping (整板 按日／周／月): one choice among `units` that sets the date unit of every panel's time dimension, where the panel's definition allows that unit. | — |
+| `DashboardValueSource` | type | Where one of another board's filters takes its value from, when a press opens that board: - `dimension` — the group pressed, on this panel's dimension over that field (「这一组的〈维度〉」); - `filter` — this board's filter of that name, as the reader has it at the press (「这块板的〈筛选〉」, approved 2026-09-23): its value, which is its default until a reader sets another; one left blank sends nothing. | — |
 | `DashboardViewConfig` | interface | — | — |
 | `DashboardViewPanel` | type | Data panel: shows a record or analysis view and is filtered by the board. | — |
 | `DashboardViewPanelBase` | interface | What a data panel holds whichever view it shows; see `DashboardViewPanel`. | — |
@@ -131,7 +133,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 456 — with its kind and th
 | `DatasetRegistrar` | interface | The part of an engine `DatasetResources` drives (`ViewEngine` is one). | — |
 | `DatasetResource` | interface | A dataset served, as registered: its directory entry and its definition id. | — |
 | `DatasetResources` | class | Keeps an engine's datasets in step with services' directories: each `refresh` registers a dataset a directory newly lists, registers again one whose version changed, and removes one no directory lists any more. | — |
-| `DatasetResourcesInit` | interface | What `DatasetResources` reads and whom it tells: the catalogs, and the callbacks for what it cannot serve. | — |
+| `DatasetResourcesOptions` | interface | What `DatasetResources` reads and whom it tells: the catalogs, and the callbacks for what it cannot serve. | — |
 | `DatasetWordingEditor` | interface | What a dataset's wording editor reads and writes: the fields the descriptor derives, the wording in force, and a save that stores it and registers the dataset again in the new words. | — |
 | `DatasetWordingStore` | interface | Where a dataset's wording is kept; see `DatasetCatalog.wordings`. | — |
 | `DateDiffUnitName` | type | — | — |
@@ -151,7 +153,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 456 — with its kind and th
 | `DerivedKind` | type | What a derived series computes: the least-squares line through the measured points (`trend`), the mean of each point and the ones before it (`moving-average`, over `window` points), the running total (`cumulative`, a metric that adds up only), and the running total as a share of the whole (`cumulative-share`, 累计占比). | — |
 | `DerivedLine` | interface | One computed line, as the drawing takes it: a value per point or none. | — |
 | `DerivedSeries` | interface | — | — |
-| `DestinationBoard` | type | Another board as a click reads it: the instance, its config a board's. | — |
+| `DestinationDashboard` | type | Another board as a click reads it: the instance, its config a board's. | — |
 | `DetailSection` | interface | One titled part of a record's detail: the fields a group gathers. | — |
 | `Dropped` | interface | What a step of the chain took out of the question. | — |
 | `DurationFilterValue` | interface | A time since another moment (N3): the leaf's field is the later moment, `from` the earlier one, and the condition compares the time between them — 「发货时间 距 付款时间 &gt; 48 小时」 — in `unit`, a day being 24 hours. | — |
@@ -281,6 +283,8 @@ Every name `@ahoo-wang/wow-view-engine` exports — 456 — with its kind and th
 | `PlacedLine` | interface | A reference line where the kernel placed it: a constant as written, a statistic at the number it came to. | — |
 | `PresetDateTimeValue` | interface | A named calendar window, resolved against the evaluation moment. | — |
 | `PressDestination` | type | Where a press on a custom destination goes, or why it goes nowhere. | — |
+| `ProjectAnalysisOptions` | interface | How `projectAnalysis` reads a result, beside the result itself. | — |
+| `ProjectRecordOptions` | interface | How `projectRecord` reads a page, beside the page itself. | — |
 | `ProjectedAnalysis` | interface | — | — |
 | `ProjectedBase` | interface | What both kinds carry besides their view: what is wrong with *these numbers*, as opposed to what is wrong with the config. | — |
 | `ProjectedRecord` | interface | — | — |
@@ -430,7 +434,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 456 — with its kind and th
 | `WriteState` | type | An outcome that is not success. | — |
 | `WriteTarget` | type | What a write command is addressed to: an open view, or a handle. | — |
 | `actions` | function | A binding's actions, checked: every one has an id no other has, a label and a `run`. | [Host Wiring](./host#api-actions) |
-| `builtinFieldKinds` | const | Ready-to-use registry; extend it with `withFieldKinds`. | [Definitions and Field Kinds](./definitions#api-FieldKindRegistry) |
+| `builtinFieldKindRegistry` | const | Ready-to-use registry; extend it with `withFieldKinds`. | [Definitions and Field Kinds](./definitions#api-FieldKindRegistry) |
 | `compileAnalysis` | function | Compilation is a mapping, not a translation: the configuration is isomorphic to the Wow aggregation protocol and differs only in storing enum values as literals and filters as trees. | — |
 | `compileFilter` | function | Compiles an admitted tree into a Wow filter expression. | — |
 | `compileRecord` | function | Compiles the applied config into the query its source understands. | — |

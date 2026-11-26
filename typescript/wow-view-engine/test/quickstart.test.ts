@@ -15,7 +15,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { orders } from '../examples/quickstart.js';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   MemoryViewStore,
   systemInstanceId,
   validateDefinition,
@@ -34,7 +34,7 @@ import { testEnvironment, testSource, resourcesOf } from './fixtures.js';
  */
 describe('the quick start definition', () => {
   it('passes admission', () => {
-    const found = validateDefinition(orders, builtinFieldKinds);
+    const found = validateDefinition(orders, builtinFieldKindRegistry);
 
     expect(found).toEqual([]);
   });

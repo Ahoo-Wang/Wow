@@ -32,7 +32,7 @@ import {
 import { cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   projectAnalysis,
   validateAnalysis,
   type AnalysisMetric,
@@ -227,7 +227,11 @@ describe('a derived metric’s format', () => {
 
 describe('a derived metric’s format as admitted', () => {
   const codes = (format: unknown, def = definition()) =>
-    validateAnalysis(def, config(format as DerivedFormat), builtinFieldKinds)
+    validateAnalysis(
+      def,
+      config(format as DerivedFormat),
+      builtinFieldKindRegistry,
+    )
       .filter(found => found.path.includes('format'))
       .map(found => found.code);
 
@@ -266,12 +270,10 @@ describe('a derived metric’s format as admitted', () => {
 
   it('is never sent to Wow', async () => {
     const { compileAnalysis } = await import('../src/index.js');
-    const query = compileAnalysis(
-      definition(),
-      config({ style: 'percent' }),
-      builtinFieldKinds,
-      { now: new Date(0), timeZone: 'UTC' },
-    );
+    const query = compileAnalysis(definition(), config({ style: 'percent' }), {
+      kinds: builtinFieldKindRegistry,
+      context: { now: new Date(0), timeZone: 'UTC' },
+    });
     expect(JSON.stringify(query)).not.toContain('percent');
   });
 });

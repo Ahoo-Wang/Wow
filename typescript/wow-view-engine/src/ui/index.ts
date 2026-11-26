@@ -172,7 +172,7 @@ export {
   type EmbeddedDashboardProps,
 } from './EmbeddedDashboard.js';
 export type {
-  BoardFilterModes,
+  DashboardFilterModes,
   DashboardFilterMode,
 } from './dashboard/filterModes.js';
 export { EmbeddedView, type EmbeddedViewProps } from './EmbeddedView.js';

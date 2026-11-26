@@ -41,15 +41,15 @@ export function CardSummaries({ rows }: { rows: readonly SummaryRow[] }) {
     >
       {rows.map(row => (
         <div
-          key={row.scope}
-          data-scope={row.scope}
+          key={row.over}
+          data-scope={row.over}
           className="fve:flex fve:flex-wrap fve:items-baseline fve:gap-x-4 fve:gap-y-1"
         >
           <span
             data-slot="summary-scope"
             className={cn('fve:text-quiet-foreground fve:font-normal', TEXT_UI)}
           >
-            {messages.label(`label.summary.scope.${row.scope}`)}
+            {messages.label(`label.summary.scope.${row.over}`)}
           </span>
           {row.cells.map(cell => (
             <span

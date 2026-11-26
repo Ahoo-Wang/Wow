@@ -532,7 +532,7 @@ describe('EmbeddedDashboard', () => {
     const { runtime, rerender } = embed({
       filterModes: { region: 'locked' },
       pageValues: { values: { region: ['CN'] } },
-      initialFilters: { values: { status: ['SHIPPED'] } },
+      defaultFilters: { values: { status: ['SHIPPED'] } },
       onFiltersChange,
     });
 
@@ -576,7 +576,7 @@ describe('EmbeddedDashboard', () => {
       },
       // A reader who edited the address to another customer, a hidden value
       // and another unit.
-      initialFilters: {
+      defaultFilters: {
         values: { region: ['EU'], status: ['SHIPPED'] },
         unit: AggregationDateUnit.DAY,
       },
@@ -603,7 +603,7 @@ describe('EmbeddedDashboard', () => {
       engine: engineOf(withDefault),
       filterModes: { region: 'locked' },
       pageValues: { values: { region: ['CN'] } },
-      initialFilters: { values: { region: ['EU'] } },
+      defaultFilters: { values: { region: ['EU'] } },
     });
 
     await waitFor(() =>
@@ -641,7 +641,7 @@ describe('EmbeddedDashboard', () => {
     const { runtime } = embed({
       // A filter renamed since the address was written, and two values on a
       // filter that takes one — beside a region the board still has.
-      initialFilters: {
+      defaultFilters: {
         values: { region: ['EU'], gone: ['x'], status: ['A', 'B'] },
       },
       onFiltersChange,
@@ -693,7 +693,7 @@ describe('EmbeddedDashboard', () => {
     };
     const { runtime } = embed({
       engine: engineOf(grouped),
-      initialFilters: { values: { status: ['SHIPPED'] } },
+      defaultFilters: { values: { status: ['SHIPPED'] } },
       expandable: true,
       openInWorkbench: true,
       onNavigate: vi.fn(),

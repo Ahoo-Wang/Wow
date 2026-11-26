@@ -518,38 +518,6 @@ interface AxisSpec {
 export function bind(definitionId: string, options?: ViewBindingOptions): ViewBinding;
 
 // @public
-interface BoardChoice {
-    // (undocumented)
-    definitionId: string;
-    definitionTitle: string;
-    // (undocumented)
-    id: string;
-    // (undocumented)
-    title: string;
-}
-
-// @public
-export interface BoardFilterModes {
-    filters?: Readonly<Record<string, DashboardFilterMode>>;
-    grouping?: DashboardFilterMode;
-}
-
-// @public
-interface BoardOrigin {
-    // (undocumented)
-    back: DashboardTarget;
-    // (undocumented)
-    title: string;
-}
-
-// @public
-type BoardValueSource = {
-    dimension: string;
-} | {
-    filter: string;
-};
-
-// @public
 interface BoxplotBox {
     group: unknown;
     // (undocumented)
@@ -1049,6 +1017,17 @@ interface CursorPaging {
 }
 
 // @public
+interface DashboardChoice {
+    // (undocumented)
+    definitionId: string;
+    definitionTitle: string;
+    // (undocumented)
+    id: string;
+    // (undocumented)
+    title: string;
+}
+
+// @public
 type DashboardContentPanel = DashboardPanelBase & ({
     kind: 'heading';
     content: string;
@@ -1074,7 +1053,7 @@ interface DashboardController {
     columns: number;
     crossFilter(panelId: string, row: RecordData): CrossFilterOutcome;
     destination(panelId: string, row: RecordData): Promise<PressDestination | null>;
-    destinationBoard(instanceId: string): Promise<DestinationBoard | null>;
+    destinationBoard(instanceId: string): Promise<DestinationDashboard | null>;
     // (undocumented)
     dirty: boolean;
     edit: (DashboardEditing & DashboardFilterEditing) | null;
@@ -1200,7 +1179,7 @@ interface DashboardFilterEditing {
     bindPanel(name: string, panelId: string, panelField: string): string[];
     moveFilter(name: string, index: number): void;
     removeFilter(name: string): void;
-    removeFixedScope(): void;
+    removeFixed(): void;
     renameFilter(name: string, label: string): void;
     retypeFilter(name: string, type: DashboardFilterType): void;
     setFilterDefault(name: string, value: FilterValue | null): void;
@@ -1218,6 +1197,12 @@ interface DashboardFilterEditing {
 
 // @public
 export type DashboardFilterMode = 'adjustable' | 'hidden' | 'locked';
+
+// @public
+export interface DashboardFilterModes {
+    filters?: Readonly<Record<string, DashboardFilterMode>>;
+    grouping?: DashboardFilterMode;
+}
 
 // @public
 interface DashboardFilters {
@@ -1240,7 +1225,7 @@ export interface DashboardGridProps {
     dashboard: DashboardController;
     editable?: boolean;
     emptyActions?: ReactNode;
-    filterModes?: BoardFilterModes;
+    filterModes?: DashboardFilterModes;
     header?(board: {
         narrow: boolean;
     }): ReactNode;
@@ -1262,6 +1247,14 @@ interface DashboardLink {
     href: string;
     // (undocumented)
     label: string;
+}
+
+// @public
+interface DashboardOrigin {
+    // (undocumented)
+    back: DashboardTarget;
+    // (undocumented)
+    title: string;
 }
 
 // @public (undocumented)
@@ -1354,7 +1347,7 @@ interface DashboardRuntime extends ViewRuntime<DashboardViewConfig>, DashboardEd
     clearFilters(): void;
     crossFilter(panelId: string, row: RecordData): CrossFilterOutcome;
     destination(panelId: string, row: RecordData): Promise<PressDestination | null>;
-    destinationBoard(instanceId: string): Promise<DestinationBoard | null>;
+    destinationBoard(instanceId: string): Promise<DestinationDashboard | null>;
     // (undocumented)
     getSnapshot(): DashboardRuntimeState;
     handOver(panelId: string): HandOver | null;
@@ -1428,6 +1421,13 @@ interface DashboardTimeGrouping {
     units: AggregationDateUnitName[];
 }
 
+// @public
+type DashboardValueSource = {
+    dimension: string;
+} | {
+    filter: string;
+};
+
 // @public (undocumented)
 interface DashboardViewConfig extends ViewConfigBase {
     columns: 24;
@@ -1473,15 +1473,15 @@ export function DashboardWorkbench(props: DashboardWorkbenchProps): JSX.Element;
 // @public (undocumented)
 export interface DashboardWorkbenchProps {
     colorMode?: ColorMode;
+    defaultFilters?: DashboardFilters | null;
     defaultSidebarOpen?: boolean;
+    defaultTab?: string | null;
     // (undocumented)
     definitionId: string;
     density?: ViewDensity;
     engine?: ViewEngine;
     expandable?: boolean;
     features?: Pick<WorkbenchFeatures, 'manage' | 'export'>;
-    initialFilters?: DashboardFilters | null;
-    initialTab?: string | null;
     instanceId?: string | null;
     landmark?: WorkbenchLandmark;
     locale?: string;
@@ -1734,7 +1734,7 @@ interface DerivedSeries {
 }
 
 // @public
-type DestinationBoard = ViewInstance & {
+type DestinationDashboard = ViewInstance & {
     config: DashboardViewConfig;
 };
 
@@ -1794,7 +1794,7 @@ export interface DisplayField {
 export function displayValue(value: unknown, field: DisplayField, context: DisplayContext): string | undefined;
 
 // @public
-type EditCommand = 'addPanel' | 'removePanel' | 'duplicatePanel' | 'renamePanel' | 'replacePanelView' | 'editPanelContent' | 'movePanelToTab' | 'setPresentation' | 'referToSaved' | 'setPanelClick' | 'place' | 'reorderPanel' | 'addTab' | 'renameTab' | 'moveTab' | 'removeTab' | 'addFilter' | 'renameFilter' | 'retypeFilter' | 'removeFilter' | 'setFilterDefault' | 'setFilterRequired' | 'setFilterMultiple' | 'setFilterOneDay' | 'setFilterOptions' | 'moveFilter' | 'bindPanel' | 'unbindPanels' | 'setTimeGrouping' | 'removeFixedScope' | 'setWidth';
+type EditCommand = 'addPanel' | 'removePanel' | 'duplicatePanel' | 'renamePanel' | 'replacePanelView' | 'editPanelContent' | 'movePanelToTab' | 'setPresentation' | 'referToSaved' | 'setPanelClick' | 'place' | 'reorderPanel' | 'addTab' | 'renameTab' | 'moveTab' | 'removeTab' | 'addFilter' | 'renameFilter' | 'retypeFilter' | 'removeFilter' | 'setFilterDefault' | 'setFilterRequired' | 'setFilterMultiple' | 'setFilterOneDay' | 'setFilterOptions' | 'moveFilter' | 'bindPanel' | 'unbindPanels' | 'setTimeGrouping' | 'removeFixed' | 'setWidth';
 
 // @public
 interface EditHistoryState {
@@ -1950,10 +1950,10 @@ export function EmbeddedDashboard(given: EmbeddedDashboardProps): JSX.Element;
 // @public (undocumented)
 export interface EmbeddedDashboardProps extends EmbedBaseProps {
     caption?: ReactNode;
+    defaultFilters?: DashboardFilters | null;
+    defaultTab?: string | null;
     filterModes?: Readonly<Record<string, DashboardFilterMode>>;
     groupingMode?: DashboardFilterMode;
-    initialFilters?: DashboardFilters | null;
-    initialTab?: string | null;
     interaction?: EmbedInteraction;
     onFiltersChange?(filters: DashboardFilters): void;
     onTabChange?(tabId: string | null): void;
@@ -4256,7 +4256,7 @@ export interface ExportedFile {
     // (undocumented)
     rows: number;
     // (undocumented)
-    scope: RecordExportScope;
+    scope: RecordExportExtent;
     // (undocumented)
     text: string;
 }
@@ -4908,7 +4908,7 @@ export type HandleMove = -1 | 1 | 'first' | 'last';
 // @public
 interface HandOver {
     filter: FilterTree | null;
-    from?: BoardOrigin;
+    from?: DashboardOrigin;
     scopeFilter: FilterTree | null;
 }
 
@@ -4966,7 +4966,7 @@ interface HeldFilters {
 
 // @public
 interface HeldView {
-    boardOrigin?: BoardOrigin;
+    dashboardOrigin?: DashboardOrigin;
     // (undocumented)
     draft: ViewConfig;
     from: HeldView | null;
@@ -5463,7 +5463,7 @@ interface OpenViewState {
     retry(): void;
     // (undocumented)
     runtime: AnyViewRuntime | null;
-    scopeIssues: Issue[];
+    scopeFilterIssues: Issue[];
     status: QueryStatus;
 }
 
@@ -5540,14 +5540,14 @@ type PanelClick =
 * as the author mapped them (D23 Q17, 「另一块仪表盘」): `values` is keyed
 * like the `DashboardFilters.values` it becomes — each of the target's
 * filters the press sets, by name — and says where each one's value comes
-* from (`BoardValueSource`). A filter not named is not carried and starts
+* from (`DashboardValueSource`). A filter not named is not carried and starts
 * at its default. Never matched by name: only what the author mapped goes
 * along.
 */
 | {
     kind: 'dashboard';
     instanceId: string;
-    values: Record<string, BoardValueSource>;
+    values: Record<string, DashboardValueSource>;
     tab?: string;
 }
 /**
@@ -6025,10 +6025,19 @@ interface RecordExportController {
     // (undocumented)
     progress: RecordExportProgress | null;
     reset(): void;
-    run(scope: RecordExportScope, fileName: string): void;
-    running: RecordExportScope | null;
+    run(scope: RecordExportExtent, fileName: string): void;
+    running: RecordExportExtent | null;
     // (undocumented)
-    scopes: RecordExportScopes;
+    scopes: RecordExportExtents;
+}
+
+// @public
+type RecordExportExtent = 'selected' | 'all';
+
+// @public (undocumented)
+interface RecordExportExtents {
+    all: number | null;
+    selected?: number;
 }
 
 // @public
@@ -6036,7 +6045,7 @@ interface RecordExportOutcome {
     capped: boolean;
     rows: number;
     // (undocumented)
-    scope: RecordExportScope;
+    scope: RecordExportExtent;
     total?: number;
 }
 
@@ -6044,17 +6053,8 @@ interface RecordExportOutcome {
 interface RecordExportProgress {
     fetched: number;
     // (undocumented)
-    scope: RecordExportScope;
+    scope: RecordExportExtent;
     total?: number;
-}
-
-// @public
-type RecordExportScope = 'selected' | 'all';
-
-// @public (undocumented)
-interface RecordExportScopes {
-    all: number | null;
-    selected?: number;
 }
 
 // @public (undocumented)
@@ -6348,7 +6348,7 @@ export interface RecordViewProps {
 // @public
 interface RecordViewRuntime<P extends RecordPagingMode = RecordPagingMode> extends ViewRuntime<RecordViewConfig> {
     exportRows(options?: ExportRowsOptions): Promise<ExportedRows>;
-    fetchRecord(key: RecordKey, signal?: AbortSignal): Promise<RecordData | null>;
+    fetchRecord(key: RecordKey, options?: ReadOptions): Promise<RecordData | null>;
     loadLane(laneId: string): void;
     // (undocumented)
     page(target: RecordPageTarget<P>): void;
@@ -6592,15 +6592,15 @@ interface RuntimeLimits {
     defaultCardFields: number;
     defaultColumns: number;
     defaultPageSize: number;
-    exportMax: number;
     exportNeutralizeFormulas: boolean;
-    listedViews: number;
     maxAnalysisRows: number;
     maxConcurrentQueries: number;
     maxDashboardPanels: number;
+    maxExportRows: number;
     maxFilterDepth: number;
     maxFilterNodes: number;
     maxFilterValues: number;
+    maxListedViews: number;
     maxPageSize: number;
     maxPageWindow: number;
     maxQueryFilterNodes: number;
@@ -6716,7 +6716,7 @@ interface SaveAsInput {
 interface SaveCommands {
     abandon(write?: WriteState): void;
     addToDashboard?(boardId: string): Promise<ViewInstance | null>;
-    boards?(): Promise<readonly BoardChoice[]>;
+    boards?(): Promise<readonly DashboardChoice[]>;
     // (undocumented)
     can: SaveAbilities;
     changeAudience?(audience: ViewAudience): Promise<ViewInstance | null>;
@@ -6884,7 +6884,7 @@ type SummaryFunction = `${AggregationFunction.SUM | AggregationFunction.AVG | Ag
 interface SummaryRow {
     // (undocumented)
     cells: SummaryCell[];
-    scope: 'page' | 'total';
+    over: 'page' | 'total';
 }
 
 // @public
@@ -8372,7 +8372,7 @@ interface UnsavedViewTarget {
     // (undocumented)
     definitionId: string;
     // (undocumented)
-    from?: BoardOrigin;
+    from?: DashboardOrigin;
     // (undocumented)
     kind: 'unsaved';
     named?: GroupNaming;
@@ -8438,7 +8438,7 @@ interface ValueCandidates {
 // @public
 interface ValueCandidateSource {
     readonly field: string;
-    search(query: string, signal?: AbortSignal): Promise<ValueCandidates>;
+    search(query: string, options?: ReadOptions): Promise<ValueCandidates>;
 }
 
 // @public (undocumented)
@@ -8456,7 +8456,7 @@ export interface ViewBinding extends ViewBindingOptions {
 // @public (undocumented)
 export interface ViewBindingOptions {
     actions?: RecordActions;
-    reading?: RecordDetailOptions;
+    detail?: RecordDetailOptions;
     route?(instanceId: string | null, target?: RoutedTarget): string;
     slots?: RecordActionSlots;
 }
@@ -9023,7 +9023,7 @@ interface ViewRuntime<C extends ViewConfig = ViewConfig> {
     readonly limits: RuntimeLimits;
     optionSource(remote: string): OptionSource | null;
     refresh(): void;
-    readonly refusedScope: Issue[];
+    readonly refusedScopeFilter: Issue[];
     removeUnavailable(): void;
     revert(): void;
     readonly scopeFilter: FilterTree | null;
@@ -9185,13 +9185,13 @@ type WindowFunctionName = `${WindowFunction}`;
 interface WorkbenchController {
     autoRun: boolean;
     back(): void;
-    boardOrigin: BoardOrigin | null;
     canDrill: boolean;
     choose(id: string | null): void;
     // (undocumented)
     commands: SaveCommands;
     creatable: readonly ViewKind[];
     create(kind: ViewKind): void;
+    dashboardOrigin: DashboardOrigin | null;
     declaredAt: number | null;
     definitionIssues: Issue[];
     drill(conditions: readonly FilterNode[], title: string, subject?: string): void;

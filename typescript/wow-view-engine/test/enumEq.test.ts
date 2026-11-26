@@ -17,7 +17,7 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it, vi } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   compileFilter,
   MemoryViewStore,
   validateFilter,
@@ -80,13 +80,15 @@ describe('an EQ saved on a field since made an enum', () => {
 
   it('is admitted', () => {
     expect(
-      errors(validateFilter(fields, tree(eq('PENDING')), builtinFieldKinds)),
+      errors(
+        validateFilter(fields, tree(eq('PENDING')), builtinFieldKindRegistry),
+      ),
     ).toEqual([]);
   });
 
   it('compiles as the IN of its one value', () => {
     expect(
-      compileFilter(fields, tree(eq('PENDING')), builtinFieldKinds, {
+      compileFilter(fields, tree(eq('PENDING')), builtinFieldKindRegistry, {
         now: NOW,
         timeZone: 'UTC',
       }),
@@ -101,7 +103,7 @@ describe('an EQ saved on a field since made an enum', () => {
     const [item] = describeFilter(
       fields,
       tree(eq('PENDING')),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(item).toMatchObject({
       operator: FilterOperator.IN,
@@ -111,16 +113,18 @@ describe('an EQ saved on a field since made an enum', () => {
 
   it('is still judged by the enum: a value it does not list is refused', () => {
     expect(
-      errors(validateFilter(fields, tree(eq('GONE')), builtinFieldKinds)),
+      errors(
+        validateFilter(fields, tree(eq('GONE')), builtinFieldKindRegistry),
+      ),
     ).toEqual(['filter.value.unknown-option']);
   });
 
   it('left blank, stays blank and narrows nothing', () => {
     expect(
-      errors(validateFilter(fields, tree(eq('')), builtinFieldKinds)),
+      errors(validateFilter(fields, tree(eq('')), builtinFieldKindRegistry)),
     ).toEqual([]);
     expect(
-      compileFilter(fields, tree(eq('')), builtinFieldKinds, {
+      compileFilter(fields, tree(eq('')), builtinFieldKindRegistry, {
         now: NOW,
         timeZone: 'UTC',
       }),
@@ -135,7 +139,7 @@ describe('an EQ saved on a field since made an enum', () => {
     };
     const inner = { op: 'or' as const, children: [kept, eq('SHIPPED')] };
     const stored: FilterTree = { op: 'and', children: [kept, inner] };
-    const read = readFilter(fields, stored, builtinFieldKinds);
+    const read = readFilter(fields, stored, builtinFieldKindRegistry);
     expect(read).toEqual({
       op: 'and',
       children: [
@@ -154,23 +158,24 @@ describe('an EQ saved on a field since made an enum', () => {
       ],
     });
     expect(stored.children[1]).toBe(inner);
-    expect(readFilter(fields, tree(kept), builtinFieldKinds)).toEqual(
+    expect(readFilter(fields, tree(kept), builtinFieldKindRegistry)).toEqual(
       tree(kept),
     );
   });
 
   it('keeps a list written under EQ a list, for the enum to judge', () => {
     expect(
-      readFilter(fields, tree(eq(['PENDING'])), builtinFieldKinds).children,
+      readFilter(fields, tree(eq(['PENDING'])), builtinFieldKindRegistry)
+        .children,
     ).toEqual([
       { field: 'status', operator: FilterOperator.IN, value: ['PENDING'] },
     ]);
   });
 
   it('leaves a leaf as it came where a host kind cannot read it', () => {
-    const kinds = withFieldKinds(builtinFieldKinds, [
+    const kinds = withFieldKinds(builtinFieldKindRegistry, [
       {
-        ...builtinFieldKinds.get('enum')!,
+        ...builtinFieldKindRegistry.get('enum')!,
         readLeaf() {
           throw new Error('boom');
         },
@@ -182,13 +187,13 @@ describe('an EQ saved on a field since made an enum', () => {
 
   it('left null, stays blank and narrows nothing', () => {
     expect(
-      readFilter(fields, tree(eq(null)), builtinFieldKinds).children,
+      readFilter(fields, tree(eq(null)), builtinFieldKindRegistry).children,
     ).toEqual([{ field: 'status', operator: FilterOperator.IN, value: [] }]);
     expect(
-      errors(validateFilter(fields, tree(eq(null)), builtinFieldKinds)),
+      errors(validateFilter(fields, tree(eq(null)), builtinFieldKindRegistry)),
     ).toEqual([]);
     expect(
-      compileFilter(fields, tree(eq(null)), builtinFieldKinds, {
+      compileFilter(fields, tree(eq(null)), builtinFieldKindRegistry, {
         now: NOW,
         timeZone: 'UTC',
       }),
@@ -196,7 +201,7 @@ describe('an EQ saved on a field since made an enum', () => {
   });
 
   it('is not offered: the enum still offers no EQ to pick', () => {
-    expect(builtinFieldKinds.get('enum')?.operators).not.toContain(
+    expect(builtinFieldKindRegistry.get('enum')?.operators).not.toContain(
       FilterOperator.EQ,
     );
   });

@@ -82,7 +82,7 @@ A host's declared actions over some records, without a screen: the engine's own 
 export declare function actionHarness(list: RecordActions, rows: readonly ActionRow[], input?: ActionHarnessOptions): ActionHarness;
 
 export interface ActionHarnessOptions {
-  now?: Date;
+  now?: () => Date;
 }
 
 export interface ActionHarness {

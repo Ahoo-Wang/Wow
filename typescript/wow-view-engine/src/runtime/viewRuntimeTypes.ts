@@ -38,6 +38,7 @@ import type {
   ViewScope,
 } from '../model/index.js';
 import type { FieldKindRegistry } from '../filter/index.js';
+import type { ReadOptions } from '../store/ViewStore.js';
 import type { RuntimeEnvironment } from './environment.js';
 import type { RequestRunner } from './requestRunner.js';
 import type { OptionSource, ProjectedView, RecordSource } from './source.js';
@@ -190,7 +191,7 @@ export interface ViewRuntime<C extends ViewConfig = ViewConfig> {
    * in at construction as well, and a host that opened one through
    * `ViewEngine.open` has no return value to read it from.
    */
-  readonly refusedScope: Issue[];
+  readonly refusedScopeFilter: Issue[];
   /**
    * The outer condition in force, as it was last admitted, or `null` while
    * none is — including a scope that was asked for and refused.
@@ -239,7 +240,7 @@ export interface RecordViewRuntime<
    * It runs beside the view rather than through it: no scheduler slot, no
    * `apply`, and `state.result` is untouched, so the rows the user is reading
    * stay exactly as they are while a long export runs. Stopped by
-   * `options.signal`, capped at `limits.exportMax`.
+   * `options.signal`, capped at `limits.maxExportRows`.
    */
   exportRows(options?: ExportRowsOptions): Promise<ExportedRows>;
   /**
@@ -247,7 +248,10 @@ export interface RecordViewRuntime<
    * every field, within the injected scope and not the page's conditions.
    * `null` when it is no longer there.
    */
-  fetchRecord(key: RecordKey, signal?: AbortSignal): Promise<RecordData | null>;
+  fetchRecord(
+    key: RecordKey,
+    options?: ReadOptions,
+  ): Promise<RecordData | null>;
   /**
    * A kanban lane's next page, put after the cards it has (「加载更多」, D83):
    * asked quietly, so the board stays drawn, and only that lane moves. A

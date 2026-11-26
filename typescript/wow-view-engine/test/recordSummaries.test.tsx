@@ -219,7 +219,7 @@ describe('the summary rows', () => {
   ): RecordTableController =>
     twoColumnTable({
       summaries: {
-        scope: 'total',
+        over: 'total',
         cells: [
           {
             field: 'amount',
@@ -266,7 +266,7 @@ describe('the summary rows', () => {
       <RecordTable
         table={summaries({
           summaries: {
-            scope: 'total',
+            over: 'total',
             cells: [
               {
                 field: 'amount',
@@ -314,7 +314,7 @@ describe('the summary rows', () => {
             rows: [{ key: 'o-1', data: { createdAt: INSTANT } }],
             paging: MANY_PAGES,
             summaries: {
-              scope: 'total',
+              over: 'total',
               cells: [
                 {
                   field: 'createdAt',
@@ -364,7 +364,7 @@ describe('the summary rows', () => {
       <RecordTable
         table={summaries({
           summaries: {
-            scope: 'total',
+            over: 'total',
             cells: [
               {
                 field: 'warehouse',
@@ -436,7 +436,7 @@ describe('the summary rows on a single page', () => {
   ): RecordTableController =>
     twoColumnTable({
       summaries: {
-        scope: 'total',
+        over: 'total',
         cells: [
           {
             field: 'amount',
@@ -494,7 +494,7 @@ describe('the summary rows on a single page', () => {
       <RecordTable
         table={summed({
           summaries: {
-            scope: 'page',
+            over: 'page',
             cells: [
               {
                 field: 'amount',
@@ -573,7 +573,7 @@ describe('the summary rows on a single page', () => {
  */
 describe('the summary band without a summarised column', () => {
   const offColumn: SummaryRow = {
-    scope: 'total',
+    over: 'total',
     cells: [
       {
         field: 'customer',

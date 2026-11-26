@@ -164,14 +164,9 @@ describe('the chart in the engine’s zone', () => {
   });
 
   it('is what projectAnalysis shapes under the context it is given', () => {
-    const view = projectAnalysis(
-      dailyOrdersDefinition(),
-      LINE,
-      ROWS,
-      undefined,
-      undefined,
-      { timeZone: ENGINE.zone },
-    );
+    const view = projectAnalysis(dailyOrdersDefinition(), LINE, ROWS, {
+      context: { timeZone: ENGINE.zone },
+    });
     expect((view.chart as CartesianData).points).toHaveLength(4);
   });
 

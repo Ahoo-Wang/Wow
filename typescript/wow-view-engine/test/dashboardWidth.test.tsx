@@ -35,7 +35,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,
   ViewEngine,
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   emptyDashboardConfig,
   validateDashboard,
   type DashboardRuntime,
@@ -100,7 +100,7 @@ function validate(config: DashboardViewConfig) {
     config,
     'personal',
     new Map([['pending', panelReference()]]),
-    builtinFieldKinds,
+    builtinFieldKindRegistry,
   );
 }
 

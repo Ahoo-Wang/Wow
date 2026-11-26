@@ -121,7 +121,7 @@ export function SummaryRows({
     >
       {rows.map((row, index) => (
         <SummaryLine
-          key={row.scope}
+          key={row.over}
           row={row}
           columns={columns}
           selectable={selectable}
@@ -174,7 +174,7 @@ function SummaryLine({
       // is toned for the background and misses 4.5:1 on the muted layer.
       className={QUIET}
     >
-      {messages.label(`label.summary.scope.${row.scope}`)}
+      {messages.label(`label.summary.scope.${row.over}`)}
     </span>
   );
 
@@ -187,7 +187,7 @@ function SummaryLine({
     return (
       <OffscreenSummary
         hint={hint}
-        scope={row.scope}
+        scope={row.over}
         withScope={host.withScope}
         caption={caption}
         onReveal={() => {
@@ -212,7 +212,7 @@ function SummaryLine({
   return (
     <TableRow
       ref={line}
-      data-scope={row.scope}
+      data-scope={row.over}
       // The muted layer is the row's own colour, and a pinned cell inherits
       // it: `bg-inherit` over a transparent row would let the columns it is
       // pinned over show through it.

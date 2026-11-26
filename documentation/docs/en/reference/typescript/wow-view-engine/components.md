@@ -106,8 +106,8 @@ The workbench of one dashboard definition: browse, edit and save boards. A board
 | Prop | Role |
 |---|---|
 | `instanceId`, `onInstanceChange` | As on `DataWorkbench` |
-| `initialTab`, `onTabChange` | The tab the board opens on, as a host's route has it; left out, or a tab the board does not have, the board opens where its reader last read it |
-| `initialFilters`, `onFiltersChange` | What the filters hold as the board opens, as a host's address has them; left out, every filter starts at its default, and what the board does not take is left out |
+| `defaultTab`, `onTabChange` | The tab the board opens on, as a host's route has it; left out, or a tab the board does not have, the board opens where its reader last read it |
+| `defaultFilters`, `onFiltersChange` | What the filters hold as the board opens, as a host's address has them; left out, every filter starts at its default, and what the board does not take is left out |
 | `onNavigate` | Every way off the board goes through it — "Open in workbench" on a panel, the follow-up menu on a group, a panel's custom destination. Without it none of these exist: a press on a group does nothing unless the panel cross-filters |
 | `features` | `manage` (the view manager) and `export` (a record panel's "Export data…") only; a board whose data must not leave the page turns `export` off |
 | `template` | What a new board starts from; an empty one when left out |
@@ -123,8 +123,8 @@ export interface DashboardWorkbenchProps {
   engine?: ViewEngine;
   expandable?: boolean;
   features?: Pick<WorkbenchFeatures, 'manage' | 'export'>;
-  initialFilters?: DashboardFilters | null;
-  initialTab?: string | null;
+  defaultFilters?: DashboardFilters | null;
+  defaultTab?: string | null;
   instanceId?: string | null;
   landmark?: WorkbenchLandmark;
   locale?: string;
@@ -228,8 +228,8 @@ One saved dashboard inside a business page: the board, its filter bar with each 
 | `filterModes` | How each of the board's filters is offered, by name: `adjustable` (the default, on the bar, the reader's), `locked` (on the bar as what it holds, fixed), `hidden` (not on the bar, still narrowing what it is wired to). A locked or hidden filter holds what `pageValues` gives it, or its default |
 | `groupingMode` | The time grouping's mode, likewise; `adjustable` when left out |
 | `pageValues` | What the page holds: the value of each locked or hidden filter and, with `groupingMode` locked or hidden, the time grouping's unit. In force from the first query and followed as it changes — a customer page moving to the next customer. It is the page's own, never the address's (a reader can edit an address) |
-| `initialFilters`, `onFiltersChange` | What the reader's filters open at, from the host's address, and told as they change — the adjustable filters only, since a locked or hidden value is the page's |
-| `initialTab`, `onTabChange` | The tab it opens on, and told as it changes |
+| `defaultFilters`, `onFiltersChange` | What the reader's filters open at, from the host's address, and told as they change — the adjustable filters only, since a locked or hidden value is the page's |
+| `defaultTab`, `onTabChange` | The tab it opens on, and told as it changes |
 | `withPanelTitles` | Whether the panels' titles are drawn; on by default |
 | `withRefresh` | "Updated 10:32" in the first row and, in the interactive tier, the refresh button beside it (off by default); it offers no interval, which stays the author's and `autoRefresh`'s |
 | `withExport` | "Export data…" in a panel's "⋯" (off by default); no effect in the static tier |
@@ -240,8 +240,8 @@ export interface EmbeddedDashboardProps extends EmbedBaseProps {
   caption?: import('react').ReactNode;
   filterModes?: Readonly<Record<string, DashboardFilterMode>>;
   groupingMode?: DashboardFilterMode;
-  initialFilters?: DashboardFilters | null;
-  initialTab?: string | null;
+  defaultFilters?: DashboardFilters | null;
+  defaultTab?: string | null;
   interaction?: EmbedInteraction;
   onFiltersChange?(filters: DashboardFilters): void;
   onTabChange?(tabId: string | null): void;

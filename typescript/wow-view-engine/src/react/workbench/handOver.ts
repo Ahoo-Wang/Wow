@@ -126,7 +126,7 @@ export function useHandOver(
         from: null,
         handed: true,
         ...(handOver.named ? { named: handOver.named } : {}),
-        ...(handOver.from ? { boardOrigin: handOver.from } : {}),
+        ...(handOver.from ? { dashboardOrigin: handOver.from } : {}),
       });
     });
   }, [handOver, kinds, request, engine, definitionId, hold, open]);

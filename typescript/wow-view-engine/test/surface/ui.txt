@@ -13,7 +13,6 @@ type  AnalysisTableProps
 value AppliedBar
 type  AppliedBarProps
 value BUILT_IN_PRESETS
-type  BoardFilterModes
 type  BuiltInPreset
 type  CellField
 type  CellSurface
@@ -33,6 +32,7 @@ type  DashboardEditExtensions
 value DashboardEditExtensionsContext
 type  DashboardExtensionsOptions
 type  DashboardFilterMode
+type  DashboardFilterModes
 value DashboardGrid
 type  DashboardGridProps
 value DashboardPanelCard

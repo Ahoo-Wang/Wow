@@ -23,7 +23,7 @@ import { act, renderHook } from '@testing-library/react';
 import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
   ViewEngine,
@@ -96,7 +96,7 @@ async function openBoard(
     ),
     store,
     environment: testEnvironment().environment,
-    kinds: withFieldKinds(builtinFieldKinds, [rounded]),
+    kinds: withFieldKinds(builtinFieldKindRegistry, [rounded]),
     limits: { ...DEFAULT_RUNTIME_LIMITS, ...limits },
   });
   const instance = await store.create(

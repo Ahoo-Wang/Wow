@@ -116,12 +116,12 @@ export function consoleBindings(
   return [
     bind(SOURCES, {
       route: sourcesPath,
-      reading: sourceDetail,
+      detail: sourceDetail,
       actions: sourceActions(commands, access.roles),
     }),
     bind(DATASETS, {
       route: datasetsPath,
-      reading: datasetDetail,
+      detail: datasetDetail,
       actions: datasetActions(commands, access),
     }),
     ...datasetBindings(served, {

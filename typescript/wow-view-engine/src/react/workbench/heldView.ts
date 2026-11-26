@@ -32,7 +32,7 @@ import { drillFilter, narrowsTo } from '../../analysis/index.js';
 import { defaultRecordConfig } from '../../record/index.js';
 import type {
   AnyViewRuntime,
-  BoardOrigin,
+  DashboardOrigin,
   GroupNaming,
   SavedViewTarget,
   ViewEngine,
@@ -100,8 +100,8 @@ export interface HeldView {
    * opened with, so the shell opens it with its editor folded.
    */
   handed?: true;
-  /** The board it was handed from, for the way back (`WorkbenchController.boardOrigin`). */
-  boardOrigin?: BoardOrigin;
+  /** The board it was handed from, for the way back (`WorkbenchController.dashboardOrigin`). */
+  dashboardOrigin?: DashboardOrigin;
 }
 
 /** The view held, and the one call that replaces it. */
@@ -325,7 +325,7 @@ export function useHeldCommands({
     : held
       ? held.origin
         ? null
-        : (held.boardOrigin ?? null)
+        : (held.dashboardOrigin ?? null)
       : (handedHere?.from ?? null);
   const toBoard = useCallback(() => {
     if (board) request(() => onNavigate?.(board.back));
@@ -338,7 +338,7 @@ export function useHeldCommands({
     drill,
     follow: holdFrom,
     back,
-    boardOrigin: board,
+    dashboardOrigin: board,
     toBoard,
   };
 }

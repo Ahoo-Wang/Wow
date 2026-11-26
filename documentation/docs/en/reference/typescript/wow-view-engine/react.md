@@ -44,7 +44,7 @@ Guides: [View Engine Core Concepts](../../../typescript/view-engine/index.md) (t
 |---|---|
 | `useCreateViewEngine(options)` | Makes one engine for the lifetime of the component and disposes it on unmount. Options are read once: a definition set and a store are not render-time values |
 | `useEngine(own?)` | The engine a component draws: `own` when given, else the one the `ViewHost` above holds; it throws when there is neither. A host's own component under a `ViewHost` reads the application's engine here rather than having it passed down |
-| `useOpenView(engine, instanceId, { scopeFilter?, opening? })` | Opens an instance and owns the runtime it produced: changing the id or unmounting disposes the previous one, and the open's [async state](#async-state) is `status` and `error`. A runtime the engine disposed under it (its instance deleted) is not handed out; the id is opened again. `scopeFilter` is in force from the opening query, read when the view opens and then followed, so a fresh object every render reopens nothing; a condition the definition refuses is not in force, and `scopeIssues` says which. `opening` tells a dashboard which tab and filter values it opens with |
+| `useOpenView(engine, instanceId, { scopeFilter?, opening? })` | Opens an instance and owns the runtime it produced: changing the id or unmounting disposes the previous one, and the open's [async state](#async-state) is `status` and `error`. A runtime the engine disposed under it (its instance deleted) is not handed out; the id is opened again. `scopeFilter` is in force from the opening query, read when the view opens and then followed, so a fresh object every render reopens nothing; a condition the definition refuses is not in force, and `scopeFilterIssues` says which. `opening` tells a dashboard which tab and filter values it opens with |
 | `useViewRuntime(runtime)` | Subscribes to a runtime and answers its snapshot. The runtime commits state before it notifies and returns the same object while nothing changes — exactly what `useSyncExternalStore` asks of a store |
 
 `useOpenView`'s `retry()` opens the same id again: the way back from a failure that may pass (the store unreachable, or answering with an error of its own).
@@ -64,7 +64,7 @@ export interface OpenViewState {
   error: Issue | null;
   retry(): void;
   runtime: AnyViewRuntime | null;
-  scopeIssues: Issue[];
+  scopeFilterIssues: Issue[];
   status: QueryStatus;
 }
 ```

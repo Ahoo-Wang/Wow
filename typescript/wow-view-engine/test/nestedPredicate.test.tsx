@@ -15,7 +15,7 @@ import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import { render } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { FilterLeaf } from '../src/model/index.js';
-import { builtinFieldKinds, issue } from '../src/filter/index.js';
+import { builtinFieldKindRegistry, issue } from '../src/filter/index.js';
 import { treeController } from '../src/react/filterTree.js';
 import type { GroupBlock } from '../src/ui/filter/GroupBlock.js';
 import { NestedPredicate } from '../src/ui/filter/NestedPredicate.js';
@@ -46,7 +46,7 @@ describe('NestedPredicate', () => {
     const outer = treeController({
       tree: { op: 'and', children: [leaf] },
       fields: [],
-      kinds: builtinFieldKinds,
+      kinds: builtinFieldKindRegistry,
       issues: [inside, elsewhere],
       onChange: vi.fn(),
     });

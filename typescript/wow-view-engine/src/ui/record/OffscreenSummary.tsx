@@ -24,7 +24,7 @@ import { summaryText } from './summaryText.js';
 
 interface OffscreenSummaryProps {
   hint: OffscreenHint;
-  scope: SummaryRow['scope'];
+  scope: SummaryRow['over'];
   /**
    * The hint shares its cell with the scope label and so says the scope
    * itself: 「全部 · 实付 总和 ¥1,401.49 →」.

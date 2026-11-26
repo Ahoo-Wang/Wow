@@ -23,7 +23,7 @@ import {
   QueryFieldRoles,
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
-import { builtinFieldKinds, defineDataset } from '../src/index.js';
+import { builtinFieldKindRegistry, defineDataset } from '../src/index.js';
 import { narrowDefinition } from '../src/capabilities/index.js';
 import { describedField, ordersDescriptor } from './fixtures/descriptor.js';
 
@@ -193,9 +193,11 @@ describe('defineDataset', () => {
     // Milliseconds is the field's own default, left unsaid.
     expect(field('paid_at')?.temporal).toBeUndefined();
     expect(
-      narrowDefinition(definition, descriptor, builtinFieldKinds).findings.map(
-        found => found.code,
-      ),
+      narrowDefinition(
+        definition,
+        descriptor,
+        builtinFieldKindRegistry,
+      ).findings.map(found => found.code),
     ).not.toContain('capability.field.temporal-mismatch');
   });
 });

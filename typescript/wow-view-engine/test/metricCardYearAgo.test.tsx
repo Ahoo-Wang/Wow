@@ -41,7 +41,7 @@ import { cardLineMetrics, yearAgoGap } from '../src/analysis/serverLines.js';
 import {
   MemoryViewStore,
   ViewEngine,
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   compileAnalysis,
   type AnalysisGroup,
   type AnalysisMetric,
@@ -119,12 +119,10 @@ function windowed(
 
 describe('asking for the same period a year earlier', () => {
   it('adds a hidden PREVIOUS by a year along the trend', () => {
-    const query = compileAnalysis(
-      windowed([WindowFunction.PREVIOUS]),
-      card(),
-      builtinFieldKinds,
+    const query = compileAnalysis(windowed([WindowFunction.PREVIOUS]), card(), {
+      kinds: builtinFieldKindRegistry,
       context,
-    );
+    });
     expect(query.metrics[query.metrics.length - 1]).toEqual({
       type: AggregationMetricType.DERIVED,
       alias: 'orders__previousYear',

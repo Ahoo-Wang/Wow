@@ -18,7 +18,7 @@ import {
   type FilterPagedQuery,
 } from '@ahoo-wang/wow-client/dsl';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   isRecordRuntime,
   DEFAULT_RUNTIME_LIMITS,
   isExportCancelledError,
@@ -85,7 +85,7 @@ function openRecord(options: {
     config: recordConfig({ pageSize: 2 }),
     title: 'Mine',
     scope: 'personal',
-    kinds: builtinFieldKinds,
+    kinds: builtinFieldKindRegistry,
     limits: options.limits ?? limits({ maxPageSize: 3 }),
     environment: testEnvironment().environment,
     source: recordSource(options.source),
@@ -196,7 +196,7 @@ describe('exporting every row the applied config matches', () => {
     const source = pagedSource(orders(6));
     const runtime = openRecord({
       source,
-      limits: limits({ maxPageSize: 3, exportMax: 3 }),
+      limits: limits({ maxPageSize: 3, maxExportRows: 3 }),
     });
 
     const exported = await runtime.exportRows();
@@ -241,9 +241,9 @@ describe('exporting every row the applied config matches', () => {
 
   it('shrinks its page to a window smaller than one page', async () => {
     expect(
-      exportPlan({ exportMax: 100, maxPageSize: 200 }, { maxWindow: 50 }),
+      exportPlan({ maxExportRows: 100, maxPageSize: 200 }, { maxWindow: 50 }),
     ).toEqual({ size: 50, max: 50 });
-    expect(exportPlan({ exportMax: 100, maxPageSize: 200 })).toEqual({
+    expect(exportPlan({ maxExportRows: 100, maxPageSize: 200 })).toEqual({
       size: 200,
       max: 100,
     });
@@ -254,12 +254,12 @@ describe('exporting every row the applied config matches', () => {
     // 10,001 (`HttpQueryGuard.maxPageWindow`), having fetched every row
     // before it.
     expect(
-      exportPlan({ ...DEFAULT_RUNTIME_LIMITS, exportMax: 50_000 }),
+      exportPlan({ ...DEFAULT_RUNTIME_LIMITS, maxExportRows: 50_000 }),
     ).toEqual({ size: 100, max: 10_000 });
     // A cursor source has no window.
     expect(
       exportPlan(
-        { ...DEFAULT_RUNTIME_LIMITS, exportMax: 50_000 },
+        { ...DEFAULT_RUNTIME_LIMITS, maxExportRows: 50_000 },
         { paging: 'cursor' },
       ),
     ).toEqual({ size: 100, max: 50_000 });
@@ -444,7 +444,7 @@ describe('exporting every row the applied config matches', () => {
       config: analysisConfig(),
       title: 'Mine',
       scope: 'personal',
-      kinds: builtinFieldKinds,
+      kinds: builtinFieldKindRegistry,
       limits: DEFAULT_RUNTIME_LIMITS,
       environment: testEnvironment().environment,
       source: recordSource(testSource()),

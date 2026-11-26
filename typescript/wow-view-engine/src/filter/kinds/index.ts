@@ -54,4 +54,5 @@ export const BUILTIN_FIELD_KINDS: readonly FieldKind[] = [
 ];
 
 /** Ready-to-use registry; extend it with `withFieldKinds`. */
-export const builtinFieldKinds = createFieldKindRegistry(BUILTIN_FIELD_KINDS);
+export const builtinFieldKindRegistry =
+  createFieldKindRegistry(BUILTIN_FIELD_KINDS);

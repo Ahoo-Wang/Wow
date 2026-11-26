@@ -20,7 +20,7 @@
 import { useId, type RefObject } from 'react';
 import type {
   RecordExportController,
-  RecordExportScope,
+  RecordExportExtent,
 } from '../../react/index.js';
 import { LineAlert } from './alerts.js';
 import { AlertTitle } from '../components/alert.js';
@@ -85,8 +85,8 @@ export function ChooseStep({
 }: ExportWindowProps & {
   /** The name this opening settled on; see `ExportOffer.nameFile`. */
   fileName: string;
-  scope: RecordExportScope;
-  onScope(scope: RecordExportScope): void;
+  scope: RecordExportExtent;
+  onScope(scope: RecordExportExtent): void;
 }) {
   const messages = useViewMessages();
   const display = useSurfaceDisplay();
@@ -187,7 +187,7 @@ function ScopeChoice({
   label,
 }: {
   id: string;
-  value: RecordExportScope;
+  value: RecordExportExtent;
   label: string;
 }) {
   return (
@@ -291,7 +291,7 @@ export function ExportActions({
 }: {
   phase: ExportPhase;
   control: RecordExportController;
-  scope: RecordExportScope;
+  scope: RecordExportExtent;
   /** The name this opening settled on; see `ExportOffer.nameFile`. */
   fileName: string;
   primary: RefObject<HTMLButtonElement | null>;

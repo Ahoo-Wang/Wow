@@ -96,7 +96,7 @@
 ## D14 导出是一个窗口
 
 - **日期**：2026-09-21
-- **决定**：导出的**菜单**换成导出的**窗口**，并且去掉「本页」这个口径。工具栏右端仍是那一颗带边的图标按钮（`Download`，可及名字 `label.export.title`，D12 Ⅳ），点开是一个模态对话框（`src/ui/kit/ExportDialog.tsx`，shadcn `Dialog`），四步同一个壳：**选**——有勾选时一组 `RadioGroup`（「选中（N）」默认、「所有（N，按当前筛选）」），没勾选就只有「所有」；底下摆明文件里会有什么：条数（总数报不出时说「按当前条件」）、已应用条件的一行摘要（与结果条件带同一套读法）、列（`table.columns`，也就是 `cellText` 要写的那一份）、文件名（`<视图名>-<yyyy-MM-dd>.csv`，**在窗口打开的那一刻定下**，整趟——摆出来的那一行、跑完报的那一行、真正交给浏览器的那一个、以及原地重试——都是它；名字里带着一个日子，谁也不能在 render 里和交文件时各读一次时钟，否则一扇开过午夜的窗口承诺的与交出去的就是两个文件名：一段旅程一个壳，也只有一句承诺）；条数已知且超过 `limits.exportMax` 时这里多一行警告，**按下「导出」就是同意**，于是 `useRecordExport` 不再有 `overLimit` 问句与 `force` 选项（截断仍由 `capped` 报回）。**跑**——同一个窗口，一条 `Progress`（不知道总数就走不定态）加「已拉取 {fetched} / {total} 条」，只有一个「取消」；**在途时 Esc 与点遮罩就是取消**，而不是被忽略；「选中」那一路的行在手上，从确认直接到结果。**成**——「已导出 {count} 条」加文件名，被截断时加「文件只含前 {max} 条（共 {total} 条匹配）」，一个「关闭」。**败**——`export.failed` 那句话加「重试」与「关闭」。因此 `RecordWorkbench` 里 `export.failed` / `export.capped` 两条 `StatusStrip` 一并去掉，`ExportMenu.tsx`、`label.export.page`、超上限对话框及其文案全部删除而不是留着导出；`RecordExportScope` 变成 `'selected' | 'all'`，`onExported` 不变。
+- **决定**：导出的**菜单**换成导出的**窗口**，并且去掉「本页」这个口径。工具栏右端仍是那一颗带边的图标按钮（`Download`，可及名字 `label.export.title`，D12 Ⅳ），点开是一个模态对话框（`src/ui/kit/ExportDialog.tsx`，shadcn `Dialog`），四步同一个壳：**选**——有勾选时一组 `RadioGroup`（「选中（N）」默认、「所有（N，按当前筛选）」），没勾选就只有「所有」；底下摆明文件里会有什么：条数（总数报不出时说「按当前条件」）、已应用条件的一行摘要（与结果条件带同一套读法）、列（`table.columns`，也就是 `cellText` 要写的那一份）、文件名（`<视图名>-<yyyy-MM-dd>.csv`，**在窗口打开的那一刻定下**，整趟——摆出来的那一行、跑完报的那一行、真正交给浏览器的那一个、以及原地重试——都是它；名字里带着一个日子，谁也不能在 render 里和交文件时各读一次时钟，否则一扇开过午夜的窗口承诺的与交出去的就是两个文件名：一段旅程一个壳，也只有一句承诺）；条数已知且超过 `limits.maxExportRows` 时这里多一行警告，**按下「导出」就是同意**，于是 `useRecordExport` 不再有 `overLimit` 问句与 `force` 选项（截断仍由 `capped` 报回）。**跑**——同一个窗口，一条 `Progress`（不知道总数就走不定态）加「已拉取 {fetched} / {total} 条」，只有一个「取消」；**在途时 Esc 与点遮罩就是取消**，而不是被忽略；「选中」那一路的行在手上，从确认直接到结果。**成**——「已导出 {count} 条」加文件名，被截断时加「文件只含前 {max} 条（共 {total} 条匹配）」，一个「关闭」。**败**——`export.failed` 那句话加「重试」与「关闭」。因此 `RecordWorkbench` 里 `export.failed` / `export.capped` 两条 `StatusStrip` 一并去掉，`ExportMenu.tsx`、`label.export.page`、超上限对话框及其文案全部删除而不是留着导出；`RecordExportExtent` 变成 `'selected' | 'all'`，`onExported` 不变。
 - **依据**：「本页」是分页留下的痕迹，不是一个意图——结果只有一页时它等于「所有」（菜单上真的并排写着「本页（4）」与「所有（4）」），不止一页时第 3 页那二十行是被排序与每页条数切出来的一刀，谁也没要那一刀；要取样是表头全选加「选中」。而菜单是用来**选**的地方，不是用来**等**的地方：把它按住不放、在里面画一条进度，是在跟它自己的惯例打架（Esc 与点外面只能被拒绝），它又窄到说不清将要导出的是什么；何况超上限那一问早就已经有一个对话框了——一段旅程两个壳。
 - **落点**：[ui/record.md#导出](ui/record.md#导出)、[react.md#userecordexport](react.md#userecordexport)、`src/ui/kit/ExportDialog.tsx`。D12 Ⅳ 里「导出菜单：选中／本页／所有」随之改写。
 
@@ -230,7 +230,7 @@
 - **Q19 锁定的筛选画出来**：锁定的筛选在筛选条上读作它的值（「客户 是 晨光食品」、带锁、没有控件），隐藏的才不画。依据是本包「说清作用范围」的原则，与 `EmbeddedView` 的 `scopeFilter` 在已应用条上单成一组同理；Metabase 静态嵌入的「锁定」参数不显示——不想让读者看见的，宿主用 `hidden`。
 - **Q20 隐藏的筛选不被交叉筛选设**：隐藏与锁定一样由页面持有，点一组不设它，那块面板退回追问菜单——没有筛选条上的一枚，读者看不见板子为什么变了。（Metabase SDK 的 `hiddenParameters` 只藏控件、值照样能被点击改，本包不照搬。）
 - **Q21 两个嵌入都缺省只读**：`EmbeddedView` 与 `EmbeddedDashboard` 都缺省 `read-only`——业务页面摆出的是别人定好的，更多交互由宿主明说。（Metabase 没有缺省，宿主选组件 `StaticDashboard`／`InteractiveDashboard`／`EditableDashboard`。）[D36](#d36-嵌入一律不写档位是-staticinteractive2026-09-24) 修订：这一档改名 `static`，缺省不变。
-- **Q22 读者筛选的初值与 `DashboardWorkbench` 同一读法**：`initialFilters` 点名了任何一个读者的筛选，它就是它们的全部（没点名的为空）；一个也没点名才从默认值开始。两个入口一种读法；要改就两个一起改，地址里的「空」要先有写法（Metabase 是「没点名的取默认值、地址里显式写空」）。
+- **Q22 读者筛选的初值与 `DashboardWorkbench` 同一读法**：`defaultFilters` 点名了任何一个读者的筛选，它就是它们的全部（没点名的为空）；一个也没点名才从默认值开始。两个入口一种读法；要改就两个一起改，地址里的「空」要先有写法（Metabase 是「没点名的取默认值、地址里显式写空」）。
 - **Q23 存不了的板在可编辑一档读作可交互**：「编辑」只给能保存这块板的人；系统板或没有保存权限时读作可交互一档，不给「另存为」——嵌入没有视图列表，另存出来的副本无处落脚。（[D36](#d36-嵌入一律不写档位是-staticinteractive2026-09-24) 作废：嵌入没有可编辑一档。）
 - **Q24 记录嵌入的导出与搜索不看档位**：`withExport`／`withSearch` 是开关，只读一档也能开（Metabase 静态嵌入也可以开下载）。（[D36](#d36-嵌入一律不写档位是-staticinteractive2026-09-24) 修订：档位是上限，开关在档位之内；`static` 一档里两者都不起作用。）
 - **落点**：[ui/embed.md](ui/embed.md)，测试名在那一页。
@@ -379,7 +379,7 @@
 
 - **来由**：首发前审查时提出：`EmbeddedDashboard` 的 `editable` 一档把搭板子、保存、另存为、写入结局与冲突出路都带进了宿主的业务页面，而 `EmbeddedView` 本来就没有；用户 2026-09-24「按你推荐」拍板，趁首次发布 npm 之前改公开面，这时改最便宜。
 - **裁定**：
-  - **嵌入一律不写**：`EmbeddedView` 与 `EmbeddedDashboard` 任何一档都不写存储——不存视图、不存板子、不另存为，也不写个人偏好（仪表盘上次看的标签页 `lastTabs` 只有工作台记；列宽、排序、翻页、搜索、筛选、点一组、铺满都只在这一次观看里，留在内存）。定义视图、搭板子、保存与另存为只在 `RecordWorkbench`／`AnalysisWorkbench`（`DataWorkbench`）与 `DashboardWorkbench` 里发生。**要让读者在页面上搭板子的宿主，嵌 `DashboardWorkbench`**（它本来就收 `instanceId`、`initialFilters`、`expandable` 与 `features`）。
+  - **嵌入一律不写**：`EmbeddedView` 与 `EmbeddedDashboard` 任何一档都不写存储——不存视图、不存板子、不另存为，也不写个人偏好（仪表盘上次看的标签页 `lastTabs` 只有工作台记；列宽、排序、翻页、搜索、筛选、点一组、铺满都只在这一次观看里，留在内存）。定义视图、搭板子、保存与另存为只在 `RecordWorkbench`／`AnalysisWorkbench`（`DataWorkbench`）与 `DashboardWorkbench` 里发生。**要让读者在页面上搭板子的宿主，嵌 `DashboardWorkbench`**（它本来就收 `instanceId`、`defaultFilters`、`expandable` 与 `features`）。
   - **档位改名为 `'static' | 'interactive'`**，两个嵌入共用一个 `EmbedInteraction`；`DashboardEmbedInteraction` 删掉（公开面少一个名字）。缺省仍是 `static`（Q21 的理由不变：业务页面摆出的是别人定好的）。
     - `static`：只看。仪表盘上读者的筛选也读作它的值（与锁定的一枚同一读法，没有控件、没有「清空」、没有按日｜周｜月）；面板不回应点击、没有「⋯」（开了导出除外）；不给「在工作台中打开」与「铺满屏幕」。
     - `interactive`：读者可以改筛选、搜索、排序、翻页、点一组（追问菜单、交叉筛选、自定义目的地）、下钻、铺满屏幕（`ViewExpandToggle`，不是浏览器的 `requestFullscreen`）、导出、在工作台中打开——都只影响这一次观看，什么也不存。
@@ -699,7 +699,7 @@
 - **来由**：架构与代码质量审查（2026-09-27）：三个入口 `src/index.ts`、`src/ui/index.ts`、`src/react/index.ts` 整模块 `export *`，文件为邻居写的 `export` 一律成了公开 API；D29 的清单让增减看得见，却不让「公开」成为一个决定。审查找到一批没有任何调用方、文档与测试的公开名，首发后每个都要背兼容。
 - **裁定**（用户：「按你推荐」）：
   - **入口里没有 `export *`**：每个公开名在入口里明写，按声明它的文件分组，只是类型的带 `type`。清单由类型检查器从当时的入口导出生成（`getExportsOfModule`，沿别名找到声明文件），再减去下面收回的名字，其余一个不多一个不少。层的 `index.ts` 留作包内汇集处，不再是公开面的通道。`test/architecture.test.ts` 守着：入口、以及入口经它转出别人名字的模块，都不许 `export *`／`export * as`。
-  - **收回不公开**（声明留在原处，包内没人从别的文件用的连 `export` 一起去掉）：根入口的 `sameLayout`、`elementTitleView`、`VALUE_METRIC_TYPES`、`DATE_AGGREGATION_FUNCTIONS`、`SINGLE_STRING_FIELD_KIND_IDS`、`RELATIVE_DATE_DIRECTIONS`、`DEFAULT_COMPARE_BUDGET`、`FIELD_NAME_PATTERN` 与五个元数据字段类型 `documentIdFieldKind`、`aggregateIdFieldKind`、`tenantIdFieldKind`、`ownerIdFieldKind`、`spaceIdFieldKind`（已由 `builtinFieldKinds`／`METADATA_FIELD_KINDS` 整体给出）；`/ui` 的 `useMessages`、`refreshIntervalLabel`、`remainingLabel`、`ALL_FEATURES`。
+  - **收回不公开**（声明留在原处，包内没人从别的文件用的连 `export` 一起去掉）：根入口的 `sameLayout`、`elementTitleView`、`VALUE_METRIC_TYPES`、`DATE_AGGREGATION_FUNCTIONS`、`SINGLE_STRING_FIELD_KIND_IDS`、`RELATIVE_DATE_DIRECTIONS`、`DEFAULT_COMPARE_BUDGET`、`FIELD_NAME_PATTERN` 与五个元数据字段类型 `documentIdFieldKind`、`aggregateIdFieldKind`、`tenantIdFieldKind`、`ownerIdFieldKind`、`spaceIdFieldKind`（已由 `builtinFieldKindRegistry`／`METADATA_FIELD_KINDS` 整体给出）；`/ui` 的 `useMessages`、`refreshIntervalLabel`、`remainingLabel`、`ALL_FEATURES`。
   - **删掉** `/ui` 的 `useSurfacePreset`：#3648 把预设写到 `<html>` 后没人调用它；它读的上下文仍由 `useSurfaceAttributes` 读，给弹层写 `data-fve-preset`，留着。
   - **`HeadingPanel` 留着**：README 点名，宿主单独画一张标题卡用；补一个单独渲染的故事（`Dashboard`「HeadingPanelAlone」）。
 - **没选**：入口经层的 `index.ts` 逐名转出（同一份名单写两遍）；层的 `index.ts` 也逐名写（它们只给包内用，写名单不守任何公开面）。

@@ -114,7 +114,7 @@ export interface RuntimeStoreOptions<
    * injected condition are admitted together (D17-5) — so it comes in rather
    * than being asked for.
    */
-  refusedScope?: Issue[];
+  refusedScopeFilter?: Issue[];
 }
 
 /**
@@ -152,7 +152,7 @@ export class RuntimeStore<S extends ViewRuntimeState<ViewConfig>> {
     this.current = options.state;
     this.environment = options.environment;
     this.host = options;
-    this.refusal = options.refusedScope ?? NO_REFUSAL;
+    this.refusal = options.refusedScopeFilter ?? NO_REFUSAL;
     this.timer = new RefreshTimer(options.environment, () =>
       this.host.refresh(),
     );
@@ -193,8 +193,8 @@ export class RuntimeStore<S extends ViewRuntimeState<ViewConfig>> {
     return this.stopped;
   }
 
-  /** See `ViewRuntime.refusedScope`; written by `refuse`, read through the runtime. */
-  get refusedScope(): Issue[] {
+  /** See `ViewRuntime.refusedScopeFilter`; written by `refuse`, read through the runtime. */
+  get refusedScopeFilter(): Issue[] {
     return this.refusal;
   }
 

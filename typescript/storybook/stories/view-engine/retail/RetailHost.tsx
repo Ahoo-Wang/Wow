@@ -264,9 +264,9 @@ export function NudgeStatus({ nudges }: { nudges: Nudges }) {
 
 /** 读者那一份筛选与标签页，宿主把它们放在自己的地址里。 */
 export interface BoardReader {
-  initialFilters: DashboardFilters | undefined;
+  defaultFilters: DashboardFilters | undefined;
   onFiltersChange(filters: DashboardFilters): void;
-  initialTab: string | null | undefined;
+  defaultTab: string | null | undefined;
   onTabChange(tab: string | null): void;
   onNavigate(to: ViewNavigation): void;
 }
@@ -331,9 +331,9 @@ export function RoutedBoard({
   const actions = useMemo(() => orderActions(nudges), [nudges]);
   if (away === null)
     return board({
-      initialFilters: filters,
+      defaultFilters: filters,
       onFiltersChange: setFilters,
-      initialTab: tab,
+      defaultTab: tab,
       onTabChange: setTab,
       onNavigate: route,
     });
@@ -380,8 +380,8 @@ export function RoutedBoard({
           engine={engine}
           definitionId={away.definitionId}
           instanceId={away.instanceId}
-          initialFilters={away.filters}
-          initialTab={away.tab ?? undefined}
+          defaultFilters={away.filters}
+          defaultTab={away.tab ?? undefined}
           onNavigate={route}
           {...HOST_LANGUAGE}
         />
@@ -399,12 +399,12 @@ export function RoutedBoard({
  */
 export function RetailBoardScene({
   instanceId,
-  initialTab,
-  initialFilters,
+  defaultTab,
+  defaultFilters,
 }: {
   instanceId: string;
-  initialTab?: string;
-  initialFilters?: DashboardFilters;
+  defaultTab?: string;
+  defaultFilters?: DashboardFilters;
 }) {
   const nudges = useNudges();
   const bindings = useMemo(() => orderBindings(nudges), [nudges]);
@@ -423,9 +423,9 @@ export function RetailBoardScene({
                   engine={engine}
                   definitionId={RETAIL_BOARDS}
                   instanceId={instanceId}
-                  initialFilters={reader.initialFilters ?? initialFilters}
+                  defaultFilters={reader.defaultFilters ?? defaultFilters}
                   onFiltersChange={reader.onFiltersChange}
-                  initialTab={reader.initialTab ?? initialTab}
+                  defaultTab={reader.defaultTab ?? defaultTab}
                   onTabChange={reader.onTabChange}
                   onNavigate={reader.onNavigate}
                   // The board is what the page is about: the view list starts

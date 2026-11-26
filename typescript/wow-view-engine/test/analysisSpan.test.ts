@@ -13,7 +13,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { drillSpan } from '../src/analysis/drill.js';
-import { builtinFieldKinds } from '../src/filter/index.js';
+import { builtinFieldKindRegistry } from '../src/filter/index.js';
 import type {
   AnalysisGroup,
   FieldDefinition,
@@ -85,7 +85,7 @@ function span(
   return drillSpan(
     analysisConfig({ groups }),
     FIELDS,
-    builtinFieldKinds,
+    builtinFieldKindRegistry,
     first,
     last,
     { timeZone },
@@ -243,7 +243,7 @@ describe('drillSpan', () => {
           elements: [{ path: 'items' }],
         }),
         FIELDS,
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
         { day },
         { day },
         { timeZone: SHANGHAI },

@@ -14,7 +14,7 @@
 import { FilterOperator, SearchMode } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   compileFilter,
   describeFilter,
   validateFilter,
@@ -58,7 +58,7 @@ function errors(issues: { severity: string; code: string }[]): string[] {
 }
 
 const compile = (field: string, value: FilterValue) =>
-  compileFilter(fields, tree(field, value), builtinFieldKinds, context);
+  compileFilter(fields, tree(field, value), builtinFieldKindRegistry, context);
 
 describe('the search kind', () => {
   it('compiles to a filter that names no field', () => {
@@ -88,7 +88,13 @@ describe('the search kind', () => {
     // Wow refuses a blank query by throwing, and whitespace would pass the
     // general emptiness rule and reach it.
     expect(
-      errors(validateFilter(fields, tree('@search', value), builtinFieldKinds)),
+      errors(
+        validateFilter(
+          fields,
+          tree('@search', value),
+          builtinFieldKindRegistry,
+        ),
+      ),
     ).toEqual([]);
     expect(compile('@search', value)).toEqual({
       op: FilterOperator.MATCH_ALL,
@@ -98,20 +104,26 @@ describe('the search kind', () => {
   it('admits a query someone actually typed', () => {
     expect(
       errors(
-        validateFilter(fields, tree('@search', 'blue'), builtinFieldKinds),
+        validateFilter(
+          fields,
+          tree('@search', 'blue'),
+          builtinFieldKindRegistry,
+        ),
       ),
     ).toEqual([]);
   });
 
   it('refuses a value that is not text', () => {
     expect(
-      errors(validateFilter(fields, tree('@search', 7), builtinFieldKinds)),
+      errors(
+        validateFilter(fields, tree('@search', 7), builtinFieldKindRegistry),
+      ),
     ).toEqual(['filter.value.expected-text']);
   });
 
   it('offers one operator and no presence questions', () => {
     // Its name is a handle, and `IS_NULL` carries a field name.
-    const kind = builtinFieldKinds.get('search')!;
+    const kind = builtinFieldKindRegistry.get('search')!;
 
     expect(kind.operators).toEqual([FilterOperator.SEARCH]);
     expect(kind.emptyValue(FilterOperator.SEARCH, fields[2])).toBe('');
@@ -122,9 +134,11 @@ describe('the search kind', () => {
 
   it('summarises what was typed', () => {
     expect(
-      describeFilter(fields, tree('@search', 'blue'), builtinFieldKinds).map(
-        item => item.text,
-      ),
+      describeFilter(
+        fields,
+        tree('@search', 'blue'),
+        builtinFieldKindRegistry,
+      ).map(item => item.text),
     ).toEqual(['Search blue']);
   });
 });
@@ -160,7 +174,7 @@ describe('a handle is not a record field', () => {
           ...definition,
           record: { ...definition.record!, layouts: ['table'] },
         }),
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       ),
     ).toEqual([]);
 
@@ -171,7 +185,7 @@ describe('a handle is not a record field', () => {
           ...defaultRecordConfig(definition),
           table: { columns: [{ field: '@search' }] },
         },
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       ).map(found => found.code),
     ).toEqual(['record.field.not-a-column']);
   });
@@ -215,7 +229,7 @@ describe('a handle cannot be asked of one entry', () => {
             },
           ],
         },
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       ).map(found => found.code),
     ).toContain('filter.element.root-filter');
   });
@@ -241,7 +255,7 @@ describe('a handle cannot be asked of one entry', () => {
             },
           ],
         },
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       ).map(found => found.code),
     ).toContain('filter.element.root-filter');
   });
@@ -259,7 +273,7 @@ describe('a search field is admitted with its definition', () => {
         analysis: undefined,
         views: [],
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     ).map(found => found.code);
 
   it('accepts fields the definition declares', () => {

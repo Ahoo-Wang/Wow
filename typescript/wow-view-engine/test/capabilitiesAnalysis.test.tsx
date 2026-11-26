@@ -23,7 +23,7 @@ import { MessagesProvider, zhCN } from '../src/ui/index.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   defaultAnalysisConfig,
   MemoryViewStore,
   projectAnalysis,
@@ -93,7 +93,7 @@ const validate = (
     validateAnalysis(
       definition(analysis),
       analysisKernelConfig(config),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     ),
   );
 
@@ -125,7 +125,7 @@ describe('4.4 the analysis rows that need a member of their own', () => {
           describedField('amount'),
         ],
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
 
     expect(narrowed.analysis?.fields[0].missingKey).toBe(false);
@@ -153,7 +153,7 @@ describe('4.4 the analysis rows that need a member of their own', () => {
               },
             ],
           }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toContain('analysis.group.missing-key-unsupported');
@@ -165,7 +165,7 @@ describe('4.4 the analysis rows that need a member of their own', () => {
       analysisDescriptor({
         analysis: { ...ordersDescriptor().analysis, dense: false },
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(narrowed.definition.analysis?.dense).toBe(false);
     expect(narrowed.findings.map(found => found.code)).toContain(
@@ -203,7 +203,7 @@ describe('4.4 the analysis rows that need a member of their own', () => {
           sort: { groups: true, metrics: false },
         },
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(narrowed.definition.analysis?.metricSort).toBe(false);
 
@@ -225,7 +225,7 @@ describe('4.4 the analysis rows that need a member of their own', () => {
       valueCandidatesConfig(
         narrowed.definition,
         narrowed.definition.fields[0],
-        builtinFieldKinds,
+        builtinFieldKindRegistry,
       ).sort,
     ).toEqual([{ alias: 'value', direction: SortDirection.ASC }]);
     // The table does not offer a metric header to sort by.
@@ -247,7 +247,7 @@ describe('4.4 the analysis rows that need a member of their own', () => {
           having: { metrics: [AggregationMetricType.COUNT] as never },
         },
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(narrowed.definition.analysis?.havingMetrics).toEqual([
       AggregationMetricType.COUNT,
@@ -307,7 +307,7 @@ describe('4.4 the analysis rows that need a member of their own', () => {
           }),
         ],
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     const [warehouse, , amount] = narrowed.definition.analysis!.fields;
     expect(warehouse.inMetricFilter).toBe(false);
@@ -333,7 +333,7 @@ describe('4.4 the analysis rows that need a member of their own', () => {
           },
         ],
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(errorCodes(conditioned)).toContain(
       'analysis.metric.filter-field-unsupported',
@@ -358,7 +358,7 @@ describe('4.4 the analysis rows that need a member of their own', () => {
         sort: [],
         layout: 'table',
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(errorCodes(formula)).toContain(
       'analysis.expression.operand-unsupported',
@@ -383,7 +383,7 @@ describe('4.4 the analysis rows that need a member of their own', () => {
             sort: [],
             layout: 'table',
           }),
-          builtinFieldKinds,
+          builtinFieldKindRegistry,
         ),
       ),
     ).toEqual([]);
@@ -432,7 +432,7 @@ describe('4.4 the analysis rows that need a member of their own', () => {
           ] as never,
         },
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
     expect(approximate(es.definition)).toEqual(['p95', 'kinds']);
     // A source that computes both exactly marks neither, a boxplot included.
@@ -518,7 +518,7 @@ describe('4.1 a field the source does not return', () => {
           field.path === 'amount' ? { ...field, project: false } : field,
         ),
       }),
-      builtinFieldKinds,
+      builtinFieldKindRegistry,
     );
 
     expect(findings).toContainEqual(

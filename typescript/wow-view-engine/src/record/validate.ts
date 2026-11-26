@@ -40,7 +40,7 @@ import {
 import { kanbanShapeIssues, validateKanban } from './kanban.js';
 
 export interface ValidateRecordOptions {
-  limits?: RuntimeLimits;
+  limits?: Partial<RuntimeLimits>;
 }
 
 /**
@@ -57,7 +57,7 @@ export function validateRecord(
   kinds: FieldKindRegistry,
   options: ValidateRecordOptions = {},
 ): Issue[] {
-  const limits = options.limits ?? DEFAULT_RUNTIME_LIMITS;
+  const limits = { ...DEFAULT_RUNTIME_LIMITS, ...options.limits };
   const capability = definition.record;
   if (!capability)
     return [

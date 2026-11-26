@@ -24,7 +24,7 @@ import {
   type ViewPreferences,
 } from '../model/index.js';
 import {
-  builtinFieldKinds,
+  builtinFieldKindRegistry,
   issue,
   type FieldKindRegistry,
 } from '../filter/index.js';
@@ -170,7 +170,7 @@ export class ViewEngine {
     // A store failure is told to the host's `onError` once, whichever
     // command or read it failed under.
     this.store = reportingStore(options.store, this.environment);
-    this.kinds = options.kinds ?? builtinFieldKinds;
+    this.kinds = options.kinds ?? builtinFieldKindRegistry;
     this.capabilities = new SourceCapabilities({
       kinds: this.kinds,
       limits: options.limits,
@@ -373,7 +373,7 @@ export class ViewEngine {
             definitionId,
           ),
         {
-          limit: this.limits.listedViews,
+          limit: this.limits.maxListedViews,
           ...(options.signal === undefined ? {} : { signal: options.signal }),
         },
       ),

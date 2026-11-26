@@ -82,7 +82,7 @@ export type AdmitFinding = Issue & { definition: string };
 export declare function actionHarness(list: RecordActions, rows: readonly ActionRow[], input?: ActionHarnessOptions): ActionHarness;
 
 export interface ActionHarnessOptions {
-  now?: Date;
+  now?: () => Date;
 }
 
 export interface ActionHarness {
