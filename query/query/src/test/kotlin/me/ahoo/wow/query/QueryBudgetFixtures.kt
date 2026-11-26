@@ -72,5 +72,6 @@ internal object QueryBudgetFixtures {
         QueryType.COUNT -> check(query as CountQuery, scope)
         QueryType.AGGREGATION -> check(query as AggregationQuery, scope)
         QueryType.STATE, QueryType.TRACE -> error("A state read has no query budget.")
+        QueryType.DESCRIBE -> error("A descriptor's read has no query budget.")
     }
 }
