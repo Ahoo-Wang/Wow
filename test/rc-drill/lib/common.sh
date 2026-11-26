@@ -75,9 +75,10 @@ label() {
   if is_local "$version"; then
     git -C "$root" cat-file -e "$version^{commit}" 2>/dev/null || git -C "$root" fetch -q origin "$version"
     built=$(git -C "$root" show "$version:gradle.properties" | sed -n 's/^version=//p')
-    [ -n "$built" ] || fail "no version in gradle.properties at $version"
+    # exit, not only fail: label runs in a command substitution, where errexit is off and fail's return would go on.
+    [ -n "$built" ] || fail "no version in gradle.properties at $version" || exit 1
     # SemVer refuses a numeric identifier with a leading zero, which twelve digits and no letter would be.
-    [[ ! ${version:0:12} =~ ^0[0-9]*$ ]] || fail "$version: its first twelve digits are no SemVer identifier"
+    [[ ! ${version:0:12} =~ ^0[0-9]*$ ]] || fail "$version: its first twelve digits are no SemVer identifier" || exit 1
     echo "${built%%-*}-main.${version:0:12}"
   else
     echo "$version"

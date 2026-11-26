@@ -240,7 +240,8 @@ service() {
 }
 
 # The lines a command prints, into the array named [into], one element each (Bash 3.2 has no mapfile). The command runs
-# in an assignment, so its failure stops the caller as errexit would.
+# in a command substitution, where errexit is off: it stops the caller only by exiting non-zero (a fail there is
+# followed by `|| exit 1`), and then the assignment's status does.
 lines() {
   local into=$1 out line
   shift
@@ -261,10 +262,12 @@ service_args() {
   values+=(-f "$src/$module/build/wow/helm/values.yaml" -f "$src/deploy/$name/values.yaml")
   # The drill's workaround for the OpenTelemetry agent's init container (values/pod-security-workaround.yaml), only for a
   # chart that names no user: a chart setting podSecurityContext.runAsUser is proved by its own default. Read from the
-  # chart installed: a release's as step 0 checked it (artifacts), a commit's as build packaged it.
+  # chart installed: a release's as step 0 checked it (artifacts), a commit's as build packaged it. This runs in a
+  # command substitution (lines), so the guard exits.
   local chart_values
   chart_values="$(chart_dir "$version")/values.yaml"
-  [ -f "$chart_values" ] || fail "no chart of $version at $chart_values: run \`artifacts $version\` (a release) or \`build $version\` (a commit) first"
+  [ -f "$chart_values" ] || fail "no chart of $version at $chart_values: run \`artifacts $version\` (a release) or \`build $version\` (a commit) first" ||
+    exit 1
   if awk '/^podSecurityContext:/ { inside = 1; next } /^[^[:space:]#]/ { inside = 0 }
     inside && /^[[:space:]]+runAsUser:/ { found = 1 } END { exit !found }' "$chart_values"; then
     log "$name $version: the chart sets podSecurityContext.runAsUser; no workaround"
@@ -326,9 +329,9 @@ upgrade() {
   log "step 4 was a $mode (from $from to $to): $evidence/compare-$(label "$from")-$(label "$to") holds why"
 }
 
-# The upgrade by the documented quiesce steps, not under load (decision D480 ⑰): Operate › Upgrades, "Published streams
-# on Kafka", for every service at once, since every eShop service publishes and consumes, and the CoSec order of "From
-# a 10.0.0 pre-release". Then the services in their waves, and the gateway last:
+# The upgrade by the documented quiesce steps, not under load, as the rehearsal against main ran it from beta.21:
+# Operate › Upgrades, "Published streams on Kafka", for every service at once, since every eShop service publishes and
+# consumes, and the CoSec order of "From a 10.0.0 pre-release". Then the services in their waves, and the gateway last:
 #   1. the commands stopped: the gateway scaled to none, so no caller reaches a service (the services' own schedules
 #      and timers still fire: step 2 waits for what they send too);
 #   2. every subscription caught up with nothing parked, read from the metrics the page names (caught_up);
@@ -338,8 +341,7 @@ upgrade() {
 #   5. the catalog's Elasticsearch indices that the old version created deleted, as Operate › Elasticsearch says of an
 #      index an earlier pre-release created, with the catalog's nodes stopped by its release (search_indices);
 #   6. the services upgraded, wave by wave, each until its rollout is done; then the gateway, on the new version's
-#      image, every subscription caught up again, and the catalog's snapshot copy rebuilt (the cluster test's
-#      search-rebuild).
+#      image, and every subscription caught up again; what the catalog's search then holds is logged.
 quiesce() {
   local from=$1 to=$2 wave name
   log "quiesce $from -> $to: 1. the commands stopped, the gateway scaled to none"
@@ -367,10 +369,10 @@ quiesce() {
   done
   gateway "$to"
   caught_up 900
-  # Operate › Elasticsearch has each copy rebuilt from the log after the delete: the snapshot copy by the snapshot
-  # rebuild, sent through the gateway (the cluster test's search-rebuild). The events index has no rebuild a deployment
-  # can ask for; the functional suite that follows lists every product and its events from Elasticsearch.
-  e2e search-rebuild search-rebuild
+  # What the catalog's search holds after the delete. In the rehearsal the snapshot copy was back behind its alias by
+  # itself, and the events index was not created again (#7097); the functional suite that follows lists every product
+  # and its events from Elasticsearch. The cluster test's search-rebuild (the snapshot rebuild through the gateway) is
+  # not run here: the GA run's gateway documents grant no policy for it, and answer it 403.
   search_layout
   log "quiesce done: $from -> $to; the commands may come again"
 }

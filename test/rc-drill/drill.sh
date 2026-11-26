@@ -94,8 +94,9 @@ run() {
         step 4-upgrade upgrade "$previous" "$version" restart
         ;;
       quiesce)
-        # Decision D480 ⑰: the upgrade not under load, by the steps; then what the old version left is judged with
-        # the new one's suite, and the new version's pods are rolled under load.
+        # The upgrade not under load, by the upgrade page's quiesce steps, as the rehearsal against main ran it from
+        # beta.21; then what the old version left is judged with the new one's suite, and the new version's pods are
+        # rolled under load.
         step 4-quiesce quiesce "$previous" "$version"
         step 4-functional e2e functional upgraded
         step 4-restart upgrade "$version" "$version" restart

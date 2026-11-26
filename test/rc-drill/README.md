@@ -2,7 +2,9 @@
 
 Before the release candidate, the eShop and Wow's platform services are deployed as a user deploys them: from a release's published artifacts, on a cluster of several nodes in three zones, with the stores replicated and authenticated, behind an ingress and the CoSec gateway, with a metrics pipeline and the documented alerts. Then the drill drives the end-to-end suite through the ingress, while it upgrades, kills, stops, scales and drains. This folder holds that deployment's shape. The script that runs the steps comes with it.
 
-The drill runs twice, on one machine, each about five hours in a window when nothing else uses the machine's Docker or Gradle. Each installs a previous release from its published chart and images, then upgrades to the new one (step 4): under load where the two run side by side, or by the upgrade page's quiesce steps (stop, catch up, upgrade) where the page asks for them, and then rolls the new version's pods under load. The two versions are the run's arguments, so no file here names them: for 10.0.0-beta.10, the previous one is 10.0.0-beta.9.
+The drill runs twice, on one machine, each about five hours in a window when nothing else uses the machine's Docker or Gradle. The versions are the run's arguments, so no file here names them:
+- **One version** (`drill.sh run <version>`): the version is installed fresh from its published chart and images, and its pods are rolled under load (step 4, a rolling restart). The drill on the API-freeze beta runs so: a pre-release's stores are not carried over (Operate › Upgrades, "From a 10.0.0 pre-release").
+- **With a previous version** (`drill.sh run <version> <previous>`): the previous one is installed first, then upgraded to the new one in step 4. Under load, where the two run side by side: the drill from the freeze beta to the RC1 candidate runs so, and for 10.0.0-beta.11 it ran from 10.0.0-beta.10. Or by the upgrade page's quiesce steps (stop, catch up, upgrade), then a rolling restart under load: the rehearsal against `main` ran so from 10.0.0-beta.21, to find what a carried-over deployment meets.
 
 1. **The rehearsal.** The platform and the drill's cluster test (`RcDrillTest`) run on a cluster for the first time, and may stop on things that are not Wow's: the drill's own files and scripts, the platform's pieces. What it finds is fixed by commits before the second run.
 2. **The run that counts.** Its report is the drill's result. The report lists what the rehearsal found and what was changed for it, so the result is read with its history.
@@ -132,10 +134,10 @@ Both runs go one step at a time, each command on its own (`drill.sh tools`, then
 
 The window is the machine's batch lock (`test/benchmarks/harness/lock.sh`). Take it first, with `bench.sh lock --owner=<name> --wait`, then export `WOW_BENCH_OWNER=<name>` in the shell that runs the steps. A step, run on its own or re-run by hand, is `drill.sh step <name> <command> [<argument>...]`, as `run` names it: for example `drill.sh step 3-e2e e2e functional`. It is timed into `steps.tsv` like the others. `step` and `run` never wait for the lock, as `quiet.sh` would. Outside the window, or in a shell whose `WOW_BENCH_OWNER` does not name the lock's holder, they stop at once and say which.
 
-With a previous version, the run installs that version first, then upgrades to the new one (step 4).
+With a previous version, the run installs that version first, then upgrades to the new one (step 4). Without one, step 4 is a rolling restart of the version under load.
 - `DRILL_UPGRADE` is the drill's decision, taken from `drill.sh compare <previous> <version>`, which lists what changed between the two in the stores, the cluster channel, the configuration and the deployment (the chart, `deploy/`, the GA run's gateway and topics), and from Operate › Upgrades:
   - `rolling` when nothing there stops a running deployment from crossing under load;
-  - `quiesce` when the upgrade page asks for its quiesce steps: the upgrade is made not under load (`drill.sh quiesce <previous> <version>`, below), then the new version's functional suite judges what the old one left (`4-functional`), then the new version's pods are rolled under load (`4-restart`);
+  - `quiesce` for an upgrade by the upgrade page's quiesce steps, as the rehearsal against `main` ran it from 10.0.0-beta.21 (not the formal drill's route: it installs the freeze beta fresh): the upgrade is made not under load (`drill.sh quiesce <previous> <version>`, below), then the new version's functional suite judges what the old one left (`4-functional`), then the new version's pods are rolled under load (`4-restart`);
   - `restart` when neither can cross: a fresh install of the new version, then a rolling restart at that version under load.
 - The run refuses to guess.
 
@@ -145,7 +147,7 @@ With a previous version, the run installs that version first, then upgrades to t
 3. Every state topic with fewer partitions than the log's 64 is given 64 (`kafka-topics.sh --alter`).
 4. CoSec's stored patterns are checked with the new version's `cosec-migrate check-patterns`, while the old gateway still runs. A pattern it names stops the upgrade.
 5. The catalog's nodes are stopped, and its Elasticsearch indices that are no alias's are deleted: Operate › Elasticsearch says a store refuses an index an earlier pre-release created, to be deleted and rebuilt. The indices and aliases are logged before and after.
-6. The services are upgraded in their waves, each until its rollout is done. Then the gateway, on the new version's image. Then every subscription catches up again, and the catalog's snapshot copy is rebuilt by the snapshot rebuild of every product, sent as an employee through the gateway (the cluster test's `search-rebuild`). The events index has no rebuild a deployment can ask for by a command: the functional suite that follows (`4-functional`) lists every product and its events from Elasticsearch.
+6. The services are upgraded in their waves, each until its rollout is done. Then the gateway, on the new version's image. Then every subscription catches up again, and what the catalog's search holds is logged. In the rehearsal from 10.0.0-beta.21, the snapshot copy was back behind its alias by itself, and the events index was not created again (#7097), so the functional suite that follows (`4-functional`) fails on the events search. The cluster test's `search-rebuild` (the snapshot rebuild of every product, sent as an employee through the gateway) is for a run by hand: the GA run's gateway documents grant no policy for it, and answer it 403.
 
 **Evidence.** Each step is timed in the evidence folder (`steps.tsv`, `steps/<step>.log`), and every pod's logs of the step, its current and previous containers', are kept in `logs/<step>/` before the next step starts, so a later reinstall or drain cannot take them.
 
@@ -177,7 +179,7 @@ The folder stays on the machine. `drill.sh teardown` deletes the cluster.
     - `owner-deletion`: step 5's first half;
     - `ops`: step 9;
     - `verdict`: the invariants alone;
-    - `search-rebuild`: the products' snapshot copy on Elasticsearch rebuilt after the quiesce upgrade deleted it;
+    - `search-rebuild`: the products' snapshot copy on Elasticsearch rebuilt by the snapshot rebuild, by hand, behind a gateway whose documents grant it;
     - `load`: full-chain checkouts by `ga.load.clients` buyers at once (4), a probe measuring every failure, until a stop file. With `ga.load.stop-file`, `ga.load.bound` (the bound of the failures' window) and `load.started` in its report folder once its first checkout is answered, so `drill.sh` starts an operation only under load.
 
     Every run then checks that no Wow container restarted and every Wow pod is ready, and judges the invariants over the whole drill.
