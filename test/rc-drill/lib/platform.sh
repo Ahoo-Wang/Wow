@@ -118,7 +118,8 @@ certificate() {
 }
 
 platform() {
-  local version=$1
+  local version=$1 src topics
+  src=$(checkout "$version")
   k apply -k "$here/platform"
   for set in mongodb kafka elasticsearch clickhouse redis prometheus; do
     k rollout status "statefulset/$set" --timeout=900s
@@ -126,7 +127,12 @@ platform() {
   k wait --for=condition=complete job/mongodb-init --timeout=600s
   k logs job/mongodb-init | tail -12
   k delete job kafka-topics elasticsearch-users --ignore-not-found >/dev/null
-  k apply -f "$here/platform/kafka/kafka-topics.yaml" -f "$here/platform/elasticsearch/elasticsearch-users.yaml"
+  # The topics as the installed version's own drill created them: a version before #6862 made its state topics with
+  # fewer partitions than the log's, which the quiesce upgrade's step 3 gives them (release.sh, topics).
+  topics="$src/test/rc-drill/platform/kafka/kafka-topics.yaml"
+  [ -f "$topics" ] || topics="$here/platform/kafka/kafka-topics.yaml"
+  log "the topics of ${topics#"$root"/}"
+  k apply -f "$topics" -f "$here/platform/elasticsearch/elasticsearch-users.yaml"
   k wait --for=condition=complete job/kafka-topics job/elasticsearch-users --timeout=600s
   k logs job/kafka-topics | grep -E 'Topic: wow\.' | grep -v 'Partition:' || true
   # The telemetry: the operator, then the Instrumentation its CRDs define.
@@ -140,33 +146,49 @@ platform() {
   k rollout status deployment/otel-collector --timeout=300s
   k rollout status deployment/kube-state-metrics --timeout=300s
   # The gateway does not start without its Redis, and refuses traffic until its documents are there.
-  documents
-  k apply -f "$here/platform/gateway/gateway.yaml"
-  k rollout status deployment/cosec-gateway --timeout=600s
+  documents "$version"
+  gateway "$version"
   helm --kube-context "kind-$cluster" upgrade --install traefik traefik/traefik --version "$TRAEFIK_CHART_VERSION" \
     -n traefik --create-namespace -f "$here/platform/ingress/traefik-values.yaml" --wait --timeout 10m
   k apply -f "$here/platform/ingress/ingress.yaml"
-  sed "s/DRILL_VERSION/$version/" "$here/platform/probes.yaml" | k apply -f -
+  sed "s/DRILL_VERSION/$(label "$version")/" "$here/platform/probes.yaml" | k apply -f -
   k get pods -o wide
 }
 
-# The gateway's documents (.github/ga-e2e/gateway/documents) published into its Redis by `cosec-migrate publish`,
-# through a port-forward, as the GA end-to-end run publishes them (.github/ga-e2e/cluster.sh documents).
+# The gateway at a version: the CoSec gateway's image the version's own GA end-to-end run deploys
+# (.github/ga-e2e/gateway/gateway.yaml of its source, pinned by digest there), in the drill's shape (gateway.yaml), two
+# replicas, rolled out. CoSec names the order: the services in gateway mode first, then the gateway.
+gateway() {
+  local version=$1 src image
+  src=$(checkout "$version")
+  image=$(sed -n 's|^ *image: *\(ghcr.io/ahoo-wang/cosec-gateway:[^ ]*\).*|\1|p' "$src/.github/ga-e2e/gateway/gateway.yaml")
+  [ -n "$image" ] || fail "no CoSec gateway image in $version's .github/ga-e2e/gateway/gateway.yaml"
+  log "gateway $version: $image"
+  sed "s|DRILL_GATEWAY_IMAGE|$image|" "$here/platform/gateway/gateway.yaml" | k apply -f -
+  # Its two replicas, whatever scaled it before (the quiesce upgrade scales it to none).
+  k scale deployment/cosec-gateway --replicas=2
+  k rollout status deployment/cosec-gateway --timeout=600s
+}
+
+# The gateway's documents (.github/ga-e2e/gateway/documents of the version's source) published into its Redis by
+# `cosec-migrate publish` of the CoSec the version names, through a port-forward, as the GA end-to-end run publishes
+# them (.github/ga-e2e/cluster.sh documents).
 documents() {
-  local dir forward file sums='{}'
+  local version=$1 src dir forward file sums='{}'
+  src=$(checkout "$version")
   dir=$(mktemp -d)
-  cp -R "$root/.github/ga-e2e/gateway/documents/." "$dir/"
+  cp -R "$src/.github/ga-e2e/gateway/documents/." "$dir/"
   while IFS= read -r file; do
     sums=$(jq --arg file "$file" --arg sha "$(shasum -a 256 "$dir/$file" | cut -d' ' -f1)" '. + {($file): $sha}' <<<"$sums")
   done < <(cd "$dir" && find . -type f -name '*.json' | sed 's|^\./||' | sort)
   jq -n --argjson sums "$sums" '{accepted: true, outputSha256: $sums}' >"$dir/report.json"
-  k port-forward service/redis 16379:6379 >/dev/null 2>&1 &
+  "$kubectl" --context "kind-$cluster" -n "$namespace" port-forward service/redis 16379:6379 >/dev/null 2>&1 &
   forward=$!
   for _ in $(seq 1 30); do
     if (exec 3<>/dev/tcp/127.0.0.1/16379) 2>/dev/null; then break; fi
     sleep 1
   done
-  "$root/gradlew" -p "$root" --quiet :eshop-e2e:cosecMigrate \
+  "$src/gradlew" -p "$src" --quiet :eshop-e2e:cosecMigrate \
     --args="publish --to-redis redis://127.0.0.1:16379 --in $dir" || { kill "$forward"; return 1; }
   kill "$forward" 2>/dev/null || true
 }

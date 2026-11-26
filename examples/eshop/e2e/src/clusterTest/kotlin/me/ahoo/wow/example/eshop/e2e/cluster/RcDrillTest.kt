@@ -78,8 +78,9 @@ class RcDrillTest {
                         scenarios.parkedRetriedFromOps("olga-${System.currentTimeMillis()}")
                     }
                     "load" -> scenario("load", "checkouts under the drill's operation", LOAD_BUDGET) { load() }
+                    "search-rebuild" -> scenario("functional", "the products' search copy rebuilt") { search.rebuild() }
                     "verdict" -> Unit
-                    else -> error("no scenario $name: functional, owner-deletion, ops, load or verdict")
+                    else -> error("no scenario $name: functional, owner-deletion, ops, load, search-rebuild or verdict")
                 }
             }
             scenario("operations", "no Wow container restarted, every Wow pod ready") { wowPods() }
