@@ -157,7 +157,8 @@ const STEP = [
 test('every job that saves the Gradle cache forgets its 404 records last when it fails; a read-only one does not', () => {
   const jobs = gradleJobs();
   const writers = jobs.filter(job => !job.readOnly);
-  // The twelve of 2026-11-19: on main they save the Gradle home, a pull request's runs only read it.
+  // The twelve of 2026-11-19 but h2-stage2.yml's, deleted with spike H2's stage 2: on main they save the Gradle home,
+  // a pull request's runs only read it.
   assert.deepEqual(writers.map(job => `${job.file}:${job.name}`).sort(), [
     'ci.yml:axon-server',
     'ci.yml:catalog-console-e2e',
@@ -168,7 +169,6 @@ test('every job that saves the Gradle cache forgets its 404 records last when it
     'ci.yml:ops-console-e2e',
     'ci.yml:view-store-contract',
     'documentation-deploy.yml:dokka',
-    'h2-stage2.yml:measure',
     'mongo-cluster.yml:cluster',
     'soak.yml:soak',
   ]);
