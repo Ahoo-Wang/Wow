@@ -140,8 +140,9 @@ internal class QueryHandler(
 
     suspend fun describe(request: ServerRequest, target: QueryTarget): ServerResponse =
         answering(target.type.context) {
-            // The caller a query of this request would run as, which the read authorizers are asked about first.
-            val caller = caller(request, target.type)
+            // The caller in its own scope, which the read authorizers are asked about first: a descriptor reads no
+            // Wow-Scope, since its content is the same in every scope.
+            val caller = targets.of(target.type, authenticator.authenticate(request))
             Negotiation.checkAcceptable(request, alsoEventStream = false)
             val gateway = checkNotNull(queries.gateway(target.type, target.model))
             val described = gateway.describe(QueryEntry.HTTP, caller, gateway.entryPolicy.http.listDefault())
