@@ -40,6 +40,12 @@
           },
           "406" : {
             "$ref" : "#/components/responses/wow.framework.406"
+          },
+          "414" : {
+            "$ref" : "#/components/responses/wow.framework.414"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.framework.431"
           }
         },
         "parameters" : [ {
@@ -74,6 +80,12 @@
           },
           "406" : {
             "$ref" : "#/components/responses/wow.framework.406"
+          },
+          "414" : {
+            "$ref" : "#/components/responses/wow.framework.414"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.framework.431"
           }
         },
         "parameters" : [ {
@@ -116,6 +128,12 @@
           },
           "406" : {
             "$ref" : "#/components/responses/wow.datasets.406"
+          },
+          "414" : {
+            "$ref" : "#/components/responses/wow.datasets.414"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.datasets.431"
           }
         }
       }
@@ -239,11 +257,17 @@
           "413" : {
             "$ref" : "#/components/responses/wow.dataset-query.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/wow.dataset-query.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.dataset-query.415"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.dataset-query.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.dataset-query.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.dataset-query.500"
@@ -312,6 +336,12 @@
           },
           "409" : {
             "$ref" : "#/components/responses/wow.dataset-descriptor.409"
+          },
+          "414" : {
+            "$ref" : "#/components/responses/wow.dataset-descriptor.414"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.dataset-descriptor.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.dataset-descriptor.500"
@@ -394,6 +424,9 @@
           "413" : {
             "$ref" : "#/components/responses/eshop-payment.command.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/eshop-payment.command.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/eshop-payment.command.415"
           },
@@ -402,6 +435,9 @@
           },
           "429" : {
             "$ref" : "#/components/responses/eshop-payment.command.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/eshop-payment.command.431"
           },
           "500" : {
             "$ref" : "#/components/responses/eshop-payment.command.500"
@@ -491,6 +527,9 @@
           "413" : {
             "$ref" : "#/components/responses/eshop-payment.command.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/eshop-payment.command.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/eshop-payment.command.415"
           },
@@ -499,6 +538,9 @@
           },
           "429" : {
             "$ref" : "#/components/responses/eshop-payment.command.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/eshop-payment.command.431"
           },
           "500" : {
             "$ref" : "#/components/responses/eshop-payment.command.500"
@@ -590,6 +632,9 @@
           "413" : {
             "$ref" : "#/components/responses/eshop-payment.command.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/eshop-payment.command.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/eshop-payment.command.415"
           },
@@ -598,6 +643,9 @@
           },
           "429" : {
             "$ref" : "#/components/responses/eshop-payment.command.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/eshop-payment.command.431"
           },
           "500" : {
             "$ref" : "#/components/responses/eshop-payment.command.500"
@@ -688,6 +736,9 @@
           "413" : {
             "$ref" : "#/components/responses/eshop-payment.command.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/eshop-payment.command.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/eshop-payment.command.415"
           },
@@ -696,6 +747,9 @@
           },
           "429" : {
             "$ref" : "#/components/responses/eshop-payment.command.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/eshop-payment.command.431"
           },
           "500" : {
             "$ref" : "#/components/responses/eshop-payment.command.500"
@@ -784,6 +838,9 @@
           "413" : {
             "$ref" : "#/components/responses/eshop-payment.command.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/eshop-payment.command.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/eshop-payment.command.415"
           },
@@ -792,6 +849,9 @@
           },
           "429" : {
             "$ref" : "#/components/responses/eshop-payment.command.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/eshop-payment.command.431"
           },
           "500" : {
             "$ref" : "#/components/responses/eshop-payment.command.500"
@@ -882,11 +942,17 @@
           "413" : {
             "$ref" : "#/components/responses/wow.command.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/wow.command.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.command.415"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.command.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.command.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.command.500"
@@ -972,11 +1038,17 @@
           "413" : {
             "$ref" : "#/components/responses/wow.command.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/wow.command.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.command.415"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.command.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.command.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.command.500"
@@ -1062,11 +1134,17 @@
           "413" : {
             "$ref" : "#/components/responses/wow.command.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/wow.command.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.command.415"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.command.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.command.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.command.500"
@@ -1152,11 +1230,17 @@
           "413" : {
             "$ref" : "#/components/responses/wow.command.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/wow.command.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.command.415"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.command.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.command.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.command.500"
@@ -1240,11 +1324,17 @@
           "413" : {
             "$ref" : "#/components/responses/wow.command.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/wow.command.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.command.415"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.command.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.command.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.command.500"
@@ -1326,8 +1416,14 @@
           "409" : {
             "$ref" : "#/components/responses/wow.state.409"
           },
+          "414" : {
+            "$ref" : "#/components/responses/wow.state.414"
+          },
           "429" : {
             "$ref" : "#/components/responses/wow.state.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.state.431"
           },
           "503" : {
             "$ref" : "#/components/responses/wow.state.503"
@@ -1392,8 +1488,14 @@
           "406" : {
             "$ref" : "#/components/responses/wow.state.406"
           },
+          "414" : {
+            "$ref" : "#/components/responses/wow.state.414"
+          },
           "429" : {
             "$ref" : "#/components/responses/wow.state.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.state.431"
           },
           "503" : {
             "$ref" : "#/components/responses/wow.state.503"
@@ -1543,11 +1645,17 @@
           "413" : {
             "$ref" : "#/components/responses/wow.query.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/wow.query.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.query.415"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.query.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.query.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.query.500"
@@ -1610,6 +1718,12 @@
           },
           "406" : {
             "$ref" : "#/components/responses/wow.descriptor.406"
+          },
+          "414" : {
+            "$ref" : "#/components/responses/wow.descriptor.414"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.descriptor.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.descriptor.500"
@@ -1732,11 +1846,17 @@
           "413" : {
             "$ref" : "#/components/responses/wow.query.413"
           },
+          "414" : {
+            "$ref" : "#/components/responses/wow.query.414"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.query.415"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.query.429"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.query.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.query.500"
@@ -1793,6 +1913,12 @@
           },
           "406" : {
             "$ref" : "#/components/responses/wow.descriptor.406"
+          },
+          "414" : {
+            "$ref" : "#/components/responses/wow.descriptor.414"
+          },
+          "431" : {
+            "$ref" : "#/components/responses/wow.descriptor.431"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.descriptor.500"
@@ -3347,6 +3473,26 @@
           }
         }
       },
+      "wow.framework.414" : {
+        "description" : "URI Too Long: the request line is longer than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
+      "wow.framework.431" : {
+        "description" : "Request Header Fields Too Large: the request's headers are larger than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
       "wow.datasets.400" : {
         "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.request.malformed`: A request header or parameter does not parse, or names what Wow does not take.",
         "content" : {
@@ -3382,6 +3528,26 @@
       },
       "wow.datasets.406" : {
         "description" : "Not Acceptable: the route answers in none of the types Accept names.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
+      "wow.datasets.414" : {
+        "description" : "URI Too Long: the request line is longer than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
+      "wow.datasets.431" : {
+        "description" : "Request Header Fields Too Large: the request's headers are larger than this server takes.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -3465,6 +3631,16 @@
           }
         }
       },
+      "wow.dataset-query.414" : {
+        "description" : "URI Too Long: the request line is longer than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
       "wow.dataset-query.415" : {
         "description" : "Unsupported Media Type: the body is sent as application/json.",
         "content" : {
@@ -3490,6 +3666,16 @@
           }
         },
         "x-wow-error-codes" : [ "wow.query.busy" ]
+      },
+      "wow.dataset-query.431" : {
+        "description" : "Request Header Fields Too Large: the request's headers are larger than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
       },
       "wow.dataset-query.500" : {
         "description" : "`wow.query.failed`: The query backend failed to run the query.",
@@ -3593,6 +3779,26 @@
           }
         },
         "x-wow-error-codes" : [ "wow.query.dataset-unavailable" ]
+      },
+      "wow.dataset-descriptor.414" : {
+        "description" : "URI Too Long: the request line is longer than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
+      "wow.dataset-descriptor.431" : {
+        "description" : "Request Header Fields Too Large: the request's headers are larger than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
       },
       "wow.dataset-descriptor.500" : {
         "description" : "`wow.query.failed`: The query backend failed to run the query.",
@@ -3768,6 +3974,16 @@
           }
         }
       },
+      "eshop-payment.command.414" : {
+        "description" : "URI Too Long: the request line is longer than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
       "eshop-payment.command.415" : {
         "description" : "Unsupported Media Type: the body is sent as application/json.",
         "content" : {
@@ -3803,6 +4019,16 @@
           }
         },
         "x-wow-error-codes" : [ "wow.request.rate-limited", "wow.command.busy" ]
+      },
+      "eshop-payment.command.431" : {
+        "description" : "Request Header Fields Too Large: the request's headers are larger than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
       },
       "eshop-payment.command.500" : {
         "description" : "`wow.command.failed`: The command's handling failed with an unexpected error; it committed nothing, and a retry fails alike.\n`wow.command.undeclared-event`: The command's handling produced an event its decide function or after hooks do not declare, a rejection's events held to the same declaration: a bug in the model, which the message names; it committed nothing.\n`wow.subscription.parked`: A subscription on the wait chain parked the aggregate; the wait cannot be reached until the aggregate is retried.",
@@ -3949,6 +4175,16 @@
           }
         }
       },
+      "wow.command.414" : {
+        "description" : "URI Too Long: the request line is longer than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
       "wow.command.415" : {
         "description" : "Unsupported Media Type: the body is sent as application/json.",
         "content" : {
@@ -3974,6 +4210,16 @@
           }
         },
         "x-wow-error-codes" : [ "wow.request.rate-limited", "wow.command.busy" ]
+      },
+      "wow.command.431" : {
+        "description" : "Request Header Fields Too Large: the request's headers are larger than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
       },
       "wow.command.500" : {
         "description" : "`wow.command.failed`: The command's handling failed with an unexpected error; it committed nothing, and a retry fails alike.\n`wow.command.undeclared-event`: The command's handling produced an event its decide function or after hooks do not declare, a rejection's events held to the same declaration: a bug in the model, which the message names; it committed nothing.\n`wow.subscription.parked`: A subscription on the wait chain parked the aggregate; the wait cannot be reached until the aggregate is retried.",
@@ -4088,6 +4334,16 @@
         },
         "x-wow-error-codes" : [ "wow.query.min-version-not-reached" ]
       },
+      "wow.state.414" : {
+        "description" : "URI Too Long: the request line is longer than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
       "wow.state.429" : {
         "description" : "`wow.query.busy`: The query was not run: its store has as many queries running as it allows; retry later.",
         "headers" : {
@@ -4103,6 +4359,16 @@
           }
         },
         "x-wow-error-codes" : [ "wow.query.busy" ]
+      },
+      "wow.state.431" : {
+        "description" : "Request Header Fields Too Large: the request's headers are larger than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
       },
       "wow.state.503" : {
         "description" : "`wow.storage.unavailable`: A store could not be reached or did not answer in time; retry later, a command with the same request id.",
@@ -4184,6 +4450,16 @@
           }
         }
       },
+      "wow.query.414" : {
+        "description" : "URI Too Long: the request line is longer than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
       "wow.query.415" : {
         "description" : "Unsupported Media Type: the body is sent as application/json.",
         "content" : {
@@ -4209,6 +4485,16 @@
           }
         },
         "x-wow-error-codes" : [ "wow.query.busy" ]
+      },
+      "wow.query.431" : {
+        "description" : "Request Header Fields Too Large: the request's headers are larger than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
       },
       "wow.query.500" : {
         "description" : "`wow.query.failed`: The query backend failed to run the query.",
@@ -4291,6 +4577,26 @@
           }
         }
       },
+      "wow.descriptor.414" : {
+        "description" : "URI Too Long: the request line is longer than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
+      "wow.descriptor.431" : {
+        "description" : "Request Header Fields Too Large: the request's headers are larger than this server takes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
       "wow.descriptor.500" : {
         "description" : "`wow.query.failed`: The query backend failed to run the query.",
         "content" : {
@@ -4358,7 +4664,7 @@
       "Wow-Wait" : {
         "name" : "Wow-Wait",
         "in" : "header",
-        "description" : "The wait plan: hops separated by `>`, each `accepted`, `committed`, `snapshot`, `queryable` (the store the aggregate's snapshot queries read holds the commit) or `handled(subscription)`, with an optional `(context)`, such as `handled(order/payment-saga) > committed(inventory)`. Without it the command waits for its snapshot. A plan longer than 4096 characters, or of more than 32 hops, is 400 `wow.wait.invalid`.",
+        "description" : "The wait plan: hops separated by `>`, each `accepted`, `committed`, `snapshot`, `queryable` (the store the aggregate's snapshot queries read holds the commit) or `handled(subscription)`, with an optional `(context)`, such as `handled(order/payment-saga) > committed(inventory)`. Without it the command waits for its snapshot. A plan longer than 4096 characters, or of more hops than the node's `wow.wait.max-hops` (16 by default, 32 at most), is 400 `wow.wait.invalid`.",
         "schema" : {
           "type" : "string",
           "maxLength" : 4096

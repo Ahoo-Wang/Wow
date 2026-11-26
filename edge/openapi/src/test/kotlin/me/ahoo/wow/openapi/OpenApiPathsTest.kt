@@ -113,8 +113,8 @@ class OpenApiPathsTest {
     fun `a command should answer its result as JSON or as server-sent events, and every error as a problem`() {
         val responses = responses(operation("post", "/shop/cart/{id}/put-item"))
         responses.keys.assert().containsExactly(
-            "200", "202", "400", "401", "403", "404", "406", "409", "410", "412", "413", "415", "422", "429", "500",
-            "503", "504",
+            "200", "202", "400", "401", "403", "404", "406", "409", "410", "412", "413", "414", "415", "422", "429",
+            "431", "500", "503", "504",
         )
         val ok = response("wow.command.200")
         content(ok).keys.assert().containsExactly("application/json", "text/event-stream")
@@ -266,7 +266,8 @@ class OpenApiPathsTest {
         ok["headers"].assert().isEqualTo(mapOf("ETag" to ref("headers", "ETag")))
         responses(
             state
-        ).keys.assert().containsExactly("200", "304", "400", "401", "403", "404", "406", "409", "429", "503")
+        ).keys.assert()
+            .containsExactly("200", "304", "400", "401", "403", "404", "406", "409", "414", "429", "431", "503")
         val trace = operation("get", "/shop/cart/{id}/state/trace")
         parameters(trace).assert().containsExactly("id", "from", "to", "limit", "Wow-Scope", "Wow-Space")
         // A read takes no body: neither 413 nor 415.
@@ -351,7 +352,9 @@ class OpenApiPathsTest {
         paths().containsKey("/shop/cart/custom/query").assert().isFalse()
         // 429 is the store's query bulkhead (review R3.4-2), `wow.query.busy`.
         responses(events).keys.assert()
-            .containsExactly("200", "400", "401", "403", "404", "406", "413", "415", "429", "500", "503", "504")
+            .containsExactly(
+                "200", "400", "401", "403", "404", "406", "413", "414", "415", "429", "431", "500", "503", "504",
+            )
     }
 
     @Test
@@ -438,7 +441,9 @@ class OpenApiPathsTest {
     fun `a wait plan should be bounded as the edge bounds it`() {
         val wait = document.components("parameters")["Wow-Wait"] as Map<*, *>
         wait["schema"].assert().isEqualTo(mapOf("type" to "string", "maxLength" to WaitHeader.MAX_LENGTH))
-        wait["description"].toString().assert().contains("4096 characters", "32 hops", "`wow.wait.invalid`")
+        // The node's own bound, not only the grammar's (#7063): a plan of 17 to 32 hops is refused by default.
+        wait["description"].toString().assert()
+            .contains("4096 characters", "`wow.wait.max-hops` (16 by default, 32 at most)", "`wow.wait.invalid`")
     }
 
     @Test

@@ -619,6 +619,8 @@ class ParkedRoutesTest {
         answer.status.assert().isEqualTo(503)
         answer.contentType.assert().contains("problem+json")
         answer.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.STORAGE_UNAVAILABLE)
+        // The code's title, the same for every occurrence, never the status's reason phrase (#7063).
+        answer.body["title"].asString().assert().isEqualTo("Storage unavailable")
         answer.headers.getFirst("Retry-After").assert().isEqualTo("1")
     }
 

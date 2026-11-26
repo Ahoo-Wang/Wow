@@ -311,8 +311,15 @@ class OpenApiAgreementTest {
         failed.assert().describedAs("What the routes read and answer that their operations do not say").isEmpty()
         scenarios()
         unlisted.assert().describedAs("What the scenarios' answers carry that their operations do not list").isEmpty()
+        // The server's own 414 and 431, met before any route reads the request: every operation lists them (#7063),
+        // and ServerRefusalsTest answers them on the real port, which a client bound to the routes never reaches.
+        operations.forEach { operation ->
+            operation.described["responses"].propertyNames().assert().describedAs(operation.name)
+                .contains(URI_TOO_LONG, HEADERS_TOO_LARGE)
+        }
         val listed = operations.flatMap { operation ->
-            operation.described["responses"].propertyNames().map(operation::responseName)
+            operation.described["responses"].propertyNames().filterNot { it in SERVER_REFUSALS }
+                .map(operation::responseName)
         }.toSortedSet()
         (listed - answered).assert().describedAs("The responses no probe got").isEmpty()
     }
@@ -773,6 +780,9 @@ class OpenApiAgreementTest {
         const val NOT_ACCEPTABLE = 406
         const val DOMAIN_REJECTION = 422
         const val CONTENT_TOO_LARGE = 413
+        const val URI_TOO_LONG = "414"
+        const val HEADERS_TOO_LARGE = "431"
+        val SERVER_REFUSALS = setOf(URI_TOO_LONG, HEADERS_TOO_LARGE)
         const val UNSUPPORTED_MEDIA_TYPE = 415
         const val SERVICE_UNAVAILABLE = 503
         const val GATEWAY_TIMEOUT = 504

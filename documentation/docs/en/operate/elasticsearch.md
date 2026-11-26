@@ -50,7 +50,7 @@ Each index records its layout in its `_meta` and refuses a store that expects an
 
 ### Indices and their aliases {#indices-and-aliases}
 
-Each index is a pair: a concrete index `<name>--1` behind the alias `<name>`, its write index. The store reads and writes by the name. Every write asks Elasticsearch to refuse it unless the name is an alias (`require_alias`), so a write never creates an index with a mapping Elasticsearch guesses, whatever made the index missing:
+The store's indices are each aggregate's snapshots, `[<prefix>_]wow_snapshot__<context>__<aggregate>`, the event search Sink's events, `[<prefix>_]wow_events__<context>__<aggregate>` ([Event search](#event-search)), and one more, `[<prefix>_]wow_snapshot_table`: a document per snapshot index, the state revision that index holds, as PostgreSQL's and MongoDB's `wow_snapshot_table` record it for their tables. Each index is a pair: a concrete index `<name>--1` behind the alias `<name>`, its write index. The store reads and writes by the name. Every write asks Elasticsearch to refuse it unless the name is an alias (`require_alias`), so a write never creates an index with a mapping Elasticsearch guesses, whatever made the index missing:
 - `ddl: auto` creates the pair, the index and its alias in one request.
 - `ddl: validate` refuses a store whose alias is missing, naming the pair, and checks the layout of the index behind it.
 - `ddl: none` checks nothing, and a write to a missing alias fails, naming it.

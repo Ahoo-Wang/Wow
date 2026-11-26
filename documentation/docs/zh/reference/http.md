@@ -63,6 +63,7 @@ outline: deep
 | `Last-Event-ID` | 流式的 `list` 查询 | 从哪个位置之后续读 |
 | `Wow-Scope` | 每个路由 | 对被允许跨作用域行事的调用方：要在其中行事的租户、所有者和空间，一个 RFC 8941 字典，`tenant="t1", owner="u1", space="s1"`。它总是指明一个作用域：不写的所有者或空间就是没有，所以只写 `tenant="t1"` 在 `t1` 里行事、不检查所有者与空间；只写了租户的请求，Wow 的客户端会写出调用方自己的作用域，从而保留它。在查询路由上，打开 `wow.query.allow-cross-tenant` 时，`tenant=*` 或 `tenant=("t1" "t2")` 可以跨租户读取。它的多行用逗号连成一个字典；同一个成员给出两次是格式错误（`wow.command.malformed`，读取时为 `wow.query.malformed`） |
 | `Wow-Space` | 每个路由 | 在调用方自己的空间中，要在其中行事的那个 |
+| `traceparent`、`tracestate`、`baggage` | 命令 | W3C 追踪上下文，保存为命令的追踪；没有 `traceparent` 时不读取另外两个 |
 
 `wow.http.request-facts` 列出的请求头会复制进命令，并写进它的事件流。
 
@@ -77,6 +78,7 @@ outline: deep
 | 端口不接收的 `Wow-` 请求头（`Wow-Wiat`，`Wow-Wait` 的拼写错误） | `400 wow.request.malformed`，指出它 |
 | 分两行或更多行给出的 Wow 请求头（`Wow-Request-Id: r1` 和 `Wow-Request-Id: r2`），`Wow-Scope` 除外 | `400 wow.request.malformed`，指出它：追加一行的代理不能决定取值 |
 | 任何路由上的 `Wow-Call`（服务同步调用的请求头）：命令、查询、状态读取、服务路由 | `403 wow.auth.forbidden`，无论凭据如何：调用只在内部端口上接收 |
+| 任何路由上的 `Wow-Reveal`（服务读取对端 `DISPLAY` 值的请求头） | `403 wow.auth.forbidden`，无论凭据如何：公共端口上的读取是调用方的读取，`DISPLAY` 值会被掩码 |
 | 路径中的矩阵参数（`/shop/cart/c-1;x=1/add-item`），包括不带参数名的 `;`（`c-1;`、`c-1;=v`） | `400 wow.request.malformed`：没有路由接收它们 |
 | 类型不是 `application/json` 或 `application/<name>+json` 的请求体，参数不计（`*/*`、`application/*`、`image/x+json`） | `415` |
 | [ID 规则](#aggregate-ids)拒绝的聚合 ID：含控制字符（`a%00b`）、两端有空白（`%20c-1`）、`.` 或 `..`、含 `/`、`;` 或 `\`（`a%2Fb`）、长于 256 个字符，或者 UTF-8 编码后长于 512 字节 | `400 wow.command.malformed`。Unicode ID（`%E8%B4%AD`）按原样接收：客户端会编码它发送的 ID。长到使请求行超过其上限的 ID 会先被拒绝：`414`（[路由之前](#server-refusals)） |
@@ -158,6 +160,12 @@ hop  := "accepted" ["(" context ")"]
 | `202` | 等待止于 `accepted` 的命令 |
 | `304` | 请求指明了其 `ETag` 的状态或能力描述 |
 | `4xx`、`5xx` | 一个 RFC 9457 problem（见下文）；稍后重试可能成功时带 `Retry-After` |
+
+| 响应头 | 用于 | 含义 |
+| --- | --- | --- |
+| `ETag` | 状态读取、描述符 | 应答的版本，强标签（状态读取写的是 `"3-…"`），供 `If-None-Match` 使用，也供命令的 `If-Match` 使用（[实体标签](./protocols#entity-tags)） |
+| `Wow-Rebuilding` | 快照查询、描述符 | 聚合类型的快照正在重建或回填时为 `true`：应答可能缺少重建尚未到达的内容 |
+| `Retry-After` | problem | 重试何时可能越过这个 problem，以整秒计 |
 
 **服务端推送事件。** 带 `Accept: text/event-stream` 的命令在被接受后以 `200` 回答，然后计划中列出的每一跳一到达，就为每个结果发一个事件（多条派生命令到达的同一跳各发一个），`id` 是结果的序号，事件以这一跳的阶段命名，数据是结果，直到等待结束。被接受之前的拒绝则返回一个带自身状态码的 problem：准入时的拒绝、节点已满（`429 wow.command.busy`）、无效的计划、命令主题没有接收它。响应头发出之后，拒绝、超时或失败是流的最后一个结果，失败是带错误码（`wow.storage.unavailable`、`wow.command.unknown`）的 FAILED 结果；在计划之前就结束的链（`chainEnded`）也一样。最后一个结果之后还有一个事件：`end`，数据为 `{"reason":"complete","resumable":false}`，没有 `id`，表示流是完整的；它不是结果，形状与流式 `list` 的 `end` 相同。没有它就结束的流，无论结束得多干净（节点停止、连接被切断），命令的结果都是未知的：用同一个 `Wow-Request-Id` 再次发送。读取方不根据计划推断流是否结束。立即写出一条注释 `: keep-alive`，之后在流运行期间每 15 秒写一条，使网关的空闲超时不会关闭这个流；服务端推送事件的读取方会跳过它。流式的 `list` 每条记录发一个 `row` 事件，它的 `id` 是这一行位置的游标（排序无法续读的列表没有 `id`），然后是一个 `end` 事件 `{"reason", "resumable"}`：全部记录发完为 `complete`（`"resumable":false`），`wow.query.stream.max-hold` 之后为 `hold-expired`，节点停止为 `node-stopping`，存储没能及时给下一块查询许可为 `permit-reclaimed`。可续读的流中，除 `complete` 外都可以用 `Last-Event-ID` 续读。第一行之后的失败以一个携带 problem 的 `error` 事件结束流。
 

@@ -14,18 +14,24 @@
 package me.ahoo.wow.http
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CountResult
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WowHeaders
+import me.ahoo.wow.http.caller.DeclaredServices
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.error.QueryStorageUnavailableException
+import me.ahoo.wow.runtime.admission.CallContext
+import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.spi.StorageUnavailableException
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
+import org.springframework.test.web.reactive.server.WebTestClient
 
 /**
  * A store that is unavailable (C.1 finding F2) is answered on every route as the retryable `wow.storage.unavailable`:
@@ -72,6 +78,35 @@ class StorageUnavailableRoutesTest {
         node.unavailable = true
         node.get("/shop/cart/c-1/state?version=1").assertUnavailable()
         node.get("/shop/cart/c-1/state/trace").assertUnavailable()
+    }
+
+    /**
+     * #7063: a peer's read on the internal port whose store is down is the same problem, titled as the code is
+     * everywhere ("Storage unavailable"), never the status's reason phrase.
+     */
+    @Test
+    fun `a peer's state read on a store that is down should be the retryable problem, titled as its code`() {
+        val node = HttpNode()
+        node.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""").status.assert().isEqualTo(200)
+        val peer = WebTestClient.bindToRouterFunction(
+            peerReadRoutes(
+                node.manifest,
+                node.gateway,
+                DeclaredServices.resolver(TENANT),
+                node.httpQueries,
+                node.reads,
+            ),
+        ).build()
+        val root = CallHeaders.format(CallContext.of("c", TENANT, Scope("alice"), Causation("c", "c")))
+        node.unavailable = true
+        val answer = peer.get().uri("/shop/cart/c-1/state")
+            .headers {
+                it.set(WowHeaders.SERVICE, "basket-service")
+                it.set(WowHeaders.CALL, root)
+            }
+            .answer()
+        answer.assertUnavailable()
+        answer.body!!["title"].asString().assert().isEqualTo("Storage unavailable")
     }
 
     @Test

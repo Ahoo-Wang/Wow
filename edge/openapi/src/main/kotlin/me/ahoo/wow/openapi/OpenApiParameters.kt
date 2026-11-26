@@ -58,8 +58,8 @@ internal object OpenApiParameters {
                 "store the aggregate's snapshot queries read holds the commit) or `handled(subscription)`, with an " +
                 "optional `(context)`, such as " +
                 "`handled(order/payment-saga) > committed(inventory)`. Without it the command waits for its snapshot. " +
-                "A plan longer than ${WaitHeader.MAX_LENGTH} characters, or of more than ${WaitHeader.MAX_HOPS} " +
-                "hops, is 400 `wow.wait.invalid`.",
+                "A plan longer than ${WaitHeader.MAX_LENGTH} characters, or of more hops than the node's " +
+                "`wow.wait.max-hops` (16 by default, ${WaitHeader.MAX_HOPS} at most), is 400 `wow.wait.invalid`.",
             obj("type" to "string", "maxLength" to WaitHeader.MAX_LENGTH),
         ),
         Http.WAIT_TIMEOUT_HEADER to header(

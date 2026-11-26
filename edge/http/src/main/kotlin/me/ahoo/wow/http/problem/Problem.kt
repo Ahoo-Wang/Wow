@@ -224,10 +224,10 @@ class Problem @InternalWowApi constructor(
         fun ofFailure(failure: Throwable): Problem {
             val unavailable = generateSequence(failure) { it.cause }.firstOrNull { it is StorageUnavailableException }
             if (unavailable != null) {
-                val status = HttpStatus.SERVICE_UNAVAILABLE
+                // The code's title, the same for every occurrence (RFC 9457), never the status's reason phrase.
                 return Problem(
-                    status.value(),
-                    status.reasonPhrase,
+                    HttpStatus.SERVICE_UNAVAILABLE.value(),
+                    FrameworkErrors.TITLES.getValue(FrameworkCodes.STORAGE_UNAVAILABLE),
                     unavailable.message,
                     FrameworkCodes.STORAGE_UNAVAILABLE,
                 )
