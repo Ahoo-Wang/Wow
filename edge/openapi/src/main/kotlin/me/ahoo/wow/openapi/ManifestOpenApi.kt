@@ -87,7 +87,7 @@ object ManifestOpenApi {
             "components" to Json.obj(
                 Json.SCHEMAS to framework + schemas.schemas,
                 ErrorResponses.RESPONSES to routes.responses,
-                Json.PARAMETERS to OpenApiParameters.all(),
+                Json.PARAMETERS to OpenApiParameters.all() + OpenApiParameters.host(options),
                 Json.HEADERS to OpenApiParameters.headers(),
                 SECURITY_SCHEMES to options.securitySchemes.mapValues { it.value.write() }.takeIf { it.isNotEmpty() },
             ),

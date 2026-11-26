@@ -42,6 +42,30 @@ internal object OpenApiParameters {
 
     fun ref(name: String): Map<String, Any?> = Json.ref(Json.PARAMETERS, name)
 
+    /**
+     * The command headers the host adds, by name, each a parameter of every command: the request id headers beside
+     * `Wow-Request-Id` ([OpenApiOptions.requestIdHeaders]), then the request facts ([OpenApiOptions.requestFacts]); a
+     * name the framework's parameters already have is left to them.
+     */
+    fun host(options: OpenApiOptions): Map<String, Map<String, Any?>> {
+        val framework = all().keys
+        val ids = options.requestIdHeaders.filter { it !in framework }.associateWith { name ->
+            header(
+                name,
+                "The command's request id when `${Http.REQUEST_ID_HEADER}` is absent, as an integration of the " +
+                    "service reads it: a command sent again under the same one is the same request.",
+            )
+        }
+        val facts = options.requestFacts.filter { it !in framework && it !in ids }.associateWith { name ->
+            header(
+                name,
+                "Copied into the command as a request fact (`wow.http.request-facts`), cut to 512 characters, and " +
+                    "written into its event stream.",
+            )
+        }
+        return ids + facts
+    }
+
     @Suppress("LongMethod") // One table of every parameter, one entry each.
     fun all(): Map<String, Any?> = linkedMapOf(
         ID to path(ID, "The aggregate's id."),

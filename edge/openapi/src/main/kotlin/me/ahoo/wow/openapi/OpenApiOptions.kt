@@ -25,6 +25,10 @@ package me.ahoo.wow.openapi
  *   which win over the Manifest's tables as they do at the edge.
  * - [securitySchemes] ([withSecuritySchemes]) are how a caller presents its identity, which the host fills from its
  *   caller resolver: the parts of one identity, presented together.
+ * - What the host adds to the routes, which the Manifest does not say: the [requestFacts] (`wow.http.request-facts`)
+ *   and the [requestIdHeaders] beside `Wow-Request-Id` (CoSec's `CoSec-Request-Id`), header parameters of every
+ *   command; and the [filterCodes] a filter before the routes answers (CoSec's 429 `wow.request.rate-limited` and
+ *   503 `wow.auth.unavailable`), listed on every operation.
  *
  * Fields may be added: pass the constructor's arguments by name.
  */
@@ -41,10 +45,23 @@ class OpenApiOptions(
      * callers' `Wow-*` headers). None by default.
      */
     val securitySchemes: Map<String, OpenApiSecurityScheme> = emptyMap(),
+    val requestFacts: Set<String> = emptySet(),
+    val requestIdHeaders: List<String> = emptyList(),
+    val filterCodes: List<String> = emptyList(),
 ) {
     /** These options with [schemes] as the [securitySchemes]. */
-    fun withSecuritySchemes(schemes: Map<String, OpenApiSecurityScheme>): OpenApiOptions =
-        OpenApiOptions(title, servers, datasets, manifestEndpoint, openApiEndpoint, errorStatuses, schemes.toMap())
+    fun withSecuritySchemes(schemes: Map<String, OpenApiSecurityScheme>): OpenApiOptions = OpenApiOptions(
+        title,
+        servers,
+        datasets,
+        manifestEndpoint,
+        openApiEndpoint,
+        errorStatuses,
+        schemes.toMap(),
+        requestFacts,
+        requestIdHeaders,
+        filterCodes,
+    )
 
     override fun equals(other: Any?): Boolean =
         this === other || other is OpenApiOptions && valueFields() == other.valueFields()
@@ -54,7 +71,8 @@ class OpenApiOptions(
     override fun toString(): String =
         "OpenApiOptions(title=$title, servers=$servers, datasets=$datasets, " +
             "manifestEndpoint=$manifestEndpoint, openApiEndpoint=$openApiEndpoint, errorStatuses=$errorStatuses, " +
-            "securitySchemes=$securitySchemes)"
+            "securitySchemes=$securitySchemes, requestFacts=$requestFacts, requestIdHeaders=$requestIdHeaders, " +
+            "filterCodes=$filterCodes)"
 
     private fun valueFields(): List<Any?> = listOf(
         title,
@@ -64,6 +82,9 @@ class OpenApiOptions(
         openApiEndpoint,
         errorStatuses,
         securitySchemes,
+        requestFacts,
+        requestIdHeaders,
+        filterCodes,
     )
 
     companion object {

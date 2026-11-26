@@ -36,6 +36,14 @@ Behind a proxy that serves the service under a path prefix it strips, and sends 
 
 Springdoc's documents (`/v3/api-docs`, `/v3/api-docs/wow`) declare how a caller presents its identity, so Swagger UI's "Try it out" sends it; `GET /wow/openapi` and the build's document declare none. The host fills that from its caller resolver: CoSec's resolver takes a bearer token, and the development callers take the `Wow-*` identity headers, one scheme each. Their global `security` is one requirement naming them all: they are the parts of one identity, which a request sends together, not alternatives. An application with a resolver of its own declares its schemes with a `WowOpenApiSecurity` bean, which replaces the host's.
 
+## What the host adds {#what-the-host-adds}
+
+The document a running service serves (`GET /wow/openapi`, and springdoc's) also lists what the host adds to the routes, which the Manifest does not say. The build's `openapi.json` has none of it: no host is configured when the build writes it.
+
+- **The request facts:** the headers `wow.http.request-facts` lists, each a header parameter of every command, which copies it into its headers.
+- **The request id headers:** the ones an integration reads beside `Wow-Request-Id`, a parameter of every command; `CoSec-Request-Id` with CoSec on.
+- **What a filter answers before the routes:** with CoSec on, its 429 `wow.request.rate-limited` and 503 `wow.auth.unavailable`, listed on every operation.
+
 ## Clients from the document
 
 TypeScript clients are generated from the Manifest rather than from the OpenAPI document, so they keep what OpenAPI cannot say, such as wait plans and query fields; they leave the internal commands out as the document does. The OpenAPI document serves every other language and tool.

@@ -38,7 +38,7 @@ internal class OpenApiPaths(
     private val options: OpenApiOptions,
     private val schemas: SchemaComponents,
 ) {
-    private val errors = ErrorResponses(manifest, options.errorStatuses)
+    private val errors = ErrorResponses(manifest, options.errorStatuses, options.filterCodes)
     private val paths = LinkedHashMap<String, LinkedHashMap<String, Any?>>()
 
     /** The error responses the operations refer to, once [write] has run. */
@@ -349,11 +349,13 @@ internal class OpenApiPaths(
 
     /**
      * The id of a route [byId], and the headers every command route reads, `If-Match` among them: a command by no id
-     * reads it too, the caller's own aggregate's version or `*` on a creation.
+     * reads it too, the caller's own aggregate's version or `*` on a creation. Then the ones the host adds: the request
+     * id headers beside `Wow-Request-Id`, and the request facts ([OpenApiParameters.host]).
      */
     private fun commandParameters(byId: Boolean): List<Map<String, Any?>> = buildList {
         if (byId) add(OpenApiParameters.ref(OpenApiParameters.ID))
         OpenApiParameters.COMMAND_HEADERS.forEach { add(OpenApiParameters.ref(it)) }
+        OpenApiParameters.host(options).keys.forEach { add(OpenApiParameters.ref(it)) }
     }
 
     private fun body(schema: Map<String, Any?>): Map<String, Any?> = obj(

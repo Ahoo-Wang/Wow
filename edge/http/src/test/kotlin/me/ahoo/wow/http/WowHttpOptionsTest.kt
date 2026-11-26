@@ -15,6 +15,7 @@ package me.ahoo.wow.http
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WowHeaders
 import org.junit.jupiter.api.Test
 
@@ -47,6 +48,16 @@ class WowHttpOptionsTest {
         (added == WowHttpOptions()).assert().isFalse()
         assertThrownBy<IllegalArgumentException> { WowHttpOptions(requestIdHeaders = listOf("X-Request-Id")) }
         assertThrownBy<IllegalArgumentException> { WowHttpOptions(requestIdHeaders = emptyList()) }
+    }
+
+    @Test
+    fun `a filter's codes are framework codes, which the options carry`() {
+        WowHttpOptions().filterCodes.assert().isEmpty()
+        val added = WowHttpOptions().copyWith(filterCodes = listOf(FrameworkCodes.REQUEST_RATE_LIMITED))
+        added.filterCodes.assert().containsExactly(FrameworkCodes.REQUEST_RATE_LIMITED)
+        (added == WowHttpOptions()).assert().isFalse()
+        added.toString().assert().contains("filterCodes=[${FrameworkCodes.REQUEST_RATE_LIMITED}]")
+        assertThrownBy<IllegalArgumentException> { WowHttpOptions(filterCodes = listOf("shop.cart.closed")) }
     }
 
     private fun valueSemantics(value: Any, same: Any, other: Any) {

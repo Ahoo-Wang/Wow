@@ -17,6 +17,7 @@ import com.networknt.schema.InputFormat
 import com.networknt.schema.SchemaRegistry
 import com.networknt.schema.SpecificationVersion
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.schedule.JobScope
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.wire.WowHeaders
@@ -91,6 +92,30 @@ class OpenApiRouteTest {
             .assert().contains(CART_EMPTY)
         HttpNode(options = WowHttpOptions(openApiEndpoint = false)).get(WowPaths.OPENAPI).status.assert().isEqualTo(404)
     }
+
+    @Test
+    fun `the document should list what the host adds, its command headers and its filters' codes on every route`() {
+        val options = WowHttpOptions(
+            requestFacts = setOf("X-Region"),
+            requestIdHeaders = listOf(WowHeaders.REQUEST_ID, "CoSec-Request-Id"),
+            filterCodes = listOf(FrameworkCodes.REQUEST_RATE_LIMITED, FrameworkCodes.AUTH_UNAVAILABLE),
+        )
+        val document = HttpNode(options = options).get(WowPaths.OPENAPI).body!!
+        val operations = document["paths"].properties().flatMap { (_, path) -> path.properties().map { it.value } }
+        val commands = operations.filter { operation -> refs(operation).contains(WowHeaders.REQUEST_ID) }
+            .filter { operation -> operation["responses"].has("202") }
+        commands.assert().isNotEmpty()
+        commands.forEach { command -> refs(command).assert().contains("CoSec-Request-Id", "X-Region") }
+        // Wow-Request-Id is the framework's own parameter, not the host's.
+        refs(commands.first()).count { it == WowHeaders.REQUEST_ID }.assert().isEqualTo(1)
+        document["components"]["parameters"]["X-Region"]["in"].asString().assert().isEqualTo("header")
+        operations.forEach { operation ->
+            operation["responses"].propertyNames().toList().assert().contains("429", "503")
+        }
+    }
+
+    private fun refs(operation: JsonNode): List<String> =
+        operation["parameters"]?.values()?.map { it["\$ref"].asString().substringAfterLast('/') }.orEmpty()
 
     @Test
     fun `the document should list the route without an id of an unaddressed command`() {

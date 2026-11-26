@@ -32,6 +32,20 @@ class OpenApiOptionsTest {
     }
 
     @Test
+    fun `what the host adds should be its options', and a header the framework names is left to the framework`() {
+        fun hosted() = OpenApiOptions(
+            requestFacts = setOf("X-Region", "traceparent", "CoSec-Request-Id"),
+            requestIdHeaders = listOf("CoSec-Request-Id", "Wow-Wait"),
+            filterCodes = listOf("wow.request.rate-limited"),
+        )
+        val options = hosted()
+        valueSemantics(options, hosted(), OpenApiOptions())
+        options.withSecuritySchemes(emptyMap()).filterCodes.assert().containsExactly("wow.request.rate-limited")
+        // A request id header first, then the facts; the framework's own parameters keep their names.
+        OpenApiParameters.host(options).keys.assert().containsExactly("CoSec-Request-Id", "X-Region")
+    }
+
+    @Test
     fun `a security scheme equals another of the same fields, and prints them`() {
         valueSemantics(
             OpenApiSecurityScheme.bearer("JWT"),
