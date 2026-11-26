@@ -93,21 +93,20 @@ class WebhookNotifier(
 
     /** A Markdown summary of [notice]. */
     fun textOf(notice: ParkedNotice): String {
-        val entry = notice.entry
         val title = when (notice.kind) {
             ParkedNotice.Kind.PARKED -> "parked"
             ParkedNotice.Kind.EXHAUSTED -> "spent its retries"
         }
         val next = notice.nextRetryAt?.let { "next retry at ${Instant.ofEpochMilli(it)}" } ?: "no automatic retry left"
         return buildString {
-            append("**${notice.subscription} $title: ${entry.ref}**\n")
+            append("**${notice.context}.${notice.subscription} $title: ${notice.ref}**\n")
             service?.let { append("> service: $it\n") }
             append("> group: ${notice.group}\n")
-            append("> from version: ${entry.fromVersion}")
-            entry.fromPosition?.let { append(", position $it") }
+            append("> from version: ${notice.fromVersion}")
+            notice.entry.fromPosition?.let { append(", position $it") }
             append('\n')
-            append("> reason: ${entry.reason.take(MAX_REASON)}\n")
-            append("> retries: ${entry.retries} of ${notice.spec.maxRetries}, $next\n")
+            append("> reason: ${notice.reason.take(MAX_REASON)}\n")
+            append("> retries: ${notice.retries} of ${notice.maxRetries}, $next\n")
             append("> at: ${Instant.ofEpochMilli(notice.at)}")
         }
     }

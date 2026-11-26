@@ -15,10 +15,11 @@ package me.ahoo.wow.runtime.subscription
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
-import me.ahoo.wow.spi.subscription.SubscriptionId
 
 /**
  * Hears what happens to a subscription's parked entries that an operator should know of (9.x's WeCom
@@ -45,25 +46,56 @@ fun interface ParkedNotifier {
 }
 
 /**
- * What a [ParkedNotifier] hears: [kind] happened at [at] (epoch milliseconds) to [entry], parked by a subscription of
- * [context] run in lease [group], whose retry spec is [spec].
+ * What a [ParkedNotifier] hears: [kind] happened at [at] (epoch milliseconds) to the aggregate [ref], which the
+ * subscription [subscription] of [context], run in lease [group], parked from its event at [fromVersion].
+ *
+ * It is a view of the failure ledger's entry, with what a notification says: why the aggregate parked ([reason]) and
+ * when ([failedAt]), the automatic retries made so far ([retries]) of the [maxRetries] its retry spec allows, and when
+ * the next one is due ([nextRetryAt]). The entry itself ([entry]) and its retry spec ([spec]) are the ledger's records,
+ * at the SPI's level; an operator reads the rest of the entry in the ops console.
+ *
+ * Fields may be added: Wow builds a notice ([of], at the SPI's level); an application reads one.
  */
 class ParkedNotice @InternalWowApi constructor(
     val kind: Kind,
     val group: String,
+    /** The failure ledger's entry: a record of the ledger port's, so at the SPI's level. */
+    @property:WowSpi
     val entry: ParkedAggregate,
+    /** The retry spec the entry is retried by: a record of the ledger port's, so at the SPI's level. */
+    @property:WowSpi
     val spec: ParkedRetrySpec,
     val at: Long,
 ) {
-    /** When the next automatic retry is due, null when there is none. */
-    val nextRetryAt: Long? get() = entry.nextRetryAt(spec)
-
     /** The context of the subscription that parked the entry. */
     val context: String get() = entry.subscription.context
 
-    /** The subscription that parked the entry. */
-    @InternalWowApi
-    val subscription: SubscriptionId get() = entry.subscription
+    /** The subscription that parked the entry, by its name in [context] (`processor.function`, or a built-in's). */
+    val subscription: String get() = entry.subscription.name
+
+    /** The parked aggregate. */
+    val ref: AggregateRef get() = entry.ref
+
+    /** The version of the aggregate's event the subscription parked at, and goes on from once the entry clears. */
+    val fromVersion: Int get() = entry.fromVersion
+
+    /**
+     * Why the aggregate parked: what failed, never a value it failed on (see the failure guide), or, for an entry that
+     * can only be skipped, why.
+     */
+    val reason: String get() = entry.reason
+
+    /** When the aggregate parked (epoch milliseconds). */
+    val failedAt: Long get() = entry.failedAt
+
+    /** The automatic retries made so far. */
+    val retries: Int get() = entry.retries
+
+    /** How many automatic retries the entry's retry spec allows. */
+    val maxRetries: Int get() = spec.maxRetries
+
+    /** When the next automatic retry is due (epoch milliseconds), null when there is none. */
+    val nextRetryAt: Long? get() = entry.nextRetryAt(spec)
 
     /**
      * What befell the entry.
@@ -99,7 +131,11 @@ class ParkedNotice @InternalWowApi constructor(
     ): ParkedNotice = ParkedNotice(kind, group, entry, spec, at)
 
     companion object {
-        /** A ParkedNotice of the given fields; parameters added later come last, with a default. */
+        /**
+         * A ParkedNotice of the given fields; parameters added later come last, with a default. It takes the ledger's
+         * records, so it is at the SPI's level: a test of a notifier builds one, as Wow does.
+         */
+        @WowSpi
         @JvmStatic
         fun of(
             kind: Kind,
@@ -123,7 +159,7 @@ internal suspend fun ParkedNotifier.notifyQuietly(notice: ParkedNotice) {
         throw cancelled
     } catch (failure: Exception) {
         logger.warn(failure) {
-            "Failed to notify that ${notice.entry.ref} is ${notice.kind} by ${notice.entry.subscription}."
+            "Failed to notify that ${notice.ref} is ${notice.kind} by ${notice.context}.${notice.subscription}."
         }
     }
 }
