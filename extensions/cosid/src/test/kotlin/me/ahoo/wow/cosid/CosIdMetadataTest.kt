@@ -25,13 +25,13 @@ import java.util.Collections
 import java.util.Enumeration
 
 /**
- * wow-cosid's own keys (design rules K1, K8, decision D302): their metadata, generated from [CosIdProperties] and
+ * wow-cosid's own keys (design rules K1, K8, decision D302): their metadata, generated from [WowCosIdProperties] and
  * shipped in the module, so a host accepts `wow.cosid.*` with the module on the class path and refuses it, naming the
  * module, without it. `WOW_UPDATE_SNAPSHOTS=1` rewrites the metadata.
  */
 class CosIdMetadataTest {
-    private val metadata = ConfigurationMetadata(listOf(CosIdProperties::class.java to CosIdProperties.PREFIX))
-    private val environment = MockEnvironment().withProperty(CosIdProperties.AGGREGATE_GENERATOR, "snowflake")
+    private val metadata = ConfigurationMetadata(listOf(WowCosIdProperties::class.java to WowCosIdProperties.PREFIX))
+    private val environment = MockEnvironment().withProperty(WowCosIdProperties.AGGREGATE_GENERATOR, "snowflake")
 
     @Test
     fun `the committed metadata should be what the properties class gives`() {
@@ -64,7 +64,7 @@ class CosIdMetadataTest {
     fun `the aggregate generator should be the key, else the properties' default`() {
         WowCosIdAutoConfiguration.aggregateGeneratorOf(environment).assert().isEqualTo("snowflake")
         WowCosIdAutoConfiguration.aggregateGeneratorOf(MockEnvironment()).assert()
-            .isEqualTo(CosIdProperties().aggregateGenerator)
+            .isEqualTo(WowCosIdProperties().aggregateGenerator)
     }
 
     /** A class loader without wow-cosid's configuration metadata, as a host without the module has none. */

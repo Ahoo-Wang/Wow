@@ -52,18 +52,18 @@ class WowCosIdAutoConfiguration {
 
     companion object {
         /** The key of the CosId generator of the aggregate types that have none of their own. */
-        const val AGGREGATE_GENERATOR: String = CosIdProperties.AGGREGATE_GENERATOR
+        const val AGGREGATE_GENERATOR: String = WowCosIdProperties.AGGREGATE_GENERATOR
 
         /** The host's bean of the aggregate types no `id-generator` names (`WowAutoConfiguration`'s). */
         const val AGGREGATE_ID_GENERATOR: String = "wowAggregateIdGenerator"
 
         /**
          * The CosId generator of the aggregate types that have none of their own: `wow.cosid.aggregate-generator`,
-         * read from the environment since the module imports no Spring Boot, else [CosIdProperties]' default.
+         * read from the environment since the module imports no Spring Boot, else [WowCosIdProperties]' default.
          */
         internal fun aggregateGeneratorOf(environment: Environment): String =
-            environment.getProperty(CosIdProperties.AGGREGATE_GENERATOR)?.takeIf { it.isNotBlank() }
-                ?: CosIdProperties().aggregateGenerator
+            environment.getProperty(WowCosIdProperties.AGGREGATE_GENERATOR)?.takeIf { it.isNotBlank() }
+                ?: WowCosIdProperties().aggregateGenerator
 
         private fun runsCosId(context: ConditionContext): Boolean =
             context.beanFactory?.getBeanNamesForType(CosIdRuntime::class.java, true, false)

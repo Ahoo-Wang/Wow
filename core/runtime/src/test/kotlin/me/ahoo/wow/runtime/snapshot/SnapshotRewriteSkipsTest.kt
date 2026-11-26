@@ -123,7 +123,7 @@ class SnapshotRewriteSkipsTest {
         log,
         leases,
         listOf(LogProgress(GROUP, log, InMemoryCheckpointStore(), ledger)),
-        SnapshotOptions(interval = 1.hours, leaseTtl = 2.hours, memberTtl = 2.hours),
+        SnapshotOptions(maintenanceInterval = 1.hours, leaseTtl = 2.hours, memberTtl = 2.hours),
         observer = observer,
         skips = with ?: skipsOf(Work.SNAPSHOT_REWRITE).takeIf { skips },
     )

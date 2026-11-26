@@ -473,9 +473,9 @@ abstract class SnapshotRebuildSpec {
                 checkpointInterval = 20.milliseconds,
             ),
             snapshots = SnapshotOptions(
-                interval = 1.hours,
-                batch = 2,
-                pages = 2,
+                maintenanceInterval = 1.hours,
+                rebuildPageSize = 2,
+                rebuildMaxPages = 2,
                 leaseTtl = 2.hours,
                 memberTtl = 2.hours
             ),

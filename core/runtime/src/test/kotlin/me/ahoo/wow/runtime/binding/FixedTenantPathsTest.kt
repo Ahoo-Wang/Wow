@@ -85,7 +85,7 @@ class FixedTenantPathsTest {
                 timers = TimerOptions(
                     pollInterval = 20.milliseconds,
                     lookahead = 1.seconds,
-                    claimTimeout = 300.milliseconds
+                    claimTtl = 300.milliseconds
                 ),
             ),
             admission = AdmissionPlugins(tenants = TenantPolicy.fixed(mapOf(CART to SHARED))),

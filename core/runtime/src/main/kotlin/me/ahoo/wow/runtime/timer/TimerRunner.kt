@@ -56,7 +56,7 @@ import kotlin.time.TimeSource
  *
  * **Sending one**: from the row as loaded, with no read of it again. One due longer ago than
  * [TimerOptions.expiresAfter] is cancelled as `EXPIRED`. Otherwise the runner first claims it with one conditional
- * write from the loaded row (PENDING to FIRING, due again at the claim's deadline, [TimerOptions.claimTimeout]): a
+ * write from the loaded row (PENDING to FIRING, due again at the claim's deadline, [TimerOptions.claimTtl]): a
  * timer cancelled or rescheduled after it was loaded fails the claim and is not sent. Claimed, [firer] sends it, its
  * request id `timer#slot`, and its outcome becomes a conditional change of the claimed row ([TimerChange]), written
  * with the others of the round in one batch ([flush]). A claim left by a node that died lapses at its deadline, and
@@ -302,7 +302,7 @@ class TimerRunner(
         // Claimed before it is sent, from the row as loaded: one cancelled or rescheduled since is not sent.
         val claimed = current.copyWith(
             status = TimerStatus.FIRING,
-            dueAt = now + options.claimTimeout.inWholeMilliseconds
+            dueAt = now + options.claimTtl.inWholeMilliseconds
         )
         val won = quietly("claim the timer ${timer.id}") { store.settle(listOf(TimerChange(timer, claimed))).single() }
         if (won != true) {

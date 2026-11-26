@@ -64,7 +64,7 @@ class CosIdGeneratorsTest {
         cosIdRunner().run { context ->
             val failure = runCatching { aggregatesOf(context.getBean(CosIdRuntime::class.java), "missing") }
                 .exceptionOrNull() as WowConfigurationException
-            failure.key.assert().isEqualTo(CosIdProperties.AGGREGATE_GENERATOR)
+            failure.key.assert().isEqualTo(WowCosIdProperties.AGGREGATE_GENERATOR)
             failure.message.assert().contains("missing").contains("cosid.generators.missing")
         }
     }

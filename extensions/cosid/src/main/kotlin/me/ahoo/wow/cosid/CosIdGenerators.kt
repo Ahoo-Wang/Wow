@@ -43,15 +43,15 @@ private val logger = KotlinLogging.logger {}
  */
 class CosIdAggregateIdGenerator(
     private val runtime: CosIdRuntime,
-    val fallback: String = CosIdProperties().aggregateGenerator,
+    val fallback: String = WowCosIdProperties().aggregateGenerator,
 ) : AggregateIdGenerator, AggregateIdGeneratorSource {
     private val fallbackIds: Supplier<String> = textOf(runtime, fallback) ?: throw WowConfigurationException(
-        CosIdProperties.AGGREGATE_GENERATOR,
+        WowCosIdProperties.AGGREGATE_GENERATOR,
         fallback,
         "CosId has no generator named $fallback for the aggregate types that have none of their own " +
             "(${runtime.describe().keys.sorted()}).",
         "Configure cosid.generators.$fallback (a cosid80 with a radix-62 codec, say), or name one of CosId's " +
-            "generators in ${CosIdProperties.AGGREGATE_GENERATOR}.",
+            "generators in ${WowCosIdProperties.AGGREGATE_GENERATOR}.",
     )
     private val generators = ConcurrentHashMap<AggregateType, Supplier<String>>()
 

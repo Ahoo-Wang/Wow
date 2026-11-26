@@ -17,18 +17,18 @@ public final class me/ahoo/wow/runtime/StateCacheOptions {
 
 public final class me/ahoo/wow/runtime/access/AccessStampOptions {
 	public static final field Companion Lme/ahoo/wow/runtime/access/AccessStampOptions$Companion;
-	public static final field DEFAULT_BATCH I
 	public static final field DEFAULT_CAPACITY I
+	public static final field DEFAULT_STAMP_BATCH I
 	public static final field DEFAULT_WALK_BATCH I
 	public static final field DEFAULT_WALK_RATE I
 	public static final field DEFAULT_WALK_SHARE D
 	public synthetic fun <init> (IIIIDJJJILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
-	public final fun getBatch ()I
 	public final fun getCapacity ()I
 	public final fun getInterval-UwyO8pc ()J
 	public final fun getLeaseTtl-UwyO8pc ()J
 	public final fun getMemberTtl-UwyO8pc ()J
+	public final fun getStampBatch ()I
 	public final fun getWalkBatch ()I
 	public final fun getWalkRate ()I
 	public final fun getWalkShare ()D
@@ -359,7 +359,7 @@ public final class me/ahoo/wow/runtime/cluster/ClusterOptions {
 	public final fun getHeartbeatInterval-UwyO8pc ()J
 	public final fun getLeaseParallelism ()I
 	public final fun getLeaseTtl-UwyO8pc ()J
-	public final fun getMaxInFlightPerPeer ()I
+	public final fun getMaxInFlightPerNode ()I
 	public final fun getMemberTtl-UwyO8pc ()J
 	public final fun getReconcileInterval-UwyO8pc ()J
 	public final fun getReconcileTimeout-UwyO8pc ()J
@@ -606,7 +606,7 @@ public final class me/ahoo/wow/runtime/node/SourceTopics {
 	public final fun getAdmin ()Lme/ahoo/wow/spi/transport/TopicAdmin;
 	public final fun getDdl ()Lme/ahoo/wow/spi/Ddl;
 	public final fun getIntake ()Z
-	public final fun getPartitionRefresh-UwyO8pc ()J
+	public final fun getPartitionRefreshInterval-UwyO8pc ()J
 	public final fun getPrefix ()Ljava/lang/String;
 	public final fun getProducer ()Lme/ahoo/wow/spi/transport/TopicProducer;
 	public final fun getSource ()Lme/ahoo/wow/spi/transport/PartitionedSource;
@@ -624,7 +624,7 @@ public final class me/ahoo/wow/runtime/node/SourceTopics {
 }
 
 public final class me/ahoo/wow/runtime/node/SourceTopics$Companion {
-	public final fun getDEFAULT_PARTITION_REFRESH-UwyO8pc ()J
+	public final fun getDEFAULT_PARTITION_REFRESH_INTERVAL-UwyO8pc ()J
 	public final fun of (Lme/ahoo/wow/spi/transport/PartitionedSource;)Lme/ahoo/wow/runtime/node/SourceTopics;
 	public final fun of (Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;)Lme/ahoo/wow/runtime/node/SourceTopics;
 	public final fun of (Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;Lme/ahoo/wow/spi/transport/TopicProducer;)Lme/ahoo/wow/runtime/node/SourceTopics;
@@ -661,24 +661,24 @@ public final class me/ahoo/wow/runtime/sink/PublishedSinks$Companion {
 
 public final class me/ahoo/wow/runtime/snapshot/SnapshotOptions {
 	public static final field Companion Lme/ahoo/wow/runtime/snapshot/SnapshotOptions$Companion;
-	public static final field DEFAULT_BATCH I
-	public static final field DEFAULT_PAGES I
+	public static final field DEFAULT_REBUILD_MAX_PAGES I
+	public static final field DEFAULT_REBUILD_PAGE_SIZE I
 	public static final field DEFAULT_WRITE_BATCH I
 	public synthetic fun <init> (JIIJJIJLjava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
-	public final fun getBatch ()I
-	public final fun getInterval-UwyO8pc ()J
 	public final fun getLeaseTtl-UwyO8pc ()J
 	public final fun getLoadTimeout-UwyO8pc ()J
+	public final fun getMaintenanceInterval-UwyO8pc ()J
 	public final fun getMemberTtl-UwyO8pc ()J
-	public final fun getPages ()I
+	public final fun getRebuildMaxPages ()I
+	public final fun getRebuildPageSize ()I
 	public final fun getWriteBatch ()I
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/runtime/snapshot/SnapshotOptions$Companion {
-	public final fun getDEFAULT_INTERVAL-UwyO8pc ()J
+	public final fun getDEFAULT_MAINTENANCE_INTERVAL-UwyO8pc ()J
 	public final fun getDEFAULT_TTL-UwyO8pc ()J
 }
 
@@ -832,7 +832,7 @@ public final class me/ahoo/wow/runtime/timer/TimerOptions {
 	public synthetic fun <init> (JJLme/ahoo/wow/runtime/subscription/RetryPolicy;Lkotlin/time/Duration;IILjava/lang/Double;JJIILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getBatch ()I
-	public final fun getClaimTimeout-UwyO8pc ()J
+	public final fun getClaimTtl-UwyO8pc ()J
 	public final fun getExpiresAfter-FghU774 ()Lkotlin/time/Duration;
 	public final fun getLookahead-UwyO8pc ()J
 	public final fun getMaxBusyRetries ()I

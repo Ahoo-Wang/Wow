@@ -131,23 +131,8 @@ A backend's correctness is the contract, not its own tests. The TCK holds one ab
        override val facets: List<Class<*>> = listOf(StoreQueries::class.java, StorePool::class.java)
 
        /** PostgreSQL's jsonb refuses a NUL character. */
-       override fun refused(stream: EventStreamRecord): EventStreamRecord = with(stream) {
-           EventStreamRecord.of(
-               ref,
-               version,
-               commandId,
-               requestId,
-               commandType,
-               commitTime,
-               listOf(EventRecord.of("x.aggregate.Named", 1, """{"name":"a\u0000b"}""")),
-               scope,
-               causation,
-               headers,
-               operator,
-               access,
-               accessVersion,
-           )
-       }
+       override fun refused(stream: EventStreamRecord): EventStreamRecord =
+           stream.withEvents(listOf(EventRecord.of("x.aggregate.Named", 1, """{"name":"a\u0000b"}""")))
    }
    ```
 
@@ -182,23 +167,8 @@ A backend's correctness is the contract, not its own tests. The TCK holds one ab
            (log as PostgresEventLog).snapshotTailsWith(snapshots as PostgresSnapshotStore)
 
        /** A `\u0000` in a payload string: PostgreSQL's `jsonb` does not take it. */
-       override fun refused(stream: EventStreamRecord): EventStreamRecord = with(stream) {
-           EventStreamRecord.of(
-               ref,
-               version,
-               commandId,
-               requestId,
-               commandType,
-               commitTime,
-               listOf(EventRecord.of("x.aggregate.Named", 1, """{"name":"a\u0000b"}""")),
-               scope,
-               causation,
-               headers,
-               operator,
-               access,
-               accessVersion,
-           )
-       }
+       override fun refused(stream: EventStreamRecord): EventStreamRecord =
+           stream.withEvents(listOf(EventRecord.of("x.aggregate.Named", 1, """{"name":"a\u0000b"}""")))
    }
    ```
 

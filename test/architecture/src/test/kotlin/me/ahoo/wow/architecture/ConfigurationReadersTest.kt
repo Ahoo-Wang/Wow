@@ -128,7 +128,7 @@ class ConfigurationReadersTest {
                 "a provider's own settings, `wow.<type>.*` and `wow.stores.<name>.*`, handed to it as a map: the " +
                 "settings its provider declares, which no properties bean knows",
             "extensions/cosid/src/main/kotlin/me/ahoo/wow/cosid/WowCosIdAutoConfiguration.kt" to
-                "module imports no Spring Boot (D118): it reads its key, CosIdProperties holding the one default",
+                "module imports no Spring Boot (D118): it reads its key, WowCosIdProperties holding the one default",
             "extensions/cocache/src/main/kotlin/me/ahoo/wow/cocache/WowCoCacheAutoConfiguration.kt" to
                 "module imports no Spring Boot (D118): it reads its keys, WowCoCacheProperties holding the defaults",
         )

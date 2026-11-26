@@ -36,7 +36,7 @@ import kotlin.time.Duration.Companion.seconds
  *   outcome `EXPIRED`; null, the default, sends every timer however late.
  * - [batch]: the most timers of each partition one read of a store loads, so a backlog in one partition never keeps
  *   another's due timers waiting; [parallelism]: the most commands a partition sends at once.
- * - [claimTimeout]: how long a claim on a timer being sent holds: a claim whose node died lapses after
+ * - [claimTtl]: how long a claim on a timer being sent holds: a claim whose node died lapses after
  *   it, and the next owner of the partition sends the timer again; longer than a send takes.
  * - [maxFireRate]: the most commands a partition sends a second (`wow.timers.max-fire-rate`), so a backlog of overdue
  *   timers after an outage drains at that rate instead of at once; null, the default, sends them as fast as
@@ -63,7 +63,7 @@ class TimerOptions @InternalWowApi constructor(
     val batch: Int = 1_000,
     val parallelism: Int = 64,
     val maxFireRate: Double? = null,
-    val claimTimeout: Duration = 30.seconds,
+    val claimTtl: Duration = 30.seconds,
     val maxEarlyWait: Duration = 5.seconds,
     val maxBusyRetries: Int = RetryDefaults.TIMER_MAX_BUSY_RETRIES,
 ) {
@@ -74,7 +74,7 @@ class TimerOptions @InternalWowApi constructor(
         require(batch >= 1) { "A read loads at least one timer." }
         require(parallelism >= 1) { "A partition sends at least one command at once." }
         require(maxFireRate == null || maxFireRate > 0) { "A fire rate is positive." }
-        require(claimTimeout.isPositive()) { "A claim holds for a positive time." }
+        require(claimTtl.isPositive()) { "A claim holds for a positive time." }
         require(!maxEarlyWait.isNegative()) { "The maximum early wait is never negative." }
         require(maxBusyRetries >= 0) { "The busy retries of a timer are never negative." }
     }
@@ -89,7 +89,7 @@ class TimerOptions @InternalWowApi constructor(
         batch: Int = this.batch,
         parallelism: Int = this.parallelism,
         maxFireRate: Double? = this.maxFireRate,
-        claimTimeout: Duration = this.claimTimeout,
+        claimTtl: Duration = this.claimTtl,
         maxEarlyWait: Duration = this.maxEarlyWait,
         maxBusyRetries: Int = this.maxBusyRetries,
     ): TimerOptions = TimerOptions(
@@ -100,7 +100,7 @@ class TimerOptions @InternalWowApi constructor(
         batch,
         parallelism,
         maxFireRate,
-        claimTimeout,
+        claimTtl,
         maxEarlyWait,
         maxBusyRetries,
     )
@@ -113,7 +113,7 @@ class TimerOptions @InternalWowApi constructor(
     override fun toString(): String =
         "TimerOptions(pollInterval=$pollInterval, lookahead=$lookahead, retry=$retry, " +
             "expiresAfter=$expiresAfter, batch=$batch, parallelism=$parallelism, maxFireRate=$maxFireRate, " +
-            "claimTimeout=$claimTimeout, maxEarlyWait=$maxEarlyWait, maxBusyRetries=$maxBusyRetries)"
+            "claimTtl=$claimTtl, maxEarlyWait=$maxEarlyWait, maxBusyRetries=$maxBusyRetries)"
 
     private fun valueFields(): List<Any?> = listOf(
         pollInterval,
@@ -123,7 +123,7 @@ class TimerOptions @InternalWowApi constructor(
         batch,
         parallelism,
         maxFireRate,
-        claimTimeout,
+        claimTtl,
         maxEarlyWait,
         maxBusyRetries,
     )

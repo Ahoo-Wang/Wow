@@ -185,7 +185,7 @@ class TopicSubscriptionsTest : TopicSubscriptionsFixtures() {
         val topic = "wow.sales.flaky.state"
         topics.create(topic, 2)
         val flaky = FlakyLeases(leases)
-        val growing = topicSubscriptions(flaky, topic, partitionRefresh = 20.milliseconds)
+        val growing = topicSubscriptions(flaky, topic, partitionRefreshInterval = 20.milliseconds)
         growing.start()
         growing.awaitStarted()
         eventually { growing.ownership?.owned == setOf(0, 1) }
@@ -202,7 +202,7 @@ class TopicSubscriptionsTest : TopicSubscriptionsFixtures() {
     private fun topicSubscriptions(
         store: LeaseStore,
         topic: String = ORDER_TOPIC,
-        partitionRefresh: Duration = Duration.INFINITE,
+        partitionRefreshInterval: Duration = Duration.INFINITE,
     ): TopicSubscriptions = TopicSubscriptions(
         service = SERVICE,
         topic = topic,
@@ -215,6 +215,6 @@ class TopicSubscriptionsTest : TopicSubscriptionsFixtures() {
         subscriptions = listOf(board),
         options = testOptions(),
         cluster = fastOptions(),
-        partitionRefresh = partitionRefresh,
+        partitionRefreshInterval = partitionRefreshInterval,
     ).also { started += it }
 }

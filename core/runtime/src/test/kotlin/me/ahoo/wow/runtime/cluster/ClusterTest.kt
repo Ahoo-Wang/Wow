@@ -331,7 +331,7 @@ class ClusterTest : ClusterTestCase() {
     fun `a command for a peer with its in-flight forwards at the limit is refused busy, not run here`(): Unit =
         runBlocking {
             cluster.close()
-            cluster = TestCluster(options = fastOptions(forwardTimeout = 5.seconds, maxInFlightPerPeer = 1))
+            cluster = TestCluster(options = fastOptions(forwardTimeout = 5.seconds, maxInFlightPerNode = 1))
             val (one, two) = cluster.start("node-1", "node-2")
             cluster.awaitStable()
             val (first, second) = (0 until 64).map { "acc-$it" }.filter { ownerOf(it) == "node-2" }.take(2)

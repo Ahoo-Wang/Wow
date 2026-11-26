@@ -96,7 +96,7 @@ class ScheduledCommandsTest {
         timers: TimerOptions = TimerOptions(
             pollInterval = 20.milliseconds,
             lookahead = 1.seconds,
-            claimTimeout = 300.milliseconds
+            claimTtl = 300.milliseconds
         ),
     ): ServiceNode = ServiceNode(
         SHOP_SERVICE,
@@ -375,7 +375,7 @@ class ScheduledCommandsTest {
             pollInterval = 20.milliseconds,
             lookahead = 1.seconds,
             retry = RetryPolicy(maxAttempts = 100, initialBackoff = 50.milliseconds, maxBackoff = 100.milliseconds),
-            claimTimeout = 1.seconds,
+            claimTtl = 1.seconds,
             maxEarlyWait = 300.milliseconds,
         )
         val node = node("node-1", TimedBackends(), clock = skewed, timers = timers).also { it.start() }
