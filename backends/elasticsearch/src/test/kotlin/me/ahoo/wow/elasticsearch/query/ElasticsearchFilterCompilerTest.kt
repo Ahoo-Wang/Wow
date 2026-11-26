@@ -34,9 +34,9 @@ import co.elastic.clients.json.JsonData
 import co.elastic.clients.json.jackson.Jackson3JsonpMapper
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.*
+import me.ahoo.wow.api.query.CaseFolding
 import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.api.query.dsl.filter
-import me.ahoo.wow.query.backend.CaseFolding
 import me.ahoo.wow.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueSchema

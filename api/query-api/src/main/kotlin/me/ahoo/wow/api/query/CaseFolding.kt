@@ -11,8 +11,9 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.backend
+package me.ahoo.wow.api.query
 
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
@@ -27,11 +28,13 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * with `is`, nor `ı` (U+0131) meet `i`.
  *
  * The in-memory reference compares [fold]ed texts. A store matches the regular expression [pattern] builds from the
- * operand, case-sensitively, so its own case functions, which follow its locale or its version, decide nothing.
+ * operand, case-sensitively, so its own case functions, which follow its locale or its version, decide nothing. So
+ * does a compiler of SQL outside Wow's modules that must mean what the query protocol means, as the analytics
+ * catalog's dataset definitions do (#7071): [pattern] is the one entry for it; the rest is Wow's own.
  */
-@InternalWowApi
+@ExperimentalWowApi
 object CaseFolding {
-    private const val RESOURCE = "/me/ahoo/wow/query/case-folding.txt"
+    private const val RESOURCE = "/me/ahoo/wow/api/query/case-folding.txt"
     private const val HEX = 16
 
     /** The class of each character that folds together with others: its members, ascending. */
@@ -48,9 +51,11 @@ object CaseFolding {
     }
 
     /** The characters [codePoint] folds together with, itself among them, ascending; null when it folds with none. */
+    @InternalWowApi
     fun classOf(codePoint: Int): IntArray? = classes[codePoint]
 
     /** [text] folded: each character as the first of its class, so two texts fold equal when their letters do. */
+    @InternalWowApi
     fun fold(text: String): String {
         val folded = StringBuilder(text.length)
         text.codePoints().forEach { codePoint -> folded.appendCodePoint(classOf(codePoint)?.first() ?: codePoint) }

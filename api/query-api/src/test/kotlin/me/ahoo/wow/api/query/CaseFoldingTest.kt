@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.backend
+package me.ahoo.wow.api.query
 
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test

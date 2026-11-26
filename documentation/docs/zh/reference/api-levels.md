@@ -44,6 +44,7 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.api.query.AggregationFunction` | class | `wow-query-api` |
 | `me.ahoo.wow.api.query.AggregationQuery` | class | `wow-query-api` |
 | `me.ahoo.wow.api.query.AggregationElement` | class | `wow-query-api` |
+| `me.ahoo.wow.api.query.CaseFolding` | object | `wow-query-api` |
 | `me.ahoo.wow.api.query.ComparisonOperator` | class | `wow-query-api` |
 | `me.ahoo.wow.api.query.DerivedExpression` | interface | `wow-query-api` |
 | `me.ahoo.wow.api.query.WindowFunction` | class | `wow-query-api` |

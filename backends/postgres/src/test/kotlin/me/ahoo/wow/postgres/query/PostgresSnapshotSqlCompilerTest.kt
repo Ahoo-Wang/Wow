@@ -21,6 +21,7 @@ import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
+import me.ahoo.wow.api.query.CaseFolding
 import me.ahoo.wow.api.query.ComparisonOperator
 import me.ahoo.wow.api.query.ContainsAllFilter
 import me.ahoo.wow.api.query.ContainsFilter
@@ -48,7 +49,6 @@ import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.query.admission.QueryAdmission
-import me.ahoo.wow.query.backend.CaseFolding
 import me.ahoo.wow.query.backend.CursorPosition
 import me.ahoo.wow.query.backend.GroupWindow
 import me.ahoo.wow.query.backend.PageWindow

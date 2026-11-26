@@ -65,7 +65,7 @@ Wow 表的保护级别在分析目录中只能收紧。当 Sink 的那一行降�
 - **保护级别**跟随血缘：由敏感值计算出的列，与那个值受到同样的保护；列可以声明自己的保护级别（`sensitivity`），低于其血缘要求的声明需要审批人才能发布。
 - `identity` 指明标识一行的列，`eventTime` 指明相对时间过滤默认读取的列。
 
-分析目录在定义起草或修订（`ReviseDataset`）时对照目录检查它，并拒绝指明未知源或列、跨租户关联，或调用了函数集之外的函数的定义。
+分析目录在定义起草或修订（`ReviseDataset`）时对照目录检查它，并拒绝指明未知源或列、跨租户关联，或调用了函数集之外的函数的定义。忽略大小写的文本判断 `containsIgnoreCase`、`startsWithIgnoreCase` 和 `endsWithIgnoreCase` 拿一个值与引号里写出的文本比较，如 `containsIgnoreCase(o.note, 'σ')`，第二个操作数是别的东西即被拒绝：它按 Unicode 的简单大小写折叠比较两者，与查询里忽略大小写的过滤在每个存储上一样，所以 `λόγος` 包含 `σ`、`Maſſe` 以 `mas` 开头，不论 ClickHouse 自己的大小写函数怎么说。
 
 **有访问策略的聚合的 Wow 表，不能作为分析目录数据集的源。** 这类聚合的行由它的策略决定，只有拥有它的服务能求值，所以无论这样的表是主体还是被关联的源，读取它的定义在起草、修订或发布时都会被分析目录拒绝；已发布的数据集若变成读取这样的表，就转为需要修订。这样的数据集改由拥有该聚合的服务提供：在一个绑定到该聚合的数据集文件中声明（[从服务发布数据集](../guide/datasets#rows-of-an-aggregate-with-an-access-policy)）。分析目录从每张表的 `wow_catalog` 行得知这一点，这一行由拥有该聚合的服务的 Sink 写入（[ClickHouse](../operate/clickhouse#wow-catalog)）；Sink 所在节点没有查询引擎（`wow.query.enabled: false`）时，这一行两者都不写，按有策略处理。
 
