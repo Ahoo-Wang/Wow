@@ -78,7 +78,7 @@ function create(engine: ViewEngine) {
   const definition = engine.definitions.get(ID) as DataViewDefinition;
   return engine.create(ID, {
     title: 'New',
-    scope: 'personal',
+    audience: 'personal',
     config: defaultRecordConfig(definition),
   });
 }

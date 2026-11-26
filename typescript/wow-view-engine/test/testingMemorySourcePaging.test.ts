@@ -72,7 +72,7 @@ describe("memorySource's pages", () => {
       // And the engine reads it as it reads the service's own refusal.
       expect(await sourceFailure(failure), cursor).toMatchObject({
         status: 400,
-        errorCode: 'wow.query.invalid',
+        code: 'wow.query.invalid',
         violation: { code: 'invalid-cursor', path: 'cursor' },
       });
     }

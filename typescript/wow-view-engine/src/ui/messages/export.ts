@@ -91,4 +91,4 @@ export const exportMessages = {
 
   // What a failed export has to say, wherever it is said.
   'export.failed': 'The export failed. {reason}',
-} as const satisfies Record<string, string>;
+} satisfies Record<string, string>;

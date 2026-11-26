@@ -197,7 +197,7 @@ describe('导出数据… on a record panel (D22 运维)', () => {
       panels: [
         panel({
           title: 'Pending',
-          bindings: [{ globalField: 'region', panelField: 'warehouse' }],
+          bindings: [{ dashboardField: 'region', panelField: 'warehouse' }],
         }),
       ],
     });

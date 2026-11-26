@@ -45,7 +45,7 @@ export const engine = new ViewEngine({
 | `text` | How the definitions' keys (`text(key)`) are said in the language the engine starts in, for a host with no Provider; under a `ViewHost` or `MessagesProvider` they are said in its language. Left out, a key reads as itself until a language is set |
 | `limits` | The host's budgets over `DEFAULT_RUNTIME_LIMITS`; what is left out keeps its default. The source budgets (`maxPageSize`, `maxPageWindow`, `maxAnalysisRows`, `maxQueryFilterNodes`, `maxFilterValues`) come from a source's descriptor, and one given here only lowers it — leave them out unless the engine should ask for less than the server admits |
 | `environment` | The only interface between a runtime and its host: clock, time zone, timers, page visibility, failure reports ([`RuntimeEnvironment`](#api-RuntimeEnvironment)) |
-| `newId` | Makes idempotency keys; overridden in tests to keep them readable |
+| `newRequestId` | Makes a write's request id, its idempotency key; overridden in tests to keep them readable |
 | `onIssue` | Findings with no caller to reject and nothing thrown behind them: a definition's admission, a list entry that was dropped, a change listener that threw. Failures — a query, a store call, an export, a render — go to `environment.onError` instead. Left out, a development build (`NODE_ENV` of `development`) writes them to the console, grouped by resource, each with how to fix it; any other build drops them |
 
 **Give your fetcher a timeout.** `@ahoo-wang/fetcher` sets none by default, and the engine does not time a query out either: a server that takes the connection and never answers leaves a view opening for ever, and a few such queries hold every slot of the engine's queue (`maxConcurrentQueries`), so the other panels of a board never ask. Set one on the fetcher your sources and store use — `fetcher.timeout = 60_000`, or `new Fetcher({ timeout })` — and a query past it fails as any other does, with its retry. The only wait the engine bounds itself is the first read of a source's descriptor: past ten seconds the view opens on the definition as declared, as it does when the read fails, and the descriptor narrows it when it lands.
@@ -59,7 +59,7 @@ export interface ViewEngineOptions {
   environment?: RuntimeEnvironment;
   kinds?: FieldKindRegistry;
   limits?: Partial<RuntimeLimits>;
-  newId?(): string;
+  newRequestId?(): string;
   onIssue?(issue: Issue): void;
   resolveOptions?(key: string): OptionSource;
   resources: readonly ViewResource[];
@@ -189,14 +189,14 @@ export interface OpenOptions {
 
 ```ts
 export interface CreateInput<C extends ViewConfig> {
+  audience: ViewAudience;
   config: C;
-  scope: ViewAudience;
   scopeFilter?: FilterTree | null;
   title: string;
 }
 ```
 
-`CreateInput.scope` is an audience only (`personal` or `shared`): a user creates for an audience, and only a definition declares a system view.
+`CreateInput.audience` is `personal` or `shared`: a user creates for an audience, and only a definition declares a system view. `SaveAsInput.scope` is a scope, `system` included, which needs `editSystem`.
 
 ### ViewListing {#api-ViewListing}
 

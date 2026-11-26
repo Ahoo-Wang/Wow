@@ -84,7 +84,9 @@ export const ordersDefinition = defineView(ordersDescriptor, {
         refresh: { interval: null },
         sort: [{ field: 'firstEventTime', direction: SortDirection.ASC }],
         pageSize: 20,
-        summaries: [{ field: 'state.amount', fn: AggregationFunction.SUM }],
+        summaries: [
+          { field: 'state.amount', function: AggregationFunction.SUM },
+        ],
         layout: 'table',
         table: {
           columns: [
@@ -110,7 +112,9 @@ export const ordersDefinition = defineView(ordersDescriptor, {
         refresh: { interval: null },
         sort: [{ field: 'firstEventTime', direction: SortDirection.DESC }],
         pageSize: 20,
-        summaries: [{ field: 'state.amount', fn: AggregationFunction.SUM }],
+        summaries: [
+          { field: 'state.amount', function: AggregationFunction.SUM },
+        ],
         layout: 'table',
         table: {
           columns: [

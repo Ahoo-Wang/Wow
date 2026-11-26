@@ -399,7 +399,7 @@ export type DashboardViewPanel = DashboardViewPanelBase &
  * narrowed by it, and says so (D22 F「不受此筛选影响」).
  */
 export interface PanelBinding {
-  globalField: string;
+  dashboardField: string;
   panelField: string;
   /**
    * Made by auto-connect — the field has the name and the type of one the

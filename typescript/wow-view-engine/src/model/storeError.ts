@@ -81,7 +81,8 @@ export class ViewStoreError extends Error {
   readonly reachable?: true;
   /**
    * The backend's own word for the failure, where it gave one — a Wow
-   * server's `errorCode` (`ViewAppRequired`, `ViewInvalid`, …) — so a host
+   * server's problem `code` (`view-store.app-required`,
+   * `view-store.invalid`, …) — so a host
    * can tell apart what the port's code folds together. Diagnostics only:
    * the engine decides by `code`.
    */

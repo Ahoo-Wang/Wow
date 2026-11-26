@@ -130,4 +130,4 @@ export const clicksMessages = {
     '“{filter}” on the dashboard a press opens cannot take {field}; pressing it opens the follow-up menu.',
   'dashboard.click.board-source-unknown':
     'The click carries this dashboard’s filter “{filter}” to another dashboard, but this dashboard no longer has it; pressing it opens the follow-up menu.',
-} as const satisfies Record<string, string>;
+} satisfies Record<string, string>;

@@ -282,7 +282,7 @@ function pressedFrom(
     const brushed =
       field !== undefined &&
       filterTypeOf(field.kind) === 'date' &&
-      bindingsOf(panel).some(binding => binding.globalField === name);
+      bindingsOf(panel).some(binding => binding.dashboardField === name);
     if (clicksFilter(panel, name) || brushed) kept[name] = panelId;
   }
   return Object.keys(kept).length > 0 ? kept : undefined;
@@ -307,13 +307,13 @@ export function panelFilterTree(
   const children: FilterLeaf[] = [];
   const bound = new Set<string>();
   for (const binding of bindings) {
-    if (bound.has(binding.globalField)) continue;
-    const field = byName.get(binding.globalField);
+    if (bound.has(binding.dashboardField)) continue;
+    const field = byName.get(binding.dashboardField);
     if (!field) continue;
-    bound.add(binding.globalField);
+    bound.add(binding.dashboardField);
     const leaf = filterCondition(
       field,
-      filters.values[binding.globalField],
+      filters.values[binding.dashboardField],
       kinds,
     );
     if (leaf) children.push({ ...leaf, field: binding.panelField });

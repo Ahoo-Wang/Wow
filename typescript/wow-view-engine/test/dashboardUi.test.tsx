@@ -309,7 +309,7 @@ describe('DashboardGrid', () => {
     const summarised: ViewInstance = {
       ...pending,
       config: recordConfig({
-        summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+        summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
       }),
     };
     const { controller } = await openDashboard(
@@ -612,7 +612,7 @@ describe('DashboardGrid', () => {
           fields: [{ name: 'region', label: 'Region', kind: 'string' }],
           panels: [
             panel({
-              bindings: [{ globalField: 'region', panelField: 'nowhere' }],
+              bindings: [{ dashboardField: 'region', panelField: 'nowhere' }],
             }),
           ],
         }),

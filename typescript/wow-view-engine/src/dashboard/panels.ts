@@ -112,7 +112,7 @@ export function bindingsOf(panel: DashboardViewPanel): PanelBinding[] {
     ? bindings.filter(
         (entry): entry is PanelBinding =>
           isPlainObject(entry) &&
-          typeof entry.globalField === 'string' &&
+          typeof entry.dashboardField === 'string' &&
           typeof entry.panelField === 'string',
       )
     : [];

@@ -209,7 +209,7 @@ describe("the boards page", () => {
     const view = await engine.save(
       engine.create("shop.order_wide", {
         title: "All orders, saved",
-        scope: "personal",
+        audience: "personal",
         config: defaultRecordConfig(
           engine.definitions.get("shop.order_wide") as DataViewDefinition,
         ),
@@ -218,7 +218,7 @@ describe("the boards page", () => {
     const board = await engine.save(
       engine.create(BOARDS, {
         title: "Orders board",
-        scope: "personal",
+        audience: "personal",
         config: {
           ...emptyDashboardConfig(),
           panels: [

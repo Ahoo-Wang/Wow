@@ -818,7 +818,7 @@ describe('what stops a save', () => {
           saved('a'),
           {
             ...saved('b'),
-            bindings: [{ globalField: 'ghost', panelField: 'status' }],
+            bindings: [{ dashboardField: 'ghost', panelField: 'status' }],
           } as DashboardPanel,
         ],
       }),

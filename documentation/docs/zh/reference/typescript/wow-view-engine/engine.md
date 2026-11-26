@@ -45,7 +45,7 @@ export const engine = new ViewEngine({
 | `text` | 定义里的键（`text(key)`）在引擎起始语言下怎样说，给没有 Provider 的宿主；有 `ViewHost` 或 `MessagesProvider` 时由它们按自己的语言说。缺省时，在设定语言前键就读作键本身 |
 | `limits` | 宿主在 `DEFAULT_RUNTIME_LIMITS` 上的预算，没写的保持缺省。来源预算（`maxPageSize`、`maxPageWindow`、`maxAnalysisRows`、`maxQueryFilterNodes`、`maxFilterValues`）由来源的查询描述给出，这里给的只能往下压——除非要引擎比服务端允许的少要一些，否则别写 |
 | `environment` | 运行时与宿主之间唯一的接口：时钟、时区、计时器、页面是否可见、失败通知（[`RuntimeEnvironment`](#api-RuntimeEnvironment)） |
-| `newId` | 生成幂等键；测试里覆盖它，让键好读 |
+| `newRequestId` | 生成写入的请求 id，即幂等键；测试里覆盖它，让键好读 |
 | `onIssue` | 没有调用方可拒绝、背后也没有抛出的发现：定义的准入、被丢掉的列表项、抛了错的变更监听。查询、存储、导出、渲染这些失败走 `environment.onError`。缺省时开发构建（`NODE_ENV` 为 `development`）把它们按资源分组写到控制台，附修正办法；其他构建丢弃 |
 
 **给 fetcher 设置超时。** `@ahoo-wang/fetcher` 默认不设超时，引擎也不给查询计时：服务端接受了连接却一直不应答，视图就会一直处于打开中；几个这样的查询会占满引擎队列的全部槽位（`maxConcurrentQueries`），仪表盘的其他面板就再也发不出请求。在来源与存储所用的 fetcher 上设置超时——`fetcher.timeout = 60_000`，或者 `new Fetcher({ timeout })`——超时的查询会像其他失败一样失败，并可重试。引擎自己限时的只有第一次读取来源的查询描述：超过十秒，视图按声明的定义打开，与读取失败时一样，描述到达后再据此收窄。
@@ -59,7 +59,7 @@ export interface ViewEngineOptions {
   environment?: RuntimeEnvironment;
   kinds?: FieldKindRegistry;
   limits?: Partial<RuntimeLimits>;
-  newId?(): string;
+  newRequestId?(): string;
   onIssue?(issue: Issue): void;
   resolveOptions?(key: string): OptionSource;
   resources: readonly ViewResource[];
@@ -189,14 +189,14 @@ export interface OpenOptions {
 
 ```ts
 export interface CreateInput<C extends ViewConfig> {
+  audience: ViewAudience;
   config: C;
-  scope: ViewAudience;
   scopeFilter?: FilterTree | null;
   title: string;
 }
 ```
 
-`CreateInput.scope` 只能是受众（`personal` 或 `shared`）：用户为受众新建，只有定义能声明系统视图。
+`CreateInput.audience` 是 `personal` 或 `shared`：用户为受众新建，只有定义能声明系统视图。`SaveAsInput.scope` 是范围，可以是 `system`，那需要 `editSystem`。
 
 ### ViewListing {#api-ViewListing}
 

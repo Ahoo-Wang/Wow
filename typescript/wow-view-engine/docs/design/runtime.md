@@ -441,7 +441,7 @@ export interface RuntimeEnvironment {
 export interface ViewErrorEvent {
   kind: 'query' | 'store' | 'export' | 'render' | 'chart' | 'action';
   error: unknown; // 抛出来的原物
-  context: ViewErrorContext; // operation 必有；definitionId、instanceId、runtimeId、requestId、boundary、panelId、componentStack、recordKey 知道就写；query 失败时带服务端原样的 errorCode，Wow 说了违反哪条规则就带 violation: { code, path, message }
+  context: ViewErrorContext; // operation 必有；definitionId、instanceId、runtimeId、requestId、boundary、panelId、componentStack、recordKey 知道就写；query 失败时带服务端原样的问题 code，Wow 说了违反哪条规则就带 violation: { code, path, message }
 }
 ```
 

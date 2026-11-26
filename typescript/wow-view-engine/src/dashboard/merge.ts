@@ -47,7 +47,7 @@ export function mapGlobalFilter(
   bindings: readonly PanelBinding[],
 ): FilterTree {
   const byGlobal = new Map(
-    bindings.map(binding => [binding.globalField, binding.panelField]),
+    bindings.map(binding => [binding.dashboardField, binding.panelField]),
   );
   return mapGroup(tree, byGlobal);
 }

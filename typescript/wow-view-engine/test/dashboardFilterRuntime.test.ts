@@ -177,7 +177,7 @@ const views: ViewInstance[] = [
 function view(
   id: string,
   instanceId: string,
-  bindings: { globalField: string; panelField: string; auto?: true }[] = [],
+  bindings: { dashboardField: string; panelField: string; auto?: true }[] = [],
   x = 0,
 ): DashboardPanel {
   return {
@@ -216,19 +216,19 @@ function board(): DashboardViewConfig {
     },
     panels: [
       view('a', 'orders-trend', [
-        { globalField: 'created', panelField: 'createdAt' },
-        { globalField: 'region', panelField: 'warehouse' },
+        { dashboardField: 'created', panelField: 'createdAt' },
+        { dashboardField: 'region', panelField: 'warehouse' },
       ]),
       view(
         'b',
         'ship-trend',
-        [{ globalField: 'created', panelField: 'createdAt', auto: true }],
+        [{ dashboardField: 'created', panelField: 'createdAt', auto: true }],
         8,
       ),
       view(
         'c',
         'orders-list',
-        [{ globalField: 'region', panelField: 'warehouse' }],
+        [{ dashboardField: 'region', panelField: 'warehouse' }],
         16,
       ),
     ],
@@ -607,14 +607,14 @@ describe('what a text filter offers', () => {
         fields: [{ name: 'region', label: 'Region', kind: 'string' }],
         panels: [
           view('a', 'orders-trend', [
-            { globalField: 'region', panelField: 'warehouse' },
+            { dashboardField: 'region', panelField: 'warehouse' },
           ]),
           // The same field of the same data is asked once.
           view('c', 'orders-list', [
-            { globalField: 'region', panelField: 'warehouse' },
+            { dashboardField: 'region', panelField: 'warehouse' },
           ]),
           view('b', 'ship-trend', [
-            { globalField: 'region', panelField: 'warehouse' },
+            { dashboardField: 'region', panelField: 'warehouse' },
           ]),
         ],
       }),
@@ -651,10 +651,10 @@ describe('what a text filter offers', () => {
         ],
         panels: [
           view('a', 'orders-trend', [
-            { globalField: 'when', panelField: 'createdAt' },
-            { globalField: 'listed', panelField: 'warehouse' },
+            { dashboardField: 'when', panelField: 'createdAt' },
+            { dashboardField: 'listed', panelField: 'warehouse' },
             // A field whose values are not offered: no TERMS on it.
-            { globalField: 'amount', panelField: 'status' },
+            { dashboardField: 'amount', panelField: 'status' },
           ]),
         ],
       }),
@@ -681,8 +681,8 @@ describe('what a text filter offers', () => {
         ],
         panels: [
           view('c', 'orders-list', [
-            { globalField: 'phase', panelField: 'status' },
-            { globalField: 'own', panelField: 'status' },
+            { dashboardField: 'phase', panelField: 'status' },
+            { dashboardField: 'own', panelField: 'status' },
           ]),
         ],
       }),
@@ -727,8 +727,8 @@ describe('what a text filter offers', () => {
         },
         panels: [
           view('a', 'orders-trend', [
-            { globalField: 'region', panelField: 'warehouse' },
-            { globalField: 'phase', panelField: 'status' },
+            { dashboardField: 'region', panelField: 'warehouse' },
+            { dashboardField: 'phase', panelField: 'status' },
           ]),
         ],
       }),
@@ -761,8 +761,8 @@ describe('what a text filter offers', () => {
         ],
         panels: [
           view('a', 'orders-trend', [
-            { globalField: 'region', panelField: 'warehouse' },
-            { globalField: 'phase', panelField: 'status' },
+            { dashboardField: 'region', panelField: 'warehouse' },
+            { dashboardField: 'phase', panelField: 'status' },
           ]),
         ],
       }),

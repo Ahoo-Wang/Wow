@@ -70,7 +70,7 @@ describe('DashboardWorkbench', () => {
       panels: [
         panel({
           title: 'Pending',
-          bindings: [{ globalField: 'region', panelField: 'warehouse' }],
+          bindings: [{ dashboardField: 'region', panelField: 'warehouse' }],
         }),
       ],
     }),
@@ -377,7 +377,7 @@ describe('DashboardWorkbench', () => {
         panels: [
           panel({
             title: 'Pending',
-            bindings: [{ globalField: 'region', panelField: 'warehouse' }],
+            bindings: [{ dashboardField: 'region', panelField: 'warehouse' }],
           }),
         ],
       }),
@@ -967,7 +967,7 @@ describe('DashboardWorkbench', () => {
         panels: [
           panel({
             title: 'Pending',
-            bindings: [{ globalField: 'region', panelField: 'warehouse' }],
+            bindings: [{ dashboardField: 'region', panelField: 'warehouse' }],
           }),
           panel({
             id: 'gone',
@@ -1060,7 +1060,9 @@ describe('DashboardWorkbench', () => {
                 panels: [
                   panel({
                     title: 'Pending',
-                    bindings: [{ globalField: 'weight', panelField: 'mass' }],
+                    bindings: [
+                      { dashboardField: 'weight', panelField: 'mass' },
+                    ],
                   }),
                 ],
               }),

@@ -96,13 +96,13 @@ export function withTimeBindings(
     const written =
       filter &&
       kept.some(
-        entry => isPlainObject(entry) && entry.globalField === filter.name,
+        entry => isPlainObject(entry) && entry.dashboardField === filter.name,
       );
     const wire =
       filter && time && !written && sameFilterType(filter.kind, time.kind)
         ? [
             {
-              globalField: filter.name,
+              dashboardField: filter.name,
               panelField: time.name,
               auto: true,
               derived: true,

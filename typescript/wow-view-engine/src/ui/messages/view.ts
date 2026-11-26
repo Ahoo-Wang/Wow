@@ -376,4 +376,4 @@ export const viewMessages = {
     'This view could not be loaded: this server has no view store.',
   'view.list.failed.unsupported':
     'The list of views could not be loaded: this server has no view store.',
-} as const satisfies Record<string, string>;
+} satisfies Record<string, string>;

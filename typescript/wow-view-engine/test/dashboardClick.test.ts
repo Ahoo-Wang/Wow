@@ -66,8 +66,8 @@ function panel(click?: unknown, id = 'chart'): DashboardViewPanel {
     kind: 'view',
     instanceId: 'by-warehouse',
     bindings: [
-      { globalField: 'region', panelField: 'warehouse' },
-      { globalField: 'created', panelField: 'createdAt' },
+      { dashboardField: 'region', panelField: 'warehouse' },
+      { dashboardField: 'created', panelField: 'createdAt' },
     ],
     layout: { x: 0, y: 0, w: 12, h: 4 },
     ...(click === undefined ? {} : { click }),

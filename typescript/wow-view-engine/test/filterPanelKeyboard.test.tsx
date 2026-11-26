@@ -49,7 +49,7 @@ describe('FilterPanel and the keyboard', () => {
     });
     const runtime = engine.create('orders', {
       title: 'Scratch',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
     let latest: ReturnType<typeof useFilterEditor> | null = null;

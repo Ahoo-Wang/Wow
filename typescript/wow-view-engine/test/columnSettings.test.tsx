@@ -1136,7 +1136,7 @@ describe('a summary on a field that is not a column', () => {
     expect(
       codes(
         recordConfig({
-          summaries: [{ field: 'gone', fn: AggregationFunction.SUM }],
+          summaries: [{ field: 'gone', function: AggregationFunction.SUM }],
         }),
       ),
     ).toEqual(['record.field.unknown']);

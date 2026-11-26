@@ -133,7 +133,9 @@ describe('what a board says about itself (boardFindings)', () => {
       dashboardConfig({
         fields: [{ name: 'weight', label: 'Weight', kind: 'rounded' }],
         panels: [
-          panel({ bindings: [{ globalField: 'weight', panelField: 'mass' }] }),
+          panel({
+            bindings: [{ dashboardField: 'weight', panelField: 'mass' }],
+          }),
         ],
       }),
     );

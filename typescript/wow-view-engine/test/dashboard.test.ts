@@ -183,7 +183,7 @@ describe('mapGlobalFilter', () => {
 
     expect(
       mapGlobalFilter(tree, [
-        { globalField: 'region', panelField: 'warehouse' },
+        { dashboardField: 'region', panelField: 'warehouse' },
       ]),
     ).toEqual({
       op: 'or',
@@ -217,7 +217,7 @@ describe('mergeGlobalFilter', () => {
 
     expect(
       mergeGlobalFilter(panelFilter, REGION_FILTER, [
-        { globalField: 'region', panelField: 'warehouse' },
+        { dashboardField: 'region', panelField: 'warehouse' },
       ]),
     ).toEqual({
       op: 'and',
@@ -517,7 +517,7 @@ describe('validateDashboard bindings', () => {
       fixed: REGION_FILTER,
       panels: [
         viewPanel({
-          bindings: [{ globalField: 'region', panelField: 'warehouse' }],
+          bindings: [{ dashboardField: 'region', panelField: 'warehouse' }],
         }),
       ],
       ...config,
@@ -533,8 +533,8 @@ describe('validateDashboard bindings', () => {
       panels: [
         viewPanel({
           bindings: [
-            { globalField: 'nope', panelField: 'warehouse' },
-            { globalField: 'region', panelField: 'nope' },
+            { dashboardField: 'nope', panelField: 'warehouse' },
+            { dashboardField: 'region', panelField: 'nope' },
           ],
         }),
       ],
@@ -551,8 +551,8 @@ describe('validateDashboard bindings', () => {
       panels: [
         viewPanel({
           bindings: [
-            { globalField: 'region', panelField: 'warehouse' },
-            { globalField: 'region', panelField: 'status' },
+            { dashboardField: 'region', panelField: 'warehouse' },
+            { dashboardField: 'region', panelField: 'status' },
           ],
         }),
       ],
@@ -567,7 +567,7 @@ describe('validateDashboard bindings', () => {
     const config = bound({
       panels: [
         viewPanel({
-          bindings: [{ globalField: 'region', panelField: 'amount' }],
+          bindings: [{ dashboardField: 'region', panelField: 'amount' }],
         }),
       ],
     });
@@ -602,7 +602,7 @@ describe('validateDashboard bindings', () => {
       fields: [{ name: 'region', label: 'Region', kind: 'number' }],
       panels: [
         viewPanel({
-          bindings: [{ globalField: 'region', panelField: 'amount' }],
+          bindings: [{ dashboardField: 'region', panelField: 'amount' }],
         }),
       ],
       fixed: {
@@ -696,7 +696,7 @@ describe('validateDashboard malformed configs', () => {
     expect(
       malformed(
         dashboardConfig({
-          panels: [viewPanel({ bindings: [{ globalField: 1 } as never] })],
+          panels: [viewPanel({ bindings: [{ dashboardField: 1 } as never] })],
         }),
       ),
     ).toMatchObject([
@@ -887,7 +887,7 @@ describe('validateDashboard views declared in code', () => {
       admit(
         viewPanel({
           instanceId: 'system:orders:all',
-          bindings: [{ globalField: 'region', panelField: 'warehouse' }],
+          bindings: [{ dashboardField: 'region', panelField: 'warehouse' }],
         }),
       ),
     ).toEqual([]);
@@ -895,7 +895,7 @@ describe('validateDashboard views declared in code', () => {
       admit(
         viewPanel({
           instanceId: 'system:orders:all',
-          bindings: [{ globalField: 'region', panelField: 'nowhere' }],
+          bindings: [{ dashboardField: 'region', panelField: 'nowhere' }],
         }),
       ),
     ).toEqual([

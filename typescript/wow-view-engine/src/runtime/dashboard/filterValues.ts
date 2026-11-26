@@ -290,7 +290,7 @@ export class FilterValues {
     const targets = panelsOf(applied).flatMap(panel => {
       if (!isViewPanel(panel)) return [];
       const binding = bindingsOf(panel).find(
-        entry => entry.globalField === name,
+        entry => entry.dashboardField === name,
       );
       const view = binding && this.host.viewOf(panel);
       if (!binding || !view) return [];

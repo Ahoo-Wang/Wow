@@ -112,7 +112,7 @@ function harness(holders: ManagedViewRuntime[] = []): Harness {
 
   const host: WriteLedgerHost = {
     store: store as unknown as ViewStore,
-    newId: () => `request-${(sequence += 1)}`,
+    newRequestId: () => `request-${(sequence += 1)}`,
     noteInstance: instance => void noted.push(instance),
     dropInstance: id => void dropped.push(id),
     notePreferences: (_definitionId, next) => void notedPreferences.push(next),
@@ -473,7 +473,7 @@ describe('WriteLedger effects', () => {
     } as unknown as ViewStore;
     const bound = new WriteLedger({
       store,
-      newId: () => 'request-1',
+      newRequestId: () => 'request-1',
       noteInstance: () => {},
       dropInstance: () => {},
       notePreferences: () => {},

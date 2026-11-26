@@ -558,7 +558,7 @@ describe('the record workbench layout', () => {
     // the engine is asked for a fresh runtime the way a "new view" would.
     const fresh = engine.create('orders', {
       title: 'Scratch',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
     cleanup();

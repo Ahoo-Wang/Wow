@@ -127,7 +127,7 @@ const misdeclaredOverview = {
                 },
               }),
             },
-            bindings: [{ globalField: 'region', panelField: 'warehouse' }],
+            bindings: [{ dashboardField: 'region', panelField: 'warehouse' }],
             layout: { x: 0, y: 6, w: 24, h: 4 },
           },
         ],
@@ -166,7 +166,7 @@ const misreferencedOverview = {
             kind: 'view' as const,
             title: '全部订单',
             instanceId: 'system:orders:all',
-            bindings: [{ globalField: 'region', panelField: 'area' }],
+            bindings: [{ dashboardField: 'region', panelField: 'area' }],
             layout: { x: 12, y: 6, w: 12, h: 4 },
           },
         ],
@@ -404,7 +404,7 @@ function handedConfig(): DashboardViewConfig {
             ...panel,
             bindings: [
               ...(panel.bindings ?? []),
-              { globalField: 'state', panelField: 'status' },
+              { dashboardField: 'state', panelField: 'status' },
             ],
           }
         : panel,
@@ -493,7 +493,7 @@ function personalPanelConfig(): DashboardViewConfig {
         id: 'mine',
         kind: 'view',
         instanceId: 'orders-mine',
-        bindings: [{ globalField: 'region', panelField: 'warehouse' }],
+        bindings: [{ dashboardField: 'region', panelField: 'warehouse' }],
         layout: { x: 0, y: 8, w: 24, h: 4 },
       },
     ],
@@ -536,7 +536,7 @@ function tabbedConfig(): DashboardViewConfig {
             },
           }),
         },
-        bindings: [{ globalField: 'region', panelField: 'warehouse' }],
+        bindings: [{ dashboardField: 'region', panelField: 'warehouse' }],
         layout: { x: 0, y: 0, w: 12, h: 4 },
         tab: 'tab-status',
       },
@@ -564,7 +564,7 @@ function ownedConfig(): DashboardViewConfig {
             },
           }),
         },
-        bindings: [{ globalField: 'region', panelField: 'warehouse' }],
+        bindings: [{ dashboardField: 'region', panelField: 'warehouse' }],
         layout: { x: 8, y: 4, w: 16, h: 4 },
       },
     ],
@@ -626,8 +626,8 @@ const trendView: ViewInstance = {
  */
 function filtersConfig(): DashboardViewConfig {
   const base = dashboardConfig();
-  const created = { globalField: 'created', panelField: 'createdAt' };
-  const status = { globalField: 'phase', panelField: 'status' };
+  const created = { dashboardField: 'created', panelField: 'createdAt' };
+  const status = { dashboardField: 'phase', panelField: 'status' };
   return {
     ...base,
     fields: [
@@ -660,7 +660,7 @@ function filtersConfig(): DashboardViewConfig {
                 created,
                 status,
                 ...(panel.id === 'pending'
-                  ? [{ globalField: 'order', panelField: 'id' }]
+                  ? [{ dashboardField: 'order', panelField: 'id' }]
                   : []),
               ],
             }
@@ -707,7 +707,7 @@ const regionalBoard: ViewInstance = {
             ...panel,
             bindings: [
               ...panel.bindings,
-              { globalField: 'placed', panelField: 'createdAt' },
+              { dashboardField: 'placed', panelField: 'createdAt' },
             ],
           }
         : panel,
@@ -722,7 +722,7 @@ const regionalBoard: ViewInstance = {
  */
 function ownFilterConfig(): DashboardViewConfig {
   const base = dashboardConfig();
-  const placed = { globalField: 'placed', panelField: 'createdAt' };
+  const placed = { dashboardField: 'placed', panelField: 'createdAt' };
   return {
     ...base,
     fields: [

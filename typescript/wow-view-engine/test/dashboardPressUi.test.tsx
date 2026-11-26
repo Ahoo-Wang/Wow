@@ -103,7 +103,7 @@ function view(
     id,
     kind: 'view',
     instanceId,
-    bindings: [{ globalField: 'region', panelField: 'warehouse' }],
+    bindings: [{ dashboardField: 'region', panelField: 'warehouse' }],
     layout: { x, y: 0, w: 12, h: 4 },
     ...extra,
   } as DashboardPanel;
@@ -444,7 +444,7 @@ describe('在工作台中打开 an analysis the board owns', () => {
           kind: 'view',
           title: 'Mine',
           owned: { definitionId: 'orders', config: analysisConfig() },
-          bindings: [{ globalField: 'region', panelField: 'warehouse' }],
+          bindings: [{ dashboardField: 'region', panelField: 'warehouse' }],
           layout: { x: 0, y: 0, w: 12, h: 4 },
         },
       ],

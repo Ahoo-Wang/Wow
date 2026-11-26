@@ -155,7 +155,7 @@ function anchoredOut(
 ): PanelBinding[] {
   return anchor
     ? bindings.filter(
-        binding => binding.globalField !== anchor.binding.globalField,
+        binding => binding.dashboardField !== anchor.binding.dashboardField,
       )
     : bindings;
 }
@@ -182,7 +182,7 @@ function panelHandOver(
   const { applied, filters, held, kinds } = board;
   const wired = anchoredOut(wiredOn(panel, filters), anchor);
   const window = (page: boolean) =>
-    anchor && held(anchor.binding.globalField) === page ? [anchor.leaf] : [];
+    anchor && held(anchor.binding.dashboardField) === page ? [anchor.leaf] : [];
   const part = (page: boolean) => ({
     values: Object.fromEntries(
       Object.entries(filters.values).filter(([name]) => held(name) === page),
@@ -347,7 +347,7 @@ function wiredOn(
   filters: DashboardFilters,
 ): PanelBinding[] {
   return bindingsOf(panel).filter(
-    binding => filters.from?.[binding.globalField] !== panel.id,
+    binding => filters.from?.[binding.dashboardField] !== panel.id,
   );
 }
 

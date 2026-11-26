@@ -51,8 +51,12 @@ import { workbenchMessages } from './workbench.js';
  *
  * `test/messages.test.tsx` fails when a new issue code has no entry here, so
  * the catalogue cannot drift behind the kernels.
+ *
+ * Each area's wording is a `string`, not its sentence's literal type, so a
+ * rewording changes no declaration (#7022 row 29): `enCatalogue` is the
+ * catalogue its keys are read from, `en` the same map as a host reads it.
  */
-export const en = {
+export const enCatalogue = {
   ...saveMessages,
   ...headerMessages,
   ...recordMessages,
@@ -81,4 +85,17 @@ export const en = {
   ...bulkMessages,
   ...actionsMessages,
   ...reorderMessages,
-} as const;
+};
+
+/**
+ * Every key this package ships, as a union: the keys of the English
+ * catalogue.
+ *
+ * It is what a component may ask for by name, so a key deleted from the
+ * catalogue — or misspelt in JSX — is a compile error rather than a code on
+ * screen. It does not constrain what a host adds: `ViewMessages` stays open.
+ */
+export type MessageKey = keyof typeof enCatalogue;
+
+/** English wording for everything this package can report, by key. */
+export const en: Readonly<Record<MessageKey, string>> = enCatalogue;

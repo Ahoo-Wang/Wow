@@ -1406,9 +1406,9 @@ interface OwnedView {
 // @public
 interface PanelBinding {
     auto?: true;
-    derived?: true;
     // (undocumented)
-    globalField: string;
+    dashboardField: string;
+    derived?: true;
     // (undocumented)
     panelField: string;
 }
@@ -1599,8 +1599,7 @@ interface RecordSort {
 interface RecordSummary {
     // (undocumented)
     field: string;
-    // (undocumented)
-    fn: SummaryFunction;
+    function: SummaryFunction;
 }
 
 // @public (undocumented)

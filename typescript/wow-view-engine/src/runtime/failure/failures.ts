@@ -120,7 +120,7 @@ function placedEvent<K extends PlacedKind>(
 
 /**
  * Tells the host of one failed query, once the source's answer has been
- * read: the report says the service's `errorCode` as it gave it, and
+ * read: the report says the service's problem `code` as it gave it, and
  * which rule a Wow service said the query broke and where
  * (`context.violation`), so it waits for the body. The read is the
  * one the Issue on screen reads too (`sourceFailure` reads a failure once),
@@ -141,14 +141,14 @@ export function queryFailureReporter(
     // Where the view stands is read when the failure lands, not after the
     // body: a view saved meanwhile says the id it failed under.
     const at = { ...known(), ...place };
-    const { violation, errorCode } = await sourceFailure(error);
+    const { violation, code } = await sourceFailure(error);
     reportError(environment, {
       kind: 'query',
       error,
       context: {
         operation,
         ...at,
-        ...(errorCode ? { errorCode } : {}),
+        ...(code ? { code } : {}),
         ...(violation ? { violation } : {}),
       },
     });

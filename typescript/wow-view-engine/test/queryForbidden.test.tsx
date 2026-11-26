@@ -98,7 +98,7 @@ describe('a refusal of the reader is the permission state', () => {
       code: 'runtime.query.forbidden',
       severity: 'error',
       path: [],
-      params: { reason: `${errorCode}: not for you.`, errorCode },
+      params: { reason: `${errorCode}: not for you.`, code: errorCode },
     });
     expect(formatIssue(zhCN, found)).toBe(
       '无权限查看这些数据，请联系管理员开通。',
@@ -115,7 +115,7 @@ describe('a refusal of the reader is the permission state', () => {
     );
     await expect(issueOf(error)).resolves.toMatchObject({
       code: 'runtime.query.forbidden',
-      params: { errorCode: AUTH_FORBIDDEN },
+      params: { code: AUTH_FORBIDDEN },
     });
   });
 
@@ -188,7 +188,7 @@ describe('the permission state in a view', () => {
           definitionId: 'orders',
           instanceId: 'orders-1',
           runtimeId: runtime.id,
-          errorCode: AUTH_FORBIDDEN,
+          code: AUTH_FORBIDDEN,
         },
       },
     ]);

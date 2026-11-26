@@ -404,7 +404,7 @@ export function boardEditing(host: EditingHost): BoardEdits {
               bindings: [
                 ...(panel.bindings ?? []),
                 ...autoBindings(draft, fields, panel.bindings).filter(
-                  binding => binding.globalField !== timed,
+                  binding => binding.dashboardField !== timed,
                 ),
               ],
             }

@@ -89,8 +89,8 @@ function panel(
     instanceId,
     tab,
     bindings: [
-      { globalField: 'region', panelField: 'warehouse' },
-      { globalField: 'q', panelField: 'q' },
+      { dashboardField: 'region', panelField: 'warehouse' },
+      { dashboardField: 'q', panelField: 'q' },
     ],
     layout: { x: 0, y: 0, w: 12, h: 4 },
     ...extra,
@@ -125,7 +125,7 @@ function setUp() {
           panels: [
             panel('chart', 'by-warehouse', 'By warehouse', 'one', {
               click: { kind: 'filter', filter: 'region' },
-              bindings: [{ globalField: 'region', panelField: 'warehouse' }],
+              bindings: [{ dashboardField: 'region', panelField: 'warehouse' }],
             }),
             panel('list', 'list', 'Order list', 'one', {
               layout: { x: 12, y: 0, w: 12, h: 4 },

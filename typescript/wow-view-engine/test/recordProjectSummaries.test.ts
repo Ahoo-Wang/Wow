@@ -78,9 +78,9 @@ const codes = (issues: Issue[]) =>
 describe('projectSummaries', () => {
   const withSummaries = config({
     summaries: [
-      { field: 'amount', fn: AggregationFunction.SUM },
-      { field: 'amount', fn: AggregationFunction.AVG },
-      { field: 'id', fn: AggregationMetricType.COUNT },
+      { field: 'amount', function: AggregationFunction.SUM },
+      { field: 'amount', function: AggregationFunction.AVG },
+      { field: 'id', function: AggregationMetricType.COUNT },
     ],
   });
 
@@ -128,9 +128,9 @@ describe('projectSummaries', () => {
       definition(),
       config({
         summaries: [
-          { field: 'amount', fn: AggregationFunction.MIN },
-          { field: 'amount', fn: AggregationFunction.MAX },
-          { field: 'gone', fn: AggregationFunction.SUM },
+          { field: 'amount', function: AggregationFunction.MIN },
+          { field: 'amount', function: AggregationFunction.MAX },
+          { field: 'gone', function: AggregationFunction.SUM },
         ],
       }),
       { scope: 'page', rows: [{ amount: 5 }, { amount: 9 }] },
@@ -148,7 +148,7 @@ describe('projectSummaries', () => {
       { id: 'o-3', amount: 'x' },
     ];
     const sum = config({
-      summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+      summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
     });
     expect(
       projectSummaries(definition(), sum, { scope: 'page', rows }).cells[0]
@@ -169,8 +169,8 @@ describe('projectSummaries', () => {
       definition(),
       config({
         summaries: [
-          { field: 'amount', fn: AggregationFunction.MIN },
-          { field: 'amount', fn: AggregationFunction.MAX },
+          { field: 'amount', function: AggregationFunction.MIN },
+          { field: 'amount', function: AggregationFunction.MAX },
         ],
       }),
       { scope: 'page', rows: [...rows, { amount: 15 }] },
@@ -198,8 +198,8 @@ describe('projectSummaries', () => {
 describe('a date column summarised', () => {
   const dates = config({
     summaries: [
-      { field: 'createdAt', fn: AggregationFunction.MIN },
-      { field: 'createdAt', fn: AggregationFunction.MAX },
+      { field: 'createdAt', function: AggregationFunction.MIN },
+      { field: 'createdAt', function: AggregationFunction.MAX },
     ],
   });
 
@@ -247,8 +247,8 @@ describe('a date column summarised', () => {
       shaped,
       config({
         summaries: [
-          { field: 'shipDate', fn: AggregationFunction.MIN },
-          { field: 'createdAt', fn: AggregationFunction.MAX },
+          { field: 'shipDate', function: AggregationFunction.MIN },
+          { field: 'createdAt', function: AggregationFunction.MAX },
         ],
       }),
       {
@@ -322,7 +322,9 @@ describe('a date column summarised', () => {
     const row = projectSummaries(
       definition(),
       config({
-        summaries: [{ field: 'createdAt', fn: AggregationMetricType.COUNT }],
+        summaries: [
+          { field: 'createdAt', function: AggregationMetricType.COUNT },
+        ],
       }),
       { scope: 'page', rows: [{ createdAt: '2026-09-16' }, {}] },
     );
@@ -358,9 +360,9 @@ describe('a date column summarised', () => {
           declared,
           config({
             summaries: [
-              { field: 'createdAt', fn: AggregationFunction.SUM },
-              { field: 'createdAt', fn: AggregationFunction.AVG },
-              { field: 'createdAt', fn: AggregationFunction.MIN },
+              { field: 'createdAt', function: AggregationFunction.SUM },
+              { field: 'createdAt', function: AggregationFunction.AVG },
+              { field: 'createdAt', function: AggregationFunction.MIN },
             ],
           }),
           builtinFieldKinds,
@@ -389,7 +391,7 @@ describe('a date column summarised', () => {
       ],
     });
     const asked = config({
-      summaries: [{ field: 'closedAt', fn: AggregationFunction.MIN }],
+      summaries: [{ field: 'closedAt', function: AggregationFunction.MIN }],
     });
     const row = projectSummaries(borrowed, asked, {
       scope: 'page',
@@ -405,7 +407,9 @@ describe('a date column summarised', () => {
         validateRecord(
           borrowed,
           config({
-            summaries: [{ field: 'closedAt', fn: AggregationFunction.SUM }],
+            summaries: [
+              { field: 'closedAt', function: AggregationFunction.SUM },
+            ],
           }),
           builtinFieldKinds,
         ),

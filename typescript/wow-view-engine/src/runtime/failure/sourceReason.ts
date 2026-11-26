@@ -29,7 +29,7 @@ export interface SourceFailure {
    */
   violation?: QueryViolation;
   /** The problem's Wow `code`, as the service gave it, when it gave one. */
-  errorCode?: string;
+  code?: string;
   /** The HTTP status the source answered with, when there was one. */
   status?: number;
   /**
@@ -162,7 +162,7 @@ function toldFailure(
   return {
     reason,
     ...(violation ? { violation } : {}),
-    ...(typeof code === 'string' && code ? { errorCode: code } : {}),
+    ...(typeof code === 'string' && code ? { code } : {}),
     ...(status !== undefined ? { status } : {}),
   };
 }
@@ -176,7 +176,7 @@ function toldFailure(
  */
 export function isForbiddenFailure(failure: SourceFailure): boolean {
   if (failure.status === 403) return true;
-  return /[.-]forbidden$/.test(failure.errorCode ?? '');
+  return /[.-]forbidden$/.test(failure.code ?? '');
 }
 
 function violationOf(

@@ -77,8 +77,8 @@ const views: ViewInstance[] = [
 ];
 
 const BINDINGS = [
-  { globalField: 'region', panelField: 'warehouse' },
-  { globalField: 'state', panelField: 'status' },
+  { dashboardField: 'region', panelField: 'warehouse' },
+  { dashboardField: 'state', panelField: 'status' },
 ];
 
 function panel(

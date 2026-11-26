@@ -175,7 +175,7 @@ describe('the view engine on the store', () => {
     const { engine } = tabOf('alice', [SHARED_WRITER]);
     const runtime = engine.create(VIEWS, {
       title: 'Largest views',
-      scope: 'personal',
+      audience: 'personal',
       config,
     });
 
@@ -217,7 +217,7 @@ describe('the view engine on the store', () => {
     const first = tabOf('bob').engine;
     const second = tabOf('bob').engine;
     const view = await first.save(
-      first.create(VIEWS, { title: 'Two tabs', scope: 'personal', config }),
+      first.create(VIEWS, { title: 'Two tabs', audience: 'personal', config }),
     );
     const mine = await first.open(view.id);
     const theirs = await second.open(view.id);
@@ -244,7 +244,11 @@ describe('the view engine on the store', () => {
   it('retries an unknown outcome under its request id, and it lands once', async () => {
     const { engine, drop } = tabOf('carol');
     const view = await engine.save(
-      engine.create(VIEWS, { title: 'Flaky line', scope: 'personal', config }),
+      engine.create(VIEWS, {
+        title: 'Flaky line',
+        audience: 'personal',
+        config,
+      }),
     );
     const runtime = await engine.open(view.id);
     runtime.edit({ pageSize: 15 });
@@ -271,7 +275,7 @@ describe('the view engine on the store', () => {
     const view = await alone.save(
       alone.create(VIEWS, {
         title: 'For the team',
-        scope: 'personal',
+        audience: 'personal',
         config,
       }),
     );
@@ -301,10 +305,10 @@ describe('the view engine on the store', () => {
   it('keeps the default view and the order in the preferences', async () => {
     const { engine } = tabOf('frank');
     const one = await engine.save(
-      engine.create(VIEWS, { title: 'One', scope: 'personal', config }),
+      engine.create(VIEWS, { title: 'One', audience: 'personal', config }),
     );
     const two = await engine.save(
-      engine.create(VIEWS, { title: 'Two', scope: 'personal', config }),
+      engine.create(VIEWS, { title: 'Two', audience: 'personal', config }),
     );
     await engine.reorder(VIEWS, [two.id, one.id]);
     const written = await engine.setDefault(VIEWS, two.id);
@@ -326,12 +330,12 @@ describe('the view engine on the store', () => {
     const { engine } = tabOf('grace');
     for (const title of ['Alpha', 'Beta', 'Gamma'])
       await engine.save(
-        engine.create(VIEWS, { title, scope: 'personal', config }),
+        engine.create(VIEWS, { title, audience: 'personal', config }),
       );
 
     const records = engine.create(VIEWS, {
       title: 'Mine',
-      scope: 'personal',
+      audience: 'personal',
       config,
     }) as RecordViewRuntime;
     const state = await nextResult(records);
@@ -363,7 +367,7 @@ describe('the view engine on the store', () => {
     };
     const runtime = engine.create(VIEWS, {
       title: 'By kind',
-      scope: 'personal',
+      audience: 'personal',
       config: analysis,
     }) as ViewRuntime<AnalysisViewConfig>;
     const analysed = await nextResult(runtime);

@@ -81,7 +81,7 @@ function harness(
     ),
     store,
     environment: testEnvironment().environment,
-    newId: () => `req-${(sequence += 1)}`,
+    newRequestId: () => `req-${(sequence += 1)}`,
     onIssue: found => issues.push(found),
   });
   return { engine, store, issues };
@@ -342,7 +342,7 @@ describe('ViewEngine creating and saving', () => {
 
     const runtime = engine.create('orders', {
       title: 'New',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
     await nextTask();
@@ -359,7 +359,7 @@ describe('ViewEngine creating and saving', () => {
     });
     const input = {
       title: '  ',
-      scope: 'personal' as const,
+      audience: 'personal' as const,
       config: recordConfig(),
     };
 
@@ -372,7 +372,7 @@ describe('ViewEngine creating and saving', () => {
     const unsaved = engine.create('orders', {
       ...input,
       title: 'New',
-      scope: 'shared',
+      audience: 'shared',
     });
     await expect(engine.save(unsaved)).rejects.toThrowError(
       /view command refused/i,
@@ -383,7 +383,7 @@ describe('ViewEngine creating and saving', () => {
     const { engine, store } = harness({ instances: [] });
     const runtime = engine.create('orders', {
       title: 'New',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
 
@@ -705,7 +705,7 @@ describe('ViewEngine change notifications', () => {
     const { engine, changes } = watching();
     const runtime = engine.create('orders', {
       title: 'New',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
 
@@ -838,7 +838,7 @@ describe('ViewEngine write re-entrancy', () => {
     const { engine } = harness();
     const runtime = engine.create('orders', {
       title: 'Twice',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
 
@@ -858,7 +858,7 @@ describe('ViewEngine write re-entrancy', () => {
     const { engine, store } = harness({ instances: [] });
     const runtime = engine.create('orders', {
       title: 'Twice',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
 
@@ -872,7 +872,7 @@ describe('ViewEngine write re-entrancy', () => {
     const { engine } = harness();
     const runtime = engine.create('orders', {
       title: 'T',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
     await engine.save(runtime);
@@ -888,7 +888,7 @@ describe('ViewEngine write re-entrancy', () => {
     const { engine } = harness();
     const runtime = engine.create('orders', {
       title: 'T',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
 
@@ -903,12 +903,12 @@ describe('ViewEngine write re-entrancy', () => {
     const { engine } = harness();
     const one = engine.create('orders', {
       title: 'One',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
     const two = engine.create('orders', {
       title: 'Two',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
 
@@ -1164,7 +1164,7 @@ describe('ViewEngine write outcomes', () => {
     const { engine, store } = harness({ instances: [] });
     const runtime = engine.create('orders', {
       title: 'New',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
     vi.spyOn(store, 'create').mockRejectedValueOnce(
@@ -1183,7 +1183,7 @@ describe('ViewEngine write outcomes', () => {
     const { engine, store } = harness({ instances: [] });
     const runtime = engine.create('orders', {
       title: 'New',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
     vi.spyOn(store, 'create').mockRejectedValueOnce(
@@ -1261,7 +1261,7 @@ describe('ViewEngine write outcomes', () => {
     const { engine, store } = harness({ instances: [] });
     const runtime = engine.create('orders', {
       title: 'New',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
     vi.spyOn(store, 'create').mockRejectedValueOnce(
@@ -1351,7 +1351,7 @@ describe('ViewEngine write outcomes', () => {
     const { engine, store } = harness({ instances: [] });
     const runtime = engine.create('orders', {
       title: 'New',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
     vi.spyOn(store, 'create').mockRejectedValueOnce(

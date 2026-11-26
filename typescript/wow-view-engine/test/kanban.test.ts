@@ -135,7 +135,7 @@ describe('compileKanbanCounts', () => {
       dealsDefinition(),
       kanbanConfig({
         kanban: { lane: 'stage', hidden: ['LOST'] },
-        summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+        summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
       }),
       kinds,
       at,
@@ -168,7 +168,7 @@ describe('compileKanbanCounts', () => {
 describe('projectKanban', () => {
   const definition = dealsDefinition();
   const config = kanbanConfig({
-    summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+    summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
   });
   const lanes = kanbanLanes(definition, config);
   const pages = [

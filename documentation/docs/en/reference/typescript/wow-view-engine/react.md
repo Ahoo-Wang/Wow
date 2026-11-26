@@ -71,14 +71,14 @@ export interface OpenViewState {
 
 ## The view list and its management {#api-useViewList}
 
-`useViewList` answers one definition's list, preferences and permissions. They load independently and never block each other: a failed list leaves an open view alone, and failed preferences only drop back to server order. The list's [async state](#async-state) is `status` and `error`, the preferences' their own `preferences.status` and `preferences.error`, beside what was read (`preferences.value`); a reload refreshes the preferences in place, so theirs is `'loading'` only until the first answer. `options.kinds` narrows the list to those kinds before it is ordered and before a default is resolved from it — a workbench draws only the kinds it has parts for, or its sidebar would offer views the body cannot render.
+`useViewList` answers one definition's list, preferences and permissions. They load independently and never block each other: a failed list leaves an open view alone, and failed preferences only drop back to server order. The list's [async state](#async-state) is `status` and `error`, the preferences' their own `preferences.status` and `preferences.error`, beside what was read (`preferences.value`); a reload refreshes the preferences in place, so theirs is `'loading'` only until the first answer. `options.viewKinds` narrows the list to those kinds before it is ordered and before a default is resolved from it — a workbench draws only the kinds it has parts for, or its sidebar would offer views the body cannot render.
 
 `all` holds the same summaries before that narrowing: a reorder stores one order for the whole definition, and a narrowed workbench submitting only what it sees would drop every other id from `preferences.order`, so a caller that writes the order reads it from `all` and moves the two ids it can see inside it.
 
 `useViewManager` manages the views a list shows rather than the open one: rename, move to the other audience, delete, reorder and choose a default, with the recovery actions for writes no runtime owns. A write that lands reloads the list, because the list is what changed.
 
 ```ts
-export declare function useViewList(engine: ViewEngine, definitionId: string, options?: ViewListOptions): ViewListState;
+export declare function useViewList(engine: ViewEngine, definitionId: string, options?: UseViewListOptions): ViewListState;
 export declare function useViewManager(engine: ViewEngine, definitionId: string, input: ViewManagerOptions): ViewManagerController;
 
 export interface ViewListState {
@@ -118,12 +118,12 @@ export interface WorkbenchOptions {
   guardUnload?: boolean;
   handOver?: ViewHandOver | null;
   instanceId?: string | null;
-  kinds: readonly ViewKind[];
   newView?: NewViewOptions;
   onDrilldown?(target: DrillTarget): void;
   onInstanceChange?(id: string | null): void;
   onNavigate?(to: ViewNavigation): void;
   opening?(instanceId: string): DashboardOpening | undefined;
+  viewKinds: readonly ViewKind[];
 }
 ```
 

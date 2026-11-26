@@ -463,4 +463,4 @@ export const dashboardMessages = {
     'Only http, https, mailto and relative links can be shown.',
   'dashboard.width.unknown':
     'This dashboard’s width “{width}” is not one this release knows, so it is shown full width. Choose fixed width or full width while editing.',
-} as const satisfies Record<string, string>;
+} satisfies Record<string, string>;

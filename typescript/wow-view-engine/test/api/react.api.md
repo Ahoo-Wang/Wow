@@ -960,9 +960,9 @@ type ConflictChoice = 'reload' | 'overwrite';
 
 // @public
 interface CreateInput<C extends ViewConfig> {
+    audience: ViewAudience;
     // (undocumented)
     config: C;
-    scope: ViewAudience;
     scopeFilter?: FilterTree | null;
     // (undocumented)
     title: string;
@@ -1052,7 +1052,7 @@ export interface DashboardController {
     handOver(panelId: string): HandOver | null;
     history: EditHistoryState;
     issues: Issue[];
-    kinds: FieldKindRegistry | null;
+    kinds: FieldKindRegistry | undefined;
     // (undocumented)
     panels: DashboardPanelView[];
     place(panelId: string, layout: PanelLayout, grown?: ReadonlyMap<string, number>): void;
@@ -2349,7 +2349,7 @@ interface HeldFilters {
 
 // @public
 export interface HeldView {
-    board?: BoardOrigin;
+    boardOrigin?: BoardOrigin;
     // (undocumented)
     draft: ViewConfig;
     from: HeldView | null;
@@ -2740,9 +2740,9 @@ interface PagedPaging {
 // @public
 interface PanelBinding {
     auto?: true;
-    derived?: true;
     // (undocumented)
-    globalField: string;
+    dashboardField: string;
+    derived?: true;
     // (undocumented)
     panelField: string;
 }
@@ -3371,8 +3371,7 @@ interface RecordSort {
 interface RecordSummary {
     // (undocumented)
     field: string;
-    // (undocumented)
-    fn: SummaryFunction;
+    function: SummaryFunction;
 }
 
 // @public (undocumented)
@@ -4008,7 +4007,7 @@ export function useHandedRemoval(filter: FilterEditorController, input: HandedRe
 export function useHandOver(handOver: ViewHandOver | null | undefined, context: {
     engine: ViewEngine;
     definitionId: string;
-    kinds: readonly ViewKind[];
+    viewKinds: readonly ViewKind[];
     request(proceed: () => void): void;
     hold(view: HeldView): void;
     open(target: SavedViewTarget): void;
@@ -4063,7 +4062,12 @@ export function useUnavailable(runtime: ViewRuntime<ViewConfig> | null): Unavail
 export function useValueCandidates(source: ValueCandidateSource | null | undefined, input: ValueCandidatesOptions): ValueCandidatesController;
 
 // @public
-export function useViewList(engine: ViewEngine, definitionId: string, options?: ViewListOptions): ViewListState;
+export function useViewList(engine: ViewEngine, definitionId: string, options?: UseViewListOptions): ViewListState;
+
+// @public
+export interface UseViewListOptions {
+    viewKinds?: readonly ViewKind[];
+}
 
 // @public
 export function useViewManager(engine: ViewEngine, definitionId: string, input: ViewManagerOptions): ViewManagerController;
@@ -4206,7 +4210,7 @@ interface ViewEngineOptions {
     // (undocumented)
     kinds?: FieldKindRegistry;
     limits?: Partial<RuntimeLimits>;
-    newId?(): string;
+    newRequestId?(): string;
     onIssue?(issue: Issue): void;
     resolveOptions?(key: string): OptionSource;
     resources: readonly ViewResource[];
@@ -4233,7 +4237,7 @@ interface ViewErrorContexts {
     query: (ViewErrorPlace & {
         operation: Exclude<QueryOperation, 'labels'>;
         violation?: QueryViolation;
-        errorCode?: string;
+        code?: string;
     }) | (ViewErrorPlace & {
         operation: 'labels';
         remote: string;
@@ -4317,13 +4321,8 @@ interface ViewListing {
     items: ViewInstanceSummary[];
 }
 
-// @public (undocumented)
-export interface ViewListOptions {
-    kinds?: readonly ViewKind[];
-}
-
 // @public
-interface ViewListOptions_2 extends ReadOptions {
+interface ViewListOptions extends ReadOptions {
     readonly cursor?: string | null;
 }
 
@@ -4578,7 +4577,7 @@ interface ViewStore {
     get(id: string, options?: ReadOptions): Promise<ViewInstance>;
     // (undocumented)
     getPreferences(definitionId: string, options?: ReadOptions): Promise<ViewPreferences>;
-    list(definitionId: string, options?: ViewListOptions_2): Promise<ViewListPage>;
+    list(definitionId: string, options?: ViewListOptions): Promise<ViewListPage>;
     readonly local?: boolean;
     permissions?(definitionId: string): ViewPermissions;
     rename(id: string, title: string, revision: string, options: WriteOptions): Promise<ViewInstance>;
@@ -4627,7 +4626,7 @@ type WindowFunctionName = `${WindowFunction}`;
 export interface WorkbenchController {
     autoRun: boolean;
     back(): void;
-    board: BoardOrigin | null;
+    boardOrigin: BoardOrigin | null;
     canDrill: boolean;
     choose(id: string | null): void;
     // (undocumented)
@@ -4641,7 +4640,6 @@ export interface WorkbenchController {
     follow(config: ViewConfig, title: string, conditions: readonly FilterNode[], subject?: string): void;
     handedOver: boolean;
     held: HeldView | null;
-    kinds: readonly ViewKind[];
     // (undocumented)
     leave: LeaveGuard;
     list: ViewListState;
@@ -4661,6 +4659,7 @@ export interface WorkbenchController {
     state: ViewRuntimeState<ViewConfig> | null;
     toBoard(): void;
     unopenable: Issue | null;
+    viewKinds: readonly ViewKind[];
 }
 
 // @public (undocumented)
@@ -4668,12 +4667,12 @@ export interface WorkbenchOptions {
     guardUnload?: boolean;
     handOver?: ViewHandOver | null;
     instanceId?: string | null;
-    kinds: readonly ViewKind[];
     newView?: NewViewOptions;
     onDrilldown?(target: DrillTarget): void;
     onInstanceChange?(id: string | null): void;
     onNavigate?(to: ViewNavigation): void;
     opening?(instanceId: string): DashboardOpening | undefined;
+    viewKinds: readonly ViewKind[];
 }
 
 // @public (undocumented)

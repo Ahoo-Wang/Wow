@@ -256,7 +256,7 @@ describe('DataViewRuntime execution', () => {
   it('runs the summary aggregation alongside the page', async () => {
     const { runtime, source } = harness({
       config: recordConfig({
-        summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+        summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
       }),
     });
 
@@ -276,7 +276,7 @@ describe('DataViewRuntime execution', () => {
     });
     const { runtime } = harness({
       config: recordConfig({
-        summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+        summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
       }),
       source,
     });

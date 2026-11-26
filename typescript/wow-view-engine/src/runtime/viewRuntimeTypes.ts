@@ -520,7 +520,7 @@ export interface RuntimeCapabilities {
 export interface CreateInput<C extends ViewConfig> {
   title: string;
   /** A user creates for an audience; only a definition declares a system view. */
-  scope: ViewAudience;
+  audience: ViewAudience;
   config: C;
   /**
    * The host's injected condition, as `open` takes it: a view made from an

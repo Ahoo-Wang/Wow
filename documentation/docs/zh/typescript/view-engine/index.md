@@ -91,7 +91,7 @@ export const PAID_THIS_WEEK: RecordViewConfig = {
   refresh: { interval: null },
   sort: [{ field: 'firstEventTime', direction: 'desc' }],
   pageSize: 20,
-  summaries: [{ field: 'state.totalAmount', fn: 'sum' }],
+  summaries: [{ field: 'state.totalAmount', function: 'sum' }],
   layout: 'table',
   table: {
     columns: [

@@ -118,7 +118,7 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 253 — with its kind and
 | `MarkdownPanel` | function | Markdown with raw HTML left off, which is the whole point of using it. | — |
 | `MarkdownPanelProps` | interface | — | — |
 | `MessageFormatters` | interface | What a component needs: a label by key, an issue or a list as a sentence. | — |
-| `MessageKey` | type | Every key this package ships, as a union. | — |
+| `MessageKey` | type | Every key this package ships, as a union: the keys of the English catalogue. | — |
 | `MessageOverrides` | type | A host's rewording of the engine's own keys, checked against them: write an override as `{ … } satisfies MessageOverrides`, and a key the engine renames or drops is a compile error rather than wording that silently falls back to the engine's sentence. | [Host Wiring](./host#api-MessagesProvider) |
 | `MessagesProvider` | function | The wording every default component reads. | [Host Wiring](./host#api-MessagesProvider) |
 | `MessagesProviderProps` | interface | — | [Host Wiring](./host#api-MessagesProvider) |
@@ -246,7 +246,7 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 253 — with its kind and
 | `datasetBindings` | function | A binding of each dataset served: the host spreads them into the ones it hands `ViewHost`, so its navigation lists the datasets and a view of one opens at its route. | — |
 | `dedupeIssues` | function | One of each sentence. | — |
 | `displayValue` | function | A value as its field shows it, or `undefined` when the field's kind has nothing to add and the caller's own rendering stands: a number keeps its format, a boolean its wording. | — |
-| `en` | const | English wording for everything this package can report, by area. | — |
+| `en` | const | English wording for everything this package can report, by key. | — |
 | `fileName` | function | A file name from a view's title and a day: `订单待办-2026-09-20.csv`. | — |
 | `formatIssue` | function | One issue as a sentence. | — |
 | `formatIssues` | function | Several issues, in order, joined for one alert. | — |

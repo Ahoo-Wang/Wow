@@ -177,7 +177,7 @@ function recordRuntime(
 ): RecordViewRuntime {
   return engine.create('orders', {
     title: 'New',
-    scope: 'personal',
+    audience: 'personal',
     config,
   });
 }

@@ -75,4 +75,4 @@ export const statusMessages = {
   'label.image.failed': 'This image could not be loaded',
   // An image that is a link and has no words of its own still needs a name.
   'label.image.link': 'Open the linked page',
-} as const satisfies Record<string, string>;
+} satisfies Record<string, string>;

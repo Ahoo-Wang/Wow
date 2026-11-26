@@ -417,7 +417,7 @@ export function recordConfig(
     sort: [],
     pageSize: 20,
     layout: 'table',
-    summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+    summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
     table: {
       columns: [
         // The row key stays put while the middle scrolls, which is what the
@@ -499,7 +499,7 @@ export function dashboardConfig(
         kind: 'view',
         title: '待出库明细',
         instanceId: 'orders-pending',
-        bindings: [{ globalField: 'region', panelField: 'warehouse' }],
+        bindings: [{ dashboardField: 'region', panelField: 'warehouse' }],
         layout: { x: 0, y: 0, w: 14, h: 4 },
       },
       {
@@ -507,7 +507,7 @@ export function dashboardConfig(
         kind: 'view',
         title: '按仓库汇总',
         instanceId: 'orders-analysis',
-        bindings: [{ globalField: 'region', panelField: 'warehouse' }],
+        bindings: [{ dashboardField: 'region', panelField: 'warehouse' }],
         layout: { x: 14, y: 0, w: 10, h: 4 },
       },
       {
@@ -1183,9 +1183,9 @@ export function waybillConfig(
     pageSize: 50,
     layout: 'table',
     summaries: [
-      { field: 'pieces', fn: AggregationFunction.SUM },
-      { field: 'weight', fn: AggregationFunction.SUM },
-      { field: 'amount', fn: AggregationFunction.SUM },
+      { field: 'pieces', function: AggregationFunction.SUM },
+      { field: 'weight', function: AggregationFunction.SUM },
+      { field: 'amount', function: AggregationFunction.SUM },
     ],
     table: {
       columns: [

@@ -165,7 +165,8 @@ export function recordProjection(
     asked.push(config.kanban.lane);
   for (const sort of config.sort) asked.push(sort.field);
   for (const summary of config.summaries ?? [])
-    if (summary.fn !== AggregationMetricTypes.COUNT) asked.push(summary.field);
+    if (summary.function !== AggregationMetricTypes.COUNT)
+      asked.push(summary.field);
   asked.push(...(capability.rowFields ?? []));
   if (capability.rowName !== undefined) asked.push(capability.rowName);
   // Money whose currency each record holds reads in that currency, so the
@@ -298,9 +299,9 @@ export function summaryMetrics(
 ): AggregationMetric[] {
   const summaries = config.summaries ?? [];
   const metrics = summaries.map(summary =>
-    SUMMARY_METRIC[summary.fn](
+    SUMMARY_METRIC[summary.function](
       summary.field,
-      summaryAlias(summary.field, summary.fn),
+      summaryAlias(summary.field, summary.function),
     ),
   );
   // Money in a currency each record holds asks which currencies the range

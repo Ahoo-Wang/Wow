@@ -201,13 +201,17 @@ export function projectSummaries(
 
   const cells = (config.summaries ?? []).map(summary => {
     const field = byName.get(summary.field);
-    const reading = summaryReading(field, summary.fn);
+    const reading = summaryReading(field, summary.function);
     const value =
       source.scope === 'page'
-        ? reduceRows(source.rows, summary.field, summary.fn, reading)
-        : readAggregated(row, summaryAlias(summary.field, summary.fn), reading);
+        ? reduceRows(source.rows, summary.field, summary.function, reading)
+        : readAggregated(
+            row,
+            summaryAlias(summary.field, summary.function),
+            reading,
+          );
     const currencyPath =
-      field && summary.fn !== AggregationMetricTypes.COUNT
+      field && summary.function !== AggregationMetricTypes.COUNT
         ? currencyPathOf(field)
         : undefined;
     const companion = summaryCurrency(definition, summary);
@@ -220,7 +224,7 @@ export function projectSummaries(
     return {
       field: summary.field,
       label: field?.label ?? summary.field,
-      fn: summary.fn,
+      fn: summary.function,
       // A total of unlike amounts is no amount (`CurrencyReading`).
       value: currency?.type === 'mixed' ? null : value,
       numberFormat: numberFormatOf(field),

@@ -199,4 +199,4 @@ export const chartReadingMessages = {
   'label.chart.period.range': '{from} – {to}',
   'label.chart.period.cut':
     'More than {limit} periods: the latest is not among them, so there is no number to show. Narrow the dates or read by a coarser period.',
-} as const satisfies Record<string, string>;
+} satisfies Record<string, string>;

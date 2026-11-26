@@ -14,7 +14,9 @@
 import type { Issue } from '../../model/index.js';
 import { LIST_PARAM_SEPARATOR } from '../../model/issue.js';
 import { formatNumber } from './numbers.js';
-import { en } from '../messages/en.js';
+import { en, type MessageKey } from '../messages/en.js';
+
+export type { MessageKey } from '../messages/en.js';
 
 /**
  * Wording, by key.
@@ -32,15 +34,6 @@ import { en } from '../messages/en.js';
  * off the same catalogue, and nothing here ever reads a key it did not ship.
  */
 export type ViewMessages = Readonly<Record<string, string>>;
-
-/**
- * Every key this package ships, as a union.
- *
- * It is what a component may ask for by name, so a key deleted from the
- * catalogue — or misspelt in JSX — is a compile error rather than a code on
- * screen. It does not constrain what a host adds: `ViewMessages` stays open.
- */
-export type MessageKey = keyof typeof en;
 
 /**
  * A host's rewording of the engine's own keys, checked against them: write

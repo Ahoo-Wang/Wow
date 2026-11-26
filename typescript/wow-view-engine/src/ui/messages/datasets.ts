@@ -22,4 +22,4 @@ export const datasetMessages = {
   'label.dataset.loading': 'Reading the datasets…',
   'label.dataset.refresh': 'Read the datasets again',
   'dataset.read.failed': 'The datasets served could not be read: {reason}',
-} as const satisfies Record<string, string>;
+} satisfies Record<string, string>;

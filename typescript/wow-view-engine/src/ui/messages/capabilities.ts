@@ -76,4 +76,4 @@ export const capabilitiesMessages = {
     '{source} refused a query ({code}) its capability descriptor {version} admits: the service and its descriptor disagree.',
   'capability.descriptor.unavailable':
     'The capability descriptor of {source} could not be read; its views run on the definition alone.',
-} as const;
+} satisfies Record<string, string>;

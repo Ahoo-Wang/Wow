@@ -77,7 +77,7 @@ describe('useCreateViewEngine', () => {
 
     const runtime = engine.create('orders', {
       title: 'New',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
     unmount();
@@ -90,7 +90,7 @@ describe('useCreateViewEngine', () => {
     expect(() =>
       engine.create('orders', {
         title: 'Again',
-        scope: 'personal',
+        audience: 'personal',
         config: recordConfig(),
       }),
     ).not.toThrow();
@@ -206,7 +206,7 @@ describe('useViewRuntime', () => {
     const { engine } = engineWith();
     const runtime = engine.create('orders', {
       title: 'New',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
 

@@ -495,7 +495,7 @@ describe('useViewManager', () => {
       store,
     });
     const rendered = renderHook<Managed, unknown>(() => {
-      const list = useViewList(engine, 'orders', { kinds: ['record'] });
+      const list = useViewList(engine, 'orders', { viewKinds: ['record'] });
       return { list, manager: useViewManager(engine, 'orders', { list }) };
     });
     await waitFor(() =>

@@ -371,7 +371,7 @@ export const TableSettings: Story = {
             { field: 'amount' },
           ],
         },
-        summaries: [{ field: 'amount', fn: AggregationFunction.AVG }],
+        summaries: [{ field: 'amount', function: AggregationFunction.AVG }],
         sort: [{ field: 'amount', direction: SortDirection.ASC }],
       });
     });

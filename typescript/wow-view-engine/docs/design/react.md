@@ -49,9 +49,9 @@ useViewList(engine, definitionId, options?: { kinds }): { items; all; preference
 // error 是 engine.list 答里的 failed（store 那一半没读到）或整个列表被拒的 Issue；两种情况下 items 都不清空：前者仍有代码声明的系统视图，重读时还留着上一份答案（F-05）
 ```
 
-- 给出 `kinds` 时先按顺序排好再过滤、再解析默认，见 [management.md#列表偏好与默认视图](management.md#列表偏好与默认视图)；数据工作台给的是 `['record', 'analysis']`，宿主收窄成一种就给一种（D20）；数组按内容持有（inline 写也不会每次重算）；
+- 给出 `viewKinds` 时先按顺序排好再过滤、再解析默认，见 [management.md#列表偏好与默认视图](management.md#列表偏好与默认视图)；数据工作台给的是 `['record', 'analysis']`，宿主收窄成一种就给一种（D20）；数组按内容持有（inline 写也不会每次重算）；
 - useViewManager 因此管的是过滤后的可见列表，而 move 提交的是 `all`（未过滤的完整顺序）里对调两项的结果，未列出的种类因此各守其位；
-- `all` 是未经 `kinds` 过滤、同序的全部摘要，供 moveTo 在完整顺序里落子；
+- `all` 是未经 `viewKinds` 过滤、同序的全部摘要，供 moveTo 在完整顺序里落子；
 - reload 可带 `{ without?: id }`：重载期间把该 id 从留存的摘要里去掉，`preferences.defaultInstanceId` 命中它也读作 null，答案落地即恢复由 store 说了算——重载只刷新不清空，否则刚删掉的那一行会继续被列出、继续被当作默认视图，骑在默认视图上的工作台就会去重开一个刚被释放的 runtime（瞬时 not_found）；
 - 它订阅 `engine.subscribe`（[runtime.md#viewengine](runtime.md#viewengine)）：本定义的通知到来时自动重载，删除那一条自带 `without`，卸载时退订。所以经引擎的创建／保存／改名／删除——无论出自管理器、视图头，还是宿主自己直接调 `engine.delete`——列表都自己跟上，没有哪个调用方需要记得通知（D15）；`reload` 仍然公开，它答的是「我从别处知道外面变了」，比如宿主自己的服务端推送。（见 test/useViewList.test.tsx「useViewList」「narrowed to one kind」）
 
@@ -292,7 +292,7 @@ WorkbenchController {
 
 一个工作台除了自己的编辑器与结果之外的全部：哪些视图、开着哪个、它说了什么、换一个时会发生什么。默认工作台只在编辑器与结果上不同，装配一模一样，所以装配只写这一处；每种视图的编辑器与结果是一个**注入件**（`ui/workbench/RecordParts.tsx`、`AnalysisParts.tsx`），把自己那一份外壳槽位（`WorkbenchParts`，外壳 props 的 `Pick`）经 render prop 交回，外壳画在它里面。注入件常驻挂载，没开着它那一种视图时交回空槽位——每次切换都先释放一个 runtime 再开下一个，外壳若跟着注入件来去，铺满与侧栏折叠这些「这一屏的姿态」会在中间那一帧丢掉。
 
-- 列表按 `kinds` 收窄后再定默认（`useViewList(engine, definitionId, { kinds })`）：侧栏不提供这一页画不出的视图，默认视图也只在这些里解析。仪表盘定义本就只有 dashboard 实例，收窄对它是恒等；控制器把 `kinds` 原样交出去，外壳据此在没有视图开着时给切换器一张脸（只画一种时）或不给；
+- 列表按 `kinds` 收窄后再定默认（`useViewList(engine, definitionId, { viewKinds })`）：侧栏不提供这一页画不出的视图，默认视图也只在这些里解析。仪表盘定义本就只有 dashboard 实例，收窄对它是恒等；控制器把 `kinds` 原样交出去，外壳据此在没有视图开着时给切换器一张脸（只画一种时）或不给；
 - `openId` 是"此刻在开的那个"：显式选择（`choose` 写下的 pin），没有则是列表的有效默认。`choose` 一律经离开守卫，因为切换会释放当前 runtime，未保存的草稿只活在里面；
 - **`instanceId` 是受控的**，语义照 input 的 `value`：**不传**（`undefined`）是非受控形态，开着哪个视图由工作台自己拿着，从有效默认开始；**传了**——一个 id，或 `null` 表示"那个有效默认"——就是宿主在说开哪个，此后每一次**变化**都打开它所指的视图。`null` 不是"没传"：传 `null` 的宿主是拿着一个值的，只不过那个值叫"我的默认"；
 - 它**收敛**而不是**渲染**（`react/workbench/instanceSync.ts`）。一个视图不是一个字符串：里面有未保存的草稿，换掉它是一次损失，所以宿主推进来的值和侧栏上的一次点击走同一道离开守卫，不能直接当成渲染结果铺上去。规则只有一条——**后动的那一方说话，另一方跟上**：
@@ -301,7 +301,7 @@ WorkbenchController {
   - 守卫拦下了这次推入、用户选择留下 → 告诉宿主**留下的是哪个**，宿主的 URL 因此不会停在一个没开着的视图上；
   - 两边一致、或守卫的问题还挂在屏幕上 → 什么都不向宿主报；说过一次就不再重复，宿主不跟是宿主的事。
 - `onInstanceChange(id)` 报的正是能原样传回 `instanceId` 的那个值——`null` 在出口与入口同义，都指有效默认——所以「一键重开」在浏览器里就是一条可以发出去的链接。两种形态之间中途切换不受支持，和 input 一样：第一个值决定哪一边拿着这个状态。（见 test/workbench.test.tsx「a workbench a host routes」、test/closedLoop.test.tsx「closed loop two」，参照实现 `examples/PlainRecordWorkbench.tsx` 的 `HashRoutedRecordWorkbench`）；
-- 种类不在 `kinds` 里由 `kindMismatch` 判为 `unopenable`，与"打不开"同一个出口：一个定义同时容纳 record 与 analysis 实例，宿主仍可点名任一个，画不出的那一页要说明白，而不是在标题栏下留一片空白。`unopenable` 为真时 `runtime`／`state` 皆为 null；
+- 种类不在 `viewKinds` 里由 `kindMismatch` 判为 `unopenable`，与"打不开"同一个出口：一个定义同时容纳 record 与 analysis 实例，宿主仍可点名任一个，画不出的那一页要说明白，而不是在标题栏下留一片空白。`unopenable` 为真时 `runtime`／`state` 皆为 null；
 - pin 指向的视图被删除后由 `react/workbench/releaseDeleted.ts` 放手：引擎随实例释放 runtime，同一 id 再开只会一直答 not_found，页面因此永远走不到还在的那个视图上。只放手**开过**的 id——宿主点名而 store 从来没有的 id 是一个要报出来的错，不是一个要导航离开的状态；
 - `leave` 是无对话框的离开守卫（`react/workbench/leaveGuard.ts`）：`asking` / `request(next)` / `confirm()` / `cancel()`。`dirty` 或写入结局为 `unknown` 时才问，`confirm` 先结清（`commands.abandon()`）再走——`next` 会释放这个 runtime，结局就再没有它可依附，handle 会指向一个谁也够不着的 runtime 而 `engine.pendingWrites()` 把它留到会话结束。可选的第三个回答 `saveAndLeave()`（R2-100）：工作台在打开的是存过的**个人**视图、可就地保存、草稿没有挡住写入的错误、也没有未结的写入时传 `save: commands.save`，守卫便带上它——存，**落地了才走**；被拒、冲突或没有回音就关上对话框留在原处，结局就在屏幕上、在那里结清；途中 `saving` 为真，三个回答都等它。共享视图不给：它的就地保存要先问一句（改的是所有人看到的），绕过那一问不算回答。怎么问是宿主的事，`/ui` 用 `LeaveDialog`。**同一条判据也挂在 `beforeunload` 上**（D18 Ⅸ）：关标签、后退、点走一个外链都会带走草稿，而这些路径一次也不经过 `request`——这个包甚至不会知道它发生过。脏或未知时挂上、其余时候一条也不挂（一个每次关闭都要争辩的标签，人会学会按两下），`guardUnload: false` 可以整个关掉，留给把工作台当页面一部分挂着、或在服务端渲染的宿主。处理器不带任何措辞：浏览器十年前就不再显示自定义文案了，能由我们措辞的那一句是 `LeaveDialog`，这一道只是那些到不了它的出口的兜底；嵌入视图不在其列——`EmbeddedView` 没有编辑器、没有草稿，压根不调这个钩子（`EmbeddedDashboard` 的可编辑一档在搭板子时调它，只为 `beforeunload`，见 [ui/embed.md](ui/embed.md)）；
 - `filter` 是这次打开的筛选编辑器，在这里建一次：外壳画已应用条件条要用它，error 条要用它的 `unmarked`，三个工作台本来也各建一个；
@@ -313,7 +313,7 @@ WorkbenchController {
 - **宿主交来的视图**（`handOver: ViewHandOver | null`，D22 H、D26 Q30，`react/workbench/handOver.ts`）：仪表盘或嵌入的出口经宿主的路由到这里——`ViewNavigation` 的 `view` 或 `unsaved` 原样放进来就是。每个**新对象**经离开守卫打开一次；同一个对象再交一次什么也不开（宿主带着同一条路由重渲染不该多出一份）；中间交过 `null` 再交回来算新的一次。**宿主把交来的视图存在浏览记录里**（补偿控制台存在 `history.state`，地址里是 `?view=`）时，从别的视图按「后退」回到那一条，`instanceId` 与 `handOver` 同一次变：打开由交来的视图负责，`useInstanceSync` 不再按 `instanceId` 另开一份——从前两者同在一次提交里，后开的那份不带交来的条件，把前一份顶掉了。（见 test/handOverBack.test.tsx）打开是一个 effect：StrictMode 预演卸载时工作台照例放掉持有的视图，「见过」也一并忘掉，第二次运行重新打开。两种都在交来的 `scopeFilter` 下跑——那是页面持有的，作用域，「正在显示」上单成一组、不带 ✕。
   - `unsaved`（追问、板内分析）与「从零做一个」同一条持有的路（没有 origin，按 id 开的那个随之放手），第一次保存即新建；种类不在 `kinds` 里的不开，带着 `named` 的照上面那条改名。持有它时记一个 `handed`：它和从一组开出来的视图一样，条件是带着来的、「正在显示」已经说了，所以外壳让编辑器**收着**打开（记录与分析都是），不像从零做的新视图那样展开——否则同一组条件在展开的托盘与「正在显示」上说两遍（批 D 走查）。
   - `view`（「在工作台中打开」一个已保存的视图、点击去另一个视图）**按 id 开**——这样它才是那个视图：在列表里点亮、保存就地写回、宿主按 id 记路由。`filter`（读者在板上设的）并进它**保存时**的条件（`useHandedConditions`，`withHandedFilter`）并应用：于是它开着就是「已修改」，每一条在「正在显示」上都可以拿掉，「还原」一次全拿掉。并进的是保存的配置而不是它原来的草稿——那份草稿离开守卫已经问过了。刚交来、读者还没动过的那一份不算脏（按值比，`untouchedSince`：草稿换了对象但说的还是交来的那些，同样不算）：直接离开、按「返回〈仪表盘〉」都什么也不问——板子带来的条件回到板上就在，什么也没丢；读者在那之外改过，才照常问。「正在显示」上板子带来的条件，✕ 是**整条拿掉**（`useHandedRemoval`），不是像读者自己的条件那样清空值、把字段留在编辑器里——那一行不是读者建的，留下一个没值的字段，拿光了仍是「已修改」；拿光之后树回到保存时的样子（`drillFilter` 为高级树加的那一层「全部」一并去掉），视图就是干净的。视图自己保存着的条件，✕ 照旧清空值。读者选别的视图，交来的作用域随之放下。
-  - **回板子的路**（D26 Q33）：交来的视图带着 `from`（`BoardOrigin`）、宿主又给了 `onNavigate`，控制器的 `board` 就是它，外壳在标题栏下画一行「返回〈仪表盘〉」（与「返回」条同一个 `OriginBar`，`aria-label`「从仪表盘打开」）；按下是 `toBoard()`：经离开守卫，把 `from.back` 交给宿主的路由——那块板、它离开时的筛选与标签页，宿主交给 `DashboardWorkbench` 的 `initialFilters`／`initialTab`。从它再开出去的视图显示自己的「返回」、不显示这一行，退回来时它又回来；没有路由就不画。（见 test/dashboardPressUi.test.tsx「a view nobody saved, opened in the workbench」、test/boardHandOver.test.tsx「leaving a board through the host’s route (D26 Q30)」「taking the board’s conditions off again (D26 Q30)」「the way back to the board (D26 Q33)」）
+  - **回板子的路**（D26 Q33）：交来的视图带着 `from`（`BoardOrigin`）、宿主又给了 `onNavigate`，控制器的 `boardOrigin` 就是它，外壳在标题栏下画一行「返回〈仪表盘〉」（与「返回」条同一个 `OriginBar`，`aria-label`「从仪表盘打开」）；按下是 `toBoard()`：经离开守卫，把 `from.back` 交给宿主的路由——那块板、它离开时的筛选与标签页，宿主交给 `DashboardWorkbench` 的 `initialFilters`／`initialTab`。从它再开出去的视图显示自己的「返回」、不显示这一行，退回来时它又回来；没有路由就不画。（见 test/dashboardPressUi.test.tsx「a view nobody saved, opened in the workbench」、test/boardHandOver.test.tsx「leaving a board through the host’s route (D26 Q30)」「taking the board’s conditions off again (D26 Q30)」「the way back to the board (D26 Q33)」）
 - 四个 `on*` 是标题栏结局的工作台语义，已经接好：存下的副本随即打开、改名留在原视图（先 pin 再 reload，否则骑在默认视图上的工作台会关掉 runtime 连草稿一起丢）、删除即移开（只清 pin——列表由引擎的通知带着被删的 id 自己重读，再补一次不带 `without` 的重读反而会把那一行放回去；默认视图顺位接上，或随列表一起空掉）、恢复则重读列表。（见 test/workbench.test.tsx「useWorkbench」）
 
 宿主写自己的标记时调这一个钩子就够，规则一条也不会掉——`examples/PlainRecordWorkbench.tsx` 是那份参照。`test/architecture.test.ts` 禁止 `ui/*Workbench.tsx` 直接 import `useViewList`／`useOpenView`／`useViewManager`／`useLeaveGuard`：绕过去就是把装配重建一遍。

@@ -76,4 +76,4 @@ export const manageMessages = {
   // again rather than a recovery of the one that lost.
   'label.manage.resubmit': 'Apply again',
   'label.manage.reload': 'Reload list',
-} as const satisfies Record<string, string>;
+} satisfies Record<string, string>;

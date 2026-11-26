@@ -303,7 +303,7 @@ function queue(
     refresh: { interval: null },
     sort: [{ field: 'firstEventTime', direction: 'desc' }],
     pageSize: 20,
-    summaries: [{ field: 'state.totalAmount', fn: 'sum' }],
+    summaries: [{ field: 'state.totalAmount', function: 'sum' }],
     layout: 'table',
     table: { columns: COLUMNS.map(field => ({ field })) },
     card: {

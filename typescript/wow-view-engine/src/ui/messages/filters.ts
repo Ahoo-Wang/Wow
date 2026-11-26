@@ -116,4 +116,4 @@ export const filtersMessages = {
   'label.filters.picked': 'Picked up the filter “{filter}”.',
   'label.filters.cancelled': 'The filter “{filter}” stayed where it was.',
   'label.filters.moved': '“{filter}” is now filter {index} of {total}',
-} as const;
+} satisfies Record<string, string>;

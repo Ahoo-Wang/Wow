@@ -68,8 +68,12 @@ export interface ViewEngineOptions {
    */
   limits?: Partial<RuntimeLimits>;
   environment?: RuntimeEnvironment;
-  /** Idempotency keys; overridden in tests to keep them readable. */
-  newId?(): string;
+  /**
+   * Makes a write's request id, its idempotency key (the port's
+   * `WriteOptions.requestId`, wow-client's `newRequestId`); overridden in
+   * tests to keep them readable.
+   */
+  newRequestId?(): string;
   /**
    * Findings with no caller to reject and nothing thrown behind them: a
    * definition's admission, a list entry that was dropped, a change

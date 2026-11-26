@@ -399,7 +399,7 @@ describe('a source with a descriptor', () => {
     const { engine, describe } = harness({ definitions: [searchable()] });
     const input = {
       title: 'New',
-      scope: 'personal' as const,
+      audience: 'personal' as const,
       config: recordConfig(),
     };
 

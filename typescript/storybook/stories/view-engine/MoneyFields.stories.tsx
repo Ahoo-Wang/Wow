@@ -229,8 +229,8 @@ const orders: ViewInstance = {
   revision: '1',
   config: recordConfig({
     summaries: [
-      { field: 'amount', fn: AggregationFunction.SUM },
-      { field: 'shipping', fn: AggregationFunction.SUM },
+      { field: 'amount', function: AggregationFunction.SUM },
+      { field: 'shipping', function: AggregationFunction.SUM },
     ],
     table: {
       columns: [

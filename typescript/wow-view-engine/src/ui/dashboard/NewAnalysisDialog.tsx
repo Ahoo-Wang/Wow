@@ -463,7 +463,7 @@ function useHeldAnalysis(
       try {
         runtime = engine.create(definition.id, {
           title: definition.title,
-          scope: 'personal',
+          audience: 'personal',
           config: defaultAnalysisConfig(definition, engine.limits),
         });
         setHeld({ definitionId: definition.id, runtime, error: null });

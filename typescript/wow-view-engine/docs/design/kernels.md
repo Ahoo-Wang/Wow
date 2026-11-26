@@ -454,9 +454,9 @@ D20 屏 B 的两件事各有一个内核文件，都只是纯函数——托盘�
 - `panels` 数量不超过 `RuntimeLimits.maxDashboardPanels`，该检查先于创建任何子 runtime；
 - `panels[].id` 非空且全局唯一，重复或为空报 error（面板 id 是运行时查找、布局 key 与错误归属的依据）；
 - `layout` 的 `x`、`y` 为非负有限整数，`w`、`h` 为正有限整数，且 `x + w` 不超过栅格列数，否则面板会在适配层消失或重叠；
-- `bindings[].globalField` 必须在 `cfg.fields` 中，`bindings[].panelField` 必须在被引用实例的定义中，且两者是同一筛选类型（`sameFilterType`：`datetime` 接得上 `date`，`string` 接得上 `enum`；六类之外的种类只接同一种类）；`auto` 只能是 `true`；
+- `bindings[].dashboardField` 必须在 `cfg.fields` 中，`bindings[].panelField` 必须在被引用实例的定义中，且两者是同一筛选类型（`sameFilterType`：`datetime` 接得上 `date`，`string` 接得上 `enum`；六类之外的种类只接同一种类）；`auto` 只能是 `true`；
 - 全局筛选按 `cfg.fields` 与传入的 `kinds` 走 `validateFilter`，因此自定义 kind 与值形状同样受检；
-- 同一面板内 `bindings[].globalField` 不能重复（一个筛选叶子只能替换成一个目标字段，一对多展开的布尔语义未定义）；
+- 同一面板内 `bindings[].dashboardField` 不能重复（一个筛选叶子只能替换成一个目标字段，一对多展开的布尔语义未定义）；
 - **每个数据面板必须绑定整板条件树（`boardCondition`：固定范围 `cfg.fixed`；板子没有自己的 `filter`，D27）实际引用的全部字段**，否则部分映射无法保持布尔语义（`region = CN OR product = X` 丢掉一支会错误收窄，视为真会抹掉整个条件），缺绑定报 error。**板子的筛选不在此列**：它们之间是 AND，没接上的筛选不到这个面板只是问得更宽（D22 F「不受此筛选影响」），见 `panelFilterTree`；
 - 映射后的树——固定范围，AND 上每个接上的筛选的默认值——还要以被引用定义的字段与 `kinds` 再跑一次 `validateFilter`，因为目标字段可能限制了操作符或候选，类型相同不等于可接受同一条件（一个 `enum` 字段收不下它选项之外的默认值）；
 - 该次校验同时重新核对深度与节点预算，两棵各自合规的树 AND 合并后仍可能超限，超限记为该面板的 error 而不进入编译；

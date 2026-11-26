@@ -96,12 +96,12 @@ export function panelAnchor(
   const held = bindings.filter(
     binding =>
       binding.panelField === axis.field &&
-      dates.has(binding.globalField) &&
-      isDateTimeFilterValue(board.filters.values[binding.globalField]),
+      dates.has(binding.dashboardField) &&
+      isDateTimeFilterValue(board.filters.values[binding.dashboardField]),
   );
   if (held.length !== 1) return null;
   const [binding] = held;
-  const value = board.filters.values[binding.globalField];
+  const value = board.filters.values[binding.dashboardField];
   if (!isDateTimeFilterValue(value)) return null;
   const { from: start, to: end } = resolveDateTimeRange(
     value,

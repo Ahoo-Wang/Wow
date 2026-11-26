@@ -29,4 +29,4 @@ export const reorderMessages = {
   'label.reorder.earlier': 'Move one place earlier',
   'label.reorder.later': 'Move one place later',
   'label.reorder.last': 'Move to the end',
-} as const;
+} satisfies Record<string, string>;

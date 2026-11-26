@@ -317,7 +317,7 @@ export function keyedBoard(): DashboardDefinition {
               kind: 'view',
               title: 'Order list',
               instanceId: systemInstanceId('orders', 'all'),
-              bindings: [{ globalField: 'region', panelField: 'warehouse' }],
+              bindings: [{ dashboardField: 'region', panelField: 'warehouse' }],
               layout: { x: 0, y: 3, w: 12, h: 4 },
             },
             {

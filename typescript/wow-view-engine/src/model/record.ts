@@ -101,7 +101,8 @@ export interface RecordColumn {
 
 export interface RecordSummary {
   field: string;
-  fn: SummaryFunction;
+  /** The aggregation, by the wire's word, as an analysis metric's `function`. */
+  function: SummaryFunction;
 }
 
 export interface RecordTableSpec {

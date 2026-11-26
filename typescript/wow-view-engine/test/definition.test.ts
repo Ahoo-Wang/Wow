@@ -992,7 +992,7 @@ describe('ViewEngine and an unusable definition', () => {
     expect(() =>
       engine.create('orders', {
         title: 'New',
-        scope: 'personal',
+        audience: 'personal',
         config: recordConfig(),
       }),
     ).toThrow();

@@ -207,8 +207,11 @@ export interface DashboardController {
   filterChoices(name: string): FieldOption[] | null;
   /** An id filter's candidates, by the host's source key (`optionSource`). */
   filterOptions(remote: string): OptionSource | null;
-  /** The field kinds the board's filters are edited with; `null` without a board. */
-  kinds: FieldKindRegistry | null;
+  /**
+   * The field kinds the board's filters are edited with; `undefined` without
+   * a board, as the other controllers say it.
+   */
+  kinds: FieldKindRegistry | undefined;
   /**
    * The board's tabs in the order of its bar, as they are on screen (D22
    * E); none on a board without. Fewer than two draw no bar.
@@ -404,7 +407,7 @@ export function useDashboard(
       (remote: string) => runtime?.optionSource(remote) ?? null,
       [runtime],
     ),
-    kinds: runtime?.kinds ?? null,
+    kinds: runtime?.kinds,
     // What is on screen: an edit writes the draft and the applied config
     // alike, so the two agree on the tabs whenever a panel is drawn.
     tabs: useMemo(() => tabsOf({ tabs: appliedTabs ?? [] }), [appliedTabs]),

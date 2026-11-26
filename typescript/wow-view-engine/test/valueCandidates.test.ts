@@ -298,7 +298,7 @@ function openOn(source: ViewSource, definition = ordersDefinition()) {
   });
   return engine.create('orders', {
     title: 'Scratch',
-    scope: 'personal',
+    audience: 'personal',
     config: recordConfig(),
   });
 }
@@ -457,7 +457,7 @@ describe('a view runtime offers value candidates', () => {
     });
     const starved = engine.create('orders', {
       title: 'Scratch',
-      scope: 'personal',
+      audience: 'personal',
       config: recordConfig(),
     });
     await expect(

@@ -69,8 +69,8 @@ describe('DashboardViewRuntime child refusal', () => {
   const STATE_FIELD = { name: 'state', label: 'State', kind: 'string' };
   const bound = panel({
     bindings: [
-      { globalField: 'region', panelField: 'warehouse' },
-      { globalField: 'state', panelField: 'status' },
+      { dashboardField: 'region', panelField: 'warehouse' },
+      { dashboardField: 'state', panelField: 'status' },
     ],
   });
 

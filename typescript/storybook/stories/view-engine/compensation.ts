@@ -325,7 +325,10 @@ export const executionFailedDefinition: DataViewDefinition = {
         [{ field: 'state.status', operator: FilterOperator.IN, value: ACTIVE }],
         {
           summaries: [
-            { field: 'state.retryState.retries', fn: AggregationFunction.SUM },
+            {
+              field: 'state.retryState.retries',
+              function: AggregationFunction.SUM,
+            },
           ],
         },
       ),

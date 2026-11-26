@@ -157,7 +157,7 @@ describe('query failures reach onError', () => {
         {
           ...mine,
           config: recordConfig({
-            summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
+            summaries: [{ field: 'amount', function: AggregationFunction.SUM }],
           }),
         },
       ],
