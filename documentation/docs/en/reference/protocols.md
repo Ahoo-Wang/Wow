@@ -420,7 +420,7 @@ A hop that completes sends a signal straight to the internal port of the node th
 }
 ```
 
-A node may send several signals to one node as a JSON array of them. The receiving node deduplicates a signal by its wait id, its hop, its command and the function that produced its result (its context and subscription).
+A node may send several signals to one node as a JSON array of them. The receiving node deduplicates a signal by its wait id, its hop, its command and the function that produced its result (its context and subscription). It answers 400 to a body that is not signals, or holds a signal of a format it does not read, and 413 to one larger than its internal port takes (`spring.http.codecs.max-in-memory-size`): the sender sends a batch refused as malformed again one signal a request, and one refused as too large by halves, so that a signal the node cannot take costs only itself.
 
 ## Cluster channel
 
@@ -428,10 +428,10 @@ The nodes of one service forward commands to each other on their internal ports,
 
 | Message | Fields |
 | --- | --- |
-| Forward | `{v, command, transport, deadline}`: the [command](#commands-on-a-topic) in its wire form, the transport data (the wait context of an open wait and the trace propagation fields, null when there is neither) and the absolute deadline. |
-| Reply | `{v, result, reached, refused}`: either the owner's `result` at `COMMITTED` with the later hops it `reached` at once, or `refused` with one of `not-owner`, `expired`, `unknown-type`, `too-large`. |
+| Forward | `{format, command, transport, deadline}`: the [command](#commands-on-a-topic) in its wire form, the transport data (the wait context of an open wait and the trace propagation fields, null when there is neither) and the absolute deadline. |
+| Reply | `{format, result, reached, refused}`: either the owner's `result` at `COMMITTED` with the later hops it `reached` at once, or `refused` with one of `not-owner`, `expired`, `unknown-type`, `too-large`, `unknown-format` (the forward, or a format it carries, is one the node does not read) and `malformed` (a body the node cannot read as a forward). |
 
-A forward refused before its deadline is executed by the sending node itself; one refused after it is not executed at all. A forward that was sent and got no reply by its deadline and the 2 seconds after it is not executed by the sender either: the sender answers that the outcome is unknown, and the caller retries with the same request id.
+A node answers every forward it does not run with a refusal, never with a 400, so its sender knows it was not executed. A forward refused before its deadline is executed by the sending node itself; one refused after it is not executed at all. A reply of a format the sender does not read leaves the outcome unknown to it, as no reply does. A forward that was sent and got no reply by its deadline and the 2 seconds after it is not executed by the sender either: the sender answers that the outcome is unknown, and the caller retries with the same request id.
 
 ## Snapshot
 
@@ -452,9 +452,10 @@ The `snapshot` query model reads them as its system fields, flattened: `tenantId
 
 ## Format versions
 
-The structures with a format version are: the log entry's facts and transport data, the snapshot record, the state event, the command's wire form, the command result, the wait signal, the Kafka envelope and the cluster channel's messages.
+The structures with a format version are: the log entry's facts and transport data, the snapshot record, the state event, the command's wire form, the command result, the wait signal, the Kafka envelope, the cluster channel's messages and the call a service's synchronous call carries (`Wow-Call`).
 
-- Logs and snapshot stores record their format version per table. Every message on the wire carries its own: `format`, or `v` on the cluster channel.
+- Logs and snapshot stores record their format version per table. Every message on the wire carries its own, `format`.
+- **A format a reader does not read is refused**, never read as its own: a node refuses a forward of another format (`unknown-format`), answers 400 to signals of another format, or with a result of one, and 400 `wow.command.malformed` to a `Wow-Call` of another; a sender reads a forward's reply of another format as an unknown outcome. Each is a comparison of a number the reader has already read.
 - **Adding is not a format change.** A new optional field with a default keeps the format version. Readers ignore fields they do not know, and fill in the default for a field that is missing. On PostgreSQL such a field is a column added within the format (`ALTER TABLE … ADD COLUMN IF NOT EXISTS`, the member record's `wow_version` the first): `ddl: auto` adds it to a table made before it, and `validate` refuses the table without it, naming the statement.
 - **A value a newer writer added** to a result's status, a hop's stage or a function's kind is read as `UNKNOWN`, wherever a node reads it: a log entry's transport, a topic's envelope, the cluster channel, a peer's `Wow-Call`. A server still refuses an unknown value in a client's request.
 - **Within a major version**, a new field is first read by one minor version and written only by the next, so two adjacent minor versions can run side by side during a rolling upgrade.

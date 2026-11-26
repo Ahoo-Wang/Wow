@@ -26,6 +26,7 @@ import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.ClusterStream
 import me.ahoo.wow.runtime.cluster.ForwardCommand
 import me.ahoo.wow.runtime.cluster.ForwardReply
+import me.ahoo.wow.runtime.cluster.UnknownFormatException
 import tools.jackson.core.JacksonException
 import java.io.IOException
 import java.net.ConnectException
@@ -72,11 +73,11 @@ import kotlin.time.toJavaDuration
  * ([InternalHttp.ANSWER_GRACE]).
  *
  * Whatever keeps a reply from arriving (no connection, no reply by the deadline and its grace, a reset stream or a
- * closed connection, a status other than 200, a body that is not a reply) is a [ClusterChannelException]. Only one
- * raised before the request was sent (no connection to the peer, refused or not opened in time, or refused by the JDK
- * for the peer's limit until the deadline) is [unsent][ClusterChannelException.unsent], which the router degrades to
- * running the command locally while the forward's deadline is ahead; nothing after the send is, whose outcome is
- * unknown.
+ * closed connection, a status other than 200, a body that is not a reply, a reply of a format this node does not read)
+ * is a [ClusterChannelException]. Only one raised before the request was sent (no connection to the peer, refused or
+ * not opened in time, or refused by the JDK for the peer's limit until the deadline) is
+ * [unsent][ClusterChannelException.unsent], which the router degrades to running the command locally while the
+ * forward's deadline is ahead; nothing after the send is, whose outcome is unknown.
  *
  * Each forward names the node's [service] in `Wow-Service`. A peer that answers 401 or 403 did not
  * take the forward, being a node of another service: a refusal, which is [unsent][ClusterChannelException.unsent] too,
@@ -212,6 +213,12 @@ class HttpClusterChannel(
             ClusterCodec.decodeReply(response.body())
         } catch (malformed: JacksonException) {
             throw ClusterChannelException("$address answered the forward with a malformed reply.", malformed)
+        } catch (unknown: UnknownFormatException) {
+            // The owner answered, in a format this node does not read: it may have run the command.
+            throw ClusterChannelException(
+                "$address answered the forward in another format: ${unknown.message}",
+                unknown,
+            )
         }
     }
 

@@ -149,8 +149,9 @@ class PostgresClusterTest {
         }
         forward(null).assert().isEqualTo(401)
         forward("ordering-service").assert().isEqualTo(403)
-        // From a node of this service, the forward is read: this body is no forward.
-        forward("bank-service").assert().isEqualTo(400)
+        // From a node of this service, the forward is read: this body is no forward, refused as malformed in a 200
+        // reply, as it did not run.
+        forward("bank-service").assert().isEqualTo(200)
     }
 
     /** [count] aggregate ids whose partitions the second node owns and the first forwards to it, once they agree. */

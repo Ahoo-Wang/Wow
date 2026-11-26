@@ -41,8 +41,8 @@ class HostDeclaredServicesTest {
         startHost().use { host ->
             host.internal(InternalHttp.FORWARD_PATH, null).assert().isEqualTo(401)
             host.internal(InternalHttp.FORWARD_PATH, "ordering-service").assert().isEqualTo(403)
-            // Taken, then read: this body is no forward.
-            host.internal(InternalHttp.FORWARD_PATH, "bank-service").assert().isEqualTo(400)
+            // Taken, then read: this body is no forward, refused as malformed in a 200 reply, as it did not run.
+            host.internal(InternalHttp.FORWARD_PATH, "bank-service").assert().isEqualTo(200)
         }
     }
 
