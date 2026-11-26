@@ -45,7 +45,7 @@ import javax.inject.Inject
  * and the namespace. A value the chart's schema refuses fails the build with the chart's own message.
  */
 @CacheableTask
-internal abstract class GenerateManifests @Inject constructor(private val exec: ExecOperations) : DefaultTask() {
+internal abstract class GenerateKubernetes @Inject constructor(private val exec: ExecOperations) : DefaultTask() {
     /** The values the build knows: `generateWowHelmValues`'s file, which names the service. */
     @get:InputFile
     @get:PathSensitive(PathSensitivity.NONE)

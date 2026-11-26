@@ -24,7 +24,7 @@ import org.junit.jupiter.api.io.TempDir
 import java.io.File
 
 /**
- * `generateWowManifests` built with the plugin (Gradle TestKit), on [ContextsFixture]'s context `a`: its service
+ * `generateWowKubernetes` built with the plugin (Gradle TestKit), on [ContextsFixture]'s context `a`: its service
  * `a-server` names a values file and a namespace in `wow { kubernetes { … } }`, and the plugin renders its chart with
  * the pinned Helm into `build/wow/k8s`. The test fetches that Helm once, into this build's Gradle user home, and hands it
  * to the builds as `wow.helm.executable`, so they run with the binary the plugin fetches.
@@ -38,7 +38,7 @@ class KubernetesManifestsFunctionalTest {
     /** The service's build file as the fixture writes it, before its `kubernetes` block. */
     private lateinit var serverBuild: String
 
-    private val task = ":a-server:${WowPlugin.MANIFESTS_TASK}"
+    private val task = ":a-server:${WowPlugin.KUBERNETES_TASK}"
     private val output: File get() = File(root, "a-server/build/wow/k8s")
 
     @BeforeAll

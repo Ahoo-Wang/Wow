@@ -1,4 +1,4 @@
-// The wow-service chart the plugin renders (generateWowManifests), from the one copy the repository keeps,
+// The wow-service chart the plugin renders (generateWowKubernetes), from the one copy the repository keeps,
 // deploy/helm/wow-service: the files `helm package` takes (not those its .helmignore names), zipped into the plugin's
 // resources at me/ahoo/wow/gradle/helm/wow-service.zip, under wow-service/. A chart whose Chart.yaml is not of the
 // plugin's version is refused, so the chart a plugin renders is that plugin's. Applied by compiler/gradle-plugin and by

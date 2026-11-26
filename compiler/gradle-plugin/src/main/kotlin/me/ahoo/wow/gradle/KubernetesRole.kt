@@ -13,14 +13,14 @@
 
 package me.ahoo.wow.gradle
 
-import me.ahoo.wow.gradle.WowPlugin.Companion.MANIFESTS_TASK
+import me.ahoo.wow.gradle.WowPlugin.Companion.KUBERNETES_TASK
 import org.gradle.api.Project
 import org.gradle.api.plugins.BasePlugin
 import org.gradle.api.tasks.TaskProvider
 import java.util.concurrent.Callable
 
 /**
- * The service's Kubernetes manifests: `generateWowManifests` ([GenerateManifests]) renders the plugin's `wow-service`
+ * The service's Kubernetes manifests: `generateWowKubernetes` ([GenerateKubernetes]) renders the plugin's `wow-service`
  * chart with the build's Helm ([HelmService]) from the values [helmValues] writes and the deployment's
  * ([WowKubernetesExtension]). It is part of `assemble` when the build names the deployment's values, and nothing is
  * fetched until it runs.
@@ -29,7 +29,7 @@ internal object KubernetesRole {
     fun kubernetes(project: Project, extension: WowServiceExtension, helmValues: TaskProvider<GenerateHelmValues>) {
         val helm = HelmService.register(project)
         val kubernetes = extension.kubernetes
-        val manifests = project.tasks.register(MANIFESTS_TASK, GenerateManifests::class.java) { task ->
+        val manifests = project.tasks.register(KUBERNETES_TASK, GenerateKubernetes::class.java) { task ->
             task.group = GROUP_NAME
             task.description = "Renders the service's Kubernetes manifests from the wow-service chart into a Kustomize " +
                 "base of plain YAML, build/wow/k8s."

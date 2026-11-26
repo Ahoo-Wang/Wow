@@ -162,7 +162,7 @@ dependencies {
 - 把运行时类路径上的各部分合并成服务的 Manifest，即 `build/wow/manifest.json`（`mergeWowManifest`），并写出它的 OpenAPI 文档（`generateWowOpenApi`）；
 - 在合并的同时，把服务名和它提供的上下文写进服务器自己的资源 `META-INF/wow/service.json`：这就是它的节点必须使用的名字（见下文）；
 - 写出构建所知道的 `wow-service` Helm chart 的 values，即 `build/wow/helm/values.yaml`（`generateWowHelmValues`，属于 `assemble`）：服务名、类路径上有契约的对端，以及 Manifest 的路由（[Kubernetes](../operate/kubernetes)）；
-- 用这些 values 和部署的 values 把 chart 渲染成纯 YAML 的 Kustomize base，即 `build/wow/k8s/`（`generateWowManifests`，一旦 `kubernetes { values }` 写了文件就属于 `assemble`），供 `kubectl apply -k` 使用（[配合 Kustomize](../operate/kubernetes#with-kustomize)）；
+- 用这些 values 和部署的 values 把 chart 渲染成纯 YAML 的 Kustomize base，即 `build/wow/k8s/`（`generateWowKubernetes`，一旦 `kubernetes { values }` 写了文件就属于 `assemble`），供 `kubectl apply -k` 使用（[配合 Kustomize](../operate/kubernetes#with-kustomize)）；
 - 每次构建都对照提交到仓库的基线检查 Manifest（`checkWowManifest`，属于 `check`；`updateWowManifestBaseline` 记录基线）；
 - 检查运行时与测试类路径解析到的 Jackson 是 Wow 的 JSON 验证过的次版本，且其模块属于同一次版本（`checkWowJackson`，属于 `check`；`me.ahoo.wow` 也在领域模块的测试类路径上运行它），否则说明要改什么（[升级](../operate/upgrades)）；
 - 注册测试套件 `integrationTest`，供在容器上运行的测试使用，不属于 `check`（[在真实存储上运行](../guide/testing-services#run-it-on-real-stores)）。
@@ -172,7 +172,7 @@ dependencies {
 | 属性 | 默认值 | 含义 |
 | --- | --- | --- |
 | `manifestBaseline` | `manifest/baseline.json` | 兼容检查使用的、提交到仓库的基线 |
-| `kubernetes { values; namespace }` | 无 | `generateWowManifests` 渲染 chart 所用的部署 values 文件与命名空间（[配合 Kustomize](../operate/kubernetes#with-kustomize)） |
+| `kubernetes { values; namespace }` | 无 | `generateWowKubernetes` 渲染 chart 所用的部署 values 文件与命名空间（[配合 Kustomize](../operate/kubernetes#with-kustomize)） |
 
 服务只有一个名字，即合并后的 Manifest 的名字：对端按这个名字找到它，chart 的 values 带着它，基线记录它。服务器的配置重复这个名字，写在 `spring.application.name` 里，设置了 `wow.service` 时则写在 `wow.service` 里。类路径上有服务器的 `META-INF/wow/service.json` 的节点，对其中写明的上下文以别的名字运行时会拒绝启动。拒绝信息指明给出运行名字的那个键，以及要改的那一行：`Set spring.application.name: catalog-server`，或者在构建里改名。不用这个插件构建的服务器（例如用 Maven）没有这个文件，也就没有什么会把它的名字和构建的名字相比较。
 
