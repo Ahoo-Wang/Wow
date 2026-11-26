@@ -26,7 +26,8 @@ import me.ahoo.wow.query.schema.QueryModel
 
 /**
  * Decides whether a caller may read a model at all, before anything of it is read: a query of any model and any
- * operation (a server-sent stream is its query's), a state read and a trace. Which rows the caller sees is the
+ * operation (a server-sent stream is its query's), a state read, a trace, and the model's descriptor, its fields and
+ * budget, asked as [QueryType.DESCRIBE] before the schema loads. Which rows the caller sees is the
  * aggregate's access policy's ([me.ahoo.wow.api.access.AccessPolicy]), which fields the masks'; this is the role, the
  * application, the entry: whether the caller may read here at all.
  *
