@@ -241,6 +241,7 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.runtime.node.LogGroupBackends` | class | `wow-runtime` |
 | `me.ahoo.wow.runtime.node.BackendFactory` | interface | `wow-runtime` |
 | `me.ahoo.wow.runtime.node.SourceTopics` | class | `wow-runtime` |
+| `me.ahoo.wow.runtime.subscription.ParkedNotice.of` | fun | `wow-runtime` |
 | `me.ahoo.wow.runtime.wait.SubscriptionDirectory` | interface | `wow-runtime` |
 | `me.ahoo.wow.query.QueryScope` | class | `wow-query` |
 | `me.ahoo.wow.query.QueryEntry` | class | `wow-query` |
