@@ -243,6 +243,9 @@ class DatasetBinderTest {
             "The filter 1 reads o.nothing: nothing is not a column of analytics.orders.",
             "The filter 2: The expression [o.amount >] ends too early.",
         )
+        // A decimal digit that is not ASCII is no number: a problem of the definition, not a failure (#7214).
+        problems(DEFINITION.copy(filters = listOf("o.amount > ٣"))).assert()
+            .containsExactly("The filter 1: The expression [o.amount > ٣] has ٣.")
     }
 
     @Test

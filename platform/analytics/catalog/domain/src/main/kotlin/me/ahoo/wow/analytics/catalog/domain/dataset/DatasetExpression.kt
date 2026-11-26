@@ -325,7 +325,8 @@ private class DatasetExpressionParser(private val text: String) {
                     index = end
                 }
 
-                char.isDigit() -> {
+                // An ASCII digit, as NUMBER reads one: any other decimal digit (`٣`, `３`) is no number of an expression.
+                char in '0'..'9' -> {
                     val match = NUMBER.matchAt(text, index)!!
                     tokens += Token(Kind.NUMBER, match.value)
                     index += match.value.length
