@@ -236,9 +236,8 @@ class MongoEventLog(
         // is recorded before any counter, so a node that finds counters also finds the count the log was created with
         // and refuses another one before it adds a counter.
         val existingCounters = counters.countDocuments()
-        val marker = "$countersName$PARTITIONS_MARKER"
-        upsertOnce(registry, marker, PARTITIONS to if (existingCounters > 0) existingCounters.toInt() else partitions)
-        val recorded = registry.find(Filters.eq(ID, marker)).first()!!.getInteger(PARTITIONS)
+        val count = if (existingCounters > 0) existingCounters.toInt() else partitions
+        val recorded = collections.recordedPartitions(count)
         check(recorded == partitions) {
             "The log of $context has $recorded partitions, not $partitions: changing it is a repartition."
         }

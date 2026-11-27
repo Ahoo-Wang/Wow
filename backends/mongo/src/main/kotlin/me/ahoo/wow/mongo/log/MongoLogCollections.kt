@@ -188,35 +188,73 @@ internal class MongoLogCollections(
      * made by hand) would take appends that no other node's tail reads, nor its own after a restart.
      *
      * A collection that does not exist yet is recorded too, unlike a table on PostgreSQL: MongoDB reads a missing
-     * collection as empty, so its record fails no read, and under `ddl: none` the first append creates it. A record this
-     * store cannot write (an account without insert on the registry) is refused, naming the document to insert; a
-     * failure of the store's connection is thrown as it is, to be retried. Only a creation records the collection's
-     * access walk as done: a collection recorded after it existed may hold streams a walk has to stamp.
+     * collection as empty, so its record fails no read, and under `ddl: none` the first append creates it. The record
+     * is read first and written only when missing ([insert]), as the timer store's is: MongoDB checks an account's
+     * privilege before the key, so an insert of a record already there by an account that may only read the registry
+     * is refused as unauthorized, not answered as a duplicate (#7230). Only a creation records the collection's access
+     * walk as done: a collection recorded after it existed may hold streams a walk has to stamp.
      */
     private fun record(collection: AggregateCollection, aggregate: String) {
-        val registered = Document(ID, collection.name).append(CONTEXT, context).append(AGGREGATE, aggregate)
-        if (ddl.creates) {
-            // The walk its creation records: kept with the document, so a collection registered before keeps its own.
-            served[aggregate]?.let { registered.append(ACCESS_WALK, MongoLogAccess.documentOf(AccessWalk.created(it))) }
-        }
-        try {
-            registry.insertOne(registered)
-        } catch (failure: MongoException) {
-            if (!failure.isDuplicateKey()) {
-                if (MongoFailures.isTransient(failure)) throw failure
-                throw IllegalStateException(
-                    "The registry ${MongoEventLog.REGISTRY} has no record of the log collection ${collection.name}, " +
-                        "and this store could not write it (${failure.message}): its tails would not read the " +
-                        "collection. Let the store's account insert into ${MongoEventLog.REGISTRY}, or insert " +
-                        "{_id: \"${collection.name}\", context: \"$context\", aggregate: \"$aggregate\"} into it.",
-                    failure,
-                )
+        val holder = holderOf(collection.name) ?: run {
+            val registered = Document(ID, collection.name).append(CONTEXT, context).append(AGGREGATE, aggregate)
+            if (ddl.creates) {
+                // The walk its creation records: kept with the document, so one registered before keeps its own.
+                served[aggregate]?.let {
+                    registered.append(ACCESS_WALK, MongoLogAccess.documentOf(AccessWalk.created(it)))
+                }
             }
+            insert(
+                registered,
+                "the log collection ${collection.name}",
+                "its tails would not read the collection",
+                "{_id: \"${collection.name}\", context: \"$context\", aggregate: \"$aggregate\"}",
+            )
+            // Read on the primary (MongoDatabases), which holds the record a duplicate key met: another node's insert.
+            holderOf(collection.name)!!
         }
-        val holder = registry.find(Filters.eq(ID, collection.name)).first()!!
         check(holder.getString(CONTEXT) == context && holder.getString(AGGREGATE) == aggregate) {
             "The aggregate $aggregate of $context takes the log collection ${collection.name}, " +
                 "which the aggregate ${holder.getString(AGGREGATE)} of ${holder.getString(CONTEXT)} has."
+        }
+    }
+
+    /**
+     * The partition count the registry records for the log's counters: [count] when none is recorded yet, under every
+     * `ddl`, as the log starts ([MongoEventLog.createSchema]). Read first and written only when missing ([insert]), so
+     * an account that may only read the registry starts a log whose count is recorded (#7230).
+     */
+    fun recordedPartitions(count: Int): Int {
+        val marker = "$countersName${MongoEventLog.PARTITIONS_MARKER}"
+        holderOf(marker)?.let { return it.getInteger(MongoEventLog.PARTITIONS) }
+        insert(
+            Document(ID, marker).append(MongoEventLog.PARTITIONS, count),
+            "the partition count of the log's counters $countersName",
+            "the log would not start",
+            "{_id: \"$marker\", ${MongoEventLog.PARTITIONS}: $count}",
+        )
+        return holderOf(marker)!!.getInteger(MongoEventLog.PARTITIONS)
+    }
+
+    private fun holderOf(id: String): Document? = registry.find(Filters.eq(ID, id)).first()
+
+    /**
+     * Inserts [document], the registry's record of [what], which is missing; another node's insert of it first is no
+     * failure. One this store may not write (an account without insert on the registry) is refused, naming
+     * [consequence] and the record an operator inserts instead, [written]; a failure of the store's connection is thrown
+     * as it is, to be retried.
+     */
+    private fun insert(document: Document, what: String, consequence: String, written: String) {
+        try {
+            registry.insertOne(document)
+        } catch (failure: MongoException) {
+            if (failure.isDuplicateKey()) return
+            if (MongoFailures.isTransient(failure)) throw failure
+            throw IllegalStateException(
+                "The registry ${MongoEventLog.REGISTRY} has no record of $what, and this store could not write it " +
+                    "(${failure.message}): $consequence. Let the store's account insert into " +
+                    "${MongoEventLog.REGISTRY}, or insert $written into it.",
+                failure,
+            )
         }
     }
 
