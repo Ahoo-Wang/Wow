@@ -125,7 +125,7 @@ export interface RuntimeEnvironment {
 |---|---|
 | `list(definitionId)` | 代码里声明的系统视图在前，然后是存储里的。保留命名空间里的 id 被丢弃并报告：只有定义能声明系统视图。存储失败时 `failed` 说明原因，声明的系统视图仍在 `items` 里 |
 | `open(instanceId, options?)` | 打开一个保存的视图，或不碰存储地打开代码声明的视图。`options.scopeFilter` 与配置一起准入，从第一次查询起生效 |
-| `create(definitionId, input)` | 一个未保存的视图，带着完整配置（`defaultRecordConfig` 等生成）立刻执行。这里不问权限：首次 `save` 时才问 |
+| `create(definitionId, input)` | 一个未保存的视图，带着完整配置（`defaultRecordConfig` 等生成）立刻执行。它不写存储，不同于存储的 `create`：首次 `save` 才创建存储里的视图，那时才问权限 |
 | `save(runtime)`、`saveAs(runtime, input)` | 首次保存即创建，之后覆盖，都要求草稿没有错误。`saveAs` 的 `scope: 'system'` 是存储型系统视图，需要 `editSystem` |
 | `rename`、`delete`、`changeAudience` | 改名不带配置，所以草稿有错也不挡它。`changeAudience` 需要存储实现可选的同名方法，否则被拒（`view.changeAudience.unsupported`） |
 | `publishAsSystem(id)` | 「发布为系统视图」：把保存的视图（按已保存的样子，不是打开着的草稿）复制成存储型系统视图；需要 `editSystem` |

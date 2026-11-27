@@ -132,6 +132,10 @@ pnpm add -D --save-exact @ahoo-wang/wow-generator
 
 这些包遵循 Wow 其余部分的支持策略，见[安全策略](https://github.com/Ahoo-Wang/Wow/blob/main/SECURITY.md)：修复进入最新的稳定版本线，较旧版本线的修复逐个决定。
 
+### `theme-check` 命令 {#the-theme-check-command}
+
+视图引擎的命令 `wow-view-engine theme-check` 属于 10.0 的接口面，连同[检查一套主题](./view-engine/theming#检查一套主题)所写的选项与退出码。`--json` 打印的形状在 10.0 不作承诺：10.x 的版本可能增加、改名或重新组织它的成员。CI 的步骤按退出码判断；要读 JSON 的步骤请固定包的版本。
+
 ## 运行时与 peer 依赖 {#runtimes-and-peers}
 
 | 要求 | 版本 | 说明 |

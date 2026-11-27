@@ -19,7 +19,7 @@ pnpm add react react-dom
 
 版本号跟随 Wow，次版本可能带有破坏性改动：用 `save-prefix=~` 或 `--save-exact` 让 Wow 包停在同一个次版本上，见[版本范围](https://wow.ahoo.me/zh/typescript/compatibility#版本范围)。
 
-Peer 依赖：`@ahoo-wang/wow-client`（以及它需要的 fetcher 包）；`react` 与 `react-dom` 只用于 `/react` 和 `/ui` 入口，`react-router` 只用于 `/react-router`，`mingo` 只用于 `/testing`。根入口可在 Node 中运行。要把保存的视图放在 Wow 服务端，再加 [`@ahoo-wang/wow-view-store`](../wow-view-store/README.zh-CN.md)（用于 Wow V10 服务，数据源也走 V10 的查询路由）。只提供 ES 模块；Node `>=22.12.0` 或当前的浏览器；TypeScript 6 及以上。
+Peer 依赖：`@ahoo-wang/wow-client`（以及它需要的 fetcher 包）；`react` 与 `react-dom` 只用于 `/react` 和 `/ui` 入口，`react-router` 只用于 `/react-router`，`mingo` 只用于 `/testing`。根入口可在 Node 中运行。这四个都是可选的 peer，但 UI 自己的依赖（`@base-ui/react`、`lucide-react`、`@tanstack/react-virtual` 等）把 React 列为必需的 peer：会自动安装 peer 的包管理器（pnpm、npm）即使只给根入口的宿主也会装上 React，不自动安装的则警告缺少它；根入口仍然从不加载它。要把保存的视图放在 Wow 服务端，再加 [`@ahoo-wang/wow-view-store`](../wow-view-store/README.zh-CN.md)（用于 Wow V10 服务，数据源也走 V10 的查询路由）。只提供 ES 模块；Node `>=22.12.0` 或当前的浏览器；TypeScript 6 及以上。
 
 ## 快速开始
 

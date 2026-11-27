@@ -134,7 +134,7 @@ export const permissions = (): ViewPermissions => ({
 
 ## MemoryViewStore {#api-MemoryViewStore}
 
-一个同步的 Map 挡在端口后面。它把两条一致性规则守得诚实而不是方便：修订号过期的写入冲突，重放的 `requestId` 返回第一次的结局而不写两次，所以针对它写的代码在真实后端上表现相同——端口的列表顺序、服务端对标题与配置的上限（以 `INVALID` 拒绝）也一样。
+一个同步的 Map 挡在端口后面。它把两条一致性规则守得诚实而不是方便：修订号过期的写入冲突，重放的 `requestId` 返回第一次的结局而不写两次，所以针对它写的代码在真实后端上表现相同——端口的列表顺序、服务端对标题与配置的上限（以 `INVALID` 拒绝）也一样。信号已经中止的调用什么也不做，重放的 `requestId` 也一样，以 `UNAVAILABLE` 拒绝，就像 `WowViewStore` 拒绝一个没有发出的请求。
 
 系统视图有两种来法。以 `scope: 'system'` 播种且不带 `stored` 的是配置型的，像后端配置提供的那样：对它的每次写入都被拒（`FORBIDDEN`）。以 `scope: 'system'` 创建的、或带 `stored: true` 播种的是存储型的：像共享视图一样保存、改名、删除，从不换受众。和服务端一样，存储自己不问权限：`editSystem` 由宿主授予、由引擎去问。
 
@@ -146,8 +146,8 @@ export declare class MemoryViewStore implements ViewStore {
   changeAudience(id: string, audience: ViewAudience, revision: string, context: WriteOptions): Promise<ViewInstance>;
   create(input: Omit<ViewInstance, 'id' | 'revision'>, context: WriteOptions): Promise<ViewInstance>;
   delete(id: string, revision: string, context: WriteOptions): Promise<void>;
-  get(id: string): Promise<ViewInstance>;
-  getPreferences(definitionId: string): Promise<ViewPreferences>;
+  get(id: string, options?: ReadOptions): Promise<ViewInstance>;
+  getPreferences(definitionId: string, options?: ReadOptions): Promise<ViewPreferences>;
   list(definitionId: string, options?: ViewListOptions): Promise<ViewListPage>;
   readonly local?: boolean;
   readonly permissions?: (definitionId: string) => ViewPermissions;

@@ -134,7 +134,7 @@ export const permissions = (): ViewPermissions => ({
 
 ## MemoryViewStore {#api-MemoryViewStore}
 
-A synchronous map behind the port. It keeps the two consistency rules honest rather than convenient: a write with a stale revision conflicts, and a replayed `requestId` returns the first outcome instead of writing twice, so code written against it behaves the same against a real backend — as do the port's list order and the server's limits on a title and a config, which it refuses as `INVALID`.
+A synchronous map behind the port. It keeps the two consistency rules honest rather than convenient: a write with a stale revision conflicts, and a replayed `requestId` returns the first outcome instead of writing twice, so code written against it behaves the same against a real backend — as do the port's list order and the server's limits on a title and a config, which it refuses as `INVALID`. A call whose signal is already aborted does nothing, a replayed `requestId` included, and is refused as `UNAVAILABLE`, as `WowViewStore` refuses a request it never sent.
 
 System views come two ways. One seeded with `scope: 'system'` and no `stored` is a configured one, as the backend's configuration serves it: every write to it is refused (`FORBIDDEN`). One created with `scope: 'system'`, or seeded with `stored: true`, is a stored one: saved, renamed and deleted like a shared view, never moved to another audience. Like the server, the store asks no permission of its own: `editSystem` is the host's to grant and the engine's to ask.
 
@@ -146,8 +146,8 @@ export declare class MemoryViewStore implements ViewStore {
   changeAudience(id: string, audience: ViewAudience, revision: string, context: WriteOptions): Promise<ViewInstance>;
   create(input: Omit<ViewInstance, 'id' | 'revision'>, context: WriteOptions): Promise<ViewInstance>;
   delete(id: string, revision: string, context: WriteOptions): Promise<void>;
-  get(id: string): Promise<ViewInstance>;
-  getPreferences(definitionId: string): Promise<ViewPreferences>;
+  get(id: string, options?: ReadOptions): Promise<ViewInstance>;
+  getPreferences(definitionId: string, options?: ReadOptions): Promise<ViewPreferences>;
   list(definitionId: string, options?: ViewListOptions): Promise<ViewListPage>;
   readonly local?: boolean;
   readonly permissions?: (definitionId: string) => ViewPermissions;

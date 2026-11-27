@@ -274,4 +274,19 @@ describe("MemoryViewStore answers the view store service's checks", () => {
       stored.changeAudience('shown', 'personal', '1', write()),
     ).rejects.toMatchObject({ code: 'INVALID', boards: ['Stored board'] });
   });
+
+  it('says an aborted call as WowViewStore says a request that reached nothing, whatever the reason the signal carries', async () => {
+    const store = new MemoryViewStore();
+    const said = (reason: unknown) =>
+      refusalOf(store.get('any', { signal: AbortSignal.abort(reason) }));
+    expect(await said(new DOMException('Left', 'AbortError'))).toBe(
+      'UNAVAILABLE: The view store could not be reached: AbortError: Left',
+    );
+    expect(await said({ message: 'Left' })).toBe(
+      'UNAVAILABLE: The view store could not be reached: Left',
+    );
+    expect(await said('Left')).toBe(
+      'UNAVAILABLE: The view store could not be reached: Left',
+    );
+  });
 });
