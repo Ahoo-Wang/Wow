@@ -1,5 +1,128 @@
 [
  {
+  "n": 7228,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "docs(designs): #7226 is settled, the post-publication checks exist, and who takes round two up from here",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7227,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "docs(designs): the M5 Max measured what #7204 listed, as far as the benchmark code reaches: nothing confirmed worse",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7225,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(bench): a node is ready once its public port answers, a 404 too, so a server whose public Manifest route is off is not waited for in vain",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7222,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "docs(designs): round two is handed back a second time before it is closed: beta.22, what is done, what is left, and D494",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7220,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(analytics-catalog): a decimal digit that is not ASCII in a dataset expression is refused as no number, not a NullPointerException",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7219,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(mongo)!: a metric aliased _id, the field $group keeps a group's key in, is refused as the storage's limit",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7218,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(query)!: an ignore-case pattern past PostgreSQL's or ClickHouse's bound, or a text with an unpaired surrogate, is a query the caller can mend, not a storage failure",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7217,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "fix(postgres): a path segment named null, in any case, is read as the key it names, not as SQL NULL",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7216,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(query)!: a model's descriptor asks the read authorizers first, so a caller refused reads sees neither its fields nor its budget",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7215,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(http)!: a body sent with no Content-Type is answered 415, as one of another type is",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7210,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [],
+  "t": "fix(cosec)!: CoSec's authorizer denies a caller it cannot evaluate, operational commands included, and its switch refuses a start where it cannot be wired",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7209,
+  "labelled": false,
+  "title": false,
+  "body": false,
+  "removals": [],
+  "t": "chore(release): prepare 10.0.0-beta.22",
+  "author": "Ahoo-Wang"
+ },
+ {
+  "n": 7207,
+  "labelled": true,
+  "title": true,
+  "body": true,
+  "removals": [
+   {
+    "file": "edge/openapi/api/openapi.api",
+    "n": 2,
+    "first": "public fun <init> (Ljava/lang/String;Ljava/util/List;ZZZLjava/util/Map;Ljava/util/Map;)V"
+   }
+  ],
+  "t": "feat(openapi)!: the document lists what the host adds: request facts and request id headers on commands, a filter's codes on every operation",
+  "author": "Ahoo-Wang"
+ },
+ {
   "n": 7208,
   "labelled": false,
   "title": false,

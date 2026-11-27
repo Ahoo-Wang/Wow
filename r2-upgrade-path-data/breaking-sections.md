@@ -1,3 +1,51 @@
+#7228 ## Breaking
+None.
+
+#7227 ## Breaking
+None.
+
+#7225 ## Breaking
+None.
+
+#7222 ## Breaking
+None.
+
+#7220 ## Breaking
+None. Such an expression failed its command (a `NullPointerException`); it is now a problem of the definition, which the catalog answers as it answers any expression it cannot read.
+
+#7219 ## Breaking
+An aggregation on MongoDB with a metric aliased `_id` was answered, its rows not what the query asked, and is now refused `400 wow.query.invalid` (`storage-unsupported`). Alias the metric otherwise. The other stores, and a group aliased `_id`, are unchanged.
+
+#7218 ## Breaking
+- **PostgreSQL:** an ignore-case `contains`, `starts-with` or `ends-with` whose folding pattern is past 32,764 bytes, about 8,000 ASCII letters, and short of where PostgreSQL finds it too complex (more than 32,000 letters passed on the container, 64,000 failed), was answered and is now refused `400 wow.query.invalid` (`storage-unsupported`). Shorten the operand, or match case-sensitively, a `LIKE` with no such bound.
+- **A lone surrogate:** a query with a text operand, or a system field's value, holding an unpaired surrogate was answered on PostgreSQL and ClickHouse, with rows that matched a `?` it never held (and on a store that compares it as it is, with no row), and is now refused `value-mismatch` on every store. Such a text names nothing a store holds: a client that sends one splits a surrogate pair or reads a malformed input, and mends it there.
+- **ClickHouse:** past its field limit a query was a storage failure (500) and is now `400`: no answer is lost.
+
+#7217 ## Breaking
+None.
+
+#7216 ## Breaking
+A caller the service's read authorizers refuse was answered a model's or a dataset's descriptor, and is now refused with the authorizer's problem (`403 wow.auth.forbidden` unless it names another code). An application whose authorizer allows some operations by `ReadAction.operation` is asked about `DESCRIBE` too, and decides it.
+
+#7215 ## Breaking
+A body sent without `Content-Type` to a command, a query, a service route that takes a body or an operator's route was read as JSON, and is now answered `415`: a client that relied on it (a script's `curl --data-binary @file` without `-H 'Content-Type: application/json'`, a fetch of a `Blob` with no type) sends the header. A request with no body is unchanged.
+
+#7210 ## Breaking
+| Who | Before | After |
+| --- | --- | --- |
+| A service with `wow.cosec.authorizer.enabled` and a `CallerResolver` of its own that maps CoSec's principal to another subject or tenant, or answers anonymous callers | Every command and service route call of such a caller allowed, Wow's operational commands included | `403 wow.auth.forbidden`, naming the action |
+| Application code that sends a command as another caller (`CommandClient.of(caller)`, the default anonymous in-process client) while it handles a request CoSec permitted, with the switch on | Allowed | `403 wow.auth.forbidden` |
+| A service with `wow.cosec.authorizer.enabled: true` behind a CoSec gateway, with CoSec off, or without wow-cosec and CoSec's WebFlux module | Started, the switch doing nothing | Refuses to start, naming the key and why |
+
+#7209 ## Breaking
+None.
+
+#7207 ## Breaking
+`OpenApiOptions`' seven-parameter constructor, and the synthetic one a Kotlin call with default arguments compiles to, leave the `wow-openapi` ABI: code compiled against the old constructor fails with `NoSuchMethodError` until it is recompiled. A Kotlin caller that names its arguments, as the class's KDoc asks, compiles unchanged; a Java caller of the full constructor passes the three new arguments. No overload keeps the old signature.
+
+- `OpenApiOptions`' constructor takes three parameters more, after the others, each with a default.
+- No document changes unless the host configures request facts, has an integration's request id header, or runs CoSec.
+
 #7208 ## Breaking
 None.
 

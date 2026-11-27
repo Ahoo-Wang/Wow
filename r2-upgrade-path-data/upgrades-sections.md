@@ -1,3 +1,82 @@
+#7228 ## Upgrades paragraph
+None: records only.
+
+#7227 ## Upgrades paragraph
+None: records only.
+
+#7225 ## Upgrades paragraph
+None: the benchmark harness only.
+
+Fixes #7223
+
+#7222 ## Upgrades paragraph
+None: records only.
+
+#7220 ## Upgrades paragraph
+**A non-ASCII digit in a dataset expression is a problem of the definition.** An analytics catalog dataset whose expression held a decimal digit of another script (`٣`, `３`) failed its command with an unexpected error; it is now refused as an expression the catalog cannot read, naming the digit. Write numbers with ASCII digits.
+
+**数据集表达式中的非 ASCII 数字是定义的问题。** 分析目录中表达式含有其他文字的十进制数字（`٣`、`３`）的数据集，原先会以意外错误让命令失败；现在作为目录读不懂的表达式被拒绝，并指出这个数字。数字请用 ASCII 数字书写。
+
+Fixes #7214
+
+#7219 ## Upgrades paragraph
+**MongoDB refuses a metric aliased `_id`.** An aggregation on MongoDB whose metric is aliased `_id`, the field a group's key is kept in, answered rows that were not what it asked; it is now refused `400 wow.query.invalid` (`storage-unsupported`). Give the metric another alias; a group aliased `_id` is taken.
+
+**MongoDB 拒绝以 `_id` 为别名的指标。** MongoDB 上指标以 `_id`（分组键所在的字段）为别名的聚合，原先回答的行并非查询所要求的；现在被拒绝为 `400 wow.query.invalid`（`storage-unsupported`）。给指标换一个别名；以 `_id` 为别名的分组照常接受。
+
+Fixes #7213
+
+#7218 ## Upgrades paragraph
+**Long ignore-case operands and lone surrogates are queries to mend.** On PostgreSQL an ignore-case `contains`, `starts-with` or `ends-with` longer than about 8,000 letters was answered and is now refused `400 wow.query.invalid` (`storage-unsupported`): shorten the operand or match case-sensitively. On ClickHouse one longer than about 16,000 letters, and any text operand past its 128 KiB query parameter, is `400` instead of a storage failure. A text operand or a filter's id holding an unpaired surrogate is `value-mismatch` on every store: PostgreSQL and ClickHouse read it as `?` and answered rows it never named.
+
+**过长的忽略大小写操作数与孤立的代理项是要修改的查询。** 在 PostgreSQL 上，超过约 8,000 个字母的忽略大小写 `contains`、`starts-with` 或 `ends-with` 原先会得到回答，现在被拒绝为 `400 wow.query.invalid`（`storage-unsupported`）：缩短操作数，或改为区分大小写的匹配。在 ClickHouse 上，超过约 16,000 个字母的，以及超过其 128 KiB 查询参数的任何文本操作数，答以 `400` 而不是存储失败。含有未配对代理项的文本操作数或过滤器的 id 在每个存储上都是 `value-mismatch`：PostgreSQL 与 ClickHouse 把它读作 `?`，回答了它从未指明的行。
+
+Fixes #7211
+
+#7217 ## Upgrades paragraph
+**PostgreSQL reads a field named `null`.** A snapshot query on PostgreSQL read a property or a map key named `null` (in any case) as missing: a filter on it matched no row. It now reads the value the field holds. An expression index on such a field is planned anew; no other index changes.
+
+**PostgreSQL 读取名为 `null` 的字段。** PostgreSQL 上的快照查询原先把名为 `null`（不分大小写）的属性或映射键读作缺失：对它的过滤一行都不匹配。现在读出字段所持有的值。这种字段上的表达式索引会重新规划，其他索引不变。
+
+Fixes #7212
+
+#7216 ## Upgrades paragraph
+**A model's descriptor asks the read authorizers.** The `GET` of a query route, and of a dataset's, is now refused to a caller the service's `ReadAuthorizer` beans refuse, with their problem (`403 wow.auth.forbidden` unless they name another code), as a query of the model is. The authorizers are told the operation `QueryType.DESCRIBE`: one that allows only some operations decides the descriptor as well, so a client that offers a model's fields to a user the authorizers admit keeps working.
+
+**模型的描述先询问读取授权器。** 查询路由与数据集的 `GET` 现在对服务的 `ReadAuthorizer` Bean 拒绝的调用方答以授权器的拒绝（除非它指明别的码，否则是 `403 wow.auth.forbidden`），和对这个模型的查询一样。授权器被告知的操作是 `QueryType.DESCRIBE`：只允许部分操作的授权器也要对描述作出决定，于是向授权器放行的用户展示模型字段的客户端照常工作。
+
+Refs #7021
+
+#7215 ## Upgrades paragraph
+**A body with no `Content-Type` is 415.** A command, a query, a service route that takes a body and an operator's route answered a body sent with no `Content-Type` as JSON; they now refuse it `415`, as they refuse one of another type, since a browser sends a cross-site body without a preflight with no type as well as with a simple one. Send `Content-Type: application/json` with every body: Wow's Kotlin and TypeScript clients do, and so does `curl` with `-H 'Content-Type: application/json'`. A request with no body needs none.
+
+**不带 `Content-Type` 的请求体答 415。** 命令、查询、接收请求体的服务路由与运营路由原先把不带 `Content-Type` 的请求体当作 JSON 读取；现在像拒绝其他类型一样以 `415` 拒绝它，因为浏览器不经预检发送的跨站请求体除了简单类型，也可以不带类型。每个请求体都带上 `Content-Type: application/json`：Wow 的 Kotlin 与 TypeScript 客户端都会带，`curl` 加上 `-H 'Content-Type: application/json'` 即可。没有请求体的请求不需要它。
+
+Refs #7021
+
+#7210 ## Upgrades paragraph
+**English.** With `wow.cosec.authorizer.enabled`, CoSec's authorizer now denies a command, Wow's operational commands included, and a service route call whose caller is not the principal CoSec authenticated for the request. Such a caller comes from a `CallerResolver` of your own that maps CoSec's principal to another subject or tenant, or answers anonymous callers, or from code that sends a command as another caller while it handles a request. It is answered `403 wow.auth.forbidden` rather than allowed. Send such a command as the request's caller, or decide those callers with a `CommandAuthorizer` of your own instead of the switch. Commands no request carries (sagas, timers, scheduled jobs, the internal port) are unchanged. The switch set where CoSec does not decide the requests in the service now refuses the start and says why: behind a CoSec gateway (`wow.cosec.mode: gateway`), with CoSec off, or without wow-cosec. Remove it there; the gateway authorizes those requests.
+
+**中文。** 打开 `wow.cosec.authorizer.enabled` 时，如果调用方不是 CoSec 为该请求认证的主体，CoSec 的授权器现在拒绝它的命令（包括 Wow 的运维命令）和服务路由调用。这样的调用方来自三种情况：你自己的 `CallerResolver` 把 CoSec 的主体映射成另一个主体或租户，或者为匿名请求给出调用方；你的代码在处理请求时以另一个调用方发出命令。它们原来被放行，现在得到 `403 wow.auth.forbidden`。请以请求的调用方发出这样的命令，或者不用这个开关，改用你自己的 `CommandAuthorizer` 决定这类调用方。不由请求携带的命令（Saga、定时器、定时任务、内部端口）不变。在 CoSec 不在服务内做决定的地方（CoSec 网关之后、`wow.cosec.mode: gateway`，CoSec 关闭，或者没有 wow-cosec）打开这个开关，现在会拒绝启动并说明原因。请在那里去掉它，那些请求由网关授权。
+
+#7209 ## Upgrades paragraph
+None: the version only.
+
+#7207 ## Upgrades paragraph
+**English.** The OpenAPI document a running service serves now lists what its host adds to the routes:
+
+- the headers `wow.http.request-facts` names, and an integration's request id header beside `Wow-Request-Id` (`CoSec-Request-Id`), as parameters of every command;
+- with CoSec on, its 429 `wow.request.rate-limited` and 503 `wow.auth.unavailable` on every operation.
+
+A client generated from the document sees those headers and statuses. The document a build writes is unchanged. `OpenApiOptions` takes three more constructor parameters; a call that names its arguments is unchanged.
+
+**中文。** 运行中的服务提供的 OpenAPI 文档，现在会列出宿主给路由添加的内容：
+
+- `wow.http.request-facts` 指定的请求头，以及集成在 `Wow-Request-Id` 之外读取的请求 id 头（`CoSec-Request-Id`），作为每条命令的参数；
+- 开着 CoSec 时，在每个操作上列出它的 429 `wow.request.rate-limited` 和 503 `wow.auth.unavailable`。
+
+基于这份文档生成的客户端能看到这些请求头和状态码。构建时写出的文档不变。`OpenApiOptions` 的构造函数多了三个参数；按名传参的调用不受影响。
+
 #7208 ## Upgrades paragraph
 None: records only.
 

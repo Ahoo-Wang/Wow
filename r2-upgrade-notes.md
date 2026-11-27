@@ -1,4 +1,22 @@
-# Round two, the upgrade path: notes at the pause (2026-11-26, about 12:30 UTC)
+# Round two, the upgrade path: notes
+
+## Resumed 2026-11-27 (on `main` `8c80242397`, merged into this branch)
+
+The review half is done. Tests run on JDK 25 (`25.0.4.1+1-LTS`), toolchain 21, on an Apple M4. No measurements were taken.
+
+**Filed (`bug`), each with its test on this branch:**
+- #7229 (finding 1): an unknown `Misfire` blocks the aggregate's load on the older node. `R2UnknownMisfireTest` (kernel, the log's replay) and `R2UnknownMisfireSnapshotTest` (postgres `decodeSchedules`, mongo `MongoRules.of`): 3 of 3 fail. By reading: the Elasticsearch snapshot, `TimersSubscription.kt:87`, typed snapshot query rows.
+- #7230 (finding 3, wider than the notes had it): a MongoDB log needs `insert` and `update` on `wow_log_aggregate` at every open (`createSchema`'s upsert, under every `ddl`), before `record`'s insert-first is ever reached. `R2LogRegistryGrantTest` (auth-enabled `mongod`): 4 tests, the control passes, 3 fail (the page's `insert, find`; read only; `find, update`).
+- #7232 (finding 4, the defect half): under `fail`, a read stopped by a gap on a recreated topic resumes by itself once the new partition reaches the checkpoint. `R2RecreatedTopicTest`: 1 of 2 fails. The other passes and holds the design doubt (a first read after the new topic is already longer counts no gap).
+
+**Summary issue:** "Deep review r2: the upgrade path" (findings 2, 5, 6, the doubts, the reads below, D487 ① third item). The label comment is on it.
+
+**The reads the pause left, now done:**
+- PostgreSQL `validate`, #6764's wording ("refused at start"): the record is written or refused in `PostgresLogCatalog.ensureRecord` (`:180-198`). At start that happens only through the host's events-index start (`HostQueries.kt:310-338` → `PostgresEventQueries.prepare` → `createTable`), so only for a type whose events queries this store serves. Otherwise it happens at the type's first append or read. Upgrades:137 needs that qualification.
+- CoSec 8.0.0 `ProblemRenderer` (`cosec-runtime-8.0.0.jar`, read with `javap`): annotated `@CoSecSpi`, not experimental. Upgrades:222 ("experimental in CoSec 8, so its shape may change with CoSec's release candidate") is out of date: word it on `wow-cosec`'s own `@ExperimentalWowApi`.
+- Checkpoints', descriptors', springdoc's and the TS clients' enum reads: see the summary issue's "Checked and held".
+
+## The notes at the pause (2026-11-26, about 12:30 UTC)
 
 Lane paused by the owner's word. Nothing is filed, pushed or opened. This file and the review test are committed on the
 local branch `review/r2-upgrade-path` (cut from `origin/main` `0cb86d147cd4785a13e822d00067a6fd51cbeab3`), unpushed.
@@ -15,6 +33,8 @@ Range: `v10.0.0-beta.21` (`5b8e0764fb`) to `0cb86d147c` (#7208): 227 first-paren
 - `tools/`: `labels.mjs`, `section.mjs`, `extract.mjs` (run with `node <tool> <repo> <dir>` / `<dir> ...`).
 
 ## Part 2, the labels (complete for the range; not yet sent)
+
+**Extended 2026-11-27 to `8c80242397` (240 pull requests; the table as sent is the summary issue's label comment).** The 227 labels above were read again and none has changed. Of the 13 since `0cb86d147c`: #7207, #7210, #7215, #7216, #7218 and #7219 carry `!` and the label, kept. #7209, #7217, #7220, #7222, #7225, #7227 and #7228 are unlabelled and not breaking (#7217 corrects wrong answers, #7220 turns an NPE into the definition's refusal). Nothing to add from the new range.
 
 95 of 227 carry `breaking-change`: 84 by a `!` title (all read as self-declared and kept), 11 without any signal.
 
@@ -144,5 +164,17 @@ Sections under "From a 10.0.0 pre-release", existing anchors kept (`published-st
 - Other #7204 §2 items: #6764's "refused at start" under `validate` (verify first); "delete and rebuild" wording → sink
   generation (#7149) wherever the page says it; #7202's streaming-route 408 is already in its paragraph.
 
-Order on resume: run `R2UnknownMisfireTest` on JDK 25 (through `quiet.sh`); file findings 1-5 and the summary issue
+**Additions 2026-11-27, for the pull requests since `0cb86d147c` and the page's wrong lines:**
+- *HTTP and problems*: #7215 (a body with no `Content-Type` is 415): **line 153's "one that names no `Content-Type` is read as before" is now wrong**, replace it. #7207 (the OpenAPI document lists the host's headers and CoSec's 429 and 503; `OpenApiOptions` gains three constructor parameters).
+- *Security*: #7210 (CoSec's authorizer denies a caller that is not the authenticated principal, 403). #7216 (a model's descriptor asks the read authorizers, `QueryType.DESCRIBE`). The marked place for D485 ②⑨⑩⑫⑬ stays (②⑨ certain to add paragraphs).
+- *Queries*: #7217 (PostgreSQL reads a field named `null`), #7218 (long ignore-case operands are `400 wow.query.invalid`, an unpaired surrogate is `value-mismatch`), #7219 (MongoDB refuses a metric aliased `_id`), #7220 (the analytics catalog refuses a non-ASCII digit).
+- *TypeScript packages*: one more PR is to come (the TS lane's D486 ⑥).
+- *Stores and formats*, line 137: MongoDB's grant is `find`, `insert` and `update` on `wow_log_aggregate` at every open, and "or insert each record the refusal names" does not work on MongoDB (#7230; also `operate/mongodb.md:199`, "only read"). PostgreSQL's "refused at start" holds only for a type whose events queries the store serves (above). Wait for #7230's fix before writing this paragraph: it decides which of the two the page says.
+- *Two versions side by side*, line 17: "a reader older than its writer reads a value it does not know leniently" does not hold for `Misfire` until #7229 is fixed. The fix decides the sentence (opaque read, or a stated order).
+- *Published streams on Kafka*: line 240's "a commit whose events are all retired has no record" is wrong since #7172. The rewritten section gives #7232's order: the publisher quiet, the subscribers caught up and nothing parked, the topic created again, each subscriber placed (once with `wow.kafka.offset-gap: earliest`) before the publisher writes. Then `operate/kafka.md:126` and `:133` ("the topic was created again" is an offset gap) qualified: detected only while the new partition is shorter than the checkpoint.
+- *Before the rollout* (quiesce, one place): line 173's tail (`wow.subscription.backlog` 0 and `wow.subscription.parked.aggregates` 0 for every saga and reactor), #7186 ("no saga lag, and no timer due within the update"), and Kafka steps 1-4 (lines 242-245: stop commits, `progress` 1, alter partitions, check twice). One list, each source then pointing to it.
+- *CoSec*: line 222 (`ProblemRenderer` is `@CoSecSpi` in 8.0.0, above), in addition to 195, 196 and 183's re-heading.
+- *Text of #7163's paragraph*: "retry it once its publisher is upgraded, or skip it" becomes "skip it": `StateEventJson` refuses `payload` on every read (`StateEventJson.kt:89-99`, held by `StateEventJsonTest:179-186`), and a retry reads the same record.
+
+Order on resume (2026-11-26's): run `R2UnknownMisfireTest` on JDK 25 (through `quiet.sh`); file findings 1-5 and the summary issue
 `Deep review r2: the upgrade path`; send the label list; build the roll-up PR.

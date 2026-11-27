@@ -285,4 +285,53 @@ A `Wow-Scope` header that does not parse (a member given twice, a member with no
 ## #7206 (en 1 / zh 1)
 A state read and a query model's or a dataset's descriptor, the answers Wow tags with an `ETag`, now carry `Cache-Control: private, no-cache`, their 304 too. A shared cache in front of a service (a CDN, a caching proxy) stores none of them, since each depends on its caller. A client's own cache keeps them and revalidates with `If-None-Match`, a 304 when nothing changed. A deployment that cached state reads at its gateway stops doing so; it was answering one caller with another's.
 
+## #7207 (en 3 / zh 3)
+The OpenAPI document a running service serves now lists what its host adds to the routes:
+
+- the headers `wow.http.request-facts` names, and an integration's request id header beside `Wow-Request-Id` (`CoSec-Request-Id`), as parameters of every command;
+- with CoSec on, its 429 `wow.request.rate-limited` and 503 `wow.auth.unavailable` on every operation.
+
+A client generated from the document sees those headers and statuses. The document a build writes is unchanged. `OpenApiOptions` takes three more constructor parameters; a call that names its arguments is unchanged.
+
 ## #7208 NONE: None: records only.
+
+## #7209 NONE: None: the version only.
+
+## #7210 (en 1 / zh 1)
+With `wow.cosec.authorizer.enabled`, CoSec's authorizer now denies a command, Wow's operational commands included, and a service route call whose caller is not the principal CoSec authenticated for the request. Such a caller comes from a `CallerResolver` of your own that maps CoSec's principal to another subject or tenant, or answers anonymous callers, or from code that sends a command as another caller while it handles a request. It is answered `403 wow.auth.forbidden` rather than allowed. Send such a command as the request's caller, or decide those callers with a `CommandAuthorizer` of your own instead of the switch. Commands no request carries (sagas, timers, scheduled jobs, the internal port) are unchanged. The switch set where CoSec does not decide the requests in the service now refuses the start and says why: behind a CoSec gateway (`wow.cosec.mode: gateway`), with CoSec off, or without wow-cosec. Remove it there; the gateway authorizes those requests.
+
+## #7215 (en 1 / zh 1)
+**A body with no `Content-Type` is 415.** A command, a query, a service route that takes a body and an operator's route answered a body sent with no `Content-Type` as JSON; they now refuse it `415`, as they refuse one of another type, since a browser sends a cross-site body without a preflight with no type as well as with a simple one. Send `Content-Type: application/json` with every body: Wow's Kotlin and TypeScript clients do, and so does `curl` with `-H 'Content-Type: application/json'`. A request with no body needs none.
+
+## #7216 (en 1 / zh 1)
+**A model's descriptor asks the read authorizers.** The `GET` of a query route, and of a dataset's, is now refused to a caller the service's `ReadAuthorizer` beans refuse, with their problem (`403 wow.auth.forbidden` unless they name another code), as a query of the model is. The authorizers are told the operation `QueryType.DESCRIBE`: one that allows only some operations decides the descriptor as well, so a client that offers a model's fields to a user the authorizers admit keeps working.
+
+## #7217 (en 2 / zh 1)
+**PostgreSQL reads a field named `null`.** A snapshot query on PostgreSQL read a property or a map key named `null` (in any case) as missing: a filter on it matched no row. It now reads the value the field holds. An expression index on such a field is planned anew; no other index changes.
+
+Fixes #7212
+
+## #7218 (en 2 / zh 1)
+**Long ignore-case operands and lone surrogates are queries to mend.** On PostgreSQL an ignore-case `contains`, `starts-with` or `ends-with` longer than about 8,000 letters was answered and is now refused `400 wow.query.invalid` (`storage-unsupported`): shorten the operand or match case-sensitively. On ClickHouse one longer than about 16,000 letters, and any text operand past its 128 KiB query parameter, is `400` instead of a storage failure. A text operand or a filter's id holding an unpaired surrogate is `value-mismatch` on every store: PostgreSQL and ClickHouse read it as `?` and answered rows it never named.
+
+Fixes #7211
+
+## #7219 (en 2 / zh 1)
+**MongoDB refuses a metric aliased `_id`.** An aggregation on MongoDB whose metric is aliased `_id`, the field a group's key is kept in, answered rows that were not what it asked; it is now refused `400 wow.query.invalid` (`storage-unsupported`). Give the metric another alias; a group aliased `_id` is taken.
+
+Fixes #7213
+
+## #7220 (en 2 / zh 1)
+**A non-ASCII digit in a dataset expression is a problem of the definition.** An analytics catalog dataset whose expression held a decimal digit of another script (`٣`, `３`) failed its command with an unexpected error; it is now refused as an expression the catalog cannot read, naming the digit. Write numbers with ASCII digits.
+
+Fixes #7214
+
+## #7222 NONE: None: records only.
+
+## #7225 NONE: None: the benchmark harness only.
+
+Fixes #7223
+
+## #7227 NONE: None: records only.
+
+## #7228 NONE: None: records only.
