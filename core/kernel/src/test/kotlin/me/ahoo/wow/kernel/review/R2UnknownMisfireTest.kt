@@ -92,7 +92,8 @@ class R2UnknownMisfireTest {
                 )
             }
 
-            // This node, the minor before, still running during the rollout.
+            // This node, the minor before, still running during the rollout (the JDK printed for the report).
+            println("R2UnknownMisfireTest on JDK ${Runtime.version()}")
             val older = Kernel(log, clock = { NOW })
             val outcome = older.send(Pay(5))
             outcome.assert().isInstanceOf(CommandOutcome.Committed::class.java)
