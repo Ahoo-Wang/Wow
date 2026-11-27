@@ -334,7 +334,9 @@ start_node() {
 }
 
 # Waits until node $1 answers on its public port, probing five times a second, at most 120 s; fails when it exits
-# first. Once it answers, READY gets how long it took from its launch and its RSS then.
+# first. Any HTTP answer counts, a 404 too: the port answers once the server has started, and the public port serves
+# the Manifest only where wow.http.manifest.enabled turns it on. Once it answers, READY gets how long it took from its
+# launch and its RSS then.
 await_node() {
   local n=$1
   local url=${TARGETS[$((n - 1))]} pid=${SERVER_PIDS[$((n - 1))]} probe=/wow/manifest
@@ -343,7 +345,7 @@ await_node() {
     if ! kill -0 "$pid" 2>/dev/null; then
       log "node $n exited:"; tail -40 "$OUT/node-$n.log" >&2; return 1
     fi
-    if [ "$(curl -s -o /dev/null -w '%{http_code}' "$url$probe")" = 200 ]; then
+    if [ "$(curl -s -o /dev/null -w '%{http_code}' "$url$probe")" != 000 ]; then
       READY+=("{\"node\":$n,\"readyMs\":$(( $(now_ms) - ${STARTED_AT[$((n - 1))]} )),\"rssKb\":$(ps -o rss= -p "$pid" | tr -d ' ')}")
       return 0
     fi
