@@ -14,7 +14,7 @@ for (const n of list) {
   let j = lines.findIndex((l, k) => k > i && /^#{1,6}\s/.test(l) && l.match(/^#+/)[0].length <= lvl);
   const text = lines.slice(i + 1, j < 0 ? undefined : j).join('\n').trim();
   if (/^None[:.]/.test(text) || /^Nothing changes for an application/.test(text)) { out[n] = { none: text }; continue; }
-  const blocks = text.split(/\n\s*\n/).map(b => b.trim()).filter(b => b && !/^Refs #/.test(b));
+  const blocks = text.split(/\n\s*\n/).map(b => b.trim()).filter(b => b && !/^(Refs|Fixes) #/.test(b));
   const en = [], zh = [];
   for (const b of blocks) {
     const c = cjk(b);

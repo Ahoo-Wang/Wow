@@ -11,6 +11,8 @@ The review half is done. Tests run on JDK 25 (`25.0.4.1+1-LTS`), toolchain 21, o
 
 **Summary issue:** "Deep review r2: the upgrade path" (findings 2, 5, 6, the doubts, the reads below, D487 ① third item). The label comment is on it.
 
+**Working data, regenerated 2026-11-27** (`r2-upgrade-path-data/`, for the 240 pull requests): `prlist.txt` is `git log --first-parent --format='%H %s' v10.0.0-beta.21..<main>` with each `(#n)` taken. `prs/<n>.json` (not committed) is `gh pr view <n> --json number,title,body,labels,author,mergedAt,mergeCommit`, in a directory `S` beside `prlist.txt`. Then: `node tools/labels.mjs <repo> S`; `cut -d' ' -f1 S/prlist.txt | xargs node tools/section.mjs S Breaking > breaking-sections.md`, the same with `"Upgrades? paragraph"` for `upgrades-sections.md`; `node tools/extract.mjs S` (now also drops `Fixes #n` blocks). The 227 earlier entries came out byte for byte as before.
+
 **The reads the pause left, now done:**
 - PostgreSQL `validate`, #6764's wording ("refused at start"): the record is written or refused in `PostgresLogCatalog.ensureRecord` (`:180-198`). At start that happens only through the host's events-index start (`HostQueries.kt:310-338` → `PostgresEventQueries.prepare` → `createTable`), so only for a type whose events queries this store serves. Otherwise it happens at the type's first append or read. Upgrades:137 needs that qualification.
 - CoSec 8.0.0 `ProblemRenderer` (`cosec-runtime-8.0.0.jar`, read with `javap`): annotated `@CoSecSpi`, not experimental. Upgrades:222 ("experimental in CoSec 8, so its shape may change with CoSec's release candidate") is out of date: word it on `wow-cosec`'s own `@ExperimentalWowApi`.

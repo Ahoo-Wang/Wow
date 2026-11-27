@@ -686,8 +686,7 @@
  },
  "7217": {
   "en": [
-   "**PostgreSQL reads a field named `null`.** A snapshot query on PostgreSQL read a property or a map key named `null` (in any case) as missing: a filter on it matched no row. It now reads the value the field holds. An expression index on such a field is planned anew; no other index changes.",
-   "Fixes #7212"
+   "**PostgreSQL reads a field named `null`.** A snapshot query on PostgreSQL read a property or a map key named `null` (in any case) as missing: a filter on it matched no row. It now reads the value the field holds. An expression index on such a field is planned anew; no other index changes."
   ],
   "zh": [
    "**PostgreSQL 读取名为 `null` 的字段。** PostgreSQL 上的快照查询原先把名为 `null`（不分大小写）的属性或映射键读作缺失：对它的过滤一行都不匹配。现在读出字段所持有的值。这种字段上的表达式索引会重新规划，其他索引不变。"
@@ -696,8 +695,7 @@
  },
  "7218": {
   "en": [
-   "**Long ignore-case operands and lone surrogates are queries to mend.** On PostgreSQL an ignore-case `contains`, `starts-with` or `ends-with` longer than about 8,000 letters was answered and is now refused `400 wow.query.invalid` (`storage-unsupported`): shorten the operand or match case-sensitively. On ClickHouse one longer than about 16,000 letters, and any text operand past its 128 KiB query parameter, is `400` instead of a storage failure. A text operand or a filter's id holding an unpaired surrogate is `value-mismatch` on every store: PostgreSQL and ClickHouse read it as `?` and answered rows it never named.",
-   "Fixes #7211"
+   "**Long ignore-case operands and lone surrogates are queries to mend.** On PostgreSQL an ignore-case `contains`, `starts-with` or `ends-with` longer than about 8,000 letters was answered and is now refused `400 wow.query.invalid` (`storage-unsupported`): shorten the operand or match case-sensitively. On ClickHouse one longer than about 16,000 letters, and any text operand past its 128 KiB query parameter, is `400` instead of a storage failure. A text operand or a filter's id holding an unpaired surrogate is `value-mismatch` on every store: PostgreSQL and ClickHouse read it as `?` and answered rows it never named."
   ],
   "zh": [
    "**过长的忽略大小写操作数与孤立的代理项是要修改的查询。** 在 PostgreSQL 上，超过约 8,000 个字母的忽略大小写 `contains`、`starts-with` 或 `ends-with` 原先会得到回答，现在被拒绝为 `400 wow.query.invalid`（`storage-unsupported`）：缩短操作数，或改为区分大小写的匹配。在 ClickHouse 上，超过约 16,000 个字母的，以及超过其 128 KiB 查询参数的任何文本操作数，答以 `400` 而不是存储失败。含有未配对代理项的文本操作数或过滤器的 id 在每个存储上都是 `value-mismatch`：PostgreSQL 与 ClickHouse 把它读作 `?`，回答了它从未指明的行。"
@@ -706,8 +704,7 @@
  },
  "7219": {
   "en": [
-   "**MongoDB refuses a metric aliased `_id`.** An aggregation on MongoDB whose metric is aliased `_id`, the field a group's key is kept in, answered rows that were not what it asked; it is now refused `400 wow.query.invalid` (`storage-unsupported`). Give the metric another alias; a group aliased `_id` is taken.",
-   "Fixes #7213"
+   "**MongoDB refuses a metric aliased `_id`.** An aggregation on MongoDB whose metric is aliased `_id`, the field a group's key is kept in, answered rows that were not what it asked; it is now refused `400 wow.query.invalid` (`storage-unsupported`). Give the metric another alias; a group aliased `_id` is taken."
   ],
   "zh": [
    "**MongoDB 拒绝以 `_id` 为别名的指标。** MongoDB 上指标以 `_id`（分组键所在的字段）为别名的聚合，原先回答的行并非查询所要求的；现在被拒绝为 `400 wow.query.invalid`（`storage-unsupported`）。给指标换一个别名；以 `_id` 为别名的分组照常接受。"
@@ -716,8 +713,7 @@
  },
  "7220": {
   "en": [
-   "**A non-ASCII digit in a dataset expression is a problem of the definition.** An analytics catalog dataset whose expression held a decimal digit of another script (`٣`, `３`) failed its command with an unexpected error; it is now refused as an expression the catalog cannot read, naming the digit. Write numbers with ASCII digits.",
-   "Fixes #7214"
+   "**A non-ASCII digit in a dataset expression is a problem of the definition.** An analytics catalog dataset whose expression held a decimal digit of another script (`٣`, `３`) failed its command with an unexpected error; it is now refused as an expression the catalog cannot read, naming the digit. Write numbers with ASCII digits."
   ],
   "zh": [
    "**数据集表达式中的非 ASCII 数字是定义的问题。** 分析目录中表达式含有其他文字的十进制数字（`٣`、`３`）的数据集，原先会以意外错误让命令失败；现在作为目录读不懂的表达式被拒绝，并指出这个数字。数字请用 ASCII 数字书写。"
