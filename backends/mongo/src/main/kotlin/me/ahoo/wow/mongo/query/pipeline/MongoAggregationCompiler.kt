@@ -28,6 +28,7 @@ import me.ahoo.wow.mongo.query.MongoMatchCompiler
 import me.ahoo.wow.mongo.query.MongoSnapshotDocuments
 import me.ahoo.wow.mongo.query.scoped
 import me.ahoo.wow.query.admission.AdmittedQuery
+import me.ahoo.wow.query.schema.QueryViolation
 import org.bson.Document
 import org.bson.conversions.Bson
 
@@ -50,6 +51,7 @@ internal object MongoAggregationCompiler {
         scope: Bson? = null,
     ): List<Bson> = buildList {
         val query = admitted.query
+        requireNoMetricAliasedGroupKey(query)
         add(Aggregates.match(scoped(MongoMatchCompiler.compile(query.filter, admitted), scope)))
 
         query.elements.forEach { element ->
@@ -91,6 +93,22 @@ internal object MongoAggregationCompiler {
         query.effectiveSort().takeIf { it.isNotEmpty() }?.let { add(Aggregates.sort(it.toBson())) }
         limit?.let { add(Aggregates.limit(it)) }
     }
+
+    /**
+     * Refuses a metric aliased `_id`, the field `$group` keeps a group's key in, which the protocol admits (#7213): its
+     * accumulator would name the key a second time. It is the storage's limit ([QueryViolation.StorageUnsupported]), a
+     * query the caller can mend under another alias; a group aliased `_id` is a field of the key and is taken.
+     */
+    private fun requireNoMetricAliasedGroupKey(query: AggregationQuery) {
+        if (query.metrics.any { it.alias == GROUP_KEY }) {
+            throw QueryViolation.StorageUnsupported(
+                "a metric aliased $GROUP_KEY, the field MongoDB keeps a group's key in",
+            ).rejection()
+        }
+    }
+
+    /** The field `$group` keeps a group's key in. */
+    private const val GROUP_KEY = "_id"
 
     @Suppress("LongMethod")
     private fun group(

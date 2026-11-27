@@ -116,17 +116,17 @@ internal class ClickHouseFilterCompiler(
         is ContainsFilter -> if (filter.stringComparison.ignoreCase) {
             folded(filter.field, filter.value)
         } else {
-            "position(${compared(filter.field)}, ${text(filter.value)}) > 0"
+            "position(${compared(filter.field)}, ${text(filter.value, filter.field)}) > 0"
         }
         is StartsWithFilter -> if (filter.stringComparison.ignoreCase) {
             folded(filter.field, filter.value, before = "^")
         } else {
-            "startsWith(${compared(filter.field)}, ${text(filter.value)})"
+            "startsWith(${compared(filter.field)}, ${text(filter.value, filter.field)})"
         }
         is EndsWithFilter -> if (filter.stringComparison.ignoreCase) {
             folded(filter.field, filter.value, after = "$")
         } else {
-            "endsWith(${compared(filter.field)}, ${text(filter.value)})"
+            "endsWith(${compared(filter.field)}, ${text(filter.value, filter.field)})"
         }
         is ExpressionFilter -> expressionComparison(filter)
         // The one ELEMENT_MATCH a dataset's storage reads: an access policy's restriction (DatasetAccess).
@@ -239,9 +239,27 @@ internal class ClickHouseFilterCompiler(
      * `$` is the end of the text, never before a trailing newline. Neither form uses an index.
      */
     private fun folded(field: QueryField<*>, operand: String, before: String = "", after: String = ""): String =
-        "match(${compared(field)}, ${text(before + CaseFolding.pattern(operand) + after)})"
+        "match(${compared(field)}, ${text(before + CaseFolding.pattern(operand) + after, field)})"
 
-    private fun text(value: String): String = parameters.bind(value, "String")
+    private fun text(value: String, field: QueryField<*>): String = parameters.bind(bounded(value, field), "String")
+
+    /**
+     * [value], a text bound as a query parameter, refused as the storage's limit ([QueryViolation.StorageUnsupported])
+     * when the form field it travels in passes [MAX_PARAMETER_BYTES], where ClickHouse would refuse the query with its
+     * own error ("Field value too long"): a long operand, or the folding pattern of an ignore-case match, whose
+     * brackets the field encodes.
+     */
+    private fun bounded(value: String, field: QueryField<*>): String {
+        val length = encodedLength(value)
+        if (length > MAX_PARAMETER_BYTES) {
+            throw QueryViolation.StorageUnsupported(
+                "an operand of ${value.length} characters, $length bytes as a query parameter, past the " +
+                    "$MAX_PARAMETER_BYTES a ClickHouse query parameter holds",
+                field,
+            ).rejection()
+        }
+        return value
+    }
 
     private fun bind(field: QueryField<*>, value: Any?): String = bind(columnOf(field), value, field)
 
@@ -267,7 +285,7 @@ internal class ClickHouseFilterCompiler(
             is BigDecimal -> operand.toPlainString()
             else -> operand.toString()
         }
-        return parameters.bind(text, column.parameterType)
+        return parameters.bind(bounded(text, field), column.parameterType)
     }
 
     /**
@@ -377,6 +395,28 @@ internal class ClickHouseFilterCompiler(
     private fun integral(value: BigDecimal): Int = maxOf(value.precision() - value.scale(), 0)
 
     companion object {
+        /**
+         * The longest query parameter sent, as its HTTP form field holds it ([encodedLength]): ClickHouse's default
+         * `http_max_field_value_size`. The bound is fixed: a server whose setting is raised does not raise it, since a
+         * query is compiled without reading the server's settings.
+         */
+        const val MAX_PARAMETER_BYTES: Int = 131_072
+
+        /** The characters a parameter's form field holds as they are: RFC 3986's unreserved ones. */
+        private const val UNRESERVED = "-._~"
+
+        /** The bytes of a percent-encoded byte, `%XX`. */
+        private const val ENCODED_BYTE = 3
+
+        /**
+         * The length of [value] in the form field the client sends a parameter in: an unreserved ASCII character
+         * (a letter, a digit, `-._~`) as it is, every other byte of its UTF-8 percent-encoded, `%XX`.
+         */
+        fun encodedLength(value: String): Int = value.toByteArray(Charsets.UTF_8).sumOf { byte ->
+            val char = byte.toInt().toChar()
+            if (byte >= 0 && (char.isLetterOrDigit() || char in UNRESERVED)) 1 else ENCODED_BYTE
+        }
+
         private const val NANO_DIGITS = 9
         private const val MILLI_DIGITS = 3
 

@@ -23,7 +23,8 @@ import me.ahoo.wow.runtime.admission.ServiceRouteAuthorizer
 /**
  * Authorizes a call of a service route with CoSec's documents, as [CoSecCommandAuthorizer] authorizes a command: the
  * call is the action `<context>:<route>` on the resource `route/<route>` ([CoSecActions]), the name CoSec's route
- * map gives the route over HTTP. A request-less caller gets no objection.
+ * map gives the route over HTTP. A request-less caller gets no objection; a caller of a request that is not the
+ * principal CoSec authenticated for it is denied ([CoSecRequest]).
  */
 @ExperimentalWowApi
 class CoSecServiceRouteAuthorizer(
@@ -31,9 +32,13 @@ class CoSecServiceRouteAuthorizer(
     private val defaultTenant: String = Caller.DEFAULT_TENANT,
 ) : ServiceRouteAuthorizer {
     override suspend fun authorize(caller: Caller, action: RouteAction): Authorization {
-        val security = CoSecRequests.securityOf(caller, defaultTenant) ?: return Authorization.Allowed
         val name = CoSecActions.route(action)
         val resource = CoSecActions.routeResource(action.name)
+        val security = when (val request = CoSecRequest.of(caller, defaultTenant)) {
+            CoSecRequest.RequestLess -> return Authorization.Allowed
+            CoSecRequest.Foreign -> return CoSecRequest.foreign(name, resource)
+            is CoSecRequest.Of -> request.security
+        }
         return if (checker.check(security, name, resource)) {
             Authorization.Allowed
         } else {

@@ -219,7 +219,7 @@ internal class UnavailableDatasetQueryGateway(override val dataset: QueryDataset
 
     override fun aggregate(query: AggregationQuery, caller: QueryCaller): Flow<ObjectNode> = flow { unavailable() }
 
-    override suspend fun describe(entry: QueryEntry, defaultListSize: Int?): QueryModelDescriptor = unavailable()
+    override suspend fun describe(entry: QueryEntry, caller: QueryCaller, defaultListSize: Int?): QueryModelDescriptor = unavailable()
 }
 
 /** The binding of [dataset]; a dataset these bindings do not serve fails with an [IllegalArgumentException]. */

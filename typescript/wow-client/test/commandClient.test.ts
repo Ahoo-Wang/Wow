@@ -76,6 +76,8 @@ describe('CommandClient', () => {
       'wow-scope': 'tenant="t"',
       'wow-space': 's',
       'x-user': 'alice',
+      // A body with no Content-Type is answered 415.
+      'content-type': 'application/json',
     });
   });
 

@@ -59,6 +59,7 @@ import me.ahoo.wow.query.admission.AdmittedQuery
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.resolve.ResolvedField
 import me.ahoo.wow.query.schema.QueryCardinality
+import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.schema.Temporal
 import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.JsonNode
@@ -250,6 +251,14 @@ internal class PostgresFilterCompiler(
     ): String = anyValue(field) { value, _ ->
         if (comparison == StringComparison.CASE_INSENSITIVE) {
             val pattern = (if (leading) "" else "^") + CaseFolding.pattern(operand) + (if (trailing) "" else "$")
+            val bytes = pattern.toByteArray(Charsets.UTF_8).size
+            if (bytes > MAX_PATTERN_BYTES) {
+                throw QueryViolation.StorageUnsupported(
+                    "an ignore-case match of a ${operand.length}-character operand, whose regular expression of " +
+                        "$bytes bytes passes the $MAX_PATTERN_BYTES PostgreSQL is sent",
+                    field.logicalField,
+                ).rejection()
+            }
             "$value ~ ${parameters.bind(SqlParameter.Text(pattern))}"
         } else {
             val pattern = (if (leading) "%" else "") + operand.escapeLike() + (if (trailing) "%" else "")
@@ -383,6 +392,14 @@ internal class PostgresFilterCompiler(
         get() = cardinality != QueryCardinality.SINGLE
 
     companion object {
+        /**
+         * The longest ignore-case pattern sent, in UTF-8 bytes, as MongoDB's (`MongoMatchCompiler.MAX_PATTERN_BYTES`):
+         * PostgreSQL refuses a regular expression it finds too complex (SQLSTATE 2201B) by the states its automaton
+         * takes, which a folding pattern of some 128 KB reaches; this bound stays well below that for every class
+         * the core's folding writes. An operand of about 8,000 letters reaches it.
+         */
+        const val MAX_PATTERN_BYTES: Int = 32_764
+
         const val TRUE = "TRUE"
         const val FALSE = "FALSE"
         private const val TEXT_ARRAY = "text"

@@ -96,6 +96,8 @@ internal fun queryShapeOf(queryType: QueryType, query: Any): String = QueryShape
         QueryType.AGGREGATION -> aggregation(query as AggregationQuery)
         // A state read's shape is what it asks for: no id, version or time.
         QueryType.STATE, QueryType.TRACE -> token((query as StateRead).name)
+        // A descriptor's read runs no query, and is never observed.
+        QueryType.DESCRIBE -> error("A descriptor's read has no query shape.")
     }
 }.toString()
 

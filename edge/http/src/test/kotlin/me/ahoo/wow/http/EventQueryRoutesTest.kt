@@ -233,7 +233,7 @@ class EventQueryRoutesTest {
                 .assert().containsExactly(1, 2, 3)
             // Unbudgeted, a count is exact.
             gateway.count(CountQuery(tenanted), QueryCaller.IN_PROCESS).count.assert().isEqualTo(3)
-            gateway.describe(me.ahoo.wow.query.QueryEntry.HTTP).limits.maxListSize.assert()
+            gateway.describe(me.ahoo.wow.query.QueryEntry.HTTP, QueryCaller.IN_PROCESS).limits.maxListSize.assert()
                 .isEqualTo(QueryBudget.HTTP_DEFAULT.maxListSize)
         }
     }

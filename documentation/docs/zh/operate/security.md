@@ -105,9 +105,11 @@ fun shipping(): CommandAuthorizer = CommandAuthorizer { caller, action ->
 - **在自己做决定的服务中**（`cosec.pipeline.mode` 为 `enforce`，CoSec 的默认值），CoSec 的管道读取宿主根据服务 Manifest 构建的路由映射：它的命令路由和服务路由，使用上面的名字，取代 `cosec-routes.json`。内部命令的路由不在其中，因为公开端口不提供它们。应用自己声明了 `RouteMap` Bean 时保留它。这样的服务持有 CoSec 的签名密钥，并从 CoSec 的 Redis 读取文档（[CoSec 快速开始](https://cosec.ahoo.me/guide/quick-start)）。它的探针在每个端口上同样经过 CoSec：平台文档安装之前，Actuator 的 readiness 和 liveness 都回答 503，所以文档尚未发布时 kubelet 会重启 Pod；安装之后回答 401，除非有一条语句允许任何人 `GET` `/actuator/health/readiness` 和 `/actuator/health/liveness`。在部署服务之前发布文档，连同这条语句（[应用上的 Actuator](https://cosec.ahoo.me/integration/web#actuator-on-an-application)）。在网关之后，探针是匿名请求，可以通过。
 - **在 CoSec 网关之后**（`wow.cosec.mode: gateway`），由网关决定。网关不加载路由映射，所以它的策略写的是请求路径上的 `http:<METHOD>` 动作，服务自己不按策略决定任何事（[以网关模式运行服务](#run-services-in-gateway-mode)）。
 
-设置 `wow.cosec.authorizer.enabled: true` 后，`CoSecCommandAuthorizer` 和 `CoSecServiceRouteAuthorizer` 在进程内为每条命令和每次服务路由调用授权，无论它经哪条路径到达命令网关：按上面的动作，以它所来自的请求的主体、在那个请求的作用域中授权。只有 CoSec 自己做决定的地方才装配它们，这需要 CoSec 的 `AuthorizationChecker`：网关模式的服务没有它，这个开关在那里不起作用。开关默认关闭：没有它、也没有你自己的授权器时，通过了路由的命令就被允许，上面内置聚合的系统命令除外。你自己的 `CommandAuthorizer` 与 CoSec 的授权器一同询问，命令需要两者都允许（[组合规则](../guide/spring-boot#beans-the-application-gives)）；只应在没有 CoSec 时才决定的、按你自己的角色授权的授权器，注入 `ObjectProvider<CoSecCommandAuthorizer>`，在存在它时不提出异议，平台服务就是这样做的。
+设置 `wow.cosec.authorizer.enabled: true` 后，`CoSecCommandAuthorizer` 和 `CoSecServiceRouteAuthorizer` 在进程内为每条命令和每次服务路由调用授权，无论它经哪条路径到达命令网关：按上面的动作，以它所来自的请求的主体、在那个请求的作用域中授权。只有 CoSec 自己做决定的地方才装配它们，这需要 CoSec 的 `AuthorizationChecker`：网关模式或关闭了 CoSec 的服务没有它，在那里打开这个开关会让节点拒绝启动并说明原因，而不是静默不起作用。开关默认关闭：没有它、也没有你自己的授权器时，通过了路由的命令就被允许，上面内置聚合的系统命令除外。你自己的 `CommandAuthorizer` 与 CoSec 的授权器一同询问，命令需要两者都允许（[组合规则](../guide/spring-boot#beans-the-application-gives)）；只应在没有 CoSec 时才决定的、按你自己的角色授权的授权器，注入 `ObjectProvider<CoSecCommandAuthorizer>`，在存在它时不提出异议，平台服务就是这样做的。
 
 不由请求携带的命令，CoSec 的授权器不提出异议：Saga、定时器或补偿发出的命令，定时任务的命令，以及其他服务在内部端口上的调用。CoSec 没有属于它们的请求可以决定。这样的命令带着根命令的作用域和操作人，而根命令在根请求到达时已经由准入授权过；节点的其他授权器仍然作用于它，服务在内部端口上的调用由它的调用方列表决定（[关上内部端口](#close-the-internal-port)）。
+
+请求的调用方若不是 CoSec 为该请求认证的主体，CoSec 无法评估它，授权器拒绝它，Wow 的运维命令也一样（403 `wow.auth.forbidden`）。这样的调用方包括：你自己的 `CallerResolver` 映射成另一个主体或租户的调用方，它为没有凭据的请求给出的匿名调用方，以及你的代码在处理请求时以另一个调用方发出命令（`CommandClient.of(caller)`）。请以请求的调用方发出这样的命令，或者不用这个开关，改用你自己的授权器决定这类调用方。服务身份只在内部端口上接受，CoSec 不在那里运行，也不询问它。
 
 ### CoSec 的拒绝 {#cosec-refusals}
 
@@ -134,7 +136,7 @@ CoSec 的 `type` 与 `code` 放在成员 `cosec` 里，`requestId` 和 `traceId`
 查询、状态读取和 trace 分层授权，每一层收窄前一层允许的范围：
 
 - **按路由。** 在 CoSec 决定请求的地方，路由路径上 `http:<METHOD>` 动作的策略放行或拒绝它（[动作名称](#action-names)）。在 CoSec 网关之后，由网关的策略决定。
-- **按读取者。** 服务自己的 `ReadAuthorizer` Bean 决定调用方是否可以读取某个模型：给定调用方和它读取的东西（聚合类型或数据集、模型、操作和入口），它在读取任何东西之前允许或拒绝这次读取，所以被拒绝的调用方得不到任何信息，连某个状态是否存在都不知道。拒绝答 `403 wow.auth.forbidden`，或授权器指明的[错误码表](../reference/error-codes)里的另一个码，例如没有应用的请求。它按谁在读拒绝（角色、应用），从不按读的是什么拒绝。每个入口的每个调用方都会被询问，包括进程内的 `QueryApi.of(caller)`；不带调用方读取的受信任进程内代码不被询问。
+- **按读取者。** 服务自己的 `ReadAuthorizer` Bean 决定调用方是否可以读取某个模型：给定调用方和它读取的东西（聚合类型或数据集、模型、操作和入口），它在读取任何东西之前允许或拒绝这次读取，所以被拒绝的调用方得不到任何信息，连某个状态是否存在都不知道。模型的描述（查询路由的 `GET`，它的字段、操作符与预算）同样要问，操作是 `DESCRIBE`：被拒绝的调用方看不到这个模型的任何东西。拒绝答 `403 wow.auth.forbidden`，或授权器指明的[错误码表](../reference/error-codes)里的另一个码，例如没有应用的请求。它按谁在读拒绝（角色、应用），从不按读的是什么拒绝。每个入口的每个调用方都会被询问，包括进程内的 `QueryApi.of(caller)`；不带调用方读取的受信任进程内代码不被询问。
 - **按作用域。** 查询准入把调用方的作用域加进每个查询，状态读取也检查它：租户总是加上；所有者只对 `Ownership.OWNER` 的聚合加上；调用方在某个空间里行事时，加上空间。调用方没有值的那一项不加，所以租户级调用方读取整个租户。查询里的过滤条件不能放宽它。在事件上，所有者和空间是聚合当前的所有者和空间，每条流都记着它们（[谁能看到什么](../guide/event-queries#who-sees-what)）。
 - **按访问策略。** 有服务自己的访问策略的聚合，按策略的 `read` 授予调用方的读取，用每个聚合的访问属性比较，取代作用域的所有者与空间：下推到每个查询，在状态读取时求值，也作用于该聚合的数据集（[策略在哪里生效](../guide/ownership#where-a-policy-applies)）。
 

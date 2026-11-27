@@ -16,6 +16,7 @@ package me.ahoo.wow.query.json
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.query.DefaultQueryGateway
+import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.admission.QueryBudget
 import me.ahoo.wow.query.descriptor.QueryModelDescriptor
@@ -114,9 +115,9 @@ class QueryModelDescriptorJsonTest {
                 InMemoryQueryStorage().binding(ManifestFixtures.ORDER).backend,
                 FixedQueryModelSchemaProvider(schema),
             )
-            gateway.describe(QueryEntry.HTTP, DEFAULT_LIST_SIZE).assert()
+            gateway.describe(QueryEntry.HTTP, QueryCaller.IN_PROCESS, DEFAULT_LIST_SIZE).assert()
                 .isEqualTo(schema.describe(QueryBudget.HTTP_DEFAULT, DEFAULT_LIST_SIZE))
-            gateway.describe(QueryEntry.IN_PROCESS).limits.maxListSize.assert().isNull()
+            gateway.describe(QueryEntry.IN_PROCESS, QueryCaller.IN_PROCESS).limits.maxListSize.assert().isNull()
         }
     }
 

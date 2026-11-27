@@ -214,7 +214,7 @@ class EventQueryGatewaysTest {
 
     @Test
     fun `the descriptor is the unified one, its limits those of the entry`(): Unit = runBlocking {
-        val descriptor = untimed.describe(QueryEntry.HTTP)
+        val descriptor = untimed.describe(QueryEntry.HTTP, QueryCaller.IN_PROCESS)
         descriptor.model.assert().isEqualTo(QueryModel.EVENTS)
         descriptor.record.identity.assert().isEqualTo("aggregateId")
         descriptor.fields.map { it.path }.assert().contains(
@@ -224,7 +224,7 @@ class EventQueryGatewaysTest {
             "operator.id",
             "events"
         )
-        descriptor.version.assert().isNotEqualTo(untimed.describe(QueryEntry.HTTP, 10).version)
+        descriptor.version.assert().isNotEqualTo(untimed.describe(QueryEntry.HTTP, QueryCaller.IN_PROCESS, 10).version)
     }
 
     @Test
@@ -253,9 +253,10 @@ class EventQueryGatewaysTest {
 
     @Test
     fun `the descriptor lists AGGREGATE_REQUIRED only where the store refuses an unpinned query`(): Unit = runBlocking {
-        gateway(unpinned = UnpinnedEvents.REFUSE).describe(QueryEntry.HTTP).constraints.orEmpty().map { it.type }
+        val refusing = gateway(unpinned = UnpinnedEvents.REFUSE)
+        refusing.describe(QueryEntry.HTTP, QueryCaller.IN_PROCESS).constraints.orEmpty().map { it.type }
             .assert().contains(UnpinnedEventsPolicy.AGGREGATE_REQUIRED)
-        gateway().describe(QueryEntry.HTTP).constraints.orEmpty().map { it.type }
+        gateway().describe(QueryEntry.HTTP, QueryCaller.IN_PROCESS).constraints.orEmpty().map { it.type }
             .assert().doesNotContain(UnpinnedEventsPolicy.AGGREGATE_REQUIRED)
     }
 

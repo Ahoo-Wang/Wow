@@ -23,6 +23,7 @@ import me.ahoo.wow.cosec.CoSecActions
 import me.ahoo.wow.cosec.CoSecCallerOptions
 import me.ahoo.wow.cosec.CoSecCallerResolver
 import me.ahoo.wow.cosec.CoSecCommandAuthorizer
+import me.ahoo.wow.cosec.CoSecFilterCodes
 import me.ahoo.wow.cosec.CoSecProblemRenderer
 import me.ahoo.wow.cosec.CoSecRequestIds
 import me.ahoo.wow.cosec.CoSecServiceRouteAuthorizer
@@ -130,8 +131,10 @@ class CoSecAutoConfiguration {
         private const val PROBLEM_RENDERER: String = "me.ahoo.cosec.runtime.http.ProblemRenderer"
 
         /**
-         * Adds `CoSec-Request-Id`, the request id of a command without `Wow-Request-Id` ([CoSecRequestIds]), to the
-         * edge's options, whoever defines them, while CoSec is on (`cosec.enabled`, true unless set).
+         * Adds `CoSec-Request-Id`, the request id of a command without `Wow-Request-Id` ([CoSecRequestIds]), and the
+         * codes CoSec answers before any route, 429 and 503 ([CoSecFilterCodes]), which the OpenAPI document lists on
+         * every operation, to the edge's options, whoever defines them, while CoSec is on (`cosec.enabled`, true unless
+         * set).
          */
         @Bean
         @JvmStatic
@@ -139,7 +142,7 @@ class CoSecAutoConfiguration {
         @InternalWowApi
         fun wowCoSecRequestIds(): BeanPostProcessor = object : BeanPostProcessor {
             override fun postProcessAfterInitialization(bean: Any, beanName: String): Any =
-                if (bean is WowHttpOptions) CoSecRequestIds.addTo(bean) else bean
+                if (bean is WowHttpOptions) CoSecFilterCodes.addTo(CoSecRequestIds.addTo(bean)) else bean
         }
 
         /** The caller options of [properties] (`wow.cosec.*`, `wow.tenant.default`). */
@@ -167,7 +170,9 @@ class CoSecAutoConfiguration {
  * by the same actions, as the caller of its request, among the node's authorizers when `wow.cosec.authorizer.enabled`
  * is true and CoSec decides here (its `AuthorizationChecker`): asked with the application's own authorizers, each of
  * which must allow a command too. On the public port CoSec's pipeline already decides the command routes. A
- * request-less command (a saga's, a timer's, a scheduled job's) gets no objection from them.
+ * request-less command (a saga's, a timer's, a scheduled job's) gets no objection from them; a caller of a request that
+ * is not the principal CoSec authenticated for it is denied. Where the switch is true and they cannot be wired, the
+ * node refuses to start ([CoSecAuthorizerSwitch]).
  *
  * After CoSec's pipeline, which defines the checker: their condition looks for it among the beans registered so far,
  * and [CoSecAutoConfiguration], before the host's own configuration, comes before CoSec's (#6849). The node takes them

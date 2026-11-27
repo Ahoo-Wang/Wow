@@ -24,6 +24,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.problem.ProblemMapper
 import me.ahoo.wow.api.schedule.ScheduleJobs
+import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.caller.Authenticator
 import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.http.caller.CallerResolver
@@ -229,6 +230,9 @@ internal fun openApiOf(
             manifestEndpoint = options.manifestEndpoint,
             openApiEndpoint = options.openApiEndpoint,
             errorStatuses = options.errorStatuses,
+            requestFacts = options.requestFacts,
+            requestIdHeaders = options.requestIdHeaders - WowHeaders.REQUEST_ID,
+            filterCodes = options.filterCodes,
         ).withSecuritySchemes(securitySchemes),
     )
 }

@@ -19,6 +19,9 @@ import io.swagger.v3.oas.models.info.Info
 import io.swagger.v3.oas.models.media.StringSchema
 import io.swagger.v3.oas.models.parameters.Parameter
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.cosec.CoSecFilterCodes
+import me.ahoo.wow.cosec.CoSecRequestIds
+import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.openapi.OpenApiSecurityScheme
 import me.ahoo.wow.spring.boot.AnonymousCallers
 import me.ahoo.wow.spring.boot.Host
@@ -29,6 +32,7 @@ import org.junit.jupiter.api.assertThrows
 import org.springdoc.core.models.GroupedOpenApi
 import org.springdoc.core.properties.AbstractSwaggerUiConfigProperties.SwaggerUrl
 import org.springdoc.core.properties.SwaggerUiConfigProperties
+import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.mock.env.MockEnvironment
@@ -71,6 +75,35 @@ class HostSpringdocTest {
             val served = host.get("/wow/openapi").body!!
             pathsOf(group).assert().isEqualTo(pathsOf(served))
             pathsOf(group).assert().doesNotContain("/accounts/{owner}/summary")
+        }
+    }
+
+    /** What CoSec adds to the edge's options while it is on: its request id header, and its filters' codes. */
+    @Configuration(proxyBeanMethods = false)
+    class CoSecAdditions {
+        @Bean
+        fun coSecAdditions(): BeanPostProcessor = object : BeanPostProcessor {
+            override fun postProcessAfterInitialization(bean: Any, beanName: String): Any =
+                if (bean is WowHttpOptions) CoSecFilterCodes.addTo(CoSecRequestIds.addTo(bean)) else bean
+        }
+    }
+
+    @Test
+    fun `springdoc's documents should list what the host adds, as GET wow openapi does`() {
+        val host = springdocHost("wow.http.request-facts" to "X-Region", sources = listOf(CoSecAdditions::class.java))
+        host.use {
+            listOf(API_DOCS, "$API_DOCS/${SpringdocAutoConfiguration.DEFAULT_GROUP}").forEach { path ->
+                val document = host.get(path).body!!
+                val deposit = document["paths"]["/bank/account/{id}/deposit"]["post"]
+                // A parameter by reference, or inline as springdoc may write it: by its name either way.
+                val components = document["components"]["parameters"]
+                val headers = deposit["parameters"].values().map { parameter ->
+                    val ref = parameter.get("\$ref")
+                    if (ref == null) parameter else components.get(ref.asString().substringAfterLast('/'))
+                }.filter { it.get("in").asString() == "header" }.map { it.get("name").asString() }
+                headers.assert().describedAs(path).contains(CoSecRequestIds.HEADER, "X-Region")
+                deposit["responses"].propertyNames().toList().assert().describedAs(path).contains("429", "503")
+            }
         }
     }
 

@@ -133,8 +133,13 @@ interface QueryGateway {
      * descriptor of the schema this gateway admits against, under the budget [entryPolicy] gives [entry].
      * [defaultListSize] is the list size the entry's adapter applies when a list query sends none, or `null`. Its
      * [version][QueryModelDescriptor.version] is the route's `ETag`.
+     *
+     * [caller] is asked about first, as a query's is: the [ReadAuthorizer] is told a
+     * [DESCRIBE][me.ahoo.wow.query.filter.QueryType.DESCRIBE] read from [QueryCaller.entry], and a caller refused it sees
+     * neither the model's fields nor its budget. Trusted in-process code, which describes with no caller, is
+     * not asked.
      */
-    suspend fun describe(entry: QueryEntry, defaultListSize: Int? = null): QueryModelDescriptor
+    suspend fun describe(entry: QueryEntry, caller: QueryCaller, defaultListSize: Int? = null): QueryModelDescriptor
 
     /**
      * The single-aggregate visibility check of the policy chain: [record], the snapshot-shaped record of
@@ -252,9 +257,11 @@ class DefaultQueryGateway(
 
     override suspend fun recordSchema(): QueryModelSchema = schemaProvider.schema()
 
-    override suspend fun describe(entry: QueryEntry, defaultListSize: Int?): QueryModelDescriptor =
-        schemaProvider.schema().describe(entryPolicy.budget(entry), defaultListSize)
+    override suspend fun describe(entry: QueryEntry, caller: QueryCaller, defaultListSize: Int?): QueryModelDescriptor {
+        admission.authorizeDescribe(caller)
+        return schemaProvider.schema().describe(entryPolicy.budget(entry), defaultListSize)
             .withConstraints(constraints)
+    }
 
     /**
      * Reads each backend record by [records], else masks it by the schema's response masks: every caller sees masked

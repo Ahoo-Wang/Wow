@@ -96,7 +96,10 @@ class QueryEngine private constructor(
     val crossTenant: Boolean,
     /** The access policies of the node's aggregates, each resolved to its aggregate. */
     val access: AccessPolicies,
-    /** Who may read each model at all, asked before every query, state read and trace. */
+    /**
+     * Who may read each model at all, asked before every query, state read, trace and descriptor
+     * ([QueryType.DESCRIBE][me.ahoo.wow.query.filter.QueryType.DESCRIBE]).
+     */
     readAuthorizer: ReadAuthorizer,
 ) {
     /**
@@ -251,8 +254,9 @@ class QueryEngine private constructor(
 
         /**
          * Who may read each model at all ([ReadAuthorizer]), all of [authorizers] asked in their order: once per query,
-         * state read and trace, before anything is read. None by default: every caller may read, the rows still the
-         * access policies' and the default rule's.
+         * state read, trace and descriptor ([QueryType.DESCRIBE][me.ahoo.wow.query.filter.QueryType.DESCRIBE]), before
+         * anything is read. None by default: every caller may read, the rows still the access policies' and the default
+         * rule's.
          */
         fun readAuthorizers(authorizers: List<ReadAuthorizer>) =
             apply { this.readAuthorizer = ReadAuthorizer.allOf(authorizers) }

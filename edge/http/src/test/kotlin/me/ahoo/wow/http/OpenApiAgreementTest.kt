@@ -734,8 +734,8 @@ class OpenApiAgreementTest {
         override suspend fun count(query: CountQuery, caller: QueryCaller): CountResult =
             failure?.let { throw it() } ?: gateway.count(query, caller)
 
-        override suspend fun describe(entry: QueryEntry, defaultListSize: Int?): QueryModelDescriptor =
-            failure?.let { throw it() } ?: gateway.describe(entry, defaultListSize)
+        override suspend fun describe(entry: QueryEntry, caller: QueryCaller, defaultListSize: Int?): QueryModelDescriptor =
+            failure?.let { throw it() } ?: gateway.describe(entry, caller, defaultListSize)
     }
 
     /** A dataset's gateway that fails as [Failing] does. */
@@ -743,8 +743,8 @@ class OpenApiAgreementTest {
         override suspend fun count(query: CountQuery, caller: QueryCaller): CountResult =
             failure?.let { throw it() } ?: gateway.count(query, caller)
 
-        override suspend fun describe(entry: QueryEntry, defaultListSize: Int?): QueryModelDescriptor =
-            failure?.let { throw it() } ?: gateway.describe(entry, defaultListSize)
+        override suspend fun describe(entry: QueryEntry, caller: QueryCaller, defaultListSize: Int?): QueryModelDescriptor =
+            failure?.let { throw it() } ?: gateway.describe(entry, caller, defaultListSize)
     }
 
     data class Note(val text: String)

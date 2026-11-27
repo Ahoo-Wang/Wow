@@ -196,10 +196,10 @@ class QueryEngineTest {
         refused.violations.single().path.assert().isEqualTo("aggregateId")
         carts.list(ListQuery(AggregateIdFilter("c-1"), limit = 10), caller).toList().assert().isEmpty()
         orders.list(ListQuery(MatchAllFilter, limit = 10), caller).toList().assert().isEmpty()
-        val described = carts.describe(QueryEntry.HTTP)
+        val described = carts.describe(QueryEntry.HTTP, QueryCaller.IN_PROCESS)
         described.constraints.single { it.type == UnpinnedEventsPolicy.AGGREGATE_REQUIRED }
             .fields.assert().containsExactly("aggregateId")
-        val allowed = orders.describe(QueryEntry.HTTP)
+        val allowed = orders.describe(QueryEntry.HTTP, QueryCaller.IN_PROCESS)
         allowed.constraints.none { it.type == UnpinnedEventsPolicy.AGGREGATE_REQUIRED }.assert().isTrue()
         described.version.assert().isNotEqualTo(allowed.version)
     }
@@ -216,7 +216,7 @@ class QueryEngineTest {
             .events.first { it.aggregateType == order }
         val alice = QueryCaller(Caller(subject = "alice", tenantId = "acme"))
         orders.list(ListQuery(MatchAllFilter, limit = 10), alice).toList().assert().isEmpty()
-        orders.describe(QueryEntry.HTTP).constraints
+        orders.describe(QueryEntry.HTTP, QueryCaller.IN_PROCESS).constraints
             .none { it.type == UnpinnedEventsPolicy.AGGREGATE_REQUIRED }.assert().isTrue()
     }
 

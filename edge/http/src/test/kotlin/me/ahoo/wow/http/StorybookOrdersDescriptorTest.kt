@@ -24,6 +24,7 @@ import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.query.DefaultQueryGateway
+import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.backend.QueryBackendStorages
 import me.ahoo.wow.query.json.QueryJson
@@ -105,6 +106,7 @@ class StorybookOrdersDescriptorTest {
         // As QueryHandler.describe answers the route's GET, on a node of the default list size.
         val described = gateway.describe(
             QueryEntry.HTTP,
+            QueryCaller.IN_PROCESS,
             gateway.entryPolicy.http.listDefault(HttpQueries.DEFAULT_LIST_SIZE),
         )
         val actual = QueryJson.mapper.writerWithDefaultPrettyPrinter().writeValueAsString(described) + "\n"

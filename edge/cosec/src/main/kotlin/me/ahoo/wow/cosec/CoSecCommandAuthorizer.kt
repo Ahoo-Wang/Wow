@@ -24,11 +24,13 @@ import me.ahoo.wow.runtime.admission.CommandAuthorizer
  * Authorizes a command with CoSec's documents, as its caller: the command is the action
  * `<context>:<command>` on the resource `<aggregate>/<id>` ([CoSecActions]), the name CoSec's route map gives its
  * HTTP route, so one policy guards both. CoSec's [checker] evaluates it for the principal and scope of the request
- * the caller comes from ([CoSecRequests]); a command it does not permit is denied.
+ * the caller comes from ([CoSecRequest]); a command it does not permit is denied.
  *
  * A request-less caller, such as a saga's, a timer's, a compensation's or a scheduled job's command, which carries
  * the scope and operator of the root command admission authorized, gets no objection: CoSec has no
- * request of its to evaluate, and the node's other authorizers still apply. On the public port CoSec's pipeline has
+ * request of its to evaluate, and the node's other authorizers still apply. A caller of a request that is not the
+ * principal CoSec authenticated for it, which CoSec cannot evaluate, is denied, the operational commands included: one
+ * an application's `CallerResolver` mapped to another subject or tenant, or the anonymous one. On the public port CoSec's pipeline has
  * already decided the command's route by the same action, so the host leaves this authorizer off unless
  * `wow.cosec.authorizer.enabled` asks for it. It decides Wow's operational commands ([decidesOperational]): a policy
  * grants their actions to the operators.
@@ -42,9 +44,13 @@ class CoSecCommandAuthorizer(
     override val decidesOperational: Boolean get() = true
 
     override suspend fun authorize(caller: Caller, action: CommandAction): Authorization {
-        val security = CoSecRequests.securityOf(caller, defaultTenant) ?: return Authorization.Allowed
         val name = CoSecActions.command(action)
         val resource = CoSecActions.resource(action)
+        val security = when (val request = CoSecRequest.of(caller, defaultTenant)) {
+            CoSecRequest.RequestLess -> return Authorization.Allowed
+            CoSecRequest.Foreign -> return CoSecRequest.foreign(name, resource)
+            is CoSecRequest.Of -> request.security
+        }
         return if (checker.check(security, name, resource)) {
             Authorization.Allowed
         } else {

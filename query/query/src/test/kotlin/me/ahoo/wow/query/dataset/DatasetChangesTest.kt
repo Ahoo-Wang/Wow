@@ -193,7 +193,7 @@ internal class DatasetChangesTest : DatasetQueryGatewayFixtures() {
             { gateway.cursor(CursorQuery(MatchAllFilter), caller) },
             { gateway.count(CountQuery(MatchAllFilter), caller) },
             { gateway.aggregate(AggregationQuery(metrics = listOf(AggregationMetric.Count("n"))), caller).toList() },
-            { gateway.describe(QueryEntry.HTTP) },
+            { gateway.describe(QueryEntry.HTTP, QueryCaller.IN_PROCESS) },
         )
         failures.forEach { query ->
             val failure = assertThrows<QueryDatasetUnavailableException> { query() }

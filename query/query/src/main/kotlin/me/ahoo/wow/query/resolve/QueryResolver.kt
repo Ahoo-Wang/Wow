@@ -86,6 +86,7 @@ import me.ahoo.wow.query.schema.systemField
 import me.ahoo.wow.query.schema.temporal
 import me.ahoo.wow.query.spec.ValueRule
 import me.ahoo.wow.query.spec.spec
+import tools.jackson.databind.JsonNode
 import java.time.Instant
 import java.util.Collections
 import java.util.IdentityHashMap
@@ -290,6 +291,9 @@ internal class QueryResolver(
     private fun system(fresh: FilterExpression, original: FilterExpression, at: At): FilterExpression {
         val field = schema.systemField(checkNotNull(original.spec.systemField))
         val reference = reference(field, at.scope, original.requiredCapability())
+        requireValid(systemValues(original).none { it.hasUnpairedSurrogate() }) {
+            QueryViolation.ValueMismatch(reference.logical)
+        }
         fields[fresh] = bind(reference, at.scope, reference.capability)
         return fresh
     }
@@ -385,6 +389,7 @@ internal class QueryResolver(
             reference(checkNotNull(expression.predicateField()), at.scope, expression.requiredCapability()),
             at.trusted,
         )
+        requireWellFormedText(expression, reference.logical)
         val rule = expression.spec.valueRule
         var temporal: Temporal? = null
         when (rule) {
@@ -451,6 +456,62 @@ internal class QueryResolver(
         is StartsWithFilter, is EndsWithFilter, is IsEmptyFilter, is IsEmptyStringFilter, is IsNotEmptyStringFilter,
         is IsNullFilter, is IsNotNullFilter, is ExistsFilter, is NotExistsFilter, is RelativeTimeFilter,
         -> error("Filter [${expression.operator}] carries no domain values.")
+    }
+
+    /**
+     * Refuses a text operand of [expression] holding an unpaired surrogate (a `"\ud800"` of a JSON body), as [system]
+     * refuses one of a system field's (an id, an owner, a space): no store holds one, since every one keeps text as
+     * UTF-8, and a store's driver writes it as `?` (PostgreSQL's, ClickHouse's),
+     * which a pattern reads as a quantifier and a comparison as a character the operand never held. The value matches
+     * no text of [field], so it is the request's to mend, `wow.query.invalid` with a value mismatch, on every store.
+     */
+    private fun requireWellFormedText(expression: FilterExpression, field: QueryField<*>) {
+        val texts = when (expression) {
+            is ContainsFilter -> listOf(expression.value)
+            is StartsWithFilter -> listOf(expression.value)
+            is EndsWithFilter -> listOf(expression.value)
+            else -> when (expression.spec.valueRule) {
+                ValueRule.DOMAIN, ValueRule.COLLECTION_DOMAIN -> domainValues(expression) ?: emptyList()
+                else -> emptyList()
+            }
+        }
+        requireValid(texts.none(::holdsUnpairedSurrogate)) { QueryViolation.ValueMismatch(field) }
+    }
+
+    /** The texts a system-field filter compares its column with, which [requireWellFormedText] reads for a field's. */
+    private fun systemValues(filter: FilterExpression): List<String> = when (filter) {
+        is IdFilter -> listOf(filter.value)
+        is IdsFilter -> filter.values
+        is AggregateIdFilter -> listOf(filter.value)
+        is AggregateIdsFilter -> filter.values
+        is TenantIdFilter -> listOf(filter.value)
+        is OwnerIdFilter -> listOf(filter.value)
+        is SpaceIdFilter -> listOf(filter.value)
+        else -> emptyList()
+    }
+
+    private fun holdsUnpairedSurrogate(value: Any?): Boolean = when (value) {
+        is String -> value.hasUnpairedSurrogate()
+        is JsonNode -> when {
+            value.isString -> value.stringValue().hasUnpairedSurrogate()
+            value.isContainer -> value.values().any(::holdsUnpairedSurrogate)
+            else -> false
+        }
+        else -> false
+    }
+
+    private fun String.hasUnpairedSurrogate(): Boolean {
+        var index = 0
+        while (index < length) {
+            val char = this[index]
+            when {
+                Character.isHighSurrogate(char) && index + 1 < length && Character.isLowSurrogate(this[index + 1]) ->
+                    index += 2
+                Character.isSurrogate(char) -> return true
+                else -> index++
+            }
+        }
+        return false
     }
 
     private fun equalityValues(value: Any?): Iterable<Any?>? {

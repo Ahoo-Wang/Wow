@@ -116,7 +116,8 @@ nodes() {
       done
       for i in $(seq 1 "$NODES"); do
         for _ in $(seq 1 200); do
-          [ "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$((18300 + i))/wow/manifest")" = 200 ] && break
+          # Any HTTP answer counts, a 404 too: the public port serves the Manifest only where it is turned on.
+          [ "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$((18300 + i))/wow/manifest")" != 000 ] && break
           kill -0 "$(cat "$OUT/nodes/node-$i.pid")" 2>/dev/null || { echo "node-$i exited"; tail -20 "$OUT/nodes/node-$i.log"; return 1; }
           sleep 0.3
         done

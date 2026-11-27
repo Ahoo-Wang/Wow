@@ -146,6 +146,10 @@ describe('query clients', () => {
     expect(new Set(requests.map(r => r.url))).toEqual(
       new Set([`${BASE_URL}/eshop-catalog/product/snapshot/query`]),
     );
+    // A body with no Content-Type is answered 415.
+    expect(new Set(requests.map(r => r.headers.get('Content-Type')))).toEqual(
+      new Set(['application/json']),
+    );
     expect(requests[0].body).toEqual({
       kind: 'list',
       filter: { op: 'eq', field: 'state.name', value: 'n' },

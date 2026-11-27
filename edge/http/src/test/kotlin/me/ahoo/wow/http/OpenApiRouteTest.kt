@@ -17,6 +17,7 @@ import com.networknt.schema.InputFormat
 import com.networknt.schema.SchemaRegistry
 import com.networknt.schema.SpecificationVersion
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.schedule.JobScope
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.wire.WowHeaders
@@ -90,6 +91,59 @@ class OpenApiRouteTest {
         document["components"]["responses"]["shop.command.409"]["x-wow-error-codes"].values().map { it.asString() }
             .assert().contains(CART_EMPTY)
         HttpNode(options = WowHttpOptions(openApiEndpoint = false)).get(WowPaths.OPENAPI).status.assert().isEqualTo(404)
+    }
+
+    @Test
+    fun `the document should list what the host adds, its command headers and its filters' codes on every route`() {
+        val options = WowHttpOptions(
+            requestFacts = setOf("X-Region"),
+            requestIdHeaders = listOf(WowHeaders.REQUEST_ID, "CoSec-Request-Id"),
+            filterCodes = listOf(FrameworkCodes.REQUEST_RATE_LIMITED, FrameworkCodes.AUTH_UNAVAILABLE),
+        )
+        val document = HttpNode(options = options).get(WowPaths.OPENAPI).body!!
+        val operations = document["paths"].properties().flatMap { (_, path) -> path.properties().map { it.value } }
+        val commands = operations.filter { operation -> refs(operation).contains(WowHeaders.REQUEST_ID) }
+            .filter { operation -> operation["responses"].has("202") }
+        commands.assert().isNotEmpty()
+        commands.forEach { command -> refs(command).assert().contains("CoSec-Request-Id", "X-Region") }
+        // Wow-Request-Id is the framework's own parameter, not the host's.
+        refs(commands.first()).count { it == WowHeaders.REQUEST_ID }.assert().isEqualTo(1)
+        document["components"]["parameters"]["X-Region"]["in"].asString().assert().isEqualTo("header")
+        operations.forEach { operation ->
+            operation["responses"].propertyNames().toList().assert().contains("429", "503")
+        }
+    }
+
+    private fun refs(operation: JsonNode): List<String> =
+        operation["parameters"]?.values()?.mapNotNull { it["\$ref"]?.asString()?.substringAfterLast('/') }.orEmpty()
+
+    @Test
+    fun `a host's header should be listed once ignoring case, and inline when its name is no component key`() {
+        // A request fact named as a framework header in another case, and one with token characters no key takes.
+        val options = WowHttpOptions(
+            requestFacts = setOf("if-match", "cosec-request-id", "X~Region"),
+            requestIdHeaders = listOf(WowHeaders.REQUEST_ID, "CoSec-Request-Id"),
+        )
+        val document = HttpNode(options = options).get(WowPaths.OPENAPI).body!!
+        // The Components Object's keys (OpenAPI 3.1): every one of every kind.
+        document["components"].properties().flatMap { (_, kind) -> kind.propertyNames() }.forEach { key ->
+            COMPONENT_KEY.matches(key).assert().describedAs(key).isTrue()
+        }
+        val operations = document["paths"].properties().flatMap { (_, path) -> path.properties().map { it.value } }
+        val commands = operations.filter { operation -> refs(operation).contains(WowHeaders.REQUEST_ID) }
+        commands.assert().isNotEmpty()
+        commands.forEach { command ->
+            val headers = command["parameters"].values().map { parameter ->
+                val resolved = parameter["\$ref"]?.asString()?.substringAfterLast('/')
+                    ?.let { document["components"]["parameters"][it] } ?: parameter
+                resolved["name"].asString().lowercase()
+            }
+            // Each header once (OpenAPI 3.1, Operation Object): If-Match and CoSec-Request-Id not a second time.
+            headers.groupBy { it }.filterValues { it.size > 1 }.keys.assert().isEmpty()
+            headers.assert().contains("if-match", "cosec-request-id", "x~region")
+            command["parameters"].values().first { it["name"]?.asString() == "X~Region" }["in"].asString().assert()
+                .isEqualTo("header")
+        }
     }
 
     @Test
@@ -229,5 +283,6 @@ class OpenApiRouteTest {
 
     private companion object {
         val REGISTRY: SchemaRegistry = SchemaRegistry.withDefaultDialect(SpecificationVersion.DRAFT_2020_12)
+        val COMPONENT_KEY: Regex = Regex("^[a-zA-Z0-9._-]+$")
     }
 }

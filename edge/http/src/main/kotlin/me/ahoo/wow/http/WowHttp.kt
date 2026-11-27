@@ -16,6 +16,7 @@ package me.ahoo.wow.http
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.manifest.CommandRoutes
+import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.json.JsonMapper
 
@@ -36,6 +37,9 @@ import tools.jackson.databind.json.JsonMapper
  * - [requestIdHeaders] are the headers a command's request id is read from, the first one present: `Wow-Request-Id`
  *   always first, then one an integration adds, such as CoSec's `CoSec-Request-Id`, which a CoSec gateway sets on the
  *   requests it forwards.
+ * - [filterCodes] are the framework codes a filter an integration puts before the routes may answer any request with,
+ *   such as CoSec's 429 `wow.request.rate-limited` and 503 `wow.auth.unavailable`. The routes never answer them; the
+ *   OpenAPI document lists them on every operation, beside the request facts and the request id headers.
  *
  * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
@@ -47,6 +51,7 @@ class WowHttpOptions @InternalWowApi constructor(
     val openApiEndpoint: Boolean = true,
     val clientFacts: Boolean = true,
     val requestIdHeaders: List<String> = listOf(WowHeaders.REQUEST_ID),
+    val filterCodes: List<String> = emptyList(),
 ) {
     init {
         val reserved = requestFacts.filter { it.startsWith("wow-", ignoreCase = true) || it.startsWith("wow.") }
@@ -57,6 +62,8 @@ class WowHttpOptions @InternalWowApi constructor(
         require(requestIdHeaders.firstOrNull() == WowHeaders.REQUEST_ID) {
             "A command's request id is read from ${WowHeaders.REQUEST_ID} first: $requestIdHeaders"
         }
+        val unknown = filterCodes.filter { it !in FrameworkErrors.BY_CODE }
+        require(unknown.isEmpty()) { "A filter's code is one of the framework's: $unknown" }
     }
 
     private companion object {
@@ -73,8 +80,16 @@ class WowHttpOptions @InternalWowApi constructor(
         openApiEndpoint: Boolean = this.openApiEndpoint,
         clientFacts: Boolean = this.clientFacts,
         requestIdHeaders: List<String> = this.requestIdHeaders,
-    ): WowHttpOptions =
-        WowHttpOptions(requestFacts, errorStatuses, manifestEndpoint, openApiEndpoint, clientFacts, requestIdHeaders)
+        filterCodes: List<String> = this.filterCodes,
+    ): WowHttpOptions = WowHttpOptions(
+        requestFacts,
+        errorStatuses,
+        manifestEndpoint,
+        openApiEndpoint,
+        clientFacts,
+        requestIdHeaders,
+        filterCodes,
+    )
 
     override fun equals(other: Any?): Boolean =
         this === other || other is WowHttpOptions && valueFields() == other.valueFields()
@@ -84,10 +99,18 @@ class WowHttpOptions @InternalWowApi constructor(
     override fun toString(): String =
         "WowHttpOptions(requestFacts=$requestFacts, errorStatuses=$errorStatuses, " +
             "manifestEndpoint=$manifestEndpoint, openApiEndpoint=$openApiEndpoint, clientFacts=$clientFacts, " +
-            "requestIdHeaders=$requestIdHeaders)"
+            "requestIdHeaders=$requestIdHeaders, filterCodes=$filterCodes)"
 
     private fun valueFields(): List<Any?> =
-        listOf(requestFacts, errorStatuses, manifestEndpoint, openApiEndpoint, clientFacts, requestIdHeaders)
+        listOf(
+            requestFacts,
+            errorStatuses,
+            manifestEndpoint,
+            openApiEndpoint,
+            clientFacts,
+            requestIdHeaders,
+            filterCodes,
+        )
 }
 
 /** The paths of the framework's own public endpoints, under the reserved context `wow`. */

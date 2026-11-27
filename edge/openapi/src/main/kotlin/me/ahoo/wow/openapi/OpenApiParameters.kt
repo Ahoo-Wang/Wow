@@ -16,6 +16,7 @@ package me.ahoo.wow.openapi
 import me.ahoo.wow.api.wire.WaitHeader
 import me.ahoo.wow.openapi.Json.obj
 import me.ahoo.wow.openapi.Json.type
+import java.util.Locale
 import me.ahoo.wow.openapi.WowHttpContract as Http
 
 /**
@@ -41,6 +42,40 @@ internal object OpenApiParameters {
     )
 
     fun ref(name: String): Map<String, Any?> = Json.ref(Json.PARAMETERS, name)
+
+    /**
+     * A header parameter the host adds to every command: [key] is its name in `components.parameters`, or null when
+     * the header's name is no component key (one of the token characters a key does not take, `~` or `!`, say), and
+     * the parameter is written inline on each command instead.
+     */
+    class HostParameter(val key: String?, val parameter: Map<String, Any?>)
+
+    /**
+     * The command headers the host adds, each a parameter of every command: the request id headers beside
+     * `Wow-Request-Id` ([OpenApiOptions.requestIdHeaders]), then the request facts ([OpenApiOptions.requestFacts]).
+     * Header names compare ignoring case, as HTTP compares them: a name a framework parameter already has, or one an
+     * earlier header of the host has, is left to it, so no operation lists a header twice.
+     */
+    fun host(options: OpenApiOptions): List<HostParameter> {
+        val framework = all()
+        val taken = framework.values.mapNotNull { it as? Map<*, *> }.filter { it["in"] == "header" }
+            .mapTo(mutableSetOf()) { it["name"].toString().lowercase(Locale.ROOT) }
+        val named = options.requestIdHeaders.map { it to REQUEST_ID_DESCRIPTION } +
+            options.requestFacts.map { it to FACT_DESCRIPTION }
+        return named.filter { (name, _) -> taken.add(name.lowercase(Locale.ROOT)) }.map { (name, description) ->
+            HostParameter(name.takeIf { COMPONENT_KEY.matches(it) && it !in framework }, header(name, description))
+        }
+    }
+
+    /** What a key of `components` may be (OpenAPI 3.1, Components Object). */
+    private val COMPONENT_KEY = Regex("^[a-zA-Z0-9._-]+$")
+
+    private const val REQUEST_ID_DESCRIPTION: String = "The command's request id when `${Http.REQUEST_ID_HEADER}` " +
+        "is absent, as an integration of the service reads it: a command sent again under the same one is the same " +
+        "request."
+
+    private const val FACT_DESCRIPTION: String = "Copied into the command as a request fact " +
+        "(`wow.http.request-facts`), a long value cut, and written into its event stream."
 
     @Suppress("LongMethod") // One table of every parameter, one entry each.
     fun all(): Map<String, Any?> = linkedMapOf(

@@ -258,7 +258,9 @@ export async function send(
   }
   // A body with exact numbers goes as its own JSON text, those numbers unquoted.
   const exact = call.body !== undefined && !marksNothing(call.numbers.body);
-  if (exact) headers['Content-Type'] = 'application/json';
+  // Every body says it is JSON, whatever the fetcher adds: a service answers
+  // one with no Content-Type 415, as it answers one of another type.
+  if (call.body !== undefined) headers['Content-Type'] = 'application/json';
   const url = `${client.basePath ?? ''}${call.path}${queryString(call.query)}`;
   try {
     const response = await (client.fetcher ?? defaultFetcher).fetch(url, {
