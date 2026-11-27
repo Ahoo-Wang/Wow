@@ -4,6 +4,14 @@ templates:
 set:
   service.name: eshop-basket-service
   image.repository: ghcr.io/example/eshop-basket-server
+  # The gateway's pods in the gateway's namespace, named: the chart renders nothing without it.
+  networkPolicy.public.from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: gateway
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/component: gateway
 tests:
   - it: holds the JVM's options, the service's name for OpenTelemetry, the shutdown's bounds and the gateway statement
     asserts:

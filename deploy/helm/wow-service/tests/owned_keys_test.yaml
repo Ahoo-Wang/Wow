@@ -8,6 +8,14 @@ templates:
 set:
   service.name: eshop-ordering-service
   image.repository: ghcr.io/example/eshop-ordering-server
+  # The gateway's pods in the gateway's namespace, named: the chart renders nothing without it.
+  networkPolicy.public.from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: gateway
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/component: gateway
 tests:
   - it: refuses a wait's bound in settings, which the grace period would not count
     set:

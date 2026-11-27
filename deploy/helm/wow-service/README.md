@@ -4,7 +4,7 @@ The Helm chart of one Wow service: its nodes, the Services of its public and int
 
 ## Install
 
-The service's build writes the values it knows, from its contract (`./gradlew :<service>:generateWowHelmValues`): the service's name, the peers whose contracts are on its class path (`service.contractPeers`) and its Manifest's route, in `build/wow/helm/values.yaml`. Your own values file adds the deployment's: the image, the replicas, the resources, the profiles and the stores. Pass it after the generated one, so it overrides it:
+The service's build writes the values it knows, from its contract (`./gradlew :<service>:generateWowHelmValues`): the service's name, the peers whose contracts are on its class path (`service.contractPeers`) and its Manifest's route, in `build/wow/helm/values.yaml`. Your own values file adds the deployment's: the image, the replicas, the resources, the profiles and the stores, and the namespace your gateway runs in, which the chart does not render without (`networkPolicy.public.from`, by `kubernetes.io/metadata.name`; [Network policies](https://wow.ahoo.me/operate/kubernetes#network-policies)). Pass it after the generated one, so it overrides it:
 
 ```bash
 helm install ordering oci://ghcr.io/ahoo-wang/wow-service --version <wow-version> \
@@ -24,7 +24,7 @@ Every object is named after `service.name`, the service's `spring.application.na
 | ConfigMap | `<name>-config` | `config` as environment variables, `settings` as `SPRING_APPLICATION_JSON`, the JVM's options and the shutdown's bounds; while the public NetworkPolicy is on and `networkPolicy.public.onlyGateway` (true by default) says that `networkPolicy.public.from` names the gateway's pods alone, CoSec's statement that only the gateway can reach the public port (`COSEC_PIPELINE_IDENTITY_ONLYGATEWAYCANREACH=true`, which a service in `wow.cosec.mode: gateway` needs to start), unless `config` names it. Each pod `from` admits can claim any identity to such a service: the chart refuses the statement for an entry of `from` that names no pods by their labels, and you set `onlyGateway` false when `from` admits anything else |
 | Service | `<name>` | The public HTTP port |
 | Service | `<name>-cluster` | The internal port, headless, every node ready or not: the SRV records `_internal._tcp.<name>-cluster.<namespace>.svc` the peers find the nodes by |
-| NetworkPolicy | `<name>-public`, `<name>-internal` | The gateway's pods to the public port; the service's own nodes, its platform (`partOf`), its peers in their namespaces and `networkPolicy.internal.from` to the internal port |
+| NetworkPolicy | `<name>-public`, `<name>-internal` | The gateway's pods, in the namespace `networkPolicy.public.from` names (the chart renders nothing until it is named), to the public port; the service's own nodes, its platform (`partOf`), its peers in their namespaces and `networkPolicy.internal.from` to the internal port |
 | PodDisruptionBudget | `<name>` | One node at a time by default |
 | ServiceAccount | `<name>` | No token mounted |
 | HorizontalPodAutoscaler | `<name>` | With `autoscaling.hpa.enabled`: CPU, a slow scale-down |

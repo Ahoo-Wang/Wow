@@ -15,6 +15,14 @@ set:
     team: analytics
   metrics.serviceMonitor.enabled: true
   metrics.podMonitor.enabled: true
+  # The gateway's pods in the gateway's namespace, named: the chart renders nothing without it.
+  networkPolicy.public.from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: gateway
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/component: gateway
 # The refusals are in suites with one template that validates the values (deployment_test, monitoring_test): Helm
 # renders the templates in reverse order, so here a refusal would be the ServiceMonitor's, whichever template is named.
 tests:

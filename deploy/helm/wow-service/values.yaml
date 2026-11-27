@@ -132,12 +132,19 @@ networkPolicy:
     # (COSEC_PIPELINE_IDENTITY_ONLYGATEWAYCANREACH=true), the statement a service in wow.cosec.mode: gateway needs to
     # start. It holds only while `from` names the gateway's pods alone: each pod `from` admits can claim any identity to
     # such a service. The chart refuses it for an entry of `from` that names no pods by their labels (an empty or no
-    # podSelector, an ipBlock), which admits every pod it reaches. Set it false when `from` admits anything else; a
-    # service in gateway mode then does not start until you state it yourself (where it is true) or change its mode.
+    # podSelector, an ipBlock), which admits every pod it reaches, and for an entry that names no namespace: pod labels
+    # are their namespace's owner's to set, so a rule by labels in any namespace lets each namespace's owner pass as the
+    # gateway. Set it false when `from` admits anything else; a service in gateway mode then does not start until you
+    # state it yourself (where it is true) or change its mode.
     onlyGateway: true
-    # Who reaches the public port: the gateway's pods by default, in any namespace.
+    # Who reaches the public port: the gateway's pods, labelled app.kubernetes.io/component: gateway, in the gateway's
+    # namespace, which you name here (the chart does not render while onlyGateway is true and an entry names none). An
+    # entry names its namespace by kubernetes.io/metadata.name, the label Kubernetes sets to the namespace's name; leave
+    # the namespaceSelector out when the gateway runs in the release's own namespace.
     from:
-      - namespaceSelector: {}
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: ""
         podSelector:
           matchLabels:
             app.kubernetes.io/component: gateway

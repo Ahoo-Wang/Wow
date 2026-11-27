@@ -23,3 +23,10 @@ probes:
   startup:
     periodSeconds: 5
     failureThreshold: 60
+# No gateway runs on kind; the rule names the release's own namespace, as one beside the service would be.
+networkPolicy:
+  public:
+    from:
+      - podSelector:
+          matchLabels:
+            app.kubernetes.io/component: gateway
