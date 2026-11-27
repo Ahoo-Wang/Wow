@@ -246,6 +246,25 @@ export function describeViewStoreServiceRules(
       );
     });
 
+    it('answers an id the service never serves as NOT_FOUND, before it reads the signal', async () => {
+      // WowViewStore refuses a reserved or blank id before it sends anything:
+      // the service serves neither.
+      const { alice, definitionId } = await setup();
+      const signal = AbortSignal.abort();
+      for (const id of [`system:${definitionId}:declared`, '', '.', '..']) {
+        await refusal(alice.get(id), 'NOT_FOUND');
+        await refusal(alice.get(id, { signal }), 'NOT_FOUND');
+        await refusal(
+          alice.rename(id, 'Gone', '1', { ...write(), signal }),
+          'NOT_FOUND',
+        );
+        await refusal(
+          alice.delete(id, '1', { ...write(), signal }),
+          'NOT_FOUND',
+        );
+      }
+    });
+
     it.skipIf(
       capabilities.pageSize === undefined || !capabilities.storedSystemViews,
     )('bounds every page by its size, the system views too', async () => {

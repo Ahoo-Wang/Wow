@@ -34,6 +34,7 @@ import {
   samePreferences,
   shows,
   titleRefusal,
+  unservedRefusal,
 } from './memoryViewRules.js';
 import {
   type ReadOptions,
@@ -113,8 +114,9 @@ export interface MemoryState {
  * no revision spent, as the server records no event for it. A call whose
  * signal is already aborted does nothing, a replayed request id included,
  * and is refused as `UNAVAILABLE`, as `WowViewStore` refuses one its fetch
- * never sent; only a list cursor it did not issue is refused first, as
- * `WowViewStore` reads it before sending.
+ * never sent. What `WowViewStore` refuses before it sends comes first, as
+ * it does: a list cursor it did not issue (`INVALID`), and an id the
+ * service never serves (`NOT_FOUND`: `system:…`, empty, `.` or `..`).
  *
  * System views come two ways (D81). One seeded with `scope: 'system'` and
  * no `stored` is a configured one, as the backend's configuration serves
@@ -226,6 +228,8 @@ export class MemoryViewStore implements ViewStore {
   }
 
   get(id: string, options: ReadOptions = {}): Promise<ViewInstance> {
+    const unserved = unservedRefusal(id);
+    if (unserved) return Promise.reject(unserved);
     const aborted = abortRefusal(options.signal);
     if (aborted) return Promise.reject(aborted);
     const instance = this.instances.get(id);
@@ -345,6 +349,8 @@ export class MemoryViewStore implements ViewStore {
   }
 
   delete(id: string, revision: string, context: WriteOptions): Promise<void> {
+    const unserved = unservedRefusal(id);
+    if (unserved) return Promise.reject(unserved);
     const aborted = abortRefusal(context.signal);
     if (aborted) return Promise.reject(aborted);
     if (this.outcomes.has(context.requestId)) return Promise.resolve();
@@ -450,6 +456,8 @@ export class MemoryViewStore implements ViewStore {
     change: (current: ViewInstance) => ViewInstance | ViewStoreError | null,
     refused?: ViewStoreError,
   ): Promise<ViewInstance> {
+    const unserved = unservedRefusal(id);
+    if (unserved) return Promise.reject(unserved);
     const aborted = abortRefusal(context.signal);
     if (aborted) return Promise.reject(aborted);
     const replayed = this.outcomes.get(context.requestId);

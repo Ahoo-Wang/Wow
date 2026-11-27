@@ -17,13 +17,14 @@
  * title, config and preferences before a write reaches its aggregate
  * (`ViewConfigs`, `ViewPreferences.problemOf` of `platform/view-store`), in
  * its words, each as an `INVALID` `ViewStoreError`, which panels the
- * service reads as showing a view, the refusal of a call whose signal is
- * aborted as `WowViewStore` answers one, and the store's own reading of its
- * list cursors and revisions.
+ * service reads as showing a view, the refusals `WowViewStore` answers
+ * itself (an id the service never serves, a call whose signal is aborted),
+ * and the store's own reading of its list cursors and revisions.
  */
 
 import {
   configBytes,
+  isSystemInstanceId,
   MAX_VIEW_CONFIG_BYTES,
   MAX_VIEW_TITLE_LENGTH,
   titleProblem,
@@ -69,6 +70,18 @@ export function abortRefusal(
     `The view store could not be reached: ${reasonOf(reason)}`,
     { cause: reason },
   );
+}
+
+/**
+ * The refusal of an id the service never serves, which `WowViewStore`
+ * answers before it sends anything, whatever the signal: one in the
+ * reserved `system:` namespace (a view a host declares in code), and an
+ * empty id, `.` or `..`, which a path cannot carry (#6889).
+ */
+export function unservedRefusal(id: string): ViewStoreError | undefined {
+  return isSystemInstanceId(id) || id === '' || id === '.' || id === '..'
+    ? new ViewStoreError('NOT_FOUND', `No such view: ${id}`)
+    : undefined;
 }
 
 /** What a refusal said — a `DOMException` is an `Error` only in some realms. */
