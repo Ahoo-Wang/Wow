@@ -118,7 +118,7 @@ export type WowViewStoreErrorCode = (typeof WowViewStoreErrorCodes)[keyof typeof
 
 **移动过的视图。** 另一个标签页把 store 记为个人的视图设为了共享（或反过来）时，从旧所有者发出的写入会被拒绝；store 重新查找这个视图，从它现在所在的地方再发一次。移动到视图已有的受众不改变任何东西：revision 对得上时，store 回答视图当前的样子。
 
-**系统视图。** 服务的系统视图有配置的，只读；也有存储的（`source: 'stored'`），`WowViewStore` 在列出和读取时给摘要和实例带上 `stored: true`。`create({ scope: 'system', … })` 发布一个（副本：源视图保留），`save`、`rename` 与 `delete` 编辑和取消发布它；`changeAudience` 以及对配置的或代码中的系统视图的任何写入，在发送之前就是 `FORBIDDEN`。系统视图的 `revision` 是它内容的哈希，这是引擎做脏基线需要的，而写入期望的是聚合版本：store 记住每次读取在 revision 旁边给出的版本，发送那个版本；持有一个没有对应版本的 revision 时，先重新读取视图。revision 不是视图当前的，就是带着视图当前样子的 `CONFLICT`，什么也不发送。
+**系统视图。** 服务的系统视图有配置的，只读；也有存储的（`source: 'stored'`），`WowViewStore` 在列出和读取时给摘要和实例带上 `stored: true`。`create({ scope: 'system', … })` 发布一个（副本：源视图保留），`save`、`rename` 与 `delete` 编辑和取消发布它；对系统视图的 `changeAudience`，以及对配置的系统视图的任何写入，在命令发送之前就是 `FORBIDDEN`；宿主在代码中声明的视图（`system:` 中的 id）是 `NOT_FOUND`，什么也不发送，因为服务从不提供这样的视图。系统视图的 `revision` 是它内容的哈希，这是引擎做脏基线需要的，而写入期望的是聚合版本：store 记住每次读取在 revision 旁边给出的版本，发送那个版本；持有一个没有对应版本的 revision 时，先重新读取视图。revision 不是视图当前的，就是带着视图当前样子的 `CONFLICT`，什么也不发送。
 
 ## 错误码映射 {#errors}
 

@@ -144,6 +144,7 @@ The view engine's command, `wow-view-engine theme-check`, is part of the 10.0 su
 | Browsers | Current evergreen browsers | The packages use `fetch`, `ReadableStream`, `TextDecoderStream` and `AbortSignal.any` (Chrome 116, Firefox 124, Safari 17.4) |
 | React and React DOM (`wow-react`, the view engine's UI) | `^19.0.0` | React 18 is not supported: the build imports `react/compiler-runtime` |
 | React Router (`wow-view-engine/react-router` only) | `^7.0.0 \|\| ^8.0.0` | An optional peer: only that entry imports it |
+| mingo (`wow-view-engine/testing` only) | `^7.2.4` | An optional peer: only that entry imports it, for `memorySource`'s query semantics; a host's tests install it |
 | TypeScript | `>=6.0` | CI type-checks the packed packages as a consumer on TypeScript 6.0 and the latest 7.x; `moduleResolution` `Bundler`, `NodeNext` or `Node16` |
 | `@ahoo-wang/fetcher`, `fetcher-eventstream`, `fetcher-decorator` | `^5.1.5 \|\| ^6.0.0 \|\| ^8.0.0-rc.1` | Peers the application installs. Fetcher 7 does not exist; 8 is accepted from its first release candidate. CI builds and tests on fetcher 8, and a floor job reruns the tests and the package check on 5.1.5 ([below](#fetcher-versions-ci-covers)); the package check's consumer installs the newest fetcher in range that is fetcher's `latest`. `fetcher-decorator` is needed only by clients generated from an OpenAPI document |
 | `@ahoo-wang/wow-client` (for the other Wow packages) | `~x.y.z` | The same minor version |

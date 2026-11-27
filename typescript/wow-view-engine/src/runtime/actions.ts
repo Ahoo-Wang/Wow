@@ -67,8 +67,7 @@ export type Availability = true | string;
 
 /**
  * One field of an action's form, drawn by the condition editor's own value
- * controls (`FilterValueEditor`): a list of options, a number, a yes/no or
- * a line of text.
+ * controls: a list of options, a number, a yes/no or a line of text.
  */
 export interface ActionFormField {
   label: string;

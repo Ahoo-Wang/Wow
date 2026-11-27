@@ -265,8 +265,17 @@ import { FrameworkErrorCodes, WowProblemError } from '@ahoo-wang/wow-client';
 import { filter } from '@ahoo-wang/wow-client/dsl';
 import { useCountQuery } from '@ahoo-wang/wow-react';
 
-export function OrderCount({ client }: { client: SnapshotQueryClient }) {
-  const { result, problem, error } = useCountQuery({
+interface OrderState {
+  status: string;
+}
+type OrderFields = 'state.status';
+
+export function OrderCount({
+  client,
+}: {
+  client: SnapshotQueryClient<OrderState, OrderFields>;
+}) {
+  const { result, problem, error } = useCountQuery<OrderFields>({
     query: { filter: filter.matchAll() },
     execute: (query, options) => client.count(query, options),
   });

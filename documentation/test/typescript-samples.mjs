@@ -67,7 +67,7 @@ export const SOURCES = [
         ...markdown(join(documentation, `docs/${locale}/data`)),
         ...markdown(join(documentation, `docs/${locale}/reference/typescript`)),
     ]),
-    ...['wow-client', 'wow-generator', 'wow-view-engine', 'wow-view-store'].flatMap((pkg) =>
+    ...['wow-client', 'wow-generator', 'wow-react', 'wow-view-engine', 'wow-view-store'].flatMap((pkg) =>
         ['README.md', 'README.zh-CN.md'].map((readme) => join(repository, 'typescript', pkg, readme)),
     ),
     // The view engine's Skills teach by example; their samples compile too.

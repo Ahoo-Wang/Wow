@@ -87,7 +87,7 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 150 — with its kind and
 | `MessagesProvider` | function | The wording every default component reads. | [Host Wiring](./host#api-MessagesProvider) |
 | `MessagesProviderProps` | interface | — | [Host Wiring](./host#api-MessagesProvider) |
 | `NewAnalysis` | interface | What 「放进仪表盘」 hands the board: the analysis it owns, and its title. | — |
-| `NewAnalysisDialog` | function | A new analysis made inside the dashboard: a large dialog that is the analysis view itself — first the data it is about, then the same tray and the same result as the workbench's (`AnalysisParts`), running as it is edited under the reader's own 「改了就跑」 — and a title that follows what it shows until its author names it. | — |
+| `NewAnalysisDialog` | function | A new analysis made inside the dashboard: a large dialog that is the analysis view itself — first the data it is about, then the same tray and the same result as the workbench's, running as it is edited under the reader's own 「改了就跑」 — and a title that follows what it shows until its author names it. | — |
 | `NewAnalysisDialogProps` | interface | Props of `NewAnalysisDialog`. | — |
 | `NewPanelSpot` | interface | Where a panel added from the edit bar goes: its tab, from the first row on screen. | — |
 | `OnPick` | type | Told which group of the result a mark stands for when it is pressed, and where — the mark's element, or the point pressed — so the follow-up menu opens against it. | — |
