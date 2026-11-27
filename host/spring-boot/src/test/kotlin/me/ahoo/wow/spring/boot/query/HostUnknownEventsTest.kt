@@ -35,24 +35,22 @@ import org.junit.jupiter.api.Test
  * query returned them as stored.
  */
 class HostUnknownEventsTest {
-    /** Appends, after [id]'s opening, the commit a newer node of the service wrote. */
-    private fun Host.newerCommit(id: String) = runBlocking {
+    /** Appends, after [id]'s opening, a commit of [events]: by default the one a newer node of the service wrote. */
+    private fun Host.newerCommit(
+        id: String,
+        events: List<EventRecord> = listOf(
+            EventRecord("bank.account.Frozen", 1, """{"reason":"$SECRET"}"""),
+            EventRecord("bank.account.Deposited", 9, """{"amount":5,"card":"$SECRET"}"""),
+            EventRecord(
+                Schedules.SCHEDULE_SET,
+                1,
+                """{"key":"k","commandType":"bank.account.Notify","command":{"phone":"$SECRET"}}""",
+            ),
+        ),
+    ) = runBlocking {
         val log = node.context(BANK).backends.log
         val opened = log.read(ACCOUNT.ref(Caller.DEFAULT_TENANT, id)).toList().single()
-        val newer = opened.copyWith(
-            version = 2,
-            commandId = "newer-2",
-            requestId = "newer-2",
-            events = listOf(
-                EventRecord("bank.account.Frozen", 1, """{"reason":"$SECRET"}"""),
-                EventRecord("bank.account.Deposited", 9, """{"amount":5,"card":"$SECRET"}"""),
-                EventRecord(
-                    Schedules.SCHEDULE_SET,
-                    1,
-                    """{"key":"k","commandType":"bank.account.Notify","command":{"phone":"$SECRET"}}""",
-                ),
-            ),
-        )
+        val newer = opened.copyWith(version = 2, commandId = "newer-2", requestId = "newer-2", events = events)
         log.append(newer).assert().isInstanceOf(AppendOutcome.Committed::class.java)
     }
 
@@ -88,6 +86,33 @@ class HostUnknownEventsTest {
             val trace = host.get("/bank/account/$id/state/trace")
             trace.status.assert().isNotEqualTo(200)
             trace.body.toString().assert().doesNotContain(SECRET)
+        }
+    }
+
+    @Test
+    fun `a retired event is left out of the events query and the trace, never answered, not even as null`() {
+        startHost().use { host ->
+            val id = host.openAccount("mona")
+            host.newerCommit(
+                id,
+                listOf(
+                    EventRecord("bank.account.Closed", 1, """{"reason":"$SECRET"}"""),
+                    EventRecord("bank.account.Deposited", 1, """{"amount":5}"""),
+                ),
+            )
+            val answer = host.post(
+                "/bank/account/events/query",
+                """{"kind":"list","filter":{"op":"id","value":"$id"}}""",
+            )
+            answer.status.assert().isEqualTo(200)
+            answer.body.toString().assert().doesNotContain(SECRET)
+            answer.body!![1]["events"].values().map { it["name"].asString() }.assert()
+                .containsExactly("bank.account.Deposited")
+            val trace = host.get("/bank/account/$id/state/trace")
+            trace.status.assert().isEqualTo(200)
+            trace.body.toString().assert().doesNotContain(SECRET)
+            trace.body!!["commits"][1]["events"].values().map { it["name"].asString() }.assert()
+                .containsExactly("bank.account.Deposited")
         }
     }
 
