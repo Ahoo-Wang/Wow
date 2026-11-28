@@ -51,8 +51,9 @@ export type JsonSchema = Readonly<Record<string, unknown>>;
 export const MANIFEST_FORMAT = 1;
 
 /**
- * The markers of a Manifest's `requires` the generator understands, as the
- * Kotlin reader's `ManifestFeatures`: none yet.
+ * The markers of a `requires` the generator understands, on the Manifest, a
+ * context or an aggregate, as the Kotlin reader's `ManifestFeatures`: none
+ * yet.
  */
 const MANIFEST_FEATURES: ReadonlySet<string> = new Set<string>();
 
@@ -106,16 +107,7 @@ export function validateManifest(
     );
   }
   const problems: string[] = [];
-  const requires = listOf(manifest.requires, 'requires', problems);
-  const unknown = requires.filter(
-    marker => typeof marker !== 'string' || !MANIFEST_FEATURES.has(marker),
-  );
-  if (unknown.length > 0) {
-    throw new GeneratorError(
-      'input',
-      `${source} requires ${unknown.join(', ')}, which this wow-generator does not understand: generate with a newer one.`,
-    );
-  }
+  checkRequires(manifest, source, problems);
   manifest.contexts.forEach((context, index) => {
     if (!isObject(context) || typeof context.name !== 'string') {
       problems.push(`contexts[${index}] has no name`);
@@ -176,6 +168,70 @@ function listOf(value: unknown, where: string, problems: string[]): unknown[] {
   if (Array.isArray(value)) return value;
   problems.push(`${where} is not a list`);
   return [];
+}
+
+/**
+ * The markers of a `requires` as a model keeps them: sorted and distinct,
+ * none when it has none, so what the generator writes of them is byte-stable.
+ *
+ * @param requires - The markers the Manifest lists at one level
+ */
+export function requiresOf(requires: readonly string[] | undefined): {
+  readonly requires?: readonly string[];
+} {
+  const markers = [...new Set(requires ?? [])].sort();
+  return markers.length === 0 ? {} : { requires: markers };
+}
+
+/**
+ * Refuses, before anything else is read, a marker the generator does not
+ * understand on the Manifest, on a context or on an aggregate: the whole
+ * Manifest, naming where it stands, its markers sorted and distinct. The
+ * first one met is refused: the Manifest's, then each context's before its
+ * aggregates'.
+ */
+function checkRequires(
+  manifest: ManifestDocument,
+  source: string,
+  problems: string[],
+): void {
+  const refuse = (where: string, value: unknown, path: string) => {
+    const unknown = [
+      ...new Set(
+        listOf(value, path, problems)
+          .filter(
+            marker =>
+              typeof marker !== 'string' || !MANIFEST_FEATURES.has(marker),
+          )
+          .map(String),
+      ),
+    ].sort();
+    if (unknown.length > 0) {
+      throw new GeneratorError(
+        'input',
+        `${source}: ${where} requires ${unknown.join(', ')}, which this wow-generator does not understand: generate with a newer @ahoo-wang/wow-generator.`,
+      );
+    }
+  };
+  refuse('the Manifest', manifest.requires, 'requires');
+  listOf(manifest.contexts, 'contexts', []).forEach(context => {
+    if (!isObject(context) || typeof context.name !== 'string') return;
+    refuse(
+      `the context ${context.name}`,
+      context.requires,
+      `${context.name}.requires`,
+    );
+    listOf(context.aggregates, `${context.name}.aggregates`, []).forEach(
+      aggregate => {
+        if (!isObject(aggregate) || typeof aggregate.name !== 'string') return;
+        refuse(
+          `the aggregate ${context.name}.${aggregate.name}`,
+          aggregate.requires,
+          `${context.name}.${aggregate.name}.requires`,
+        );
+      },
+    );
+  });
 }
 
 /** The problems of an aggregate's commands and events, and of its lists of queries and access attributes. */

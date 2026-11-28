@@ -104,6 +104,8 @@ data class CompatibilityReport(val changes: List<ManifestChange>) {
  *   subscription changing its kind, function or source stream, no longer deriving a command, or an `@OnRejected` /
  *   `@OnCommitted` handler no longer taking a command's receipts; a removed `@OnCommitted` handler is a removed
  *   subscription, and an added one additive.
+ * - A marker of `requires` added breaks, on the Manifest, on a context or on an aggregate, a new context's or
+ *   aggregate's included: a reader that does not understand it refuses the whole Manifest. One removed is additive.
  * - Descriptions, the state fingerprint (derived from the schema), query indexes, schedules, retry budgets and start
  *   positions are not contract and are not compared.
  */
@@ -135,8 +137,34 @@ internal class Changes(val schemas: SchemaCompatibility) {
         if (baselineService != null && currentService != null && baselineService != currentService) {
             breaking("service", "the service was renamed from $baselineService to $currentService")
         }
+        compareRequires("requires", baseline.requires, current.requires)
         compareErrors("errors", baseline.errors, current.errors)
-        compareNamed("contexts", baseline.contexts, current.contexts, { it.name }, "context", ::compareContext)
+        compareNamed(
+            "contexts",
+            baseline.contexts,
+            current.contexts,
+            { it.name },
+            "context",
+            ::compareContext,
+            added = { path, context ->
+                additive(path, "context added")
+                compareRequires("$path.requires", emptyList(), context.requires)
+                context.aggregates.forEach { aggregate ->
+                    compareRequires("$path.aggregates[${aggregate.name}].requires", emptyList(), aggregate.requires)
+                }
+            },
+        )
+    }
+
+    /**
+     * The markers of `requires` at [path]: one added breaks, since a reader that does not understand it refuses the
+     * whole Manifest (a new context's or aggregate's too, against none); one removed is additive.
+     */
+    fun compareRequires(path: String, baseline: List<String>, current: List<String>) {
+        (current - baseline.toSet()).distinct().forEach {
+            breaking(path, "marker $it added, which a reader of the recorded Manifest refuses the whole Manifest for")
+        }
+        (baseline - current.toSet()).distinct().forEach { additive(path, "marker $it removed") }
     }
 
     /**
@@ -151,6 +179,7 @@ internal class Changes(val schemas: SchemaCompatibility) {
         noun: String,
         compare: (String, T, T) -> Unit,
         aliases: (T) -> List<String> = { emptyList() },
+        added: (String, T) -> Unit = { entryPath, _ -> additive(entryPath, "$noun added") },
         removed: (String, T) -> Unit = { entryPath, _ -> breaking(entryPath, "$noun removed") },
     ) {
         val matched = mutableSetOf<String>()
@@ -171,7 +200,7 @@ internal class Changes(val schemas: SchemaCompatibility) {
             }
             matched += name(renamed ?: return@forEach)
         }
-        current.filter { name(it) !in matched }.forEach { additive("$path[${name(it)}]", "$noun added") }
+        current.filter { name(it) !in matched }.forEach { added("$path[${name(it)}]", it) }
     }
 
     /**
@@ -202,13 +231,21 @@ internal class Changes(val schemas: SchemaCompatibility) {
     fun route(route: RouteManifest): String = "${route.method} ${route.path}"
 
     fun compareContext(path: String, baseline: ContextManifest, current: ContextManifest) {
+        compareRequires("$path.requires", baseline.requires, current.requires)
         compareNamed(
             "$path.aggregates",
             baseline.aggregates,
             current.aggregates,
             { it.name },
             "aggregate",
-            { entry, old, new -> compareAggregate(entry, old, new, Exposure.of(old.name, baseline, current)) },
+            { entry, old, new ->
+                compareRequires("$entry.requires", old.requires, new.requires)
+                compareAggregate(entry, old, new, Exposure.of(old.name, baseline, current))
+            },
+            added = { entry, aggregate ->
+                additive(entry, "aggregate added")
+                compareRequires("$entry.requires", emptyList(), aggregate.requires)
+            },
         )
         compareNamed(
             "$path.subscriptions",

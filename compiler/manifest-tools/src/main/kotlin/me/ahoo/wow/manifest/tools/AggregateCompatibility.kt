@@ -66,7 +66,7 @@ internal fun Changes.compareAggregate(path: String, baseline: AggregateManifest,
         "event",
         { entry, old, new -> compareEvent(entry, old, new, exposure) },
         { it.aliases },
-        { entry, old -> removedEvent(entry, old, current.retired) },
+        removed = { entry, old -> removedEvent(entry, old, current.retired) },
     )
     compareValues("$path.retired", baseline.retired, current.retired, "retired event")
     compareNamed("$path.queries", baseline.queries, current.queries, { it.model }, "query model", this::compareQuery)

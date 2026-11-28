@@ -486,7 +486,7 @@ class ManifestTreeTest {
         ManifestTree.write(manifest).containsKey("requires").assert().isFalse()
         assertThrows<IllegalArgumentException> {
             read(ManifestTree.write(manifest) + ("requires" to listOf("routes-v2")))
-        }.message.assert().contains("[routes-v2]").contains("does not understand")
+        }.message.assert().contains("The Manifest requires routes-v2, which this reader does not understand")
         // What a reader understands is read and written back, and a merged Manifest requires what any fragment does.
         val requiring = manifest.copyWith(requires = listOf("routes-v2"))
         ManifestTree.write(requiring)["requires"].assert().isEqualTo(listOf("routes-v2"))

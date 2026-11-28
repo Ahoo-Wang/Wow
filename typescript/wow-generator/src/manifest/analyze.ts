@@ -18,6 +18,7 @@ import {
   type JsonSchema,
   type ManifestContext,
   type ManifestDocument,
+  requiresOf,
   schemaKey,
   typesOf,
 } from './document';
@@ -138,6 +139,7 @@ export function analyzeManifest(document: ManifestDocument): {
   return {
     model: {
       ...(manifest.service?.name ? { service: manifest.service.name } : {}),
+      ...requiresOf(manifest.requires),
       types: typeModels,
       contexts: contextModels,
     },
@@ -253,6 +255,7 @@ function contextModel(
 ): Omit<ContextModel, 'textNumbers'> {
   return {
     name: context.name,
+    ...requiresOf(context.requires),
     ...(context.description ? { description: context.description } : {}),
     typeName: contextTypeName(context),
     constantName: upperSnakeCase(context.name),

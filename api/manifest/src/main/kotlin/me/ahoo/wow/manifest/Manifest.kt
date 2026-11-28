@@ -38,8 +38,10 @@ import me.ahoo.wow.api.problem.RetryAdvice
  * and the Manifest of the context that decides it (a peer Manifest) names it by the same schema.
  *
  * [requires] lists the markers a reader must understand to read this Manifest as it means ([ManifestFeatures]): a
- * reader that does not know one refuses the Manifest rather than misread it. A value a reader does not know elsewhere
- * is read leniently ([ManifestTree.read]).
+ * reader that does not know one refuses the Manifest rather than misread it. A marker may also stand on a context
+ * ([ContextManifest.requires]) or an aggregate ([AggregateManifest.requires]), for what only that part means; a reader
+ * that does not know it refuses the whole Manifest too, naming where it stands. A value a reader does not know
+ * elsewhere is read leniently ([ManifestTree.read]).
  *
  * Fields may be added: pass the constructor's arguments by name.
  */
@@ -181,6 +183,9 @@ class ServiceInfo @InternalWowApi constructor(val name: String, val version: Str
  * system commands are among its own [AggregateManifest.commands]. [routes] are its service routes:
  * routes whose handler is the service's own code, neither a command nor a query.
  *
+ * [requires] lists the markers a reader must understand to read this context as it means ([ManifestFeatures]): a
+ * reader that does not know one refuses the whole Manifest, as for [Manifest.requires].
+ *
  * Fields may be added: pass the constructor's arguments by name.
  */
 class ContextManifest @InternalWowApi constructor(
@@ -192,6 +197,7 @@ class ContextManifest @InternalWowApi constructor(
     val errors: List<ErrorManifest> = emptyList(),
     val commands: List<CommandManifest> = emptyList(),
     val routes: List<ServiceRouteManifest> = emptyList(),
+    val requires: List<String> = emptyList(),
 ) {
     override fun equals(other: Any?): Boolean =
         this === other || other is ContextManifest && valueFields() == other.valueFields()
@@ -200,10 +206,11 @@ class ContextManifest @InternalWowApi constructor(
 
     override fun toString(): String =
         "ContextManifest(name=$name, description=$description, aggregates=$aggregates, " +
-            "subscriptions=$subscriptions, published=$published, errors=$errors, commands=$commands, routes=$routes)"
+            "subscriptions=$subscriptions, published=$published, errors=$errors, commands=$commands, routes=$routes, " +
+            "requires=$requires)"
 
     private fun valueFields(): List<Any?> =
-        listOf(name, description, aggregates, subscriptions, published, errors, commands, routes)
+        listOf(name, description, aggregates, subscriptions, published, errors, commands, routes, requires)
 }
 
 /**

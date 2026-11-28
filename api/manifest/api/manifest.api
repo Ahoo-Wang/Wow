@@ -37,6 +37,7 @@ public final class me/ahoo/wow/manifest/AggregateManifest {
 	public final fun getName ()Ljava/lang/String;
 	public final fun getOwnership ()Lme/ahoo/wow/api/aggregate/Ownership;
 	public final fun getQueries ()Ljava/util/List;
+	public final fun getRequires ()Ljava/util/List;
 	public final fun getRetired ()Ljava/util/List;
 	public final fun getSchedules ()Ljava/util/List;
 	public final fun getSnapshot ()Lme/ahoo/wow/manifest/SnapshotManifest;
@@ -84,6 +85,7 @@ public final class me/ahoo/wow/manifest/ContextManifest {
 	public final fun getErrors ()Ljava/util/List;
 	public final fun getName ()Ljava/lang/String;
 	public final fun getPublished ()Ljava/util/List;
+	public final fun getRequires ()Ljava/util/List;
 	public final fun getRoutes ()Ljava/util/List;
 	public final fun getSubscriptions ()Ljava/util/List;
 	public fun hashCode ()I

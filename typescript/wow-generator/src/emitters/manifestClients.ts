@@ -52,7 +52,7 @@ export function emitManifestGeneration(
       emitCommandClient(aggregate, context, modules, files, outputDir);
       emitQueryClient(aggregate, modules, files, outputDir);
     }
-    emitRouting(context, modules);
+    emitRouting(context, modules, model.requires);
     emitTextNumbers(context, modules, outputDir, WOW_CLIENT);
     emitServiceRoutes(context, modules, files, outputDir);
     emitContextClient(context, modules, outputDir);

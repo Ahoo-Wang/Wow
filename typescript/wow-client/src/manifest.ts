@@ -45,8 +45,11 @@ export type RoutingServiceRoute = Pick<ServiceRouteManifest, 'name' | 'route'>;
  * client carries its service's as data (`manifest.ts`), with no schema.
  */
 export interface RoutingManifest extends Pick<Manifest, 'format' | 'requires'> {
-  readonly contexts: readonly (Pick<ContextManifest, 'name'> & {
-    readonly aggregates?: readonly (Pick<AggregateManifest, 'name'> & {
+  readonly contexts: readonly (Pick<ContextManifest, 'name' | 'requires'> & {
+    readonly aggregates?: readonly (Pick<
+      AggregateManifest,
+      'name' | 'requires'
+    > & {
       readonly commands?: readonly RoutingCommand[];
     })[];
     readonly commands?: readonly RoutingCommand[];
@@ -58,17 +61,20 @@ export interface RoutingManifest extends Pick<Manifest, 'format' | 'requires'> {
 export const MANIFEST_FORMAT = 1;
 
 /**
- * The markers of a Manifest's `requires` this client understands, as the
- * Kotlin reader's `ManifestFeatures`: none yet.
+ * The markers of a `requires` this client understands, on the Manifest, a
+ * context or an aggregate, as the Kotlin reader's `ManifestFeatures`: none
+ * yet.
  */
 export const MANIFEST_FEATURES: ReadonlySet<string> = new Set<string>();
 
 /**
- * Checks that this client can read `manifest`: its format, and every marker it
- * requires.
+ * Checks that this client can read `manifest`: its format, and every marker
+ * it requires, on the Manifest, on each context and on each aggregate. A
+ * marker this client does not understand refuses the whole Manifest, wherever
+ * it stands.
  *
  * @param manifest - The Manifest
- * @throws TypeError naming what this client does not understand
+ * @throws TypeError naming what this client does not understand and where
  */
 export function checkManifest<M extends RoutingManifest>(manifest: M): M {
   if (manifest.format !== MANIFEST_FORMAT) {
@@ -76,15 +82,34 @@ export function checkManifest<M extends RoutingManifest>(manifest: M): M {
       `The Manifest is of format ${manifest.format}; this client reads format ${MANIFEST_FORMAT}.`,
     );
   }
-  const unknown = (manifest.requires ?? []).filter(
-    marker => !MANIFEST_FEATURES.has(marker),
-  );
-  if (unknown.length > 0) {
-    throw new TypeError(
-      `The Manifest requires ${unknown.join(', ')}, which this client does not understand: use a newer @ahoo-wang/wow-client.`,
-    );
+  checkRequires('The Manifest', manifest.requires);
+  for (const context of manifest.contexts) {
+    checkRequires(`The context ${context.name}`, context.requires);
+    for (const aggregate of context.aggregates ?? []) {
+      checkRequires(
+        `The aggregate ${context.name}.${aggregate.name}`,
+        aggregate.requires,
+      );
+    }
   }
   return manifest;
+}
+
+/** Refuses the markers of `where` this client does not understand. */
+function checkRequires(
+  where: string,
+  requires: readonly string[] | undefined,
+): void {
+  const unknown = [
+    ...new Set(
+      (requires ?? []).filter(marker => !MANIFEST_FEATURES.has(marker)),
+    ),
+  ].sort();
+  if (unknown.length > 0) {
+    throw new TypeError(
+      `${where} requires ${unknown.join(', ')}, which this client does not understand: use a newer @ahoo-wang/wow-client.`,
+    );
+  }
 }
 
 /**

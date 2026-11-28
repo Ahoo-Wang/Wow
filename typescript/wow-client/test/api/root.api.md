@@ -40,6 +40,7 @@ export interface AggregateManifest {
     readonly ownership?: 'owner' | 'tenant' | (string & {});
     // (undocumented)
     readonly queries: readonly QueryManifest[];
+    readonly requires?: readonly string[];
     readonly retired?: readonly string[];
     readonly schedules?: readonly string[];
     // (undocumented)
@@ -482,6 +483,7 @@ export interface ContextManifest {
     readonly name: string;
     // (undocumented)
     readonly published: readonly PublishedManifest[];
+    readonly requires?: readonly string[];
     readonly routes?: readonly ServiceRouteManifest[];
     // (undocumented)
     readonly subscriptions: readonly SubscriptionManifest[];
@@ -1760,8 +1762,8 @@ export type RoutingCommand = Pick<CommandManifest, 'name' | 'routes'> & Partial<
 // @public
 export interface RoutingManifest extends Pick<Manifest, 'format' | 'requires'> {
     // (undocumented)
-    readonly contexts: readonly (Pick<ContextManifest, 'name'> & {
-        readonly aggregates?: readonly (Pick<AggregateManifest, 'name'> & {
+    readonly contexts: readonly (Pick<ContextManifest, 'name' | 'requires'> & {
+        readonly aggregates?: readonly (Pick<AggregateManifest, 'name' | 'requires'> & {
             readonly commands?: readonly RoutingCommand[];
         })[];
         readonly commands?: readonly RoutingCommand[];

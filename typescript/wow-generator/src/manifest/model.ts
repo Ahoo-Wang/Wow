@@ -131,6 +131,8 @@ export interface LifecycleModel {
 export interface AggregateModel {
   readonly context: string;
   readonly name: string;
+  /** The markers a reader must understand to read the aggregate, sorted; none when absent. */
+  readonly requires?: readonly string[];
   readonly description?: string;
   /** The type-name prefix: `Product`. */
   readonly typeName: string;
@@ -197,6 +199,8 @@ export interface AccessModel {
 /** A bounded context and what its modules declare. */
 export interface ContextModel {
   readonly name: string;
+  /** The markers a reader must understand to read the context, sorted; none when absent. */
+  readonly requires?: readonly string[];
   readonly description?: string;
   /** The type-name prefix: `EshopCatalog`. */
   readonly typeName: string;
@@ -221,6 +225,8 @@ export interface ContextModel {
 /** What a Manifest generates, decided before anything is written. */
 export interface ManifestModel {
   readonly service?: string;
+  /** The markers a reader must understand to read the Manifest, sorted; none when absent. */
+  readonly requires?: readonly string[];
   readonly types: readonly TypeModel[];
   readonly contexts: readonly ContextModel[];
 }

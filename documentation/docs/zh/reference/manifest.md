@@ -13,12 +13,12 @@ Wow 读取 `$defs` 的 schema 时，无论是编译器写出的还是手写的�
 
 写出时省略的内容：
 
-Absent optional values (a null description, unknown `produces`, `derives`, `schedules` or `transformsTo`, a fragment's service, a subscription's `retry` or `job`) are left out, not written as null, and so are a subscription source's `nullableState` and a command's `mounted`, `system` and `internal` when false, an aggregate's `ownership` when it is `OWNER`, the default, its `idSource` when it is `ASSIGNED`, the default, its `retired` events and its `access` attributes when it has none, an access attribute's `multiple` when false, and the Manifest's `requires` when it has none.
+Absent optional values (a null description, unknown `produces`, `derives`, `schedules` or `transformsTo`, a fragment's service, a subscription's `retry` or `job`) are left out, not written as null, and so are a subscription source's `nullableState` and a command's `mounted`, `system` and `internal` when false, an aggregate's `ownership` when it is `OWNER`, the default, its `idSource` when it is `ASSIGNED`, the default, its `retired` events and its `access` attributes when it has none, an access attribute's `multiple` when false, and the `requires` of the Manifest, a context or an aggregate when it has none (written sorted and distinct, so the Manifest is byte-stable).
 
 ## `Manifest`
 
 - `format`
-- `requires`: 缺省或取默认值时省略
+- `requires`
 - `service`: 对象; 缺省或取默认值时省略
   - `name`
   - `version`
@@ -29,6 +29,7 @@ Absent optional values (a null description, unknown `produces`, `derives`, `sche
 ## `Context`
 
 - `name`
+- `requires`
 - `description`
 - `aggregates`: 数组，元素为 [`Aggregate`](#aggregate)
 - `subscriptions`: 数组，元素为 [`Subscription`](#subscription)
@@ -84,6 +85,7 @@ Absent optional values (a null description, unknown `produces`, `derives`, `sche
 ## `Aggregate`
 
 - `name`
+- `requires`
 - `description`
 - `state`: 对象
   - `schema`

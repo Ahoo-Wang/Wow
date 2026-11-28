@@ -47,6 +47,9 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * order: the facts its access policies compare with a caller's claims. The built-in ones, `owner` and `space`, are
  * every aggregate's and not listed. The compatibility gate takes one removed, renamed or retyped for a break.
  *
+ * [requires] lists the markers a reader must understand to read this aggregate as it means ([ManifestFeatures]): a
+ * reader that does not know one refuses the whole Manifest, as for [Manifest.requires].
+ *
  * Fields may be added: pass the constructor's arguments by name.
  */
 class AggregateManifest @InternalWowApi constructor(
@@ -62,6 +65,7 @@ class AggregateManifest @InternalWowApi constructor(
     val retired: List<String> = emptyList(),
     val idSource: AggregateIdSource = AggregateIdSource.ASSIGNED,
     val access: List<AccessAttributeManifest> = emptyList(),
+    val requires: List<String> = emptyList(),
 ) {
     override fun equals(other: Any?): Boolean =
         this === other || other is AggregateManifest && valueFields() == other.valueFields()
@@ -71,7 +75,7 @@ class AggregateManifest @InternalWowApi constructor(
     override fun toString(): String =
         "AggregateManifest(name=$name, description=$description, state=$state, snapshot=$snapshot, " +
             "commands=$commands, events=$events, queries=$queries, schedules=$schedules, " +
-            "ownership=$ownership, retired=$retired, idSource=$idSource, access=$access)"
+            "ownership=$ownership, retired=$retired, idSource=$idSource, access=$access, requires=$requires)"
 
     /** The commands of the domain: those the aggregate decides or mounts, its system commands left out. */
     val domainCommands: List<CommandManifest> get() = commands.filterNot { it.system }
@@ -93,6 +97,7 @@ class AggregateManifest @InternalWowApi constructor(
         retired,
         idSource,
         access,
+        requires,
     )
 }
 

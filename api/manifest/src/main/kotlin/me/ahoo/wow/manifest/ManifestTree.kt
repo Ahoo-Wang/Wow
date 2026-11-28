@@ -31,7 +31,8 @@ import me.ahoo.wow.api.wire.WireNames
  * service, a subscription's `retry` or `job`) are left out, not written as null, and so are a subscription source's
  * `nullableState` and a command's `mounted`, `system` and `internal` when false, an aggregate's `ownership` when it is `OWNER`, the default,
  * its `idSource` when it is `ASSIGNED`, the default, its `retired` events and its `access` attributes when it has none, an access
- * attribute's `multiple` when false, and the Manifest's `requires` when it has none.
+ * attribute's `multiple` when false, and the `requires` of the Manifest, a context or an aggregate when it has none
+ * (written sorted and distinct, so the Manifest is byte-stable).
  */
 object ManifestTree {
     private const val DEFS = "\$defs"
@@ -46,7 +47,7 @@ object ManifestTree {
 
     fun write(manifest: Manifest): Map<String, Any?> = obj(
         "format" to manifest.format,
-        "requires" to manifest.requires.ifEmpty { null },
+        "requires" to requiresOf(manifest.requires),
         "service" to manifest.service?.let { obj("name" to it.name, "version" to it.version) },
         "contexts" to manifest.contexts.map(::writeContext),
         "errors" to manifest.errors.map(::writeError),
@@ -55,6 +56,7 @@ object ManifestTree {
 
     private fun writeContext(context: ContextManifest): Map<String, Any?> = obj(
         "name" to context.name,
+        "requires" to requiresOf(context.requires),
         "description" to context.description,
         "aggregates" to context.aggregates.map(::writeAggregate),
         "subscriptions" to context.subscriptions.map(::writeSubscription),
@@ -117,6 +119,7 @@ object ManifestTree {
 
     private fun writeAggregate(aggregate: AggregateManifest): Map<String, Any?> = obj(
         "name" to aggregate.name,
+        "requires" to requiresOf(aggregate.requires),
         "description" to aggregate.description,
         "state" to obj(
             "schema" to aggregate.state.schema,
@@ -197,13 +200,17 @@ object ManifestTree {
         },
     )
 
+    /** The markers of a `requires`, sorted and distinct, so the written Manifest is byte-stable; null for none. */
+    private fun requiresOf(requires: List<String>): List<String>? = requires.distinct().sorted().ifEmpty { null }
+
     /** A JSON object of the non-null [entries], in their order. */
     private fun obj(vararg entries: Pair<String, Any?>): Map<String, Any?> =
         entries.filter { it.second != null }.toMap(LinkedHashMap())
 
     /**
      * Reads [tree], the JSON object of a Manifest; fails on a missing field, another [Manifest.FORMAT], a marker of
-     * `requires` this reader does not understand ([ManifestFeatures]), a context whose name breaks [ContextName], or an
+     * `requires` this reader does not understand ([ManifestFeatures]) on the Manifest, a context or an aggregate (the
+     * whole read is refused, naming where the marker stands), a context whose name breaks [ContextName], or an
      * access attribute whose name breaks [AccessAttributeName].
      *
      * A value it does not know of an enumeration, which a newer writer may have added, leaves out what it belongs to,
@@ -220,12 +227,7 @@ object ManifestTree {
         require(format == Manifest.FORMAT) {
             "Manifest format $format is not supported; this reader reads format ${Manifest.FORMAT}."
         }
-        val requires = root.stringsOrNull("requires").orEmpty()
-        (requires - ManifestFeatures.KNOWN).takeIf { it.isNotEmpty() }?.let { unknown ->
-            throw IllegalArgumentException(
-                "The Manifest requires $unknown, which this reader does not understand: read it with a newer Wow."
-            )
-        }
+        val requires = requiresOf(root, "the Manifest")
         return Manifest(
             format = format,
             requires = requires,
@@ -236,25 +238,33 @@ object ManifestTree {
         )
     }
 
-    private fun readContext(node: Node): ContextManifest = ContextManifest(
-        name = node.string("name").also { name ->
+    /** The markers of [node]'s `requires`, refused when this reader does not understand one ([ManifestFeatures]). */
+    private fun requiresOf(node: Node, where: String): List<String> =
+        node.stringsOrNull("requires").orEmpty().also { ManifestFeatures.check(where, it) }
+
+    private fun readContext(node: Node): ContextManifest {
+        val name = node.string("name").also { name ->
             ContextName.problem(name)?.let { throw IllegalArgumentException("${node.path}.name: $it") }
-        },
-        description = node.stringOrNull("description"),
-        aggregates = node.objects("aggregates").mapNotNull(::readAggregate),
-        subscriptions = node.objects("subscriptions").mapNotNull(::readSubscription),
-        published = node.objects("published").map {
-            PublishedManifest(
-                aggregate = it.string("aggregate"),
-                topic = it.string("topic"),
-                includeState = it.booleanOrNull("includeState") ?: true,
-                revealsDisplay = it.booleanOrNull("revealsDisplay") ?: false,
-            )
-        },
-        errors = node.objects("errors").map(::readError),
-        commands = if (node.has("commands")) node.objects("commands").mapNotNull(::readCommand) else emptyList(),
-        routes = node.objects("routes").mapNotNull(::readServiceRoute),
-    )
+        }
+        return ContextManifest(
+            name = name,
+            requires = requiresOf(node, "the context $name"),
+            description = node.stringOrNull("description"),
+            aggregates = node.objects("aggregates").mapNotNull { readAggregate(name, it) },
+            subscriptions = node.objects("subscriptions").mapNotNull(::readSubscription),
+            published = node.objects("published").map {
+                PublishedManifest(
+                    aggregate = it.string("aggregate"),
+                    topic = it.string("topic"),
+                    includeState = it.booleanOrNull("includeState") ?: true,
+                    revealsDisplay = it.booleanOrNull("revealsDisplay") ?: false,
+                )
+            },
+            errors = node.objects("errors").map(::readError),
+            commands = if (node.has("commands")) node.objects("commands").mapNotNull(::readCommand) else emptyList(),
+            routes = node.objects("routes").mapNotNull(::readServiceRoute),
+        )
+    }
 
     /** The service route of [node], or null, told, when a parameter's location is unknown to this reader. */
     private fun readServiceRoute(node: Node): ServiceRouteManifest? {
@@ -315,7 +325,9 @@ object ManifestTree {
      * The aggregate of [node], or null, told, when its ownership, its id source or the type of one of its access
      * attributes is unknown to this reader.
      */
-    private fun readAggregate(node: Node): AggregateManifest? {
+    private fun readAggregate(context: String, node: Node): AggregateManifest? {
+        // Before anything is left out: a marker this reader does not know refuses the whole read.
+        val requires = requiresOf(node, "the aggregate $context.${node.string("name")}")
         val state = node.obj("state")
         val ownership = if (node.has("ownership")) {
             node.enumOrNull("ownership", Ownership.entries) ?: return node.leftOut()
@@ -330,6 +342,7 @@ object ManifestTree {
         val access = readAccess(node) ?: return node.leftOut()
         return AggregateManifest(
             name = node.string("name"),
+            requires = requires,
             description = node.stringOrNull("description"),
             state = StateManifest(
                 state.string("schema"),

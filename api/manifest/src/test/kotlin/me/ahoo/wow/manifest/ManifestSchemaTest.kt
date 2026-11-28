@@ -58,6 +58,7 @@ class ManifestSchemaTest {
         val aggregates = context.aggregates.map { aggregate ->
             aggregate.copyWith(
                 state = aggregate.state.copyWith(fingerprint = "f"),
+                requires = listOf("x"),
                 snapshot = SnapshotManifest(true, 2),
                 schedules = listOf("shop.cart.PutItem"),
                 ownership = Ownership.TENANT,
@@ -85,6 +86,7 @@ class ManifestSchemaTest {
             requires = listOf("x"),
             contexts = listOf(
                 context.copyWith(
+                    requires = listOf("x"),
                     aggregates = aggregates,
                     subscriptions = subscriptions,
                     published = context.published.map { it.copyWith(revealsDisplay = true) },
