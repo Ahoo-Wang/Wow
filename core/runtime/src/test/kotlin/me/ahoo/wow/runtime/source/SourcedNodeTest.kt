@@ -248,6 +248,10 @@ class SourcedNodeTest {
             val backends = InMemoryBackends()
             val node = node(topics = SourceTopics(told, PREFIX), backends = backends)
             val subscriptions = node.topicSubscriptions.getValue(TOPIC)
+            // Before the topic is joined, no incarnation is known: the view names the lease group.
+            node.subscriptionsView(NodeSample.EMPTY, maxParked = 10).subscriptions
+                .filter { it.source == SubscriptionView.Source.TOPIC }.map { it.group }.toSet()
+                .assert().containsExactly(subscriptions.group.name)
             node.start()
             subscriptions.awaitStarted()
             topics.publish(orderRecord("o-1", 1), topic = TOPIC)
