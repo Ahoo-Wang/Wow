@@ -123,12 +123,14 @@ A context whose aggregate types are routed through Kafka reads its command topic
 
 A service reads other contexts' topics without a consumer group. Its leases assign the topic's partitions to its nodes, the same way they assign the log's, and the offsets are kept in the service's own checkpoint store, beside its other checkpoints. One consumer per node and topic feeds every subscription that reads the topic. So there is no consumer group to manage, reset or monitor in Kafka; a subscription's position is its checkpoint.
 
-When a partition no longer holds the offset a subscription is to read from, because retention deleted it or the topic was created again, that is an **offset gap**. `wow.kafka.offset-gap` decides what happens:
+When a partition no longer holds the offset a subscription is to read from, because retention deleted it or the topic was truncated, that is an **offset gap**. `wow.kafka.offset-gap` decides what happens:
 
 - `fail` (default): the read fails and the subscription stays where it is, logging errors;
 - `earliest`: the subscription reads on from the earliest retained offset, skipping what was lost.
 
 Either way the gap is logged as an error and counted in the metric `wow.subscription.offset.gaps`; alert on it. Set each topic's retention longer than any subscription may fall behind.
+
+A topic deleted and created again under its name is not a gap but another topic: its offsets name other records. A subscription keeps its checkpoints per topic id, the id the broker gives each creation of a topic, so it never reads the new topic from an offset of the old one, however many records the new one holds. A node that reads the topic follows the new one at its next look for added partitions (`wow.kafka.topics.partition-refresh-interval`, 30 seconds by default): each subscription reads it as its start says, from the beginning for a subscription of another service's stream, with no memory of the old topic's aggregates. Until then the node places no read of it. A node that starts after the topic was created again reads the new one the same way. Each logs one warning naming the topic, the two ids, and the checkpoints of the old topic with their count: they are kept and no longer read. What the old topic held after those checkpoints is lost to its subscriptions with the topic. `wow.kafka.offset-gap` decides only a gap within one topic. Reading a topic's id needs `DESCRIBE` on it, which `READ` already grants.
 
 To recover a subscription stopped by a gap, set `wow.kafka.offset-gap: earliest` and restart its nodes: the read resumes from the earliest retained offset. The skipped range is lost to that subscription, and stays counted in `wow.subscription.offset.gaps`. Set the option back to `fail` afterwards to keep the strict default. When the loss is not acceptable and what was published is still complete elsewhere, rebuild under a new subscription name instead.
 

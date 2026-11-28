@@ -132,7 +132,7 @@ me.ahoo.wow.runtime.subscription.VersionGapException: 'wow.subscription.version-
 - **Retry by hand.** An operator's retry accepts the gap: it goes on from the next version present, and the node's log names the versions it passed. Use it when the version is known to be gone, such as a commit the publishing service's operator skipped, or a record its broker refused for good.
 - **Skip.** The entry is resolved and the records held behind it are never handled, as for any parked aggregate.
 
-A subscription remembers the last version of the 4,096 aggregates it saw most recently in each partition, in memory. An aggregate it does not remember, first seen since its node started or forgotten since, is not checked: its record's version is where the next one is checked from. The context's own log is never checked; it has no gap to show.
+A subscription remembers the last version of the 4,096 aggregates it saw most recently in each partition, in memory. An aggregate it does not remember, first seen since its node started or since its topic was created again ([Kafka](../operate/kafka#reading-other-contexts-streams)), or forgotten since, is not checked: its record's version is where the next one is checked from. The context's own log is never checked; it has no gap to show.
 
 ### What a parked aggregate records {#what-a-parked-aggregate-records}
 

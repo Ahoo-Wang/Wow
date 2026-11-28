@@ -1987,6 +1987,7 @@ public final class me/ahoo/wow/spi/transport/PartitionOffsets$Companion {
 }
 
 public abstract interface class me/ahoo/wow/spi/transport/PartitionedSource {
+	public fun incarnation (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun offsets (Ljava/lang/String;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun partitionOf (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun partitions (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;

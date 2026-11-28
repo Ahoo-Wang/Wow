@@ -21,11 +21,12 @@ public final class me/ahoo/wow/kafka/KafkaOptions$Companion {
 
 public final class me/ahoo/wow/kafka/KafkaPartitionedSource : java/lang/AutoCloseable, me/ahoo/wow/spi/transport/PartitionedSource {
 	public static final field Companion Lme/ahoo/wow/kafka/KafkaPartitionedSource$Companion;
-	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;JLkotlinx/coroutines/CoroutineDispatcher;Lme/ahoo/wow/kafka/OffsetGapPolicy;Lme/ahoo/wow/spi/observation/Observer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;JLkotlinx/coroutines/CoroutineDispatcher;Lme/ahoo/wow/kafka/OffsetGapPolicy;Lme/ahoo/wow/spi/observation/Observer;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;JLkotlinx/coroutines/CoroutineDispatcher;Lme/ahoo/wow/kafka/OffsetGapPolicy;Lme/ahoo/wow/spi/observation/Observer;Lkotlin/jvm/functions/Function2;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;JLkotlinx/coroutines/CoroutineDispatcher;Lme/ahoo/wow/kafka/OffsetGapPolicy;Lme/ahoo/wow/spi/observation/Observer;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun close ()V
 	public final fun getOffsetGap ()Lme/ahoo/wow/kafka/OffsetGapPolicy;
 	public final fun getOffsetGaps ()J
+	public fun incarnation (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun offsets (Ljava/lang/String;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun partitionOf (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun partitions (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;

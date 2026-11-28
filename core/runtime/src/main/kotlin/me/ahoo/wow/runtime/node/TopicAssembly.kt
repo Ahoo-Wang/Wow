@@ -159,7 +159,7 @@ internal class TopicAssembly(private val wiring: NodeWiring, private val manifes
                 context = Dispatchers.Default,
                 signals = signals,
                 notifier = notifiers,
-                entries = { partitions -> MessageEntries.receipts(topic, sources.source, partitions, observer) },
+                entries = { source, partitions -> MessageEntries.receipts(topic, source, partitions, observer) },
                 partitionRefreshInterval = sources.partitionRefreshInterval,
                 observer = observer,
                 classification = classification,
