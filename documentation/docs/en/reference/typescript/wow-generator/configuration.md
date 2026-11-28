@@ -5,7 +5,7 @@ description: 'Generator configuration — @ahoo-wang/wow-generator'
 
 # Generator configuration
 
-The generator has two separate inputs: constructor/CLI execution options and an optional JSON/YAML customization file. The file shapes the API clients an OpenAPI document generates; a Manifest's clients take none of it, and a Manifest run with `apiClients` set warns that it reads none of them. A customization file cannot override inputPath, outputDir, logger, or tsconfig.
+The generator has two separate inputs: constructor/CLI execution options and an optional JSON/YAML customization file. The file shapes the API clients an OpenAPI document generates; a Manifest's clients take none of it, and a Manifest run with `apiClients` set warns that it reads none of them. A customization file cannot override inputPath, outputDir or logger.
 
 ## Configuration contract
 

@@ -102,7 +102,7 @@ The return type comes from the success response: `200`, else the lowest other 2x
 - Two schemas that normalise to the same model fail with exit code 4. Enum values that normalise alike get distinct members. Tags that name the same client generate a numbered class (`User2ApiClient`) with a warning.
 - A `$ref` that points at nothing fails with exit code 4, listing the references.
 - `{ nullable: true, allOf: [{ $ref }] }` admits `null`. A `oneOf` with a discriminator narrows each branch by the discriminator property. A map of its own type generates an interface with an index signature. Models named `Record` or `Response` are imported under an alias so they do not shadow the globals.
-- A Manifest's empty command or event body is `Record<string, unknown>`.
+- A Manifest's command body of no properties is `Record<string, never>`, since the service refuses a member the body does not declare; an empty event stays `Record<string, unknown>`, which a newer service may add to.
 
 ## Runtime setup
 

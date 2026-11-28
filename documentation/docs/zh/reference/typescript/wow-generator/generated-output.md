@@ -102,7 +102,7 @@ search(@path('item-id') itemId: string, @query('q') q: string,
 - 两个 schema 归一化后生成同一个模型时以退出码 4 失败。归一化后相同的枚举值会得到不同的成员。归一化后指向同一客户端的 tag 会生成带编号的类（`User2ApiClient`），并给出警告。
 - 指向不存在目标的 `$ref` 以退出码 4 失败，并列出这些引用。
 - `{ nullable: true, allOf: [{ $ref }] }` 允许 `null`。带 discriminator 的 `oneOf` 按判别属性收窄各分支。以自身为值的 map 生成带索引签名的接口。名为 `Record` 或 `Response` 的模型以别名导入，不会遮蔽全局类型。
-- Manifest 的空命令或事件体为 `Record<string, unknown>`。
+- Manifest 中没有属性的命令体为 `Record<string, never>`，因为服务拒绝请求体未声明的成员；空的事件保持 `Record<string, unknown>`，较新的服务可能为它增加成员。
 
 ## 运行时配置
 
