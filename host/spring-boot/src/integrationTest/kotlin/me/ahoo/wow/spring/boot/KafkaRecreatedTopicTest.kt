@@ -123,12 +123,21 @@ class KafkaRecreatedTopicTest {
         checkpoints.list(old).sumOf { it.position }.assert().isEqualTo(6L)
     }
 
+    /**
+     * A node reading the topic as it is deleted and created again. Its running read goes on fetching at its position
+     * by the topic's name: the client raises an out-of-range offset once the new partition is shorter than that
+     * position, and the source meets it as an offset gap, which ends the read; every read placed again is refused, as
+     * of another incarnation, until the refresh round joins the new one. Between the recreation and the round nothing
+     * of the new topic is handed to the old incarnation's subscriptions, nor saved under its checkpoints.
+     */
     @Test
     fun `a topic created again while it is read is followed at the next refresh, nothing of it skipped`(): Unit =
         runBlocking {
             val topic = "wow.it.recreated.${topics.incrementAndGet()}.state"
             admin.createVisible(options, NewTopic(topic, PARTITIONS, 1.toShort()))
-            start(topic, partitionRefreshInterval = 300.milliseconds)
+            // A round long after the recreation is met: the test reads what happens before it.
+            start(topic, partitionRefreshInterval = 20.seconds)
+            val source = started.last().second
             publish(topic, idsOf(topic, "o", 2))
             eventually { handled.size == 6 }
             val old = groupOf(topic)
@@ -137,6 +146,10 @@ class KafkaRecreatedTopicTest {
             recreate(topic)
             val recreated = idsOf(topic, "n", 5)
             publish(topic, recreated)
+            // Each partition's running read met the new partition as an offset gap: it is over, before any round.
+            eventually { source.offsetGaps >= PARTITIONS }
+            handled.size.assert().isEqualTo(6)
+            checkpoints.list(old).sumOf { it.position }.assert().isEqualTo(6L)
 
             eventually { handled.size == 6 + 15 }
             recreated.forEach { versionsOf(it).assert().containsExactly(1) }

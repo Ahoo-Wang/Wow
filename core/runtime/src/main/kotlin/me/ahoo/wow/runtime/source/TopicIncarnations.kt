@@ -72,6 +72,11 @@ internal class TopicIncarnations(
      * so neither the offset it starts from nor the first message it hands on belongs to another incarnation. Another
      * one is refused by name ([TopicIncarnationException]) until the subscriptions join it. [source] itself for a
      * source that tells no incarnation: nothing is asked then.
+     *
+     * A read already running is asked nothing more, never per message. One of Kafka goes on fetching its offset under
+     * the topic's name when the topic is deleted and created again, and ends on an offset out of range once the new
+     * partition is shorter than it, as a topic just created is; only one whose first fetch after the recreation finds
+     * the new partition already at its offset reads on in it, until the refresh round joins the new incarnation.
      */
     fun guarded(source: PartitionedSource, incarnation: String?): PartitionedSource =
         if (incarnation == null) source else Guarded(source, topic, incarnation)
@@ -108,7 +113,11 @@ internal class TopicIncarnations(
         override fun read(topic: String, partition: Int, from: Long, until: Long): Flow<SourceMessage> =
             guarded(topic) { source.read(topic, partition, from, until) }
 
-        override suspend fun readAt(topic: String, partition: Int, offsets: Collection<Long>): Map<Long, SourceMessage> {
+        override suspend fun readAt(
+            topic: String,
+            partition: Int,
+            offsets: Collection<Long>,
+        ): Map<Long, SourceMessage> {
             check(topic)
             return source.readAt(topic, partition, offsets).also { if (it.isNotEmpty()) check(topic) }
         }

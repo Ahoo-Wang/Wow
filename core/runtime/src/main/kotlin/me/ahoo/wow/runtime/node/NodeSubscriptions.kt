@@ -56,12 +56,14 @@ suspend fun ServiceNode.subscriptionsView(sample: NodeSample, maxParked: Int): S
     }
     topicSubscriptions.values.forEach { topic ->
         val runtime = topic.runtime
+        // The group of the topic's incarnation its runtime reads, as its parked entries and metrics name it.
+        val group = runtime?.group ?: topic.group.name
         subscriptions += topic.subscriptions.map { subscription ->
             SubscriptionView(
                 subscription.id,
-                topic.group.name,
+                group,
                 SubscriptionView.Source.TOPIC,
-                sample.parked[ParkedSubscription(topic.group.name, subscription.name)],
+                sample.parked[ParkedSubscription(group, subscription.name)],
                 runtime?.let { topicPartitions(it, subscription.name) }.orEmpty(),
             )
         }

@@ -117,7 +117,11 @@ class TopicSubscriptions internal constructor(
     private val entries: (PartitionedSource, Int, String?) -> EntrySource,
     /** Hears what the parked entries come to. */
     private val notifier: ParkedNotifier = ParkedNotifier.NONE,
-    /** How often the topic's partitions are read again, for those added; never when infinite. */
+    /**
+     * How often the topic's partitions and incarnation are read again, for the partitions added and a topic created
+     * again; never when infinite, so that such a topic is then joined only when the node starts again, its reads
+     * refused until then. A host's is finite (`wow.kafka.topics.partition-refresh-interval`).
+     */
     private val partitionRefreshInterval: Duration = Duration.INFINITE,
     /** Sees each message its subscriptions consume. */
     private val observer: Observer = Observer.NONE,
@@ -361,7 +365,8 @@ class TopicSubscriptions internal constructor(
             return
         }
         val kept = earlier.entries.joinToString("; ") { (id, saved) ->
-            "${id.ifEmpty { "none named" }}: ${saved.size} (${saved.map { it.subscription }.distinct().sorted().joinToString()})"
+            val names = saved.map { it.subscription }.distinct().sorted().joinToString()
+            "${id.ifEmpty { "none named" }}: ${saved.size} ($names)"
         }
         val count = earlier.values.sumOf { it.size }
         logger.warn {

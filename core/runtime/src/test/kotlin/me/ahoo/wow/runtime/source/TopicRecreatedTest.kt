@@ -191,6 +191,7 @@ class TopicRecreatedTest : TopicSubscriptionsFixtures() {
             left.skipOnly.assert().isTrue()
             left.fromIncarnation.assert().isEqualTo(A)
             left.reason.assert().contains("earlier incarnation of topic $ORDER_TOPIC ($A)").contains(B)
+                .contains("It parked for: ")
             subscriptions.skip(BOARD, order("o-1")).assert().isTrue()
             ledger.parked(BOARD_ID, order("o-1")).assert().isNull()
             source.current.publish(orderRecord("o-1", 5))

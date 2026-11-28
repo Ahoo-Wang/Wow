@@ -153,7 +153,7 @@ internal interface EntrySource {
  */
 internal class UnrecoverableException(message: String) : IllegalStateException(message)
 
-/** Refuses a retry of [parked] when it was parked in another incarnation of the topic ([EntrySource.ofAnotherIncarnation]). */
+/** Refuses a retry of [parked] parked in another incarnation of the topic ([EntrySource.ofAnotherIncarnation]). */
 internal fun EntrySource.requireIncarnationOf(parked: ParkedAggregate) {
     if (ofAnotherIncarnation(parked)) {
         throw UnrecoverableException(anotherIncarnationOf(parked))
@@ -162,7 +162,8 @@ internal fun EntrySource.requireIncarnationOf(parked: ParkedAggregate) {
 
 /** Why [parked], of another incarnation of the topic, can only be skipped: names and positions, no value. */
 internal fun EntrySource.anotherIncarnationOf(parked: ParkedAggregate): String =
-    "Its position is an offset of an earlier incarnation of topic $topic (${parked.fromIncarnation ?: "none named"}), " +
+    "Its position is an offset of an earlier incarnation of topic $topic " +
+        "(${parked.fromIncarnation ?: "none named"}), " +
         "not of the topic it is now ($incarnation): it can only be skipped, and its skip drops nothing read since."
 
 /**

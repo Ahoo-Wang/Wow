@@ -47,6 +47,7 @@ import me.ahoo.wow.runtime.node.InMemoryBackends
 import me.ahoo.wow.runtime.node.NODE_SERVICE
 import me.ahoo.wow.runtime.node.NodeSample
 import me.ahoo.wow.runtime.node.NodeSampler
+import me.ahoo.wow.runtime.node.ParkedSubscription
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.SourcedSubscription
@@ -138,13 +139,14 @@ class SourcedNodeTest {
         topics: SourceTopics? = SourceTopics(this.topics, PREFIX),
         bindings: SubscriptionFactory = SubscriptionBindings(mapOf(BANK to listOf(board, payout))),
         manifest: Manifest = manifest(),
+        backends: InMemoryBackends = InMemoryBackends(),
     ): ServiceNode = ServiceNode(
         NODE_SERVICE,
         "node-1",
         "node-1.internal:9090",
         listOf(accountModel(BANK, decided)),
         manifest,
-        InMemoryBackends(),
+        backends,
         channel,
         options = fastNodeOptions(),
         subscriptions = bindings,
@@ -234,6 +236,43 @@ class SourcedNodeTest {
             board.paused!!.reason.assert().isNotBlank()
             board.head.assert().isNull()
             topic().single { it.id.name == "Payout.onOrder" }.partitions.assert().isEmpty()
+        }
+
+    @Test
+    fun `the incarnation a topic subscription reads is no subscription the operator meets, and names its group`(): Unit =
+        runBlocking {
+            // A source that tells the topic's incarnation, as Kafka does by the topic's id.
+            val told = object : PartitionedSource by topics {
+                override suspend fun incarnation(topic: String): String = INCARNATION
+            }
+            val backends = InMemoryBackends()
+            val node = node(topics = SourceTopics(told, PREFIX), backends = backends)
+            val subscriptions = node.topicSubscriptions.getValue(TOPIC)
+            node.start()
+            subscriptions.awaitStarted()
+            topics.publish(orderRecord("o-1", 1), topic = TOPIC)
+            eventually { seen.isNotEmpty() }
+            val runtime = subscriptions.runtime!!
+            val group = "${subscriptions.group.name}#$INCARNATION"
+            runtime.group.assert().isEqualTo(group)
+            // The marker of the incarnation is under the lease group's name, which no runtime of the node reads.
+            backends.backends(BANK).checkpoints.list(subscriptions.group.name).map { it.subscription }
+                .assert().containsExactly("wow.incarnation#$INCARNATION")
+
+            val names = listOf("Board.onOrder", "Payout.onOrder")
+            val counts = names.associate { ParkedSubscription(group, it) to 1 }
+            val parked = NodeSample(0, emptyMap(), counts, null, emptySet(), emptySet())
+            val view = node.subscriptionsView(parked, maxParked = 10)
+            view.subscriptions.filter { it.source == SubscriptionView.Source.TOPIC }.map { it.id.name }
+                .assert().containsExactlyInAnyOrder(*names.toTypedArray())
+            view.subscriptions.filter { it.source == SubscriptionView.Source.TOPIC }.forEach {
+                it.group.assert().isEqualTo(group)
+                it.parked.assert().isEqualTo(1)
+            }
+            view.orphans.assert().isEmpty()
+            // The progress and backlog read the runtime's subscriptions and the checkpoints of its group: no marker.
+            runtime.subscriptionIds.map { it.name }.assert().containsExactlyInAnyOrder(*names.toTypedArray())
+            runtime.saved().map { it.subscription }.distinct().assert().containsExactlyInAnyOrder(*names.toTypedArray())
         }
 
     @Test
@@ -436,6 +475,7 @@ class SourcedNodeTest {
         const val BANK = "bank"
         const val PREFIX = "test."
         const val TOPIC = PREFIX + ORDER_TOPIC
+        const val INCARNATION = "1f0c6a2e-0000-4000-8000-000000000001"
         val ACCOUNT = AggregateType(BANK, "account")
 
         /** The sales service publishes its orders without their state. */

@@ -83,7 +83,7 @@ internal class TopicEntries(
     private val source: PartitionedSource,
     private val partitions: Int,
     private val observer: Observer = Observer.NONE,
-    /** The incarnation of [topic] its subscriptions read, recorded with each park; none for a source that tells none. */
+    /** The incarnation of [topic] its subscriptions read, recorded with each park; none if its source tells none. */
     override val incarnation: String? = null,
 ) : EntrySource {
     override val name: String get() = "topic $topic"

@@ -57,7 +57,8 @@ internal class ParkedAtStart(
     /**
      * [subscription]'s parked aggregates in [partitions], by partition, with the ordinal each is parked from. An entry
      * parked in another incarnation of the topic ([EntrySource.ofAnotherIncarnation]) holds nothing back: it is marked
-     * skip-only, its reason saying why, and its skip drops nothing this incarnation's partitions hold.
+     * skip-only, its reason saying why after the one it parked for, and its skip drops nothing this incarnation's
+     * partitions hold.
      */
     suspend fun parkedIn(subscription: Subscription, partitions: Collection<Int>): Map<Int, Map<AggregateRef, Long>> {
         val parked = HashMap<Int, HashMap<AggregateRef, Long>>()
@@ -75,7 +76,8 @@ internal class ParkedAtStart(
             after = page.lastOrNull()?.ref
         } while (page.size == FailureLedger.DEFAULT_PAGE)
         earlier.filterNot { it.skipOnly }.forEach { entry ->
-            val reason = source.anotherIncarnationOf(entry)
+            // The failure it parked for stays readable: the operator skips it knowing what was not handled.
+            val reason = "${source.anotherIncarnationOf(entry)} It parked for: ${entry.reason}"
             // A false repark: resolved, or moved by another start, since the listing.
             if (ledger.repark(entry.copyWith(reason = reason, skipOnly = true))) {
                 logger.warn { "${subscription.name} can only skip ${entry.ref}: $reason" }

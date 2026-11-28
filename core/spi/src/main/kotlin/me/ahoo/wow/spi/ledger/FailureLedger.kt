@@ -548,9 +548,10 @@ suspend fun amendByRevision(
 }
 
 /**
- * This entry where [entry] parks the aggregate (its partition, from version, position and the incarnation of the topic
- * it is of, and whether it can only be skipped) and why (its reason and failure time), with this entry's retry state, at the next revision and no longer
- * scheduled; an operator's request is kept only while the failure time is: one left for another parking is cleared.
+ * This entry where [entry] parks the aggregate (its partition, from version, position and the incarnation of the
+ * topic it is of, and whether it can only be skipped) and why (its reason and failure time), with this entry's retry
+ * state, at the next revision and no longer scheduled; an operator's request is kept only while the failure time is:
+ * one left for another parking is cleared.
  * The reference semantics of a [FailureLedger.repark], and of a [FailureLedger.park] that replaces an entry.
  */
 @InternalWowApi

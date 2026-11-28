@@ -68,7 +68,7 @@ internal class MessageEntries private constructor(
     private val observer: Observer,
     /** Whether [partitioner] is the broker's, which maps a key elsewhere once the topic gains partitions. */
     override val partitionsGrow: Boolean,
-    /** The incarnation of [topic] its subscriptions read, recorded with each park; none for a source that tells none. */
+    /** The incarnation of [topic] its subscriptions read, recorded with each park; none if its source tells none. */
     override val incarnation: String? = null,
     private val decode: (Envelope) -> Decoded,
 ) : EntrySource {
