@@ -28,7 +28,7 @@ These rules hold everywhere in Wow. The concept pages explain each of them.
 | Decide, then evolve | A command function decides which events happen. An evolve function applies an event to the state and does no I/O. |
 | Bound at compile time | The compiler generates the bindings between your functions and the runtime. Nothing is discovered by reflection or classpath scanning at run time. |
 | Identity is a value | An aggregate is addressed by one value: context, aggregate type, tenant and id. It is decided once, at admission. Every unique key includes the tenant. |
-| Read models replay | Every subscription has a checkpoint, so every read model can be reset, rebuilt or backfilled from the log. |
+| Read models replay | Every subscription has a checkpoint, so every read model can be rebuilt or backfilled from the log. |
 | Failures are data | A handler that keeps failing parks the one aggregate it failed on and records why. Nothing is skipped in silence. |
 | One contract | The Manifest is the single description of a service. HTTP routes, OpenAPI, the TypeScript client, the views and the agent Skills are derived from it. |
 | Host-neutral | The runtime does not depend on Spring. Spring Boot is one host. |
