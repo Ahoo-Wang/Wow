@@ -32,7 +32,7 @@ import me.ahoo.wow.runtime.cluster.LeaseGroup
 import me.ahoo.wow.runtime.cluster.PartitionOwnership
 import me.ahoo.wow.runtime.cluster.ServiceMembership
 import me.ahoo.wow.runtime.cluster.TopicRouter
-import me.ahoo.wow.runtime.command.MessageEntries
+import me.ahoo.wow.runtime.command.IntakeIncarnation
 import me.ahoo.wow.runtime.ledger.MaintenanceSkips
 import me.ahoo.wow.runtime.ledger.SkipLedger
 import me.ahoo.wow.runtime.log.LogGroupRouter
@@ -116,15 +116,16 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
 
     /**
      * The runtime of [context]'s command topic when the node takes commands from topics ([SourceTopics.intake]), or
-     * publishes its failure ledger, whose operators' actions arrive there, in its lease [group] and
-     * stores: the topic's partitions are the log's, so the same leases drive both.
+     * publishes its failure ledger, whose operators' actions arrive there, in its lease [group] and stores (the topic's
+     * partitions are the log's, so the same leases drive both), its checkpoints per incarnation ([IntakeIncarnation]).
      */
     private fun intakeOf(context: String, group: LeaseGroup, backends: ContextBackends): SubscriptionRuntime? =
         topics?.takeIf { takesCommands(context) || options.ledger != null }?.let {
+            val incarnation = IntakeIncarnation(it.source, it.commandsOf(context), group.name, backends.checkpoints)
             SubscriptionRuntime(
                 group.name,
-                MessageEntries.commands(it.commandsOf(context), it.source, backends.log.partitions, observer),
-                backends.checkpoints,
+                incarnation.entries(backends.log.partitions, observer),
+                incarnation.checkpoints,
                 backends.ledger,
                 options = options.subscription,
                 signals = signals,
@@ -132,8 +133,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
                 observer = observer,
                 classification = classification,
                 clock = clock,
-                // The default log group's runtime has the group's name and checkpoints too, and tells their orphans.
-                tellsOrphans = false,
+                tellsOrphans = false, // The log group's runtime has the group's name and tells its orphans.
                 catchUps = catchUps,
                 fatals = fatals,
             )

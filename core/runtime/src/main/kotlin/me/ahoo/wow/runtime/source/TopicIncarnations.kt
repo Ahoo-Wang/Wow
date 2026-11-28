@@ -79,18 +79,44 @@ internal class TopicIncarnations(
      * already at its offset reads on in it, until the refresh round joins the new incarnation.
      */
     fun guarded(source: PartitionedSource, incarnation: String?): PartitionedSource =
-        if (incarnation == null) source else Guarded(source, topic, incarnation)
+        if (incarnation == null) source else Guarded(source, topic) { incarnation }
+
+    /**
+     * [source] guarded as [guarded] does, for an incarnation known only once [incarnation] answers it, which it is
+     * asked before each check: a reader whose incarnation is resolved when it first reads (a context's command intake,
+     * [me.ahoo.wow.runtime.command.IntakeIncarnation]). Nothing is checked while it answers none.
+     */
+    fun guarded(source: PartitionedSource, incarnation: suspend () -> String?): PartitionedSource =
+        Guarded(source, topic, incarnation)
+
+    /**
+     * What a join of [incarnation] tells of the checkpoints kept under the topic's other incarnations
+     * ([earlier]), which nothing reads any more, [left] being the one read until now; null when none is kept.
+     */
+    suspend fun earlierReport(incarnation: String?, left: String?): String? {
+        val earlier = earlier(incarnation).takeIf { it.isNotEmpty() } ?: return null
+        val kept = earlier.entries.joinToString("; ") { (id, saved) ->
+            val names = saved.map { it.subscription }.distinct().sorted().joinToString()
+            "${id.ifEmpty { "none named" }}: ${saved.size} ($names)"
+        }
+        val count = earlier.values.sumOf { it.size }
+        return (left?.let { "Topic $topic was created again: its subscriptions leave its incarnation $it and " } ?: "") +
+            "${if (left == null) "Its subscriptions read topic $topic" else "read"} at its incarnation " +
+            "$incarnation, each from where its start says. $count checkpoints of its earlier incarnations are " +
+            "kept and no longer read, by incarnation: $kept."
+    }
 
     private class Guarded(
         private val source: PartitionedSource,
         private val topic: String,
-        private val incarnation: String,
+        private val incarnation: suspend () -> String?,
     ) : PartitionedSource by source {
         private suspend fun check(topic: String) {
             if (topic != this.topic) return
+            val joined = incarnation() ?: return
             val current = source.incarnation(topic)
-            if (current != incarnation) {
-                throw TopicIncarnationException(topic, incarnation, current)
+            if (current != joined) {
+                throw TopicIncarnationException(topic, joined, current)
             }
         }
 
