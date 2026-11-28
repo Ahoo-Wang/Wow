@@ -243,7 +243,7 @@ class DnsPeerDiscoveryTest {
             mapOf("dns" to DnsPeerDiscovery(lookup(dir), namespaceFile(dir)), "static" to StaticPeerDiscovery)
         )
         val services = mapOf("eshop-ordering" to "eshop-ordering", "eshop-payment" to "eshop-payment")
-        PeerEndpoints.of(properties, discoveries, providerSettings(), services::get).use { endpoints ->
+        PeerEndpoints.of(properties, discoveries, providerSettings(), emptySet(), services::get).use { endpoints ->
             endpoints.resolve("mail", Port.INTERNAL).assert().isEqualTo(URI.create("http://mail:9090"))
             endpoints.resolve("mail", Port.PUBLIC).assert().isEqualTo(URI.create("http://mail:8080"))
             endpoints.resolveAll("eshop-ordering", Port.INTERNAL).assert().hasSize(2)
@@ -266,7 +266,7 @@ class DnsPeerDiscoveryTest {
             peer.discovery = "static"
             peers["mail"] = PeerTargetProperties().apply { url = URI.create("http://mail:9090") }
         }
-        PeerEndpoints.of(static, discoveries, providerSettings(), services::get).use { endpoints ->
+        PeerEndpoints.of(static, discoveries, providerSettings(), emptySet(), services::get).use { endpoints ->
             endpoints.reaches("eshop-payment", Port.INTERNAL).assert().isFalse()
             endpoints.resolveAll("eshop-payment", Port.INTERNAL).assert().isEmpty()
         }
@@ -385,7 +385,7 @@ class DnsPeerDiscoveryTest {
             mapOf("dns" to DnsPeerDiscovery(lookup(dir)), "static" to StaticPeerDiscovery)
         )
         fun refused(properties: WowProperties) = assertThrows<WowConfigurationException> {
-            PeerEndpoints.of(properties, discoveries, providerSettings()) { null }
+            PeerEndpoints.of(properties, discoveries, providerSettings(), emptySet()) { null }
         }
         refused(WowProperties().apply { peers["mail"] = PeerTargetProperties() }).message.assert()
             .contains("no contract on the class path names its service")
