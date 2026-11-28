@@ -106,7 +106,7 @@ class ContractWaitHopsTest {
         val contract = File(dir, "contract.json").also { ManifestJson.write(fixtureManifest(), it) }
         val packages = File(dir, "contract-packages.properties").apply { writeText("$SALES=$PACKAGE\n") }
         val output = File(dir, "sources")
-        ManifestTools.generateContractSources(listOf(contract), listOf(packages), emptyList(), output)
+        ManifestTools.generateContractSources(listOf(contract), listOf(packages), emptyList(), output, File(dir, "res"))
         val text = File(output, PACKAGE.replace('.', '/') + "/SalesContract.kt").readText()
         return HOP.findAll(text).associate { match ->
             val (constant, factory, subscription) = match.destructured

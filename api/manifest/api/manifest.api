@@ -317,7 +317,6 @@ public final class me/ahoo/wow/manifest/StateManifest {
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getFingerprint ()Ljava/lang/String;
 	public final fun getSchema ()Ljava/lang/String;
-	public final fun getView ()Ljava/lang/String;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }

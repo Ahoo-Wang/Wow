@@ -218,8 +218,10 @@ internal object ContractRole {
             task.classpath.from(api.provider { generated.compileClasspath })
             task.tools.from(tools)
             task.outputDirectory.set(api.layout.buildDirectory.dir("generated/wow/contract/kotlin"))
+            task.resourcesDirectory.set(api.layout.buildDirectory.dir("generated/wow/contract/resources"))
         }
-        (generated.extensions.getByName("kotlin") as SourceDirectorySet).srcDir(generate)
+        (generated.extensions.getByName("kotlin") as SourceDirectorySet).srcDir(generate.flatMap { it.outputDirectory })
+        generated.resources.srcDir(generate.flatMap { it.resourcesDirectory })
         listOf(
             generated.implementationConfigurationName to main.implementationConfigurationName,
             generated.compileOnlyConfigurationName to main.compileOnlyConfigurationName,

@@ -51,8 +51,8 @@ internal class StateViewSources(
     private val onClassPath: (String) -> Boolean,
 ) {
     fun of(context: ContextManifest): List<ContractSources.Source> {
-        // The names a peer contract carries ([PeerContracts.viewsOf]): a view is of one aggregate, a typed read of it
-        // or a handler of its events names one.
+        // The names of [PeerContracts.viewsOf], which the contract jar lists ([namesOf]): a view is of one aggregate,
+        // a typed read of it or a handler of its events names one.
         val views = viewsOf(context)
         return context.aggregates.mapNotNull { aggregate ->
             val view = views[aggregate.name] ?: return@mapNotNull null
@@ -64,6 +64,9 @@ internal class StateViewSources(
             )
         }
     }
+
+    /** The binary names of the views [of] generates for [context], as [PeerContracts.STATE_VIEWS_RESOURCE] lists them. */
+    fun namesOf(context: ContextManifest): Collection<String> = viewsOf(context).values
 
     /**
      * The Kotlin type of a value of [schema], at [field] of [aggregate]'s state, as [context]'s view of the state types

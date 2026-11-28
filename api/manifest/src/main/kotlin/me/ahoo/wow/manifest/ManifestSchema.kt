@@ -123,8 +123,8 @@ object ManifestSchema {
                 "multiple" to boolean("Whether it holds several values; one when absent."),
             ),
             STATE to objectOf(
-                "An aggregate's state: its schema, the fingerprint of its shape and, in a contract, its view.",
-                listOf("schema"), "schema" to schemaRef(), "fingerprint" to string(), "view" to string()
+                "An aggregate's state: its schema and the fingerprint of its shape.",
+                listOf("schema"), "schema" to schemaRef(), "fingerprint" to string()
             ),
             SNAPSHOT to objectOf(
                 "Whether an aggregate keeps snapshots, and the revision of their state.",

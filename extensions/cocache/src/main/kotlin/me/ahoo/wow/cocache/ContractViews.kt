@@ -13,39 +13,43 @@
 
 package me.ahoo.wow.cocache
 
-import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.manifest.ClassPathContracts
-import me.ahoo.wow.manifest.ManifestFragment
-import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.api.read.StateView
+import me.ahoo.wow.manifest.PeerContracts
+import java.net.URL
 
 /**
- * The state views the peer contracts on a class path name: every api jar carries its contexts' contract
- * (`META-INF/wow/contract.json`), which names the `<State>View` it generates of each state it publishes. A service's
- * own api is on its class path too, so its own aggregates' views are among them.
+ * The state views the contract jars on a class path list: every api module's contract jar lists the `<State>View`s it
+ * generates ([PeerContracts.STATE_VIEWS_RESOURCE]), and each view's `@StateView` names the aggregate it views. A
+ * service's own api is on its class path too, so its own aggregates' views are among them. Every such list is read, a
+ * shaded jar's concatenated one too: blank lines and a name listed twice are ignored.
  */
 internal object ContractViews {
-    /** The view class of each aggregate type [contracts] name a view of. */
-    fun of(contracts: List<ManifestFragment>, classLoader: ClassLoader): Map<AggregateType, Class<*>> =
-        contracts.flatMap { contract ->
-            contract.manifest.contexts.flatMap { context ->
-                context.aggregates.mapNotNull { aggregate ->
-                    aggregate.state.view?.let { view ->
-                        AggregateType(context.name, aggregate.name) to Class.forName(view, false, classLoader)
-                    }
-                }
-            }
-        }.toMap()
-
-    /** The view class of each aggregate type the contracts on [classLoader] name a view of. */
+    /** The view class of each aggregate type the lists on [classLoader] name a view of. */
     fun onClassPath(classLoader: ClassLoader): Map<AggregateType, Class<*>> =
-        of(
-            ClassPathContracts.load(classLoader, { contractsLogger.warn { it } }) { bytes ->
-                WowJson.mapper.readValue(bytes, Map::class.java)
-            },
-            classLoader
-        )
-}
+        classLoader.getResources(PeerContracts.STATE_VIEWS_RESOURCE).toList()
+            .flatMap { list -> namesOf(list).map { list to it } }
+            .distinctBy { it.second }
+            .associate { (list, name) -> viewOf(list, name, classLoader) }
 
-/** The contracts' notices, a peer's contract newer than this reader among them. */
-private val contractsLogger = KotlinLogging.logger(ContractViews::class.java.name)
+    private fun namesOf(list: URL): List<String> =
+        list.openStream().bufferedReader().use { it.readLines() }.map(String::trim).filter(String::isNotEmpty)
+
+    private fun viewOf(list: URL, name: String, classLoader: ClassLoader): Pair<AggregateType, Class<*>> {
+        val view = try {
+            Class.forName(name, false, classLoader)
+        } catch (_: ClassNotFoundException) {
+            throw IllegalStateException(
+                "$list lists the state view $name, which is on no class path entry: the contract jar and the classes " +
+                    "it lists are of different versions, or a shaded jar kept the list without them. Depend on one " +
+                    "version of the api module's contract (Maven: the classifier contract)."
+            )
+        }
+        val type = checkNotNull(StateView.typeOf(view)) {
+            "$list lists $name, which carries no @StateView: the list names only the views the Wow Gradle plugin " +
+                "generates. Build the api module with the Wow Gradle plugin rather than editing or merging the list " +
+                "by hand."
+        }
+        return type to view
+    }
+}

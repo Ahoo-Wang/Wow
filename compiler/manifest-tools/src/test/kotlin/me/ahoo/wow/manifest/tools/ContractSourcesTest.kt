@@ -28,6 +28,7 @@ import me.ahoo.wow.manifest.EventManifest
 import me.ahoo.wow.manifest.FunctionManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.PeerContracts
+import me.ahoo.wow.manifest.PublishedManifest
 import me.ahoo.wow.manifest.QueryManifest
 import me.ahoo.wow.manifest.SnapshotManifest
 import me.ahoo.wow.manifest.StateManifest
@@ -421,7 +422,12 @@ class ContractSourcesTest {
     @Test
     fun `the tools should write a file per context and per state view, and clear what an earlier run left`() {
         val output = File(directory, "out").apply { mkdirs() }
+        val resources = File(directory, "resources").apply { mkdirs() }
         val stale = File(output, "Stale.kt").apply { writeText("") }
+        val staleList = File(resources, PeerContracts.STATE_VIEWS_RESOURCE).apply {
+            parentFile.mkdirs()
+            writeText("shop.api.StaleView\n")
+        }
         val contractFile = File(directory, "contract.json").also { ManifestJson.write(contract(aggregate()), it) }
         val classpath = System.getProperty("java.class.path").split(File.pathSeparator).map(::File)
         val packages = File(directory, "contract-package.properties").apply { writeText("shop-ordering=shop.api\n") }
@@ -430,17 +436,44 @@ class ContractSourcesTest {
             listOf(packages),
             classpath,
             output,
+            resources,
         )
             .assert().isEqualTo(2)
         stale.exists().assert().isFalse()
         File(output, "shop/api/ShopOrderingContract.kt").readText().assert().contains("STATE__LINES__SKU")
         File(output, "shop/api/OrderStateView.kt").readText().assert()
             .contains("@me.ahoo.wow.api.read.StateView(\"shop-ordering.order\")")
+        // The jar lists the view it generates, and only it, by its binary name.
+        staleList.readText().assert().isEqualTo("shop.api.OrderStateView\n")
         // Without wow-query-api on the class path, no query field.
-        ManifestTools.generateContractSources(listOf(contractFile), listOf(packages), emptyList(), output)
+        ManifestTools.generateContractSources(listOf(contractFile), listOf(packages), emptyList(), output, resources)
         File(output, "shop/api/ShopOrderingContract.kt").readText().assert().doesNotContain("STATE__")
-        ManifestTools.generateContractSources(emptyList(), emptyList(), classpath, output).assert().isZero()
+        ManifestTools.generateContractSources(emptyList(), emptyList(), classpath, output, resources).assert().isZero()
         output.exists().assert().isFalse()
+        resources.exists().assert().isFalse()
+    }
+
+    @Test
+    fun `the views' list should name each generated view, sorted, and no state that has none`() {
+        val withheld = aggregate().copyWith(name = "withheld", state = StateManifest(Manifest.schemaRef("Withheld")))
+        val empty = aggregate().copyWith(name = "empty", state = StateManifest(Manifest.schemaRef("Empty")))
+        val base = contract(aggregate())
+        val context = base.contexts.single().let {
+            it.copyWith(
+                aggregates = it.aggregates + withheld + empty,
+                published = it.published + PublishedManifest("withheld", "t", includeState = false),
+            )
+        }
+        val manifest = base.copyWith(
+            contexts = listOf(context),
+            defs = base.defs + ("Withheld" to base.defs.getValue(Manifest.schemaKey(aggregate().state.schema))) +
+                ("Empty" to mapOf("type" to "object")),
+        )
+        val views = ContractSources.viewsOf(manifest, PACKAGES)
+        views.assert().containsExactly("shop.api.OrderStateView")
+        val generated = ContractSources.of(manifest, PACKAGES, queryFields = false) { false }
+            .map { it.path }.filter { it.endsWith("View.kt") }
+        generated.assert().containsExactly("shop/api/OrderStateView.kt")
     }
 
     private companion object {

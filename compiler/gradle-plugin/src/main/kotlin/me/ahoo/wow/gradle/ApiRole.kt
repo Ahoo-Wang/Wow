@@ -69,7 +69,6 @@ internal object ApiRole {
         val assemble = project.tasks.register(ASSEMBLE_CONTRACT_TASK, AssembleContract::class.java) { task ->
             task.description = "Takes the contracts of this api module's contexts from the domain modules it declares."
             task.contracts.from(contractsOf(contracts))
-            task.contractPackages.from(contractPackagesOf(contracts))
             task.owners.set(ownersOf(contracts))
             task.classes.from(main.output.classesDirs)
             task.owner.set(project.path)
@@ -149,7 +148,7 @@ internal object ApiRole {
     /**
      * The file a domain module's contract variant carries beside its contract: the package of each of its contexts'
      * generated code ([WowExtension.contractPackage]), `<context>=<package>` lines, which the api module's
-     * [AssembleContract] and [GenerateContractSources] read. A build input of the plugin's own: never published, no
+     * [GenerateContractSources] reads. A build input of the plugin's own: never published, no
      * other tool reads it, and it has no schema and no version.
      */
     const val CONTRACT_PACKAGES_FILE = "contract-package.properties"

@@ -107,12 +107,12 @@ class ContractPackageFunctionalTest {
         again.output.assert().contains("Configuration cache entry reused")
         again.task(jarTask)?.outcome.assert().isEqualTo(TaskOutcome.UP_TO_DATE)
 
-        // Another package reruns the contract and its code, and nothing the package does not reach.
+        // Another package reruns the contract's code, and nothing the package does not reach: the assembled contract
+        // names no package and no view, so it stays as it was.
         setPackage(root, "a.contract")
         val moved = runner(root, jarTask, "--configuration-cache").build()
         listOf(
             ":a-domain:${WowPlugin.GENERATE_CONTRACT_TASK}",
-            ":a-api:${WowPlugin.ASSEMBLE_CONTRACT_TASK}",
             ":a-api:${WowPlugin.GENERATE_CONTRACT_SOURCES_TASK}",
             jarTask,
         ).forEach { moved.task(it)?.outcome.assert().describedAs(it).isEqualTo(TaskOutcome.SUCCESS) }
@@ -120,6 +120,7 @@ class ContractPackageFunctionalTest {
             ":a-api:compileKotlin",
             ":a-domain:compileKotlin",
             ":a-domain:${WowPlugin.GENERATE_FRAGMENT_TASK}",
+            ":a-api:${WowPlugin.ASSEMBLE_CONTRACT_TASK}",
         ).forEach { moved.task(it)?.outcome.assert().describedAs(it).isEqualTo(TaskOutcome.UP_TO_DATE) }
         entries(jar).assert().contains("a/contract/AContract.class").doesNotContain("a/api/AContract.class")
     }

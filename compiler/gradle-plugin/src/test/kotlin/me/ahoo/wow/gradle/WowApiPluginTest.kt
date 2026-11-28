@@ -163,6 +163,11 @@ class WowApiPluginTest {
         task.classpath.buildDependencies.getDependencies(null).map { it.name }.assert().contains("compileKotlin")
         // Without wow-query-api on it (the builder resolves no repository): no query fields.
         task.classpath.setFrom()
+        // The views' list is a resource of the generated source set, so the contract jar carries it.
+        val resources = task.resourcesDirectory.get().asFile
+        resources.assert().isEqualTo(File(api.layout.buildDirectory.get().asFile, "generated/wow/contract/resources"))
+        api.extensions.getByType(SourceSetContainer::class.java).getByName(WowPlugin.CONTRACT_SOURCE_SET)
+            .resources.srcDirs.assert().contains(resources)
 
         task.submit(inProcessQueue(api))
 
@@ -256,7 +261,6 @@ class WowApiPluginTest {
         File(classes, "sample/AddItem.class").apply { parentFile.mkdirs() }.writeText("")
         return (api.tasks.getByName(WowPlugin.ASSEMBLE_CONTRACT_TASK) as AssembleContract).apply {
             this.contracts.setFrom(*contracts)
-            this.contractPackages.setFrom(contracts.map(::packagesOf).filter { it.isFile })
             // The domain module each contract comes from, as the build resolves it once the domain's task has run; a
             // contract of no known owner (the second) is named by its file.
             this.owners.set(contracts.take(1).associate { it.path to "project ':${it.nameWithoutExtension}-domain'" })

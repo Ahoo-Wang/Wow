@@ -26,12 +26,23 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * with `ClassLoader.getResources(RESOURCE)`, one URL per jar or directory: no directory is listed.
  *
  * A shaded (uber) jar that merges its libraries' entries into one keeps only one [RESOURCE] unless it merges the files:
- * one JSON object whose `contexts` are those of every file and whose `$defs` and `errors` are their union. An
- * executable Spring Boot jar keeps each library jar whole and needs nothing.
+ * one JSON object whose `contexts` are those of every file and whose `$defs` and `errors` are their union; and one
+ * [STATE_VIEWS_RESOURCE], whose files it concatenates. An executable Spring Boot jar keeps each library jar whole and
+ * needs nothing.
  */
 object PeerContracts {
     /** Where a jar carries the contract of the contexts of its api module. */
     const val RESOURCE: String = "META-INF/wow/contract.json"
+
+    /**
+     * Where a contract jar lists the `<State>View`s generated from its contract ([viewsOf]), beside [RESOURCE]: one
+     * binary name a line, sorted, written by the task that generates the views, so a view is listed exactly when its
+     * class is in the jar. Each view's `@StateView` names the aggregate it views. It is not part of the Manifest, which
+     * every language reads: only a JVM consumer can load a view (#6550's rule). A reader takes every such resource
+     * on its class path and ignores blank lines and a name listed twice.
+     */
+    @InternalWowApi
+    const val STATE_VIEWS_RESOURCE: String = "META-INF/wow/state-views.txt"
 
     /**
      * The contract of the contexts of [fragments], the completed Manifest fragments of a domain module: per context its
@@ -156,22 +167,6 @@ object PeerContracts {
     }
 
     /**
-     * [contract] with each state's [StateManifest.view] set ([viewsOf]), as an api module's jar carries it, each
-     * context's views falling back to its package in [contractPackages], by context name.
-     */
-    @InternalWowApi
-    fun withViews(contract: Manifest, contractPackages: Map<String, String>): Manifest = contract.copyWith(
-        contexts = contract.contexts.map { context ->
-            val views = viewsOf(context, contract.defs, contractPackageOf(context, contractPackages))
-            context.copyWith(
-                aggregates = context.aggregates.map { aggregate ->
-                    aggregate.copyWith(state = aggregate.state.copyWith(view = views[aggregate.name]))
-                },
-            )
-        },
-    )
-
-    /**
      * The package of [context]'s generated `<Context>Contract` among [contractPackages], by context name: what its
      * domain module's `wow { contractPackage }` sets, which the domain module's build refuses to leave unset.
      *
@@ -211,8 +206,7 @@ object PeerContracts {
      * The contract the api module [owner] carries: of the contexts of the domain modules' [contracts], those whose
      * command and event classes are its own ([owns], by binary name). A context with none of its classes is another
      * api module's, and is left out; a context with some of them and not others fails, as does a context two
-     * contracts declare. Null when no context is the api module's. Each state's view ([withViews]) falls back to its
-     * context's package in [contractPackages].
+     * contracts declare. Null when no context is the api module's.
      *
      * @throws IllegalStateException listing every problem.
      */
@@ -220,7 +214,6 @@ object PeerContracts {
     fun assemble(
         owner: String,
         contracts: List<ManifestFragment>,
-        contractPackages: Map<String, String>,
         owns: (String) -> Boolean,
     ): Manifest? {
         val problems = mutableListOf<String>()
@@ -272,7 +265,7 @@ object PeerContracts {
             contexts = kept.map { it.second }.sortedBy { it.name },
             errors = kept.flatMap { it.first.manifest.errors }.distinctBy { it.code },
         )
-        return withViews(contract.copyWith(defs = referenced(contract.schemaRefs, defs)), contractPackages)
+        return contract.copyWith(defs = referenced(contract.schemaRefs, defs))
     }
 
     /**
