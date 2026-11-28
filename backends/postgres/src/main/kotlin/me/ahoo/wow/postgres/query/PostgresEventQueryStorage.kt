@@ -49,7 +49,7 @@ import javax.sql.DataSource
  * the attribute holding a value ([PostgresQueryIndexes.planLog]), so a query under an access policy uses its
  * attributes' indexes, and any other that does not pin the aggregate (or the request) scans the aggregate type's
  * table. The entry's budget bounds it (`statement_timeout`, sizes, the count limit); an analytics-heavy deployment
- * serves the model from ClickHouse or Elasticsearch.
+ * serves the model from Elasticsearch (`query.events.store`), whose sink indexes the streams.
  */
 @InternalWowApi
 class PostgresEventQueryStorage @JvmOverloads constructor(

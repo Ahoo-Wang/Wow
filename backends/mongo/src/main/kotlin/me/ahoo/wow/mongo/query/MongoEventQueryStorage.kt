@@ -54,7 +54,8 @@ import tools.jackson.databind.node.ObjectNode
  * the log's own partition function over the log's partition count ([partitions]), so it reads the version key; a
  * query under an access policy uses its attributes' indexes, and any other scans the aggregate type's collection. The entry's budget bounds it (`maxTimeMS`, sizes, the count limit). [readPreference] moves the reads
  * off the primary (`secondaryPreferred`, say), at the cost of reading a little behind the appends; the primary's by
- * default. An analytics-heavy deployment serves the model from ClickHouse or Elasticsearch.
+ * default. An analytics-heavy deployment serves the model from Elasticsearch (`query.events.store`), whose sink
+ * indexes the streams.
  */
 @InternalWowApi
 class MongoEventQueryStorage @JvmOverloads constructor(

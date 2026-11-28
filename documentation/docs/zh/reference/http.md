@@ -67,7 +67,7 @@ outline: deep
 
 `wow.http.request-facts` 列出的请求头会复制进命令，并写进它的事件流。
 
-前缀 `Wow-` 属于 Wow。除了上面这些请求头，公开端口还接收 `Wow-Service`（它不读取）和开发身份请求头（`Wow-User`、`Wow-Owner`、`Wow-Roles`、`Wow-Tenant`、`Wow-App`，只在开发 profile 下读取）。先升级节点，再升级客户端：客户端发送更新版本 Wow 的 `Wow-` 请求头时，旧节点会拒绝它。内部端口仍然读取下一个次版本的对端发送的内容。
+前缀 `Wow-` 属于 Wow。除了上面这些请求头，公开端口还接收 `Wow-Service`（它不读取）和开发身份请求头（`Wow-User`、`Wow-Owner`、`Wow-Roles`、`Wow-Tenant`、`Wow-App`，只在开发 profile 下读取）。先升级节点，再升级客户端：客户端发送更新版本 Wow 的 `Wow-` 请求头时，旧节点会拒绝它。经公开端口以用户模式调用另一个服务的服务就是它的客户端，所以被调用的服务的节点先升级。内部端口仍然读取下一个次版本的对端发送的内容。
 
 ### 公开端口拒绝什么 {#refused}
 
