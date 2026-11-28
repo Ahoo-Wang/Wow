@@ -66,8 +66,11 @@ internal class IntakeIncarnation(
         return incarnation
     }
 
-    /** [source] as the intake reads it: each read it places is checked against the incarnation resolved. */
-    val guarded: PartitionedSource = incarnations.guarded(source) { resolve() }
+    /**
+     * [source] as the intake reads it: each read it places is checked against the incarnation resolved, and one of
+     * another incarnation is refused, its refusal saying the intake joins it when its node starts again ([JOINS]).
+     */
+    val guarded: PartitionedSource = incarnations.guarded(source, JOINS) { resolve() }
 
     /** The intake's entries of [topic], of a log of [partitions] partitions: read [guarded], parked with [incarnation]. */
     fun entries(partitions: Int, observer: Observer): MessageEntries =
@@ -95,5 +98,8 @@ internal class IntakeIncarnation(
 
     private companion object {
         val logger = KotlinLogging.logger {}
+
+        /** When the intake joins a new incarnation of its topic, as its refusals say. */
+        const val JOINS = "when its node starts again"
     }
 }

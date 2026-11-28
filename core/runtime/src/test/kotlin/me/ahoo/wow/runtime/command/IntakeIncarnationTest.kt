@@ -68,6 +68,7 @@ class IntakeIncarnationTest {
         intake.guarded.read(TOPIC, 0, 0, 0).toList().assert().isEmpty()
         told.incarnation = B
         assertThrownBy<TopicIncarnationException> { runBlocking { intake.guarded.read(TOPIC, 0, 0, 1).toList() } }
+            .hasMessageContaining("incarnation $B now").hasMessageContaining("join $B, when its node starts again.")
         intake.resolve().assert().isEqualTo(A)
 
         val untold = IntakeIncarnation(topics, TOPIC, GROUP, store)

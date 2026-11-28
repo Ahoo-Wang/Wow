@@ -51,11 +51,11 @@ class CommandIntakeRecreatedTopicTest : CommandIntakeFixtures() {
     @Test
     fun `a node that starts after its command topic was created again takes every command of the new one`(): Unit =
         runBlocking {
-            val warnings = warningsOf<IntakeIncarnation>()
+            val warnings = warningsOf("me.ahoo.wow.runtime.command.IntakeIncarnation")
             val first = reading("stock-1").also { it.start() }
             send("c-1", "c-2")
             eventually { stock.decided.containsAll(listOf("c-1", "c-2")) }
-            eventually { checkpointOf(first, A) == 2L }
+            eventually { savedOf(first) == 2L }
             first.stop()
             nodes -= first
 
@@ -63,6 +63,7 @@ class CommandIntakeRecreatedTopicTest : CommandIntakeFixtures() {
             send("c-3", "c-4", "c-5")
             val second = reading("stock-2").also { it.start() }
 
+            // Read from the old topic's offset, the new topic's first two commands would never be taken.
             eventually { "c-5" in stock.decided }
             stock.decided.assert().containsExactly("c-1", "c-2", "c-3", "c-4", "c-5")
             eventually { checkpointOf(second, B) == 3L }
@@ -101,11 +102,20 @@ class CommandIntakeRecreatedTopicTest : CommandIntakeFixtures() {
 
     /** The intake's checkpoint of item `i-1`'s partition under [incarnation]'s group. */
     private suspend fun checkpointOf(node: ServiceNode, incarnation: String): Long =
-        stockBackends.backends(STOCK).checkpoints.load(
-            "${node.context(STOCK).group.name}#$incarnation",
-            CommandIntake.NAME,
-            Partitioner.partitionOf(ITEM.ref(TENANT, "i-1"), PARTITIONS),
-        ) ?: 0L
+        checkpointIn("${node.context(STOCK).group.name}#$incarnation")
+
+    /**
+     * The intake's checkpoint of item `i-1`'s partition as saved, whichever group keeps it: the log group's name, as
+     * before #7246, or the incarnation's group. The test then runs against either wiring.
+     */
+    private suspend fun savedOf(node: ServiceNode): Long =
+        maxOf(checkpointIn(node.context(STOCK).group.name), checkpointOf(node, A))
+
+    private suspend fun checkpointIn(group: String): Long = stockBackends.backends(STOCK).checkpoints.load(
+        group,
+        CommandIntake.NAME,
+        Partitioner.partitionOf(ITEM.ref(TENANT, "i-1"), PARTITIONS),
+    ) ?: 0L
 
     /** A stock node whose intake reads [commands], its receipts on the fixture's topics. */
     private fun reading(name: String): ServiceNode = ServiceNode(
@@ -124,8 +134,9 @@ class CommandIntakeRecreatedTopicTest : CommandIntakeFixtures() {
         channel.bind(it.address, it.forwardHandler)
     }
 
-    private inline fun <reified T> warningsOf(): ListAppender<ILoggingEvent> {
-        val logger = LoggerFactory.getLogger(T::class.java) as Logger
+    /** What the logger [name] logs: named rather than a class's, so the test compiles against either wiring. */
+    private fun warningsOf(name: String): ListAppender<ILoggingEvent> {
+        val logger = LoggerFactory.getLogger(name) as Logger
         return ListAppender<ILoggingEvent>().apply { start() }.also { logger.addAppender(it) }
     }
 

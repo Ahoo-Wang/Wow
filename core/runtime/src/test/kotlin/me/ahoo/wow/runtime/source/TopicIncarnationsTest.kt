@@ -137,6 +137,7 @@ class TopicIncarnationsTest {
     @Test
     fun `a refusal names the topic and both incarnations, or says the topic does not exist now`() {
         TopicIncarnationException(TOPIC, A, B).message.assert().contains(TOPIC).contains("incarnation $B").contains(A)
+            .endsWith("join $B, at the next refresh of the topic's partitions.")
         TopicIncarnationException(TOPIC, A, null).message.assert().contains("does not exist now").contains(A)
     }
 
