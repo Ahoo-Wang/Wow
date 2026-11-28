@@ -80,6 +80,20 @@ internal class ManifestSchemaReader(
     fun declaration(schema: Map<*, *>, field: QueryField<*>): QueryFieldDeclaration =
         read(schema, field.path, emptySet()).settled(field.path)
 
+    /**
+     * [field] as an array whose items are one of [variants], each read as [declaration] reads a schema and each masked
+     * by its own rules: the events model's `events[]`, whose events the gateway masks each by its own event's schema
+     * (`EventsQueryModelProfile.masksResponses` is false), so two variants may mask one path by different rules. A
+     * union within a variant is masked through, and keeps the one rule a union's response value takes.
+     */
+    fun variants(variants: List<Map<*, *>>, field: QueryField<*>): QueryFieldDeclaration = QueryFieldDeclaration(
+        kind = DeclarationValue.Set(QueryValueKind.ARRAY),
+        nullable = DeclarationValue.Set(false),
+        items = DeclarationValue.Set(
+            union(variants.map { read(it, field.path, emptySet()) }, field.path, oneRule = false),
+        ),
+    ).settled(field.path)
+
     private fun read(schema: Map<*, *>, field: String, resolving: Set<String>): QueryFieldDeclaration {
         val parts = buildList {
             structure(schema, field, resolving)?.let(::add)
@@ -210,8 +224,15 @@ internal class ManifestSchemaReader(
         )
     }
 
-    /** One value of [branches]: a single non-null branch made nullable by a `null` one, else a union. */
-    private fun union(branches: List<QueryFieldDeclaration>, field: String): QueryFieldDeclaration {
+    /**
+     * One value of [branches]: a single non-null branch made nullable by a `null` one, else a union, whose alternatives
+     * mask each path by one rule when its response value is masked through it ([oneRule]).
+     */
+    private fun union(
+        branches: List<QueryFieldDeclaration>,
+        field: String,
+        oneRule: Boolean = true,
+    ): QueryFieldDeclaration {
         val nullable = branches.any { it.inferredKind() == QueryValueKind.NULL }
         val values = branches.filter { it.inferredKind() != QueryValueKind.NULL }
         return when (values.size) {
@@ -221,7 +242,7 @@ internal class ManifestSchemaReader(
             )
             else -> {
                 val alternatives = values.map { it.copy(nullable = DeclarationValue.Set(false)) }
-                requireConsistentMaskRules(alternatives, field)
+                if (oneRule) requireConsistentMaskRules(alternatives, field)
                 QueryFieldDeclaration(
                     kind = DeclarationValue.Set(QueryValueKind.UNION),
                     alternatives = DeclarationValue.Set(alternatives + listOfNotNull(NULL_BRANCH.takeIf { nullable })),
