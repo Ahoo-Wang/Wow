@@ -26,6 +26,7 @@ import me.ahoo.wow.runtime.subscription.SourcedEntry
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
 import me.ahoo.wow.runtime.subscription.UndecodableMessage
 import me.ahoo.wow.runtime.subscription.UnrecoverableException
+import me.ahoo.wow.runtime.subscription.requireIncarnationOf
 import me.ahoo.wow.runtime.subscription.requireUnmoved
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.log.EventRecord
@@ -67,6 +68,8 @@ internal class MessageEntries private constructor(
     private val observer: Observer,
     /** Whether [partitioner] is the broker's, which maps a key elsewhere once the topic gains partitions. */
     override val partitionsGrow: Boolean,
+    /** The incarnation of [topic] its subscriptions read, recorded with each park; none if its source tells none. */
+    override val incarnation: String? = null,
     private val decode: (Envelope) -> Decoded,
 ) : EntrySource {
     /** What a message holds: the aggregate whose lane it runs in, the command it is about, and the [message]. */
@@ -103,6 +106,7 @@ internal class MessageEntries private constructor(
     override fun ordinalOf(parked: ParkedAggregate): Long = (parked.fromPosition ?: -1L) + 1
 
     override suspend fun retryEntries(parked: ParkedAggregate): Flow<SourcedEntry> {
+        requireIncarnationOf(parked)
         val ref = parked.ref
         val partition = partitionOf(ref)
         requireUnmoved(topic, parked, partition)
@@ -196,6 +200,7 @@ internal class MessageEntries private constructor(
             source: PartitionedSource,
             partitions: Int,
             observer: Observer = Observer.NONE,
+            incarnation: String? = null,
         ): MessageEntries = MessageEntries(
             topic,
             source,
@@ -204,6 +209,7 @@ internal class MessageEntries private constructor(
             { source.partitionOf(topic, it.toString()) },
             observer,
             partitionsGrow = true,
+            incarnation = incarnation,
         ) { envelope ->
             when (val receipt = CommandMessages.receiptOf(envelope)) {
                 is CommandReceipt.Committed<*> -> Decoded(

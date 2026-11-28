@@ -52,6 +52,18 @@ class KafkaTopicAdminTest {
         }
 
     @Test
+    fun `a topic's id is the broker's, the same at each ask, and a topic the broker does not know fails`():
+        Unit = runBlocking {
+        val topic = KafkaFixture.newTopic(1, "wow.it.admin")
+        val first = admin.topicId(topic)
+        first.assert().isNotNull()
+        admin.topicId(topic).assert().isEqualTo(first)
+
+        val failure = runCatching { admin.topicId("wow.it.admin.never.created.state") }.exceptionOrNull()
+        failure.assert().isNotNull()
+    }
+
+    @Test
     fun `asking a source about a topic should not create it, and partitions added later should be seen`(): Unit =
         runBlocking {
             val options = KafkaOptions(

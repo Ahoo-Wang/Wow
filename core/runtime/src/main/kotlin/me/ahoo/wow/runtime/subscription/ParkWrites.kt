@@ -82,6 +82,7 @@ internal class ParkWrites(
             source.sourcePosition(sourced),
             // As 9.x records its RecoverableType: an unrecoverable failure is not retried automatically either.
             recoverable = if (unrecoverable) Recoverable.UNRECOVERABLE else Recoverable.UNKNOWN,
+            fromIncarnation = source.incarnation,
         )
         workerLogger.warn(failure) {
             val after = when {
@@ -126,6 +127,7 @@ internal class ParkWrites(
             classification.reasonOf(failure),
             clock.millis(),
             fromPosition,
+            fromIncarnation = source.incarnation,
         ).also { repark(it, from) }
     }
 

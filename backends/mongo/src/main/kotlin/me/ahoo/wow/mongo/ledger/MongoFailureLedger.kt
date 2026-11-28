@@ -146,6 +146,7 @@ class MongoFailureLedger(
             .append(FAILED_AT, literal(entry.failedAt))
             .append(FROM_POSITION, literal(entry.fromPosition))
             .append(SKIP_ONLY, literal(entry.skipOnly))
+            .append(FROM_INCARNATION, incarnationOf(entry))
             .append(RETRIES, kept(RETRIES, entry.retries))
             .append(LAST_RETRY_AT, kept(LAST_RETRY_AT, entry.lastRetryAt))
             .append(RETRY_SPEC, kept(RETRY_SPEC, specOf(entry.retrySpec)))
@@ -172,6 +173,7 @@ class MongoFailureLedger(
             .append(FAILED_AT, literal(entry.failedAt))
             .append(FROM_POSITION, literal(entry.fromPosition))
             .append(SKIP_ONLY, literal(entry.skipOnly))
+            .append(FROM_INCARNATION, incarnationOf(entry))
             .append(REQUEST, sameParking(entry.failedAt, "\$$REQUEST"))
             .append(NEXT_ATTEMPT_AT, null)
             .append(REVISION, Document("\$add", listOf(STORED_REVISION, 1L)))
@@ -309,6 +311,7 @@ class MongoFailureLedger(
             .append(FAILED_AT, literal(amended.failedAt))
             .append(FROM_POSITION, literal(amended.fromPosition))
             .append(SKIP_ONLY, literal(amended.skipOnly))
+            .append(FROM_INCARNATION, incarnationOf(amended))
             .append(RETRIES, literal(amended.retries))
             .append(LAST_RETRY_AT, literal(amended.lastRetryAt))
             .append(RETRY_SPEC, literal(specOf(amended.retrySpec)))
@@ -365,6 +368,7 @@ class MongoFailureLedger(
         failedAt = document.getLong(FAILED_AT),
         fromPosition = document.getLong(FROM_POSITION),
         skipOnly = document.getBoolean(SKIP_ONLY),
+        fromIncarnation = document.getString(FROM_INCARNATION),
         retries = document.getInteger(RETRIES),
         lastRetryAt = document.getLong(LAST_RETRY_AT),
         retrySpec = document.get(RETRY_SPEC, Document::class.java)?.let { spec ->
@@ -424,6 +428,9 @@ class MongoFailureLedger(
         const val FAILED_AT = "failed_at"
         const val FROM_POSITION = "from_position"
 
+        /** The incarnation of the topic whose offset [FROM_POSITION] is: left out of an entry that has none. */
+        const val FROM_INCARNATION = "from_incarnation"
+
         /** Whether the source no longer holds what the entry is parked from, a boolean every document has. */
         const val SKIP_ONLY = "skip_only"
         const val RETRIES = "retries"
@@ -451,6 +458,9 @@ class MongoFailureLedger(
 
         /** [value] as a pipeline update takes it as it is, never as an expression or a field path. */
         fun literal(value: Any?): Document = Document("\$literal", value)
+
+        /** [entry]'s incarnation, or the removal of the field in a pipeline's `$set` when it has none. */
+        fun incarnationOf(entry: ParkedAggregate): Any = entry.fromIncarnation?.let(::literal) ?: "\$\$REMOVE"
 
         /** In a pipeline update, [stored] while the entry stored fails at [failedAt], else null. */
         fun sameParking(failedAt: Long, stored: String): Document =

@@ -86,6 +86,8 @@ class KafkaPartitionedSource(
     val offsetGap: OffsetGapPolicy = OffsetGapPolicy.FAIL,
     /** The node's observer, told of every offset gap a read meets. */
     observer: Observer = Observer.NONE,
+    /** The id the broker gives a topic (KIP-516), its [incarnation]; none by default. */
+    private val topicIds: suspend (String) -> String? = { null },
 ) : PartitionedSource, AutoCloseable {
 
     private val gaps = OffsetGaps(offsetGap, observer)
@@ -106,6 +108,9 @@ class KafkaPartitionedSource(
     /** Whether it was closed ([close]): every call after that is refused. */
     @Volatile
     private var closed = false
+
+    /** The topic's id, which the broker gives each creation of it: another once it is deleted and created again. */
+    override suspend fun incarnation(topic: String): String? = topicIds(topic)
 
     override suspend fun partitions(topic: String): List<Int> = metadata { consumer ->
         // Empty for a topic the broker does not know.
@@ -309,19 +314,21 @@ class KafkaPartitionedSource(
 
         /**
          * A source whose consumers have [options]' configuration, its reads meeting an offset gap as [offsetGap] says
-         * and telling [observer] of it.
+         * and telling [observer] of it, each topic's incarnation the id [topicIds] gives.
          */
         @InternalWowApi
         fun create(
             options: KafkaOptions,
             offsetGap: OffsetGapPolicy,
             observer: Observer = Observer.NONE,
+            topicIds: suspend (String) -> String? = { null },
         ): KafkaPartitionedSource = KafkaPartitionedSource(
             { clientId -> KafkaConsumer<String, ByteArray>(options.consumerConfig(clientId)) },
             options.pollTimeout,
             VirtualThreads.dispatcher,
             offsetGap,
             observer,
+            topicIds,
         )
     }
 }

@@ -76,6 +76,30 @@ abstract class FailureLedgerParkingSpec {
     }
 
     @Test
+    fun `an entry should keep the incarnation of the topic it was parked in, and one parked without it reads none`():
+        Unit = runBlocking {
+        // An entry of a topic: its position is of one incarnation of the topic, the topic's id on Kafka.
+        val parked = entry(5, FAILED_AT).copyWith(fromPosition = 40, fromIncarnation = INCARNATION)
+        ledger.park(parked).assert().isTrue()
+        parked().fromIncarnation.assert().isEqualTo(INCARNATION)
+        ledger.list(subscription).single().fromIncarnation.assert().isEqualTo(INCARNATION)
+        // An operator's amendment keeps it.
+        ledger.amend(subscription, ref, ParkedAmendment.ApplyRetrySpec(SPEC, FAILED_AT))
+        parked().fromIncarnation.assert().isEqualTo(INCARNATION)
+        // A repark writes it as it writes the position: none, for an entry of a source that tells no incarnation.
+        ledger.repark(entry(3, FAILED_AT + 1).copyWith(fromPosition = 30)).assert().isTrue()
+        parked().fromIncarnation.assert().isNull()
+        ledger.repark(
+            entry(3, FAILED_AT + 2).copyWith(fromPosition = 31, fromIncarnation = INCARNATION)
+        ).assert().isTrue()
+        parked().fromIncarnation.assert().isEqualTo(INCARNATION)
+        ledger.resolveAnywhere(subscription, ref)!!.fromIncarnation.assert().isEqualTo(INCARNATION)
+        // Parked anew after its resolve, by a source that tells none.
+        ledger.park(entry(4, FAILED_AT + 3)).assert().isTrue()
+        parked().fromIncarnation.assert().isNull()
+    }
+
+    @Test
     fun `a skip asked of a parking a repark replaced should be refused in the ledger's write`(): Unit = runBlocking {
         ledger.park(entry(5, FAILED_AT))
         val seen = parked()
@@ -131,6 +155,7 @@ abstract class FailureLedgerParkingSpec {
         }
 
     private companion object {
+        const val INCARNATION = "5b6f1e0c-7a2e-4c1a-9d8e-2f4b6c8a0e1d"
         const val CONTEXT = "ledger-parking"
         const val FAILED_AT = 1_700_000_000_000L
         const val RACES = 20

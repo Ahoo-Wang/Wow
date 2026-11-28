@@ -228,6 +228,7 @@ public final class me/ahoo/wow/spi/ledger/ParkedAggregate {
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun exhausted (Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;)Z
 	public final fun getFailedAt ()J
+	public final fun getFromIncarnation ()Ljava/lang/String;
 	public final fun getFromPosition ()Ljava/lang/Long;
 	public final fun getFromVersion ()I
 	public final fun getLastRetryAt ()Ljava/lang/Long;
@@ -254,6 +255,7 @@ public final class me/ahoo/wow/spi/ledger/ParkedAggregate {
 	public static final fun of (Lme/ahoo/wow/spi/subscription/SubscriptionId;Lme/ahoo/wow/api/aggregate/AggregateRef;IILjava/lang/String;JLjava/lang/Long;ZILjava/lang/Long;Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;Lme/ahoo/wow/api/ledger/Recoverable;Lme/ahoo/wow/api/ledger/LedgerRequest;)Lme/ahoo/wow/spi/ledger/ParkedAggregate;
 	public static final fun of (Lme/ahoo/wow/spi/subscription/SubscriptionId;Lme/ahoo/wow/api/aggregate/AggregateRef;IILjava/lang/String;JLjava/lang/Long;ZILjava/lang/Long;Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;Lme/ahoo/wow/api/ledger/Recoverable;Lme/ahoo/wow/api/ledger/LedgerRequest;Ljava/lang/Long;)Lme/ahoo/wow/spi/ledger/ParkedAggregate;
 	public static final fun of (Lme/ahoo/wow/spi/subscription/SubscriptionId;Lme/ahoo/wow/api/aggregate/AggregateRef;IILjava/lang/String;JLjava/lang/Long;ZILjava/lang/Long;Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;Lme/ahoo/wow/api/ledger/Recoverable;Lme/ahoo/wow/api/ledger/LedgerRequest;Ljava/lang/Long;J)Lme/ahoo/wow/spi/ledger/ParkedAggregate;
+	public static final fun of (Lme/ahoo/wow/spi/subscription/SubscriptionId;Lme/ahoo/wow/api/aggregate/AggregateRef;IILjava/lang/String;JLjava/lang/Long;ZILjava/lang/Long;Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;Lme/ahoo/wow/api/ledger/Recoverable;Lme/ahoo/wow/api/ledger/LedgerRequest;Ljava/lang/Long;JLjava/lang/String;)Lme/ahoo/wow/spi/ledger/ParkedAggregate;
 	public final fun retryable (Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;)Z
 	public fun toString ()Ljava/lang/String;
 }
@@ -269,7 +271,8 @@ public final class me/ahoo/wow/spi/ledger/ParkedAggregate$Companion {
 	public final fun of (Lme/ahoo/wow/spi/subscription/SubscriptionId;Lme/ahoo/wow/api/aggregate/AggregateRef;IILjava/lang/String;JLjava/lang/Long;ZILjava/lang/Long;Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;Lme/ahoo/wow/api/ledger/Recoverable;Lme/ahoo/wow/api/ledger/LedgerRequest;)Lme/ahoo/wow/spi/ledger/ParkedAggregate;
 	public final fun of (Lme/ahoo/wow/spi/subscription/SubscriptionId;Lme/ahoo/wow/api/aggregate/AggregateRef;IILjava/lang/String;JLjava/lang/Long;ZILjava/lang/Long;Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;Lme/ahoo/wow/api/ledger/Recoverable;Lme/ahoo/wow/api/ledger/LedgerRequest;Ljava/lang/Long;)Lme/ahoo/wow/spi/ledger/ParkedAggregate;
 	public final fun of (Lme/ahoo/wow/spi/subscription/SubscriptionId;Lme/ahoo/wow/api/aggregate/AggregateRef;IILjava/lang/String;JLjava/lang/Long;ZILjava/lang/Long;Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;Lme/ahoo/wow/api/ledger/Recoverable;Lme/ahoo/wow/api/ledger/LedgerRequest;Ljava/lang/Long;J)Lme/ahoo/wow/spi/ledger/ParkedAggregate;
-	public static synthetic fun of$default (Lme/ahoo/wow/spi/ledger/ParkedAggregate$Companion;Lme/ahoo/wow/spi/subscription/SubscriptionId;Lme/ahoo/wow/api/aggregate/AggregateRef;IILjava/lang/String;JLjava/lang/Long;ZILjava/lang/Long;Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;Lme/ahoo/wow/api/ledger/Recoverable;Lme/ahoo/wow/api/ledger/LedgerRequest;Ljava/lang/Long;JILjava/lang/Object;)Lme/ahoo/wow/spi/ledger/ParkedAggregate;
+	public final fun of (Lme/ahoo/wow/spi/subscription/SubscriptionId;Lme/ahoo/wow/api/aggregate/AggregateRef;IILjava/lang/String;JLjava/lang/Long;ZILjava/lang/Long;Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;Lme/ahoo/wow/api/ledger/Recoverable;Lme/ahoo/wow/api/ledger/LedgerRequest;Ljava/lang/Long;JLjava/lang/String;)Lme/ahoo/wow/spi/ledger/ParkedAggregate;
+	public static synthetic fun of$default (Lme/ahoo/wow/spi/ledger/ParkedAggregate$Companion;Lme/ahoo/wow/spi/subscription/SubscriptionId;Lme/ahoo/wow/api/aggregate/AggregateRef;IILjava/lang/String;JLjava/lang/Long;ZILjava/lang/Long;Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;Lme/ahoo/wow/api/ledger/Recoverable;Lme/ahoo/wow/api/ledger/LedgerRequest;Ljava/lang/Long;JLjava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/spi/ledger/ParkedAggregate;
 }
 
 public abstract interface class me/ahoo/wow/spi/ledger/ParkedAmendment {
@@ -1987,6 +1990,7 @@ public final class me/ahoo/wow/spi/transport/PartitionOffsets$Companion {
 }
 
 public abstract interface class me/ahoo/wow/spi/transport/PartitionedSource {
+	public fun incarnation (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun offsets (Ljava/lang/String;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun partitionOf (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun partitions (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;

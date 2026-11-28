@@ -31,6 +31,7 @@ import me.ahoo.wow.runtime.subscription.SubscriptionStart
 import me.ahoo.wow.runtime.subscription.TimedEntry
 import me.ahoo.wow.runtime.subscription.UndecodableMessage
 import me.ahoo.wow.runtime.subscription.UnrecoverableException
+import me.ahoo.wow.runtime.subscription.requireIncarnationOf
 import me.ahoo.wow.runtime.subscription.requireUnmoved
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.log.EventRecord
@@ -82,6 +83,8 @@ internal class TopicEntries(
     private val source: PartitionedSource,
     private val partitions: Int,
     private val observer: Observer = Observer.NONE,
+    /** The incarnation of [topic] its subscriptions read, recorded with each park; none if its source tells none. */
+    override val incarnation: String? = null,
 ) : EntrySource {
     override val name: String get() = "topic $topic"
 
@@ -131,7 +134,8 @@ internal class TopicEntries(
      * [PartitionedSource.readAt] per partition, at most [READS_AT_ONCE] partitions at a time.
      */
     override suspend fun partitionsOf(entries: List<ParkedAggregate>): List<Int> {
-        val byKey = entries.map { partitionOf(it.ref) }
+        // One parked in another incarnation stays where it is parked: its position names other records.
+        val byKey = entries.map { if (ofAnotherIncarnation(it)) it.partition else partitionOf(it.ref) }
         val reread = entries.indices.filter { entries[it].fromPosition != null && byKey[it] != entries[it].partition }
         if (reread.isEmpty()) {
             return byKey
@@ -157,6 +161,7 @@ internal class TopicEntries(
         message.headers[EnvelopeHeaders.PARTITIONS]?.toIntOrNull()?.takeIf(Partitioner::isValidPartitions)
 
     override suspend fun retryEntries(parked: ParkedAggregate): Flow<SourcedEntry> {
+        requireIncarnationOf(parked)
         val ref = parked.ref
         val fromVersion = parked.fromVersion
         val partition = partitionOf(parked)

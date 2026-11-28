@@ -84,9 +84,20 @@ class PartitionOffsets @InternalWowApi constructor(val start: Long, val end: Lon
  *   within a partition. The flow does not complete: after the messages written so far it waits for new ones, until
  *   it is cancelled. Bounded by `until`, it emits those before `until` only and completes once it has passed them.
  * - [readAt] reads the messages at offsets a caller already knows, such as those a ledger recorded, at once.
+ * - [incarnation] tells one creation of a topic from another of the same name.
  */
 @WowSpi
 interface PartitionedSource {
+    /**
+     * The incarnation of [topic] its partitions hold now: one name for everything the topic has held since it was
+     * created, and another once it is deleted and created again under the same name, whose offsets then name other
+     * messages; null when the source cannot tell any, the default. A source that tells them fails for a topic that does
+     * not exist, as [partitions] does, rather than answer null. A subscription keeps its offsets per incarnation, and
+     * asks when it joins the topic, when it places a read and when it reads the topic's partitions again; never per
+     * message.
+     */
+    suspend fun incarnation(topic: String): String? = null
+
     suspend fun partitions(topic: String): List<Int>
 
     suspend fun partitionOf(topic: String, key: String): Int

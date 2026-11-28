@@ -101,6 +101,7 @@ public abstract class me/ahoo/wow/tck/ledger/FailureLedgerParkingSpec {
 	public final fun a request should be cleared by a park or repark of another failure time, and kept by a re-home ()V
 	public final fun a skip asked of a parking a repark replaced should be refused in the ledger's write ()V
 	public final fun a skip racing a repark should never be left on the parking the repark made ()V
+	public final fun an entry should keep the incarnation of the topic it was parked in, and one parked without it reads none ()V
 	public final fun an operator's mark, retry spec or request should apply only to the parking it names ()V
 	protected abstract fun createLedger ()Lme/ahoo/wow/spi/ledger/FailureLedger;
 }
@@ -336,6 +337,7 @@ public abstract class me/ahoo/wow/tck/subscription/CheckpointStoreSpec {
 	public fun <init> ()V
 	public final fun a checkpoint only moves forward ()V
 	public final fun a checkpoint saved at 0 is kept, and saved again changes nothing ()V
+	public final fun a group named for a topic's incarnation keeps its own checkpoints, apart from the topic's other incarnations ()V
 	public final fun a subscription without a checkpoint loads null ()V
 	public final fun checkpoints are kept per group, subscription and partition ()V
 	public final fun concurrent batches leave the highest positions ()V

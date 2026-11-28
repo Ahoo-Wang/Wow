@@ -22,6 +22,7 @@ import me.ahoo.wow.spi.transport.TopicAdmin
 import org.apache.kafka.clients.CommonClientConfigs
 import org.apache.kafka.clients.admin.Admin
 import org.apache.kafka.clients.admin.NewTopic
+import org.apache.kafka.common.Uuid
 import org.apache.kafka.common.config.ConfigResource
 import org.apache.kafka.common.errors.TopicExistsException
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException
@@ -78,6 +79,20 @@ class KafkaTopicAdmin(
                     null
                 }
             }.toMap()
+        }
+    }
+
+    /**
+     * The id the broker gave [topic] when it was created (KIP-516), another once the topic is deleted and created again;
+     * null from a broker that keeps none (the zero id). A topic the broker does not know fails, as a read of it does.
+     */
+    @InternalWowApi
+    suspend fun topicId(topic: String): String? = withContext(dispatcher) {
+        try {
+            admin.describeTopics(setOf(topic)).topicNameValues().getValue(topic).get().topicId()
+                .takeUnless { it == Uuid.ZERO_UUID }?.toString()
+        } catch (failure: ExecutionException) {
+            throw KafkaFailures.translate(failure.cause ?: failure)
         }
     }
 

@@ -110,11 +110,18 @@ class TopicSubscriptions internal constructor(
     private val clock: Clock,
     private val context: CoroutineContext,
     private val signals: SignalSender,
-    /** How the topic's partitions are read, given their number: as published streams, or commands, or receipts. */
-    private val entries: (Int) -> EntrySource,
+    /**
+     * How the topic's partitions are read, given the source of the incarnation joined, their number and that
+     * incarnation: as published streams, or commands, or receipts.
+     */
+    private val entries: (PartitionedSource, Int, String?) -> EntrySource,
     /** Hears what the parked entries come to. */
     private val notifier: ParkedNotifier = ParkedNotifier.NONE,
-    /** How often the topic's partitions are read again, for those added; never when infinite. */
+    /**
+     * How often the topic's partitions and incarnation are read again, for the partitions added and a topic created
+     * again; never when infinite, so that such a topic is then joined only when the node starts again, its reads
+     * refused until then. A host's is finite (`wow.kafka.topics.partition-refresh-interval`).
+     */
     private val partitionRefreshInterval: Duration = Duration.INFINITE,
     /** Sees each message its subscriptions consume. */
     private val observer: Observer = Observer.NONE,
@@ -168,7 +175,7 @@ class TopicSubscriptions internal constructor(
         clock,
         context,
         signals,
-        { partitions -> TopicEntries(topic, source, partitions, observer) },
+        { guarded, partitions, incarnation -> TopicEntries(topic, guarded, partitions, observer, incarnation) },
         notifier,
         partitionRefreshInterval,
         observer,
@@ -181,6 +188,9 @@ class TopicSubscriptions internal constructor(
     /** The lease group of the topic's partitions: `(service, "topic:<topic>")`. */
     val group: LeaseGroup = LeaseGroup.topic(service, topic)
 
+    /** The topic's incarnations: each one's checkpoint group, and the guard of its reads. */
+    private val incarnations = TopicIncarnations(topic, group.name, checkpoints)
+
     val subscriptions: List<Subscription> = subscriptions.toList()
 
     private val lifecycle = Mutex()
@@ -188,8 +198,13 @@ class TopicSubscriptions internal constructor(
     private var joining: Job? = null
     private var started = CompletableDeferred<Running>()
 
-    /** The partitions' runtime and their ownership, once the topic's [partitions] are known. */
-    private class Running(val runtime: SubscriptionRuntime, val ownership: PartitionOwnership, val partitions: Int)
+    /** The partitions' runtime and their ownership, once the topic's [partitions] and [incarnation] are known. */
+    private class Running(
+        val runtime: SubscriptionRuntime,
+        val ownership: PartitionOwnership,
+        val partitions: Int,
+        val incarnation: String?,
+    )
 
     @Volatile
     private var running: Running? = null
@@ -257,7 +272,11 @@ class TopicSubscriptions internal constructor(
                     check(it == it.indices.toList()) { "The partitions of $topic are not numbered from 0: $it." }
                 }
             }
-            val run = join(partitions.size)
+            val incarnation = retryForever(options.readRetry, { "read the incarnation of $topic" }, ::joinFailed) {
+                source.incarnation(topic)
+            }
+            val run = join(partitions.size, incarnation)
+            tellEarlier(incarnation, left = null)
             deferred.complete(run)
             logger.info { "$node reads topic $topic (${partitions.size} partitions) for ${subscriptions.size} subscriptions." }
             if (partitionRefreshInterval.isFinite()) {
@@ -267,13 +286,13 @@ class TopicSubscriptions internal constructor(
     }
 
     /**
-     * Joins the lease group over [partitions] partitions until it succeeds: each attempt that fails has undone itself
-     * ([PartitionOwnership.start]), so the next one starts afresh.
+     * Joins the lease group over [partitions] partitions of [incarnation] until it succeeds: each attempt that fails
+     * has undone itself ([PartitionOwnership.start]), so the next one starts afresh.
      */
-    private suspend fun join(partitions: Int): Running {
+    private suspend fun join(partitions: Int, incarnation: String?): Running {
         state = JoinState.JOINING
         val run = retryForever(options.readRetry, { "join $group over $partitions partitions" }, ::joinFailed) {
-            joinOver(partitions)
+            joinOver(partitions, incarnation)
         }
         running = run
         joinFailures = 0
@@ -287,11 +306,15 @@ class TopicSubscriptions internal constructor(
         lastJoinFailure = failure
     }
 
-    /** Joins the lease group over [partitions] partitions, reading this node's share of them. */
-    private suspend fun joinOver(partitions: Int): Running {
+    /**
+     * Joins the lease group over [partitions] partitions, reading this node's share of them in [incarnation], whose
+     * checkpoints are its own group's ([TopicIncarnations.groupOf]) and whose reads are guarded against another one.
+     */
+    private suspend fun joinOver(partitions: Int, incarnation: String?): Running {
+        incarnations.record(incarnation)
         val runtime = SubscriptionRuntime(
-            group.name,
-            entries(partitions),
+            incarnations.groupOf(incarnation),
+            entries(incarnations.guarded(source, incarnation), partitions, incarnation),
             checkpoints,
             ledger,
             subscriptions,
@@ -322,39 +345,84 @@ class TopicSubscriptions internal constructor(
             // Joined as the node stepped out: out again at once.
             ownership.stepOut(cluster.reconcileTimeout)
         }
-        return Running(runtime, ownership, partitions)
+        return Running(runtime, ownership, partitions, incarnation)
     }
 
     /**
-     * One round of the partitions' refresh: reads the topic's partitions after [partitionRefreshInterval], and joins
-     * again over them when there are more: the held ones are handed off, each subscription given a first checkpoint at
-     * the beginning of each added partition ([startAddedAtBeginning]), then the group joined over all of them, retrying
-     * as [start] does until it succeeds.
+     * Warns, once a join of [incarnation] is done, of the checkpoints its subscriptions keep under the topic's other
+     * incarnations, which nothing reads any more ([TopicIncarnations.earlier]); [left] is the one they read until now.
+     */
+    private suspend fun tellEarlier(incarnation: String?, left: String?) {
+        val earlier = try {
+            incarnations.earlier(incarnation)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (@Suppress("TooGenericExceptionCaught") failure: Exception) {
+            logger.warn(failure) { "$node could not read the checkpoints of the earlier incarnations of $topic." }
+            return
+        }
+        if (earlier.isEmpty()) {
+            return
+        }
+        val kept = earlier.entries.joinToString("; ") { (id, saved) ->
+            val names = saved.map { it.subscription }.distinct().sorted().joinToString()
+            "${id.ifEmpty { "none named" }}: ${saved.size} ($names)"
+        }
+        val count = earlier.values.sumOf { it.size }
+        logger.warn {
+            (left?.let { "Topic $topic was created again: its subscriptions leave its incarnation $it and " } ?: "") +
+                "${if (left == null) "Its subscriptions read topic $topic" else "read"} at its incarnation " +
+                "$incarnation, each from where its start says. $count checkpoints of its earlier incarnations are " +
+                "kept and no longer read, by incarnation: $kept."
+        }
+    }
+
+    /**
+     * One round of the partitions' refresh: reads the topic's partitions and its incarnation after
+     * [partitionRefreshInterval], and joins again when there are more partitions or another incarnation: the held
+     * partitions are handed off with their checkpoints saved, then the group joined over all of them, retrying as
+     * [start] does until it succeeds. More partitions of the same incarnation give each subscription a first checkpoint
+     * at the beginning of each added partition ([startAddedAtBeginning]); another incarnation is joined with no
+     * checkpoint of its own yet, so each subscription starts in it as its start says, and the one left is told of
+     * ([tellEarlier]). Until the round, the reads of the incarnation left are refused ([TopicIncarnations.guarded]).
      */
     @Suppress("TooGenericExceptionCaught") // A refresh that fails is tried again at the next one.
     private suspend fun refresh() {
         delay(partitionRefreshInterval)
         val current = checkNotNull(running)
-        val count = try {
-            source.partitions(topic).size
+        val (count, incarnation) = try {
+            source.partitions(topic).size to source.incarnation(topic)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Exception) {
             logger.warn(
                 failure
-            ) { "$node failed to read the partitions of $topic; it tries again in $partitionRefreshInterval." }
+            ) {
+                "$node failed to read the partitions or the incarnation of $topic; it tries again in " +
+                    "$partitionRefreshInterval."
+            }
             return
         }
-        if (count > current.partitions) {
+        val recreated = incarnation != current.incarnation
+        if (recreated && count == 0) {
+            // Created again, and no partition yet: joined at the next round.
+            return
+        }
+        if (recreated || count > current.partitions) {
             // Not cancelled half-way: the held partitions are handed off with their checkpoints saved.
             state = JoinState.JOINING
             withContext(NonCancellable) {
                 current.ownership.stop()
                 running = null
             }
-            startAddedAtBeginning(current.partitions until count)
-            join(count)
-            logger.info { "$node reads topic $topic over $count partitions, ${current.partitions} before." }
+            if (recreated) {
+                join(count, incarnation)
+                tellEarlier(incarnation, left = current.incarnation)
+            } else {
+                startAddedAtBeginning(current.partitions until count, incarnation)
+                join(count, incarnation)
+                logger.info { "$node reads topic $topic over $count partitions, ${current.partitions} before." }
+            }
         }
     }
 
@@ -364,10 +432,10 @@ class TopicSubscriptions internal constructor(
      * holds nothing of the history the start was about. A checkpoint saved there already, by a node that saw the growth
      * first and read on, is not moved back ([CheckpointStore.save]). Retried until it is stored, as a join is.
      */
-    private suspend fun startAddedAtBeginning(added: IntRange) {
+    private suspend fun startAddedAtBeginning(added: IntRange, incarnation: String?) {
         val first = subscriptions.flatMap { subscription -> added.map { Checkpoint.of(subscription.name, it, 0L) } }
         retryForever(options.readRetry, { "save the first checkpoints of the partitions added to $topic" }) {
-            checkpoints.saveAll(group.name, first)
+            checkpoints.saveAll(incarnations.groupOf(incarnation), first)
         }
     }
 

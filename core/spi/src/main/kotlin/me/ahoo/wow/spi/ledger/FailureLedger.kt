@@ -215,6 +215,10 @@ interface FailureLedger {
  * [revision] is the ledger's concurrency token, not an operator's fact: the number of stored changes of the entry
  * since it parked ([FailureLedger]). A new entry is at 0, whatever it is constructed with.
  *
+ * [fromIncarnation] is the incarnation of the topic whose offset [fromPosition] is
+ * ([me.ahoo.wow.spi.transport.PartitionedSource.incarnation]): null for a log, and for a source that tells none. The
+ * ledger stores and returns it; what an entry of another incarnation means is its subscription's to decide.
+ *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 @WowSpi
@@ -234,6 +238,7 @@ class ParkedAggregate @InternalWowApi constructor(
     val request: LedgerRequest? = null,
     val nextAttemptAt: Long? = null,
     val revision: Long = 0,
+    val fromIncarnation: String? = null,
 ) {
     init {
         require(partition >= 0) { "A partition is never negative." }
@@ -286,6 +291,7 @@ class ParkedAggregate @InternalWowApi constructor(
         request: LedgerRequest? = this.request,
         nextAttemptAt: Long? = this.nextAttemptAt,
         revision: Long = this.revision,
+        fromIncarnation: String? = this.fromIncarnation,
     ): ParkedAggregate =
         ParkedAggregate(
             subscription,
@@ -303,6 +309,7 @@ class ParkedAggregate @InternalWowApi constructor(
             request,
             nextAttemptAt,
             revision,
+            fromIncarnation,
         )
 
     override fun equals(other: Any?): Boolean =
@@ -314,7 +321,7 @@ class ParkedAggregate @InternalWowApi constructor(
         "ParkedAggregate(subscription=$subscription, ref=$ref, partition=$partition, fromVersion=$fromVersion, " +
             "reason=$reason, failedAt=$failedAt, fromPosition=$fromPosition, skipOnly=$skipOnly, retries=$retries, " +
             "lastRetryAt=$lastRetryAt, retrySpec=$retrySpec, recoverable=$recoverable, request=$request, " +
-            "nextAttemptAt=$nextAttemptAt, revision=$revision)"
+            "nextAttemptAt=$nextAttemptAt, revision=$revision, fromIncarnation=$fromIncarnation)"
 
     private fun valueFields(): List<Any?> = listOf(
         subscription,
@@ -332,6 +339,7 @@ class ParkedAggregate @InternalWowApi constructor(
         request,
         nextAttemptAt,
         revision,
+        fromIncarnation,
     )
 
     companion object {
@@ -363,6 +371,7 @@ class ParkedAggregate @InternalWowApi constructor(
             request: LedgerRequest? = null,
             nextAttemptAt: Long? = null,
             revision: Long = 0,
+            fromIncarnation: String? = null,
         ): ParkedAggregate =
             ParkedAggregate(
                 subscription,
@@ -380,6 +389,7 @@ class ParkedAggregate @InternalWowApi constructor(
                 request,
                 nextAttemptAt,
                 revision,
+                fromIncarnation,
             )
     }
 }
@@ -538,9 +548,10 @@ suspend fun amendByRevision(
 }
 
 /**
- * This entry where [entry] parks the aggregate (its partition, from version and position, and whether it can only be
- * skipped) and why (its reason and failure time), with this entry's retry state, at the next revision and no longer
- * scheduled; an operator's request is kept only while the failure time is: one left for another parking is cleared.
+ * This entry where [entry] parks the aggregate (its partition, from version, position and the incarnation of the
+ * topic it is of, and whether it can only be skipped) and why (its reason and failure time), with this entry's retry
+ * state, at the next revision and no longer scheduled; an operator's request is kept only while the failure time is:
+ * one left for another parking is cleared.
  * The reference semantics of a [FailureLedger.repark], and of a [FailureLedger.park] that replaces an entry.
  */
 @InternalWowApi
@@ -552,6 +563,7 @@ fun ParkedAggregate.placedAs(entry: ParkedAggregate): ParkedAggregate = copyWith
     failedAt = entry.failedAt,
     fromPosition = entry.fromPosition,
     skipOnly = entry.skipOnly,
+    fromIncarnation = entry.fromIncarnation,
     nextAttemptAt = null,
     revision = revision + 1,
 )

@@ -73,7 +73,7 @@ class KafkaTransportProvider : TransportProvider {
         }
         return KafkaTopicTransport(
             producer,
-            KafkaPartitionedSource.create(options, config.settings.option(OFFSET_GAP), config.observer),
+            KafkaPartitionedSource.create(options, config.settings.option(OFFSET_GAP), config.observer, admin::topicId),
             admin,
             durability(config),
         )

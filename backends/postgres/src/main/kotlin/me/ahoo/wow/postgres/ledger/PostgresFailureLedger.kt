@@ -291,6 +291,7 @@ class PostgresFailureLedger(
         setLong(first + 3, entry.failedAt)
         setNullableLong(first + 4, entry.fromPosition)
         setBoolean(first + 5, entry.skipOnly)
+        setString(first + 6, entry.fromIncarnation)
     }
 
     /** Binds [entry]'s retry state to the [RETRY_STATE_COLUMNS] parameters from [first]. */
@@ -329,8 +330,8 @@ class PostgresFailureLedger(
         const val KEY_COLUMNS = 7
         const val SPEC_COLUMNS = 3
 
-        /** Where an entry is parked and why: its partition, from version, reason, time, position, skip-only. */
-        const val PLACE_COLUMNS = 6
+        /** Where an entry is parked and why: its partition, from version, reason, time, position, skip-only, incarnation. */
+        const val PLACE_COLUMNS = 7
 
         /** Its retry state: the retries, the last one's start, the spec's columns, the mark, the request, the next. */
         const val RETRY_STATE_COLUMNS = 5 + SPEC_COLUMNS
@@ -395,6 +396,7 @@ class PostgresFailureLedger(
             },
             nextAttemptAt = row.nullableLong("next_attempt_at"),
             revision = row.getLong("revision"),
+            fromIncarnation = row.getString("from_incarnation"),
         )
     }
 }

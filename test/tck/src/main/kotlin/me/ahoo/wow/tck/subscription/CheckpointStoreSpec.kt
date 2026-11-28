@@ -70,6 +70,24 @@ abstract class CheckpointStoreSpec {
         }
 
     @Test
+    fun `a group named for a topic's incarnation keeps its own checkpoints, apart from the topic's other incarnations`():
+        Unit = runBlocking {
+        // A topic subscription's group: the lease group's name, `#` and the topic's id (a UUID), and the incarnation
+        // markers of the lease group itself, whose subscription names hold the same id.
+        val store = createStore()
+        val topic = "$group/topic:wow.sales.order.state"
+        val first = "$topic#${UUID.randomUUID()}"
+        val second = "$topic#${UUID.randomUUID()}"
+        store.save(first, "Board.onOrder", 0, 7)
+        store.save(second, "Board.onOrder", 0, 2)
+        val marker = "wow.incarnation#${first.substringAfterLast('#')}"
+        store.save(topic, marker, 0, 0)
+        store.load(first, "Board.onOrder", 0).assert().isEqualTo(7L)
+        store.list(second).assert().containsExactly(Checkpoint.of("Board.onOrder", 0, 2))
+        store.list(topic).assert().containsExactly(Checkpoint.of(marker, 0, 0))
+    }
+
+    @Test
     fun `the checkpoints of a subscription list each of its partitions, and no other subscription's nor group's`():
         Unit = runBlocking {
         val store = createStore()

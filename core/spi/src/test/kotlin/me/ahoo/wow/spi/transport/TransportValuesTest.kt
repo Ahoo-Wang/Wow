@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.spi.transport
 
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -35,5 +38,19 @@ class TransportValuesTest {
         offsets.hashCode().assert().isEqualTo(PartitionOffsets.of(1, 4).hashCode())
         offsets.toString().assert().isEqualTo("PartitionOffsets(start=1, end=4)")
         assertThrows<IllegalArgumentException> { PartitionOffsets.of(5, 4) }
+    }
+
+    @Test
+    fun `a source tells no incarnation of a topic unless it overrides it`(): Unit = runBlocking {
+        val source = object : PartitionedSource {
+            override suspend fun partitions(topic: String): List<Int> = listOf(0)
+
+            override suspend fun partitionOf(topic: String, key: String): Int = 0
+
+            override suspend fun offsets(topic: String, partition: Int): PartitionOffsets = PartitionOffsets.of(0, 0)
+
+            override fun read(topic: String, partition: Int, from: Long): Flow<SourceMessage> = emptyFlow()
+        }
+        source.incarnation("wow.sales.order.state").assert().isNull()
     }
 }
