@@ -78,11 +78,27 @@ describe('Manifest clients', () => {
               weird: { type: 'tuple' },
               bare: { properties: { b: { type: 'boolean' } } },
               missing: { $ref: schema('a.Missing') },
+              named: {
+                $ref: schema('b.Shape'),
+                title: 'Its shape',
+                description: 'Which of the two it is',
+              },
+              titled: { $ref: schema('c.Titled') },
+              maybeNamed: {
+                anyOf: [{ type: 'null' }, { $ref: schema('b.Shape') }],
+                title: 'Its other shape',
+              },
               foreign: { $ref: 'https://example.com/schema' },
             },
             additionalProperties: { type: 'string' },
           },
-          'b.Shape': { type: 'string', enum: ['A', 'B'] },
+          'c.Titled': { title: 'Only a summary', type: 'string' },
+          'b.Shape': {
+            title: 'A or B',
+            description: 'One of two shapes',
+            type: 'string',
+            enum: ['A', 'B'],
+          },
         },
       ),
       `import type { AShape, BShape } from './out/probe/types.js';
@@ -105,6 +121,23 @@ describe('Manifest clients', () => {
     expect(types).toContain('missing?: unknown;');
     expect(types).toContain('[key: string]: unknown;');
     expect(types).toContain("export type BShape = 'A' | 'B';");
+    // A property's own words, beside the reference to its type (#7262); the
+    // type's own stay on its model, and a bare reference says nothing.
+    expect(types).toContain(
+      '  /**\n   * Its shape\n   * Which of the two it is\n   */\n  named?: BShape;',
+    );
+    expect(types).toContain(
+      '  /** Its other shape */\n  maybeNamed?: null | BShape;',
+    );
+    expect(types).toContain(
+      '/**\n * A or B\n * One of two shapes\n * - key: `b.Shape`\n */\nexport type BShape',
+    );
+    expect(types).toContain(';\n  missing?: unknown;');
+    // A type with a summary alone is documented as it was when the summary
+    // was its description.
+    expect(types).toContain(
+      '/**\n * Only a summary\n * - key: `c.Titled`\n */\nexport type Titled = string;',
+    );
     expect(read('probe/thing/commandClient.ts')).toContain(
       'shape(body: AShape, options?: CommandOptions)',
     );

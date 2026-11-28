@@ -575,7 +575,7 @@
         }
       },
       "required" : [ "orderId" ],
-      "description" : "Commit an order's reservation",
+      "title" : "Commit an order's reservation",
       "x-wow-class" : "me.ahoo.wow.example.eshop.inventory.api.stock.CommitReservation"
     },
     "me.ahoo.wow.example.eshop.inventory.api.stock.ReleaseReservation" : {
@@ -586,7 +586,7 @@
         }
       },
       "required" : [ "orderId" ],
-      "description" : "Release an order's reservation",
+      "title" : "Release an order's reservation",
       "x-wow-class" : "me.ahoo.wow.example.eshop.inventory.api.stock.ReleaseReservation"
     },
     "me.ahoo.wow.example.eshop.inventory.api.stock.ReserveStock" : {
@@ -602,12 +602,12 @@
         }
       },
       "required" : [ "orderId", "quantity" ],
-      "description" : "Reserve stock for an order",
+      "title" : "Reserve stock for an order",
       "x-wow-class" : "me.ahoo.wow.example.eshop.inventory.api.stock.ReserveStock"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.AwaitStockValidation" : {
       "type" : "object",
-      "description" : "Await the stock validation",
+      "title" : "Await the stock validation",
       "x-wow-class" : "me.ahoo.wow.example.eshop.ordering.api.order.AwaitStockValidation"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder" : {
@@ -618,7 +618,7 @@
         }
       },
       "required" : [ "reason" ],
-      "description" : "Cancel the order",
+      "title" : "Cancel the order",
       "x-wow-class" : "me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.ConfirmOrderStock" : {
@@ -629,12 +629,12 @@
         }
       },
       "required" : [ "productId" ],
-      "description" : "Confirm a product's stock",
+      "title" : "Confirm a product's stock",
       "x-wow-class" : "me.ahoo.wow.example.eshop.ordering.api.order.ConfirmOrderStock"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.OrderAwaitingValidation" : {
       "type" : "object",
-      "description" : "The order awaits its stock validation",
+      "title" : "The order awaits its stock validation",
       "x-wow-class" : "me.ahoo.wow.example.eshop.ordering.api.order.OrderAwaitingValidation"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.OrderCancelled" : {
@@ -645,7 +645,7 @@
         }
       },
       "required" : [ "reason" ],
-      "description" : "The order was cancelled",
+      "title" : "The order was cancelled",
       "x-wow-class" : "me.ahoo.wow.example.eshop.ordering.api.order.OrderCancelled"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.OrderItem" : {
@@ -680,17 +680,17 @@
         }
       },
       "required" : [ "amount", "paymentId" ],
-      "description" : "The order was paid",
+      "title" : "The order was paid",
       "x-wow-class" : "me.ahoo.wow.example.eshop.ordering.api.order.OrderPaid"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.OrderShipped" : {
       "type" : "object",
-      "description" : "The order was shipped",
+      "title" : "The order was shipped",
       "x-wow-class" : "me.ahoo.wow.example.eshop.ordering.api.order.OrderShipped"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.OrderStockConfirmed" : {
       "type" : "object",
-      "description" : "The inventory reserved every product of the order; it awaits its payment",
+      "title" : "The inventory reserved every product of the order; it awaits its payment",
       "x-wow-class" : "me.ahoo.wow.example.eshop.ordering.api.order.OrderStockConfirmed"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.OrderStockItemConfirmed" : {
@@ -701,7 +701,7 @@
         }
       },
       "required" : [ "productId" ],
-      "description" : "The inventory reserved one of the order's products",
+      "title" : "The inventory reserved one of the order's products",
       "x-wow-class" : "me.ahoo.wow.example.eshop.ordering.api.order.OrderStockItemConfirmed"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.OrderSubmitted" : {
@@ -715,7 +715,7 @@
         }
       },
       "required" : [ "items" ],
-      "description" : "An order was submitted",
+      "title" : "An order was submitted",
       "x-wow-class" : "me.ahoo.wow.example.eshop.ordering.api.order.OrderSubmitted"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.PayOrder" : {
@@ -730,12 +730,12 @@
         }
       },
       "required" : [ "amount", "paymentId" ],
-      "description" : "Pay the order",
+      "title" : "Pay the order",
       "x-wow-class" : "me.ahoo.wow.example.eshop.ordering.api.order.PayOrder"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.ShipOrder" : {
       "type" : "object",
-      "description" : "Ship the order",
+      "title" : "Ship the order",
       "x-wow-class" : "me.ahoo.wow.example.eshop.ordering.api.order.ShipOrder"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder" : {
@@ -750,7 +750,7 @@
         }
       },
       "required" : [ "items" ],
-      "description" : "Submit an order",
+      "title" : "Submit an order",
       "x-wow-class" : "me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder"
     },
     "me.ahoo.wow.example.eshop.ordering.domain.order.OrderState" : {

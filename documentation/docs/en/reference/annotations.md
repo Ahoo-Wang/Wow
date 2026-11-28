@@ -81,7 +81,7 @@ The annotations of the programming model, in `me.ahoo.wow.api.annotation` (artif
 
 ## `@Description`
 
-[Description](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Description.kt): A description of a type or a field, carried into the Manifest and the documentation generated from it.
+[Description](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Description.kt): A description of a type or of a property: the `description` of its schema in the Manifest, on a class for the type's schema and on a property for the property's, which the generated clients and the OpenAPI document carry as documentation.
 
 - Targets: `CLASS`, `PROPERTY`, `FIELD`
 - Parameters: `value: String`
@@ -222,7 +222,7 @@ The annotations of the programming model, in `me.ahoo.wow.api.annotation` (artif
 
 ## `@Summary`
 
-[Summary](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Summary.kt): A one-line summary of a type or a field, carried into the Manifest and the documentation generated from it.
+[Summary](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Summary.kt): A one-line summary of a type or of a property: the `title` of its schema in the Manifest, on a class for the type's schema and on a property for the property's, which the generated clients and the OpenAPI document carry as documentation.
 
 - Targets: `CLASS`, `PROPERTY`, `FIELD`
 - Parameters: `value: String`

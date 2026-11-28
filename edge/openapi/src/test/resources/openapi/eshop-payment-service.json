@@ -3297,7 +3297,7 @@
           }
         },
         "required" : [ "reason" ],
-        "description" : "Cancel the order"
+        "title" : "Cancel the order"
       },
       "me.ahoo.wow.example.eshop.ordering.api.order.PayOrder" : {
         "type" : "object",
@@ -3311,7 +3311,7 @@
           }
         },
         "required" : [ "amount", "paymentId" ],
-        "description" : "Pay the order"
+        "title" : "Pay the order"
       },
       "me.ahoo.wow.example.eshop.payment.api.payment.PaymentFailed" : {
         "type" : "object",
@@ -3321,7 +3321,7 @@
           }
         },
         "required" : [ "reason" ],
-        "description" : "The gateway declined a payment"
+        "title" : "The gateway declined a payment"
       },
       "me.ahoo.wow.example.eshop.payment.api.payment.PaymentRefunded" : {
         "type" : "object",
@@ -3331,7 +3331,7 @@
           }
         },
         "required" : [ "reason" ],
-        "description" : "A payment was refunded"
+        "title" : "A payment was refunded"
       },
       "me.ahoo.wow.example.eshop.payment.api.payment.PaymentRequested" : {
         "type" : "object",
@@ -3345,7 +3345,7 @@
           }
         },
         "required" : [ "amount", "orderId" ],
-        "description" : "A payment was requested"
+        "title" : "A payment was requested"
       },
       "me.ahoo.wow.example.eshop.payment.api.payment.PaymentSucceeded" : {
         "type" : "object",
@@ -3355,7 +3355,7 @@
           }
         },
         "required" : [ "transactionId" ],
-        "description" : "The gateway approved a payment"
+        "title" : "The gateway approved a payment"
       },
       "me.ahoo.wow.example.eshop.payment.api.payment.RefundPayment" : {
         "type" : "object",
@@ -3365,7 +3365,7 @@
           }
         },
         "required" : [ "reason" ],
-        "description" : "Refund a payment"
+        "title" : "Refund a payment"
       },
       "me.ahoo.wow.example.eshop.payment.api.payment.RequestPayment" : {
         "type" : "object",
@@ -3380,7 +3380,7 @@
           }
         },
         "required" : [ "amount", "orderId" ],
-        "description" : "Request a payment"
+        "title" : "Request a payment"
       },
       "me.ahoo.wow.example.eshop.payment.domain.payment.ChargebackNotified" : {
         "type" : "object",

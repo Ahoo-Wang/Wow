@@ -746,7 +746,7 @@
         }
       },
       "required" : [ "definitionId" ],
-      "description" : "Set the view preferences of a definition",
+      "title" : "Set the view preferences of a definition",
       "x-wow-class" : "me.ahoo.wow.viewstore.api.preferences.SetViewPreferences"
     },
     "me.ahoo.wow.viewstore.api.preferences.ViewPreferencesSet" : {
@@ -778,12 +778,12 @@
         }
       },
       "required" : [ "appId", "definitionId", "order" ],
-      "description" : "A definition's view preferences were set",
+      "title" : "A definition's view preferences were set",
       "x-wow-class" : "me.ahoo.wow.viewstore.api.preferences.ViewPreferencesSet"
     },
     "me.ahoo.wow.viewstore.api.view.ClaimView" : {
       "type" : "object",
-      "description" : "Make a shared view personal",
+      "title" : "Make a shared view personal",
       "x-wow-class" : "me.ahoo.wow.viewstore.api.view.ClaimView"
     },
     "me.ahoo.wow.viewstore.api.view.CreateView" : {
@@ -800,7 +800,7 @@
         }
       },
       "required" : [ "config", "definitionId", "title" ],
-      "description" : "Create a view",
+      "title" : "Create a view",
       "x-wow-class" : "me.ahoo.wow.viewstore.api.view.CreateView"
     },
     "me.ahoo.wow.viewstore.api.view.RenameView" : {
@@ -811,7 +811,7 @@
         }
       },
       "required" : [ "title" ],
-      "description" : "Rename a view",
+      "title" : "Rename a view",
       "x-wow-class" : "me.ahoo.wow.viewstore.api.view.RenameView"
     },
     "me.ahoo.wow.viewstore.api.view.SaveView" : {
@@ -822,12 +822,12 @@
         }
       },
       "required" : [ "config" ],
-      "description" : "Save a view's config",
+      "title" : "Save a view's config",
       "x-wow-class" : "me.ahoo.wow.viewstore.api.view.SaveView"
     },
     "me.ahoo.wow.viewstore.api.view.ShareView" : {
       "type" : "object",
-      "description" : "Make a view shared",
+      "title" : "Make a view shared",
       "x-wow-class" : "me.ahoo.wow.viewstore.api.view.ShareView"
     },
     "me.ahoo.wow.viewstore.api.view.ViewAudienceChanged" : {
@@ -841,7 +841,7 @@
         }
       },
       "required" : [ "audience", "toOwnerId" ],
-      "description" : "A 9.x view moved to another audience; history only, never produced",
+      "title" : "A 9.x view moved to another audience; history only, never produced",
       "x-wow-class" : "me.ahoo.wow.viewstore.api.view.ViewAudienceChanged"
     },
     "me.ahoo.wow.viewstore.api.view.ViewClaimed" : {
@@ -852,7 +852,7 @@
         }
       },
       "required" : [ "toOwnerId" ],
-      "description" : "A shared view was made personal to toOwnerId, who becomes its owner",
+      "title" : "A shared view was made personal to toOwnerId, who becomes its owner",
       "x-wow-class" : "me.ahoo.wow.viewstore.api.view.ViewClaimed"
     },
     "me.ahoo.wow.viewstore.api.view.ViewCreated" : {
@@ -878,7 +878,7 @@
         }
       },
       "required" : [ "appId", "audience", "config", "definitionId", "kind", "title" ],
-      "description" : "A view was saved",
+      "title" : "A view was saved",
       "x-wow-class" : "me.ahoo.wow.viewstore.api.view.ViewCreated"
     },
     "me.ahoo.wow.viewstore.api.view.ViewRenamed" : {
@@ -889,7 +889,7 @@
         }
       },
       "required" : [ "title" ],
-      "description" : "A view was renamed",
+      "title" : "A view was renamed",
       "x-wow-class" : "me.ahoo.wow.viewstore.api.view.ViewRenamed"
     },
     "me.ahoo.wow.viewstore.api.view.ViewSaved" : {
@@ -903,12 +903,12 @@
         }
       },
       "required" : [ "config", "kind" ],
-      "description" : "A view's config was overwritten",
+      "title" : "A view's config was overwritten",
       "x-wow-class" : "me.ahoo.wow.viewstore.api.view.ViewSaved"
     },
     "me.ahoo.wow.viewstore.api.view.ViewShared" : {
       "type" : "object",
-      "description" : "A view was made shared; its owner becomes (shared)",
+      "title" : "A view was made shared; its owner becomes (shared)",
       "x-wow-class" : "me.ahoo.wow.viewstore.api.view.ViewShared"
     },
     "me.ahoo.wow.viewstore.api.wording.ClearDatasetWording" : {
@@ -919,12 +919,12 @@
         }
       },
       "required" : [ "dataset" ],
-      "description" : "Clear the wording of a dataset",
+      "title" : "Clear the wording of a dataset",
       "x-wow-class" : "me.ahoo.wow.viewstore.api.wording.ClearDatasetWording"
     },
     "me.ahoo.wow.viewstore.api.wording.DatasetWordingCleared" : {
       "type" : "object",
-      "description" : "A dataset's wording was cleared",
+      "title" : "A dataset's wording was cleared",
       "x-wow-class" : "me.ahoo.wow.viewstore.api.wording.DatasetWordingCleared"
     },
     "me.ahoo.wow.viewstore.api.wording.DatasetWordingSet" : {
@@ -947,7 +947,7 @@
         }
       },
       "required" : [ "appId", "dataset" ],
-      "description" : "A dataset's wording was set",
+      "title" : "A dataset's wording was set",
       "x-wow-class" : "me.ahoo.wow.viewstore.api.wording.DatasetWordingSet"
     },
     "me.ahoo.wow.viewstore.api.wording.SetDatasetWording" : {
@@ -967,7 +967,7 @@
         }
       },
       "required" : [ "dataset" ],
-      "description" : "Set the wording of a dataset",
+      "title" : "Set the wording of a dataset",
       "x-wow-class" : "me.ahoo.wow.viewstore.api.wording.SetDatasetWording"
     },
     "me.ahoo.wow.viewstore.domain.preferences.ViewPreferencesState" : {

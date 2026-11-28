@@ -28,6 +28,7 @@ export function emitType(
 ): void {
   importTypes(module, outputDir, files, type.references, type.file);
   const comment = doc([
+    type.title,
     type.description,
     type.inputOf === undefined
       ? undefined
@@ -40,7 +41,7 @@ export function emitType(
   }
   const members = type.properties.map(
     property =>
-      `${doc([property.description], '  ')}  ${property.readonly ? 'readonly ' : ''}${property.name}${property.optional ? '?' : ''}: ${property.type};`,
+      `${doc([property.title, property.description], '  ')}  ${property.readonly ? 'readonly ' : ''}${property.name}${property.optional ? '?' : ''}: ${property.type};`,
   );
   if (type.type !== undefined) members.push(`  [key: string]: ${type.type};`);
   addStatement(

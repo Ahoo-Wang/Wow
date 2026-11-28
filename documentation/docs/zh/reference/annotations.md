@@ -81,7 +81,7 @@ description: "编程模型的注解：用在哪里、有哪些参数、表达什
 
 ## `@Description`
 
-[Description](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Description.kt): A description of a type or a field, carried into the Manifest and the documentation generated from it.
+[Description](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Description.kt): A description of a type or of a property: the `description` of its schema in the Manifest, on a class for the type's schema and on a property for the property's, which the generated clients and the OpenAPI document carry as documentation.
 
 - 目标: `CLASS`, `PROPERTY`, `FIELD`
 - 参数: `value: String`
@@ -222,7 +222,7 @@ description: "编程模型的注解：用在哪里、有哪些参数、表达什
 
 ## `@Summary`
 
-[Summary](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Summary.kt): A one-line summary of a type or a field, carried into the Manifest and the documentation generated from it.
+[Summary](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Summary.kt): A one-line summary of a type or of a property: the `title` of its schema in the Manifest, on a class for the type's schema and on a property for the property's, which the generated clients and the OpenAPI document carry as documentation.
 
 - 目标: `CLASS`, `PROPERTY`, `FIELD`
 - 参数: `value: String`

@@ -77,7 +77,12 @@ export interface BasketState {
  * - key: `me.ahoo.wow.example.eshop.basket.api.basket.ChangeBasketItemQuantity`
  */
 export interface ChangeBasketItemQuantity {
+  /**
+   * Product
+   * The id of the product whose quantity changes; it is in the basket.
+   */
   productId: string;
+  /** Quantity */
   quantity: number;
 }
 

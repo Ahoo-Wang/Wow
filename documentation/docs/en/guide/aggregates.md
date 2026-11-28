@@ -39,7 +39,7 @@ data class SubmitOrder(
 )
 ```
 
-`@Summary` gives the command a one-line summary for the Manifest and the OpenAPI document. A command that takes no data is a `data object`, such as `ShipOrder`.
+`@Summary` gives the command a one-line summary: the `title` of its schema in the Manifest and the OpenAPI document. A command that takes no data is a `data object`, such as `ShipOrder`.
 
 ### Check its shape
 
@@ -77,6 +77,28 @@ Whether a command may create its aggregate is part of its class:
 | Neither | The aggregate exists; otherwise `wow.aggregate.not-found` |
 
 Each command is served at `POST /<context>/<aggregate>/{id}/<command>`, the command's name in kebab case, as the Manifest lists its routes: `POST /eshop-ordering/order/{id}/submit-order`. A creating command is also served without `{id}`, and the server gives the aggregate its id. Admission first looks for the aggregate the same request id already created and reuses its id, so a creation sent twice creates one aggregate. An aggregate whose id is its owner's, one per owner, serves every command without `{id}` too, as the caller's own, and generates no id ([One aggregate per owner](./ownership#one-aggregate-per-owner)).
+
+### Document its fields
+
+`@Summary` and `@Description` document a field as they document a class. On a property, `@Summary` is the `title` of the property's schema in the Manifest and `@Description` its `description`; on the class they are the type's. Neither stands in for the other, and one that is left out is absent:
+
+<!-- sample: examples/eshop/basket/basket-api/src/main/kotlin/me/ahoo/wow/example/eshop/basket/api/basket/BasketCommands.kt#change-quantity -->
+
+```kotlin
+/** Changes the quantity of [productId] in the basket to [quantity]. */
+@Summary("Change an item's quantity")
+data class ChangeBasketItemQuantity(
+    @Summary("Product")
+    @Description("The id of the product whose quantity changes; it is in the basket.")
+    val productId: String,
+    @Summary("Quantity")
+    @field:Positive val quantity: Int,
+)
+```
+
+The command's schema then holds `"productId": {"type": "string", "title": "Product", "description": "The id of the product whose quantity changes; it is in the basket."}`. The generated TypeScript client writes the two as the property's doc comment, the OpenAPI document carries them in the command's component, and the state view a peer generates from the contract writes a state's as KDoc.
+
+The annotations stand on a Kotlin property, declared in the constructor or in the body, or computed; on its field (`@field:Summary`); and on a Java field, which a record's component is. A property of a named type keeps its own words beside the reference to that type, whose words stay with the type. Wording is no part of the contract: a changed summary or description is no change for the [compatibility check](./manifest#the-compatibility-check) and moves no state's fingerprint.
 
 ### Name the aggregate in the body
 

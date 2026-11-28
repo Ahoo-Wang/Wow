@@ -3505,7 +3505,7 @@
           }
         },
         "required" : [ "orderId" ],
-        "description" : "Commit an order's reservation"
+        "title" : "Commit an order's reservation"
       },
       "me.ahoo.wow.example.eshop.inventory.api.stock.ReleaseReservation" : {
         "type" : "object",
@@ -3515,7 +3515,7 @@
           }
         },
         "required" : [ "orderId" ],
-        "description" : "Release an order's reservation"
+        "title" : "Release an order's reservation"
       },
       "me.ahoo.wow.example.eshop.inventory.api.stock.ReserveStock" : {
         "type" : "object",
@@ -3530,11 +3530,11 @@
           }
         },
         "required" : [ "orderId", "quantity" ],
-        "description" : "Reserve stock for an order"
+        "title" : "Reserve stock for an order"
       },
       "me.ahoo.wow.example.eshop.ordering.api.order.AwaitStockValidation" : {
         "type" : "object",
-        "description" : "Await the stock validation"
+        "title" : "Await the stock validation"
       },
       "me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder" : {
         "type" : "object",
@@ -3544,7 +3544,7 @@
           }
         },
         "required" : [ "reason" ],
-        "description" : "Cancel the order"
+        "title" : "Cancel the order"
       },
       "me.ahoo.wow.example.eshop.ordering.api.order.ConfirmOrderStock" : {
         "type" : "object",
@@ -3554,11 +3554,11 @@
           }
         },
         "required" : [ "productId" ],
-        "description" : "Confirm a product's stock"
+        "title" : "Confirm a product's stock"
       },
       "me.ahoo.wow.example.eshop.ordering.api.order.OrderAwaitingValidation" : {
         "type" : "object",
-        "description" : "The order awaits its stock validation"
+        "title" : "The order awaits its stock validation"
       },
       "me.ahoo.wow.example.eshop.ordering.api.order.OrderCancelled" : {
         "type" : "object",
@@ -3568,7 +3568,7 @@
           }
         },
         "required" : [ "reason" ],
-        "description" : "The order was cancelled"
+        "title" : "The order was cancelled"
       },
       "me.ahoo.wow.example.eshop.ordering.api.order.OrderItem" : {
         "type" : "object",
@@ -3601,15 +3601,15 @@
           }
         },
         "required" : [ "amount", "paymentId" ],
-        "description" : "The order was paid"
+        "title" : "The order was paid"
       },
       "me.ahoo.wow.example.eshop.ordering.api.order.OrderShipped" : {
         "type" : "object",
-        "description" : "The order was shipped"
+        "title" : "The order was shipped"
       },
       "me.ahoo.wow.example.eshop.ordering.api.order.OrderStockConfirmed" : {
         "type" : "object",
-        "description" : "The inventory reserved every product of the order; it awaits its payment"
+        "title" : "The inventory reserved every product of the order; it awaits its payment"
       },
       "me.ahoo.wow.example.eshop.ordering.api.order.OrderStockItemConfirmed" : {
         "type" : "object",
@@ -3619,7 +3619,7 @@
           }
         },
         "required" : [ "productId" ],
-        "description" : "The inventory reserved one of the order's products"
+        "title" : "The inventory reserved one of the order's products"
       },
       "me.ahoo.wow.example.eshop.ordering.api.order.OrderSubmitted" : {
         "type" : "object",
@@ -3632,7 +3632,7 @@
           }
         },
         "required" : [ "items" ],
-        "description" : "An order was submitted"
+        "title" : "An order was submitted"
       },
       "me.ahoo.wow.example.eshop.ordering.api.order.PayOrder" : {
         "type" : "object",
@@ -3646,11 +3646,11 @@
           }
         },
         "required" : [ "amount", "paymentId" ],
-        "description" : "Pay the order"
+        "title" : "Pay the order"
       },
       "me.ahoo.wow.example.eshop.ordering.api.order.ShipOrder" : {
         "type" : "object",
-        "description" : "Ship the order"
+        "title" : "Ship the order"
       },
       "me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder" : {
         "type" : "object",
@@ -3664,7 +3664,7 @@
           }
         },
         "required" : [ "items" ],
-        "description" : "Submit an order"
+        "title" : "Submit an order"
       },
       "me.ahoo.wow.example.eshop.ordering.domain.order.OrderState" : {
         "type" : "object",

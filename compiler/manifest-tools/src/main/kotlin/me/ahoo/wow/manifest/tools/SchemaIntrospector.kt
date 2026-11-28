@@ -34,8 +34,6 @@ import com.github.victools.jsonschema.module.jackson.JacksonOption
 import com.github.victools.jsonschema.module.jackson.JacksonSchemaModule
 import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidationModule
 import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidationOption
-import me.ahoo.wow.api.annotation.Description
-import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.Manifest
@@ -73,8 +71,9 @@ import kotlin.reflect.jvm.kotlinProperty
  *   annotations and value type as a field does ([JacksonNames.computed]).
  * - A polymorphic type (`@JsonSubTypes`) is a definition of its subtypes' alternatives (`anyOf`), each with its
  *   discriminator, and the base class's `x-wow-class` ([Polymorphic]).
- * - A type is described (`description`) by its `@Description`, else its `@Summary`; a command or an event by the
- *   description its fragment entry carries, which the compiler also reads from the KDoc (.1c).
+ * - A type and a property carry their words ([SchemaWords]): `title` is the `@Summary`, `description` the
+ *   `@Description`; a command's or an event's description is else the one its fragment entry carries, which the
+ *   compiler also reads from the KDoc (.1c).
  * - The body of each system command the fragment lists (`wow.lifecycle.TransferOwner`, `wow.snapshot.RebuildSnapshot`,
  *   `wow.schedule.EnableJob`) is a definition keyed by that full name, introspected from its class (`SYSTEM_BODIES`) like
  *   a command's.
@@ -124,6 +123,7 @@ internal class SchemaIntrospector(
         val defined = definitions.properties().associate { it.key to it.value }
         val inlined = references.filterKeys { !definitions.has(it) }
         val generated = TypeArguments.restored((defined + inlined).mapValues { (_, schema) -> schemaMap(schema) })
+            .mapValues { (_, schema) -> SchemaWords.inPlace(schema) }
         val defs = fragment.defs + described(generated, aggregates)
         return fragment.copyWith(
             contexts =
@@ -158,7 +158,7 @@ internal class SchemaIntrospector(
             aggregate.commands.map { it.schema to it.description } + aggregate.events.map { it.schema to it.description }
         }.mapNotNull { (ref, description) -> description?.let { Manifest.schemaKey(ref) to it } }.toMap()
         return generated.mapValues { (key, schema) ->
-            descriptions[key]?.let { schema + (DESCRIPTION to it) } ?: schema
+            descriptions[key]?.let { SchemaWords.entryDescription(schema, it) } ?: schema
         }
     }
 
@@ -221,6 +221,8 @@ internal class SchemaIntrospector(
         // A type argument nullable where the type is used is a definition apart ([TypeArguments]).
         builder.forFields().withTargetTypeOverridesResolver { TypeArguments.declared(it) }
         builder.forMethods().withTargetTypeOverridesResolver { TypeArguments.declared(it) }
+        // Wow's own words of a type and of a property, ahead of the Jackson module's.
+        SchemaWords.applyTo(builder)
         builder
             .with(
                 JacksonNames(
@@ -243,7 +245,6 @@ internal class SchemaIntrospector(
             .withCustomDefinitionProvider(TypeArguments)
             .withTypeAttributeOverride(queryKeywords)
             .withTypeAttributeOverride(WireFormats)
-            .withDescriptionResolver { scope -> describe(scope.type.erasedType) }
         // A platform value class is the scalar Wow's JSON writes it as ([WireTypes.SCALARS]): after a declared schema,
         // ahead of the generator's own simple types, which the options add when the configuration is built.
         builder.with(WireTypes.module())
@@ -461,8 +462,6 @@ internal class SchemaIntrospector(
 
     private companion object {
         const val DEFS = "\$defs"
-        const val DESCRIPTION = "description"
-
         /** The body classes of the system commands a fragment may list, by their full names. */
         val SYSTEM_BODIES: Map<String, Class<*>> = SystemCommandGroups.LISTED_BY_A_CONTRACT.commands
 
@@ -484,13 +483,6 @@ internal class SchemaIntrospector(
                 ?: return !property.returnType.isMarkedNullable
             return !parameter.isOptional && !parameter.type.isMarkedNullable
         }
-
-        /** A type's `@Description`, else its `@Summary`; null without either, or with a blank one. */
-        fun describe(type: Class<*>): String? =
-            listOfNotNull(
-                type.getAnnotation(Description::class.java)?.value,
-                type.getAnnotation(Summary::class.java)?.value,
-            ).map(String::trim).firstOrNull(String::isNotEmpty)
 
         fun isKotlinNullable(member: MemberScope<*, *>): Boolean = KotlinMembers.typeOf(member)?.isMarkedNullable == true
     }

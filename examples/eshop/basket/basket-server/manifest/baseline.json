@@ -444,7 +444,7 @@
         }
       },
       "required" : [ "productId", "quantity", "unitPrice" ],
-      "description" : "Add an item to the basket",
+      "title" : "Add an item to the basket",
       "x-wow-class" : "me.ahoo.wow.example.eshop.basket.api.basket.AddBasketItem"
     },
     "me.ahoo.wow.example.eshop.basket.api.basket.BasketCheckedOut" : {
@@ -458,12 +458,12 @@
         }
       },
       "required" : [ "items" ],
-      "description" : "The basket was checked out",
+      "title" : "The basket was checked out",
       "x-wow-class" : "me.ahoo.wow.example.eshop.basket.api.basket.BasketCheckedOut"
     },
     "me.ahoo.wow.example.eshop.basket.api.basket.BasketCleared" : {
       "type" : "object",
-      "description" : "The basket was cleared",
+      "title" : "The basket was cleared",
       "x-wow-class" : "me.ahoo.wow.example.eshop.basket.api.basket.BasketCleared"
     },
     "me.ahoo.wow.example.eshop.basket.api.basket.BasketItem" : {
@@ -500,7 +500,7 @@
         }
       },
       "required" : [ "productId", "quantity", "unitPrice" ],
-      "description" : "An item was added to the basket",
+      "title" : "An item was added to the basket",
       "x-wow-class" : "me.ahoo.wow.example.eshop.basket.api.basket.BasketItemAdded"
     },
     "me.ahoo.wow.example.eshop.basket.api.basket.BasketItemQuantityChanged" : {
@@ -515,7 +515,7 @@
         }
       },
       "required" : [ "productId", "quantity" ],
-      "description" : "An item's quantity changed",
+      "title" : "An item's quantity changed",
       "x-wow-class" : "me.ahoo.wow.example.eshop.basket.api.basket.BasketItemQuantityChanged"
     },
     "me.ahoo.wow.example.eshop.basket.api.basket.BasketItemRemoved" : {
@@ -526,33 +526,36 @@
         }
       },
       "required" : [ "productId" ],
-      "description" : "An item was removed from the basket",
+      "title" : "An item was removed from the basket",
       "x-wow-class" : "me.ahoo.wow.example.eshop.basket.api.basket.BasketItemRemoved"
     },
     "me.ahoo.wow.example.eshop.basket.api.basket.ChangeBasketItemQuantity" : {
       "type" : "object",
       "properties" : {
         "productId" : {
-          "type" : "string"
+          "type" : "string",
+          "title" : "Product",
+          "description" : "The id of the product whose quantity changes; it is in the basket."
         },
         "quantity" : {
           "type" : "integer",
           "format" : "int32",
+          "title" : "Quantity",
           "exclusiveMinimum" : 0
         }
       },
       "required" : [ "productId", "quantity" ],
-      "description" : "Change an item's quantity",
+      "title" : "Change an item's quantity",
       "x-wow-class" : "me.ahoo.wow.example.eshop.basket.api.basket.ChangeBasketItemQuantity"
     },
     "me.ahoo.wow.example.eshop.basket.api.basket.CheckoutBasket" : {
       "type" : "object",
-      "description" : "Check the basket out",
+      "title" : "Check the basket out",
       "x-wow-class" : "me.ahoo.wow.example.eshop.basket.api.basket.CheckoutBasket"
     },
     "me.ahoo.wow.example.eshop.basket.api.basket.ClearBasket" : {
       "type" : "object",
-      "description" : "Clear the basket",
+      "title" : "Clear the basket",
       "x-wow-class" : "me.ahoo.wow.example.eshop.basket.api.basket.ClearBasket"
     },
     "me.ahoo.wow.example.eshop.basket.api.basket.RemoveBasketItem" : {
@@ -563,7 +566,7 @@
         }
       },
       "required" : [ "productId" ],
-      "description" : "Remove an item from the basket",
+      "title" : "Remove an item from the basket",
       "x-wow-class" : "me.ahoo.wow.example.eshop.basket.api.basket.RemoveBasketItem"
     },
     "me.ahoo.wow.example.eshop.basket.domain.basket.BasketState" : {
@@ -612,7 +615,7 @@
         }
       },
       "required" : [ "items" ],
-      "description" : "Submit an order",
+      "title" : "Submit an order",
       "x-wow-class" : "me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder"
     },
     "wow.lifecycle.DeleteAggregate" : {

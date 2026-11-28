@@ -34,7 +34,7 @@ import {
   generatedNames,
   memberName,
 } from './names';
-import { type Position, SchemaTypes } from './schemaTypes';
+import { type Position, SchemaTypes, wordsOf } from './schemaTypes';
 import { knownValues } from './knownValues';
 import { serviceRouteModel } from './serviceRoutes';
 import { TextNumbers } from './textNumbers';
@@ -168,8 +168,6 @@ function typeModel(
   const schema = types.schemaOf(key)!;
   const output = types.names.get(key)!;
   const name = position === 'input' ? types.inputNames.get(key)! : output;
-  const description =
-    typeof schema.description === 'string' ? schema.description : undefined;
   const references = [...types.namedReferences(schema)]
     .map(ref =>
       position === 'input'
@@ -181,7 +179,7 @@ function typeModel(
     key,
     name,
     file,
-    ...(description === undefined ? {} : { description }),
+    ...wordsOf(schema),
     ...(position === 'input' ? { inputOf: output } : {}),
     references: [...new Set(references)].sort(compareNames),
   };

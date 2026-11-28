@@ -3520,7 +3520,7 @@
           }
         },
         "required" : [ "orderId" ],
-        "description" : "Commit an order's reservation"
+        "title" : "Commit an order's reservation"
       },
       "me.ahoo.wow.example.eshop.inventory.api.stock.ReceiveStock" : {
         "type" : "object",
@@ -3532,7 +3532,7 @@
           }
         },
         "required" : [ "quantity" ],
-        "description" : "Receive stock"
+        "title" : "Receive stock"
       },
       "me.ahoo.wow.example.eshop.inventory.api.stock.ReleaseReservation" : {
         "type" : "object",
@@ -3542,7 +3542,7 @@
           }
         },
         "required" : [ "orderId" ],
-        "description" : "Release an order's reservation"
+        "title" : "Release an order's reservation"
       },
       "me.ahoo.wow.example.eshop.inventory.api.stock.ReservationCommitted" : {
         "type" : "object",
@@ -3556,7 +3556,7 @@
           }
         },
         "required" : [ "orderId", "quantity" ],
-        "description" : "An order's reservation was committed"
+        "title" : "An order's reservation was committed"
       },
       "me.ahoo.wow.example.eshop.inventory.api.stock.ReservationReleased" : {
         "type" : "object",
@@ -3570,7 +3570,7 @@
           }
         },
         "required" : [ "orderId", "quantity" ],
-        "description" : "An order's reservation was released"
+        "title" : "An order's reservation was released"
       },
       "me.ahoo.wow.example.eshop.inventory.api.stock.ReserveStock" : {
         "type" : "object",
@@ -3585,7 +3585,7 @@
           }
         },
         "required" : [ "orderId", "quantity" ],
-        "description" : "Reserve stock for an order"
+        "title" : "Reserve stock for an order"
       },
       "me.ahoo.wow.example.eshop.inventory.api.stock.StockReceived" : {
         "type" : "object",
@@ -3596,7 +3596,7 @@
           }
         },
         "required" : [ "quantity" ],
-        "description" : "Stock was received"
+        "title" : "Stock was received"
       },
       "me.ahoo.wow.example.eshop.inventory.api.stock.StockReserved" : {
         "type" : "object",
@@ -3610,7 +3610,7 @@
           }
         },
         "required" : [ "orderId", "quantity" ],
-        "description" : "Stock was reserved for an order"
+        "title" : "Stock was reserved for an order"
       },
       "me.ahoo.wow.example.eshop.inventory.domain.stock.StockState" : {
         "type" : "object",

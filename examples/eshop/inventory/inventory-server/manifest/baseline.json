@@ -454,7 +454,7 @@
         }
       },
       "required" : [ "orderId" ],
-      "description" : "Commit an order's reservation",
+      "title" : "Commit an order's reservation",
       "x-wow-class" : "me.ahoo.wow.example.eshop.inventory.api.stock.CommitReservation"
     },
     "me.ahoo.wow.example.eshop.inventory.api.stock.ReceiveStock" : {
@@ -467,7 +467,7 @@
         }
       },
       "required" : [ "quantity" ],
-      "description" : "Receive stock",
+      "title" : "Receive stock",
       "x-wow-class" : "me.ahoo.wow.example.eshop.inventory.api.stock.ReceiveStock"
     },
     "me.ahoo.wow.example.eshop.inventory.api.stock.ReleaseReservation" : {
@@ -478,7 +478,7 @@
         }
       },
       "required" : [ "orderId" ],
-      "description" : "Release an order's reservation",
+      "title" : "Release an order's reservation",
       "x-wow-class" : "me.ahoo.wow.example.eshop.inventory.api.stock.ReleaseReservation"
     },
     "me.ahoo.wow.example.eshop.inventory.api.stock.ReservationCommitted" : {
@@ -493,7 +493,7 @@
         }
       },
       "required" : [ "orderId", "quantity" ],
-      "description" : "An order's reservation was committed",
+      "title" : "An order's reservation was committed",
       "x-wow-class" : "me.ahoo.wow.example.eshop.inventory.api.stock.ReservationCommitted"
     },
     "me.ahoo.wow.example.eshop.inventory.api.stock.ReservationReleased" : {
@@ -508,7 +508,7 @@
         }
       },
       "required" : [ "orderId", "quantity" ],
-      "description" : "An order's reservation was released",
+      "title" : "An order's reservation was released",
       "x-wow-class" : "me.ahoo.wow.example.eshop.inventory.api.stock.ReservationReleased"
     },
     "me.ahoo.wow.example.eshop.inventory.api.stock.ReserveStock" : {
@@ -524,7 +524,7 @@
         }
       },
       "required" : [ "orderId", "quantity" ],
-      "description" : "Reserve stock for an order",
+      "title" : "Reserve stock for an order",
       "x-wow-class" : "me.ahoo.wow.example.eshop.inventory.api.stock.ReserveStock"
     },
     "me.ahoo.wow.example.eshop.inventory.api.stock.StockReceived" : {
@@ -536,7 +536,7 @@
         }
       },
       "required" : [ "quantity" ],
-      "description" : "Stock was received",
+      "title" : "Stock was received",
       "x-wow-class" : "me.ahoo.wow.example.eshop.inventory.api.stock.StockReceived"
     },
     "me.ahoo.wow.example.eshop.inventory.api.stock.StockReserved" : {
@@ -551,7 +551,7 @@
         }
       },
       "required" : [ "orderId", "quantity" ],
-      "description" : "Stock was reserved for an order",
+      "title" : "Stock was reserved for an order",
       "x-wow-class" : "me.ahoo.wow.example.eshop.inventory.api.stock.StockReserved"
     },
     "me.ahoo.wow.example.eshop.inventory.domain.stock.StockState" : {

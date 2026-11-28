@@ -192,6 +192,50 @@ class StateViewSourcesTest {
         return views(contract).single().text
     }
 
+    @Test
+    fun `a view's KDoc should carry the title and the description of the state and of each field`() {
+        val state = mapOf(
+            "type" to "object",
+            "title" to "Cart",
+            "description" to "What a buyer collects.",
+            "properties" to mapOf(
+                "code" to mapOf("type" to "string", "title" to "Code", "description" to "Its */ code,\n  as printed."),
+                "item" to mapOf("\$ref" to Manifest.schemaRef(Item::class.java.name), "title" to "Its item"),
+                "name" to mapOf("type" to "string", "description" to "Its name."),
+                "plain" to mapOf("type" to "string", "title" to " "),
+            ),
+        )
+        val contract = contract(CartState::class.java, "cart").let {
+            val item = mapOf("type" to "object", "x-wow-class" to Item::class.java.name)
+            it.copyWith(defs = it.defs + (CartState::class.java.name to state) + (Item::class.java.name to item))
+        }
+        val text = views(contract).single().text
+        text.assert().contains(
+            """
+            |/**
+            | * The state of `shop.cart` as another context reads it, from its contract.
+            | * Cart
+            | * What a buyer collects.
+            | */
+            """.trimMargin(),
+        )
+        text.assert().contains(
+            """
+            |    /**
+            |     * Code
+            |     *
+            |     * Its *&#47; code, as printed.
+            |     */
+            |    val code: kotlin.String? = null,
+            |    /** Its item */
+            |    val item: me.ahoo.wow.manifest.tools.StateViewSourcesTest.Item? = null,
+            |    /** Its name. */
+            |    val name: kotlin.String? = null,
+            |    val plain: kotlin.String? = null,
+            """.trimMargin(),
+        )
+    }
+
     private fun fieldOf(schema: Map<String, Any?>, defs: Map<String, Any?> = emptyMap(), required: Boolean = true): String =
         viewOf(schema, defs, required).lines().single { it.trim().startsWith("val field") }.trim()
 

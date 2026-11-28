@@ -335,13 +335,13 @@ export class SchemaTypes {
     if (!isObject(schema.properties)) return [];
     const required = this.required(schema, position);
     return Object.entries(schema.properties).map(([name, property]) => {
-      const description = isObject(property) ? property.description : undefined;
       return {
         name: resolvePropertyName(name),
         type: this.type(property, `${where}.${name}`, position),
         optional: !required.has(name),
         ...(readOnly(property) ? { readonly: true } : {}),
-        ...(typeof description === 'string' ? { description } : {}),
+        // The property's own words, beside its `$ref` when its type is named.
+        ...wordsOf(property),
       };
     });
   }
@@ -490,6 +490,22 @@ function nullableAlternative(schema: JsonSchema): unknown {
 }
 
 /** Whether a property's schema is read-only: computed, written by the service and never read back. */
+/**
+ * The words of a schema: its `title` and its `description`, each when it is
+ * a string.
+ */
+export function wordsOf(schema: unknown): {
+  title?: string;
+  description?: string;
+} {
+  if (!isObject(schema)) return {};
+  const { title, description } = schema;
+  return {
+    ...(typeof title === 'string' ? { title } : {}),
+    ...(typeof description === 'string' ? { description } : {}),
+  };
+}
+
 function readOnly(property: unknown): boolean {
   return isObject(property) && property.readOnly === true;
 }

@@ -770,7 +770,7 @@
   "$defs" : {
     "me.ahoo.wow.analytics.catalog.api.dataset.ApproveDatasetPublication" : {
       "type" : "object",
-      "description" : "Approve the requested publication of a dataset",
+      "title" : "Approve the requested publication of a dataset",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.ApproveDatasetPublication"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.DatasetArtifact" : {
@@ -1015,7 +1015,7 @@
         }
       },
       "required" : [ "context", "definition", "name", "sources" ],
-      "description" : "A dataset was drafted",
+      "title" : "A dataset was drafted",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DatasetDrafted"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.DatasetNeedsRevision" : {
@@ -1032,7 +1032,7 @@
         }
       },
       "required" : [ "problems" ],
-      "description" : "A dataset needs revision",
+      "title" : "A dataset needs revision",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DatasetNeedsRevision"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.DatasetPublicationRefused" : {
@@ -1043,7 +1043,7 @@
         }
       },
       "required" : [ "reason" ],
-      "description" : "A dataset's publication was refused",
+      "title" : "A dataset's publication was refused",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DatasetPublicationRefused"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.DatasetPublicationRequested" : {
@@ -1060,7 +1060,7 @@
         }
       },
       "required" : [ "definition", "reasons" ],
-      "description" : "A dataset's publication was requested",
+      "title" : "A dataset's publication was requested",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DatasetPublicationRequested"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.DatasetPublished" : {
@@ -1077,7 +1077,7 @@
         }
       },
       "required" : [ "artifact", "definition" ],
-      "description" : "A dataset's version was published",
+      "title" : "A dataset's version was published",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DatasetPublished"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.DatasetRetired" : {
@@ -1089,7 +1089,7 @@
         }
       },
       "required" : [ "version" ],
-      "description" : "A dataset was retired",
+      "title" : "A dataset was retired",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DatasetRetired"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.DatasetRevised" : {
@@ -1109,7 +1109,7 @@
         }
       },
       "required" : [ "definition", "sources" ],
-      "description" : "A dataset was revised",
+      "title" : "A dataset was revised",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DatasetRevised"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.DatasetRevisionCleared" : {
@@ -1121,7 +1121,7 @@
         }
       },
       "required" : [ "version" ],
-      "description" : "A dataset's version compiles again",
+      "title" : "A dataset's version compiles again",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DatasetRevisionCleared"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.DatasetRolledBack" : {
@@ -1137,7 +1137,7 @@
         }
       },
       "required" : [ "from", "version" ],
-      "description" : "A dataset was switched back to an earlier version",
+      "title" : "A dataset was switched back to an earlier version",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DatasetRolledBack"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.DatasetSensitivity-nullable" : {
@@ -1168,7 +1168,7 @@
         }
       },
       "required" : [ "views" ],
-      "description" : "A retired dataset's views were dropped",
+      "title" : "A retired dataset's views were dropped",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DatasetViewsDropped"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.DraftDataset" : {
@@ -1188,22 +1188,22 @@
         }
       },
       "required" : [ "context", "definition", "name" ],
-      "description" : "Draft a dataset over the catalog's sources",
+      "title" : "Draft a dataset over the catalog's sources",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DraftDataset"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.DropDatasetViews" : {
       "type" : "object",
-      "description" : "Drop a retired dataset's views",
+      "title" : "Drop a retired dataset's views",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.DropDatasetViews"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.PublishDataset" : {
       "type" : "object",
-      "description" : "Publish the dataset's definition as its next version",
+      "title" : "Publish the dataset's definition as its next version",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.PublishDataset"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.RecompileDataset" : {
       "type" : "object",
-      "description" : "Compile a published dataset again after a source changed",
+      "title" : "Compile a published dataset again after a source changed",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.RecompileDataset"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.RefuseDatasetPublication" : {
@@ -1214,12 +1214,12 @@
         }
       },
       "required" : [ "reason" ],
-      "description" : "Refuse the requested publication of a dataset",
+      "title" : "Refuse the requested publication of a dataset",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.RefuseDatasetPublication"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.RetireDataset" : {
       "type" : "object",
-      "description" : "Retire a dataset",
+      "title" : "Retire a dataset",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.RetireDataset"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.ReviseDataset" : {
@@ -1233,7 +1233,7 @@
         }
       },
       "required" : [ "definition" ],
-      "description" : "Revise a dataset's definition",
+      "title" : "Revise a dataset's definition",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.ReviseDataset"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.RollbackDataset" : {
@@ -1245,7 +1245,7 @@
         }
       },
       "required" : [ "version" ],
-      "description" : "Switch a dataset back to an earlier version",
+      "title" : "Switch a dataset back to an earlier version",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.dataset.RollbackDataset"
     },
     "me.ahoo.wow.analytics.catalog.api.source.ApproveSensitivityChange" : {
@@ -1258,12 +1258,12 @@
           }
         }
       },
-      "description" : "Approve a lower sensitivity of a Wow source",
+      "title" : "Approve a lower sensitivity of a Wow source",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.ApproveSensitivityChange"
     },
     "me.ahoo.wow.analytics.catalog.api.source.ApproveSource" : {
       "type" : "object",
-      "description" : "Approve a source for the datasets",
+      "title" : "Approve a source for the datasets",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.ApproveSource"
     },
     "me.ahoo.wow.analytics.catalog.api.source.DraftSource" : {
@@ -1277,7 +1277,7 @@
         }
       },
       "required" : [ "database", "table" ],
-      "description" : "Draft an analyst's source from a warehouse table",
+      "title" : "Draft an analyst's source from a warehouse table",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.DraftSource"
     },
     "me.ahoo.wow.analytics.catalog.api.source.FieldSensitivity" : {
@@ -1313,7 +1313,7 @@
     },
     "me.ahoo.wow.analytics.catalog.api.source.MarkSourceReviewed" : {
       "type" : "object",
-      "description" : "Mark an analyst's source reviewed",
+      "title" : "Mark an analyst's source reviewed",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.MarkSourceReviewed"
     },
     "me.ahoo.wow.analytics.catalog.api.source.ReviewSourceSensitivity" : {
@@ -1327,7 +1327,7 @@
         }
       },
       "required" : [ "fields" ],
-      "description" : "Review the sensitivity of a source's values",
+      "title" : "Review the sensitivity of a source's values",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.ReviewSourceSensitivity"
     },
     "me.ahoo.wow.analytics.catalog.api.source.ReviseSource" : {
@@ -1352,7 +1352,7 @@
           "type" : [ "string", "null" ]
         }
       },
-      "description" : "Revise an analyst's source",
+      "title" : "Revise an analyst's source",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.ReviseSource"
     },
     "me.ahoo.wow.analytics.catalog.api.source.SensitivityChangeApproved" : {
@@ -1372,12 +1372,12 @@
         }
       },
       "required" : [ "keys", "sensitivity" ],
-      "description" : "A lower sensitivity was approved",
+      "title" : "A lower sensitivity was approved",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.SensitivityChangeApproved"
     },
     "me.ahoo.wow.analytics.catalog.api.source.SourceApproved" : {
       "type" : "object",
-      "description" : "A source was approved for the datasets",
+      "title" : "A source was approved for the datasets",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.SourceApproved"
     },
     "me.ahoo.wow.analytics.catalog.api.source.SourceColumn" : {
@@ -1422,7 +1422,7 @@
         }
       },
       "required" : [ "columns", "connection", "database", "engine", "table", "tableEngine", "tableUuid" ],
-      "description" : "An analyst's source was drafted",
+      "title" : "An analyst's source was drafted",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.SourceDrafted"
     },
     "me.ahoo.wow.analytics.catalog.api.source.SourceReference" : {
@@ -1443,7 +1443,7 @@
     },
     "me.ahoo.wow.analytics.catalog.api.source.SourceReviewed" : {
       "type" : "object",
-      "description" : "An analyst's source was reviewed",
+      "title" : "An analyst's source was reviewed",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.SourceReviewed"
     },
     "me.ahoo.wow.analytics.catalog.api.source.SourceRevised" : {
@@ -1471,7 +1471,7 @@
           "type" : [ "string", "null" ]
         }
       },
-      "description" : "An analyst's source was revised",
+      "title" : "An analyst's source was revised",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.SourceRevised"
     },
     "me.ahoo.wow.analytics.catalog.api.source.SourceSensitivityReviewed" : {
@@ -1488,7 +1488,7 @@
         }
       },
       "required" : [ "fields" ],
-      "description" : "A source's sensitivity was reviewed",
+      "title" : "A source's sensitivity was reviewed",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.SourceSensitivityReviewed"
     },
     "me.ahoo.wow.analytics.catalog.api.source.SourceTableChanged" : {
@@ -1511,12 +1511,12 @@
         }
       },
       "required" : [ "columns", "tableEngine", "tableUuid" ],
-      "description" : "A source's table changed",
+      "title" : "A source's table changed",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.SourceTableChanged"
     },
     "me.ahoo.wow.analytics.catalog.api.source.SourceTableMissing" : {
       "type" : "object",
-      "description" : "A source's table is missing",
+      "title" : "A source's table is missing",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.SourceTableMissing"
     },
     "me.ahoo.wow.analytics.catalog.api.source.SyncSource" : {
@@ -1530,7 +1530,7 @@
         }
       },
       "required" : [ "database", "table" ],
-      "description" : "Bring a source up to date with the warehouse",
+      "title" : "Bring a source up to date with the warehouse",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.SyncSource"
     },
     "me.ahoo.wow.analytics.catalog.api.source.WowEnrichment" : {
@@ -1645,7 +1645,7 @@
         }
       },
       "required" : [ "columns", "connection", "database", "engine", "enrichment", "table", "tableEngine", "tableUuid", "tenantColumn" ],
-      "description" : "A trusted wow_catalog row was adopted",
+      "title" : "A trusted wow_catalog row was adopted",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.WowEnrichmentAdopted"
     },
     "me.ahoo.wow.analytics.catalog.api.source.WowEnrichmentLost" : {
@@ -1659,7 +1659,7 @@
         }
       },
       "required" : [ "pending" ],
-      "description" : "A Wow source's trusted wow_catalog row is gone",
+      "title" : "A Wow source's trusted wow_catalog row is gone",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.WowEnrichmentLost"
     },
     "me.ahoo.wow.analytics.catalog.api.source.WowEnrichmentRefused" : {
@@ -1673,7 +1673,7 @@
         }
       },
       "required" : [ "reasons" ],
-      "description" : "A table's wow_catalog rows were refused",
+      "title" : "A table's wow_catalog rows were refused",
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.api.source.WowEnrichmentRefused"
     },
     "me.ahoo.wow.analytics.catalog.domain.dataset.DatasetState" : {

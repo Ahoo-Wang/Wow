@@ -495,7 +495,7 @@
         }
       },
       "required" : [ "reason" ],
-      "description" : "Cancel the order",
+      "title" : "Cancel the order",
       "x-wow-class" : "me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.PayOrder" : {
@@ -510,7 +510,7 @@
         }
       },
       "required" : [ "amount", "paymentId" ],
-      "description" : "Pay the order",
+      "title" : "Pay the order",
       "x-wow-class" : "me.ahoo.wow.example.eshop.ordering.api.order.PayOrder"
     },
     "me.ahoo.wow.example.eshop.payment.api.payment.ConfirmPayment" : {
@@ -521,7 +521,7 @@
         }
       },
       "required" : [ "transactionId" ],
-      "description" : "Confirm a payment",
+      "title" : "Confirm a payment",
       "x-wow-class" : "me.ahoo.wow.example.eshop.payment.api.payment.ConfirmPayment"
     },
     "me.ahoo.wow.example.eshop.payment.api.payment.FailPayment" : {
@@ -532,7 +532,7 @@
         }
       },
       "required" : [ "reason" ],
-      "description" : "Fail a payment",
+      "title" : "Fail a payment",
       "x-wow-class" : "me.ahoo.wow.example.eshop.payment.api.payment.FailPayment"
     },
     "me.ahoo.wow.example.eshop.payment.api.payment.PaymentFailed" : {
@@ -543,7 +543,7 @@
         }
       },
       "required" : [ "reason" ],
-      "description" : "The gateway declined a payment",
+      "title" : "The gateway declined a payment",
       "x-wow-class" : "me.ahoo.wow.example.eshop.payment.api.payment.PaymentFailed"
     },
     "me.ahoo.wow.example.eshop.payment.api.payment.PaymentRefunded" : {
@@ -554,7 +554,7 @@
         }
       },
       "required" : [ "reason" ],
-      "description" : "A payment was refunded",
+      "title" : "A payment was refunded",
       "x-wow-class" : "me.ahoo.wow.example.eshop.payment.api.payment.PaymentRefunded"
     },
     "me.ahoo.wow.example.eshop.payment.api.payment.PaymentRequested" : {
@@ -569,7 +569,7 @@
         }
       },
       "required" : [ "amount", "orderId" ],
-      "description" : "A payment was requested",
+      "title" : "A payment was requested",
       "x-wow-class" : "me.ahoo.wow.example.eshop.payment.api.payment.PaymentRequested"
     },
     "me.ahoo.wow.example.eshop.payment.api.payment.PaymentSucceeded" : {
@@ -580,7 +580,7 @@
         }
       },
       "required" : [ "transactionId" ],
-      "description" : "The gateway approved a payment",
+      "title" : "The gateway approved a payment",
       "x-wow-class" : "me.ahoo.wow.example.eshop.payment.api.payment.PaymentSucceeded"
     },
     "me.ahoo.wow.example.eshop.payment.api.payment.RefundPayment" : {
@@ -591,7 +591,7 @@
         }
       },
       "required" : [ "reason" ],
-      "description" : "Refund a payment",
+      "title" : "Refund a payment",
       "x-wow-class" : "me.ahoo.wow.example.eshop.payment.api.payment.RefundPayment"
     },
     "me.ahoo.wow.example.eshop.payment.api.payment.RequestPayment" : {
@@ -607,7 +607,7 @@
         }
       },
       "required" : [ "amount", "orderId" ],
-      "description" : "Request a payment",
+      "title" : "Request a payment",
       "x-wow-class" : "me.ahoo.wow.example.eshop.payment.api.payment.RequestPayment"
     },
     "me.ahoo.wow.example.eshop.payment.domain.payment.ChargebackNotified" : {

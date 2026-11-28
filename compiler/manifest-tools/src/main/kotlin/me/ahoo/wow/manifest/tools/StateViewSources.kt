@@ -95,7 +95,7 @@ internal class StateViewSources(
             appendLine()
             appendLine("/**")
             appendLine(" * The state of `$aggregate` as another context reads it, from its contract.")
-            description(schemaOf(state))?.let { appendLine(" * ${comment(it)}") }
+            words(schemaOf(state)).forEach { appendLine(" * ${comment(it)}") }
             appendLine(" */")
             appendLine("@me.ahoo.wow.api.read.StateView(${literal(aggregate)})")
             append(body)
@@ -120,7 +120,7 @@ internal class StateViewSources(
                 val type = typeOf(property, "$binary.$field")
                 val nullable = type.nullable || field !in required
                 buildString {
-                    description(property)?.let { appendLine("$indent    /** ${comment(it)} */") }
+                    append(kdoc(words(property), "$indent    "))
                     append("$indent    val ${identifier(field, "$binary.$field")}: ${type.name}")
                     append(if (nullable) "? = null," else ",")
                 }
@@ -334,8 +334,16 @@ internal class StateViewSources(
             else -> emptySet()
         }
 
-        fun description(schema: Any?): String? =
-            ((schema as? Map<*, *>)?.get("description") as? String)?.takeIf { it.isNotBlank() }
+        /** The words of [schema] ([SchemaWords]): its `title`, then its `description`, each when it says something. */
+        fun words(schema: Any?): List<String> = listOf(SchemaWords.TITLE, SchemaWords.DESCRIPTION)
+            .mapNotNull { keyword -> ((schema as? Map<*, *>)?.get(keyword) as? String)?.takeIf { it.isNotBlank() } }
+
+        /** The KDoc of a property that says [words] at [indent]: one line for one, the title as the summary of two. */
+        fun kdoc(words: List<String>, indent: String): String = when (words.size) {
+            0 -> ""
+            1 -> "$indent/** ${comment(words.single())} */\n"
+            else -> "$indent/**\n$indent * ${comment(words.first())}\n$indent *\n$indent * ${comment(words.last())}\n$indent */\n"
+        }
 
         /** The Kotlin name of the field [name], between backticks when it is not a plain name. */
         fun identifier(name: String, field: String): String = when {

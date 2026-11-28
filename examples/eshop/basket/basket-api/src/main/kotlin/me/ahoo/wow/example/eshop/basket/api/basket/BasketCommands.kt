@@ -16,6 +16,7 @@ package me.ahoo.wow.example.eshop.basket.api.basket
 import jakarta.validation.constraints.Positive
 import jakarta.validation.constraints.PositiveOrZero
 import me.ahoo.wow.api.annotation.AllowCreate
+import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.Summary
 import java.math.BigDecimal
 
@@ -39,12 +40,17 @@ data class AddBasketItem(
 )
 // endregion
 
+// region change-quantity
 /** Changes the quantity of [productId] in the basket to [quantity]. */
 @Summary("Change an item's quantity")
 data class ChangeBasketItemQuantity(
+    @Summary("Product")
+    @Description("The id of the product whose quantity changes; it is in the basket.")
     val productId: String,
+    @Summary("Quantity")
     @field:Positive val quantity: Int,
 )
+// endregion
 
 /** Removes [productId] from the basket. */
 @Summary("Remove an item from the basket")

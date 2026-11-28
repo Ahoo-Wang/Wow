@@ -22,6 +22,9 @@ export interface PropertyModel {
   readonly optional: boolean;
   /** Read-only: computed, written by the service and never read back. */
   readonly readonly?: true;
+  /** Its schema's `title`, the property's `@Summary`. */
+  readonly title?: string;
+  /** Its schema's `description`, the property's `@Description`. */
   readonly description?: string;
 }
 
@@ -32,6 +35,8 @@ export interface TypeModel {
   readonly name: string;
   /** The file it is declared in, relative to the output directory. */
   readonly file: string;
+  /** Its schema's `title`, the type's `@Summary`. */
+  readonly title?: string;
   readonly description?: string;
   /** Of an input type, the name of the type it is the input of. */
   readonly inputOf?: string;

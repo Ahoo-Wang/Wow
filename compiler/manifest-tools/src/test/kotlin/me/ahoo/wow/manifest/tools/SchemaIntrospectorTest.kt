@@ -263,7 +263,10 @@ class SchemaIntrospectorTest {
         val fragment = fragment().copyWith(contexts = listOf(ContextManifest("shop", aggregates = listOf(aggregate))))
         val completed = introspector.complete(fragment)
         defOf(completed, Ship::class.java)["description"].assert().isEqualTo("A shipment of the order")
-        defOf(completed, Shipped::class.java)["description"].assert().isEqualTo("Shipped")
+        defOf(completed, Ship::class.java)["title"].assert().isEqualTo("Shipment")
+        // A summary is the title, and no description in its place (#7262).
+        defOf(completed, Shipped::class.java)["title"].assert().isEqualTo("Shipped")
+        defOf(completed, Shipped::class.java).containsKey("description").assert().isFalse()
         defOf(completed, Track::class.java).containsKey("description").assert().isFalse()
         defOf(completed, Deliver::class.java)["description"].assert().isEqualTo("Delivers.")
         defOf(completed, CartState::class.java).containsKey("description").assert().isFalse()

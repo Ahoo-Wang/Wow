@@ -14,7 +14,18 @@
 package me.ahoo.wow.api.annotation
 
 /**
- * A one-line summary of a type or a field, carried into the Manifest and the documentation generated from it.
+ * A one-line summary of a type or of a property: the `title` of its schema in the Manifest, on a class for the type's
+ * schema and on a property for the property's, which the generated clients and the OpenAPI document carry as
+ * documentation.
+ *
+ * A property takes it where each language lets it stand: on a Kotlin property, declared in the constructor or in the
+ * body, or computed; on its field (`@field:Summary`); on a Java field, and so on a record's component. A property's
+ * summary holds where the property is used, beside the reference to its type, whose own summary stays with the
+ * type. The value is trimmed, and a blank one says nothing.
+ *
+ * It is no description: a schema's `description` is its [Description]'s alone, and a schema with a summary only has
+ * a `title` and no `description`. Only the entry of a command, an event or an aggregate in the Manifest, which has a
+ * description and no summary, takes the summary when the class has neither a [Description] nor a KDoc.
  *
  * @param value the summary.
  */

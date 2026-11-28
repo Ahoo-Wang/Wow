@@ -567,7 +567,7 @@
         }
       },
       "required" : [ "action", "code", "reason" ],
-      "description" : "An action was refused",
+      "title" : "An action was refused",
       "x-wow-class" : "me.ahoo.wow.ops.api.parked.ActionRefused"
     },
     "me.ahoo.wow.ops.api.parked.ApplyRetrySpec" : {
@@ -589,7 +589,7 @@
           "minimum" : 0
         }
       },
-      "description" : "Apply a retry spec to a parked entry",
+      "title" : "Apply a retry spec to a parked entry",
       "x-wow-class" : "me.ahoo.wow.ops.api.parked.ApplyRetrySpec"
     },
     "me.ahoo.wow.ops.api.parked.ApplyRetrySpecRequested" : {
@@ -610,7 +610,7 @@
           "format" : "int32"
         }
       },
-      "description" : "A retry spec was requested",
+      "title" : "A retry spec was requested",
       "x-wow-class" : "me.ahoo.wow.ops.api.parked.ApplyRetrySpecRequested"
     },
     "me.ahoo.wow.ops.api.parked.EntryAggregate" : {
@@ -664,7 +664,7 @@
         }
       },
       "required" : [ "recoverable" ],
-      "description" : "Mark a parked entry recoverable or not",
+      "title" : "Mark a parked entry recoverable or not",
       "x-wow-class" : "me.ahoo.wow.ops.api.parked.MarkRecoverable"
     },
     "me.ahoo.wow.ops.api.parked.MarkRecoverableRequested" : {
@@ -679,7 +679,7 @@
         }
       },
       "required" : [ "recoverable" ],
-      "description" : "A recoverable mark was requested",
+      "title" : "A recoverable mark was requested",
       "x-wow-class" : "me.ahoo.wow.ops.api.parked.MarkRecoverableRequested"
     },
     "me.ahoo.wow.ops.api.parked.ParkedEntry" : {
@@ -755,7 +755,7 @@
         }
       },
       "required" : [ "entry" ],
-      "description" : "A parked entry was recorded",
+      "title" : "A parked entry was recorded",
       "x-wow-class" : "me.ahoo.wow.ops.api.parked.ParkedRecorded"
     },
     "me.ahoo.wow.ops.api.parked.ParkedResolved" : {
@@ -774,7 +774,7 @@
         }
       },
       "required" : [ "outcome", "resolvedAt" ],
-      "description" : "A parked entry was resolved",
+      "title" : "A parked entry was resolved",
       "x-wow-class" : "me.ahoo.wow.ops.api.parked.ParkedResolved"
     },
     "me.ahoo.wow.ops.api.parked.RecordActionRefused" : {
@@ -791,7 +791,7 @@
         }
       },
       "required" : [ "action", "code", "reason" ],
-      "description" : "Record an action the owning service refused",
+      "title" : "Record an action the owning service refused",
       "x-wow-class" : "me.ahoo.wow.ops.api.parked.RecordActionRefused"
     },
     "me.ahoo.wow.ops.api.parked.RecordParked" : {
@@ -802,7 +802,7 @@
         }
       },
       "required" : [ "entry" ],
-      "description" : "Record a parked entry",
+      "title" : "Record a parked entry",
       "x-wow-class" : "me.ahoo.wow.ops.api.parked.RecordParked"
     },
     "me.ahoo.wow.ops.api.parked.RecordResolved" : {
@@ -840,7 +840,7 @@
         }
       },
       "required" : [ "resolution" ],
-      "description" : "Record a resolved entry",
+      "title" : "Record a resolved entry",
       "x-wow-class" : "me.ahoo.wow.ops.api.parked.RecordResolved"
     },
     "me.ahoo.wow.ops.api.parked.Retry" : {
@@ -854,7 +854,7 @@
           "type" : [ "string", "null" ]
         }
       },
-      "description" : "Retry a parked entry",
+      "title" : "Retry a parked entry",
       "x-wow-class" : "me.ahoo.wow.ops.api.parked.Retry"
     },
     "me.ahoo.wow.ops.api.parked.RetryRequested" : {
@@ -868,7 +868,7 @@
           "type" : [ "string", "null" ]
         }
       },
-      "description" : "A retry was requested",
+      "title" : "A retry was requested",
       "x-wow-class" : "me.ahoo.wow.ops.api.parked.RetryRequested"
     },
     "me.ahoo.wow.ops.api.parked.Skip" : {
@@ -882,7 +882,7 @@
           "type" : [ "string", "null" ]
         }
       },
-      "description" : "Skip a parked entry",
+      "title" : "Skip a parked entry",
       "x-wow-class" : "me.ahoo.wow.ops.api.parked.Skip"
     },
     "me.ahoo.wow.ops.api.parked.SkipRequested" : {
@@ -896,7 +896,7 @@
           "type" : [ "string", "null" ]
         }
       },
-      "description" : "A skip was requested",
+      "title" : "A skip was requested",
       "x-wow-class" : "me.ahoo.wow.ops.api.parked.SkipRequested"
     },
     "me.ahoo.wow.ops.domain.parked.ParkedState" : {

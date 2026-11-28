@@ -39,7 +39,7 @@ data class SubmitOrder(
 )
 ```
 
-`@Summary` 为命令提供一行摘要，用于 Manifest 和 OpenAPI 文档。不带数据的命令是一个 `data object`，例如 `ShipOrder`。
+`@Summary` 为命令提供一行摘要：它是命令的 schema 在 Manifest 和 OpenAPI 文档中的 `title`。不带数据的命令是一个 `data object`，例如 `ShipOrder`。
 
 ### 检查它的形状 {#check-its-shape}
 
@@ -77,6 +77,28 @@ data class AddBasketItem(
 | 两者都没有 | 聚合已存在；否则 `wow.aggregate.not-found` |
 
 每条命令的路由是 `POST /<context>/<aggregate>/{id}/<command>`，命令名采用 kebab case，与 Manifest 列出的路由一致：`POST /eshop-ordering/order/{id}/submit-order`。创建命令还提供不带 `{id}` 的路由，由服务端为聚合分配 ID。准入会先查找同一个请求 ID 已经创建过的聚合并复用它的 ID，所以同一个创建发两次只会创建一个聚合。ID 即所有者 ID 的聚合（每个所有者一个）的每条命令也都提供不带 `{id}` 的路由，指调用方自己的聚合，并且不生成 ID（[每个所有者一个聚合](./ownership#one-aggregate-per-owner)）。
+
+### 为字段写文档 {#document-its-fields}
+
+`@Summary` 和 `@Description` 为字段写文档，与为类写文档一样。标在属性上，`@Summary` 是该属性的 schema 在 Manifest 中的 `title`，`@Description` 是它的 `description`；标在类上，它们是类型的。两者互不替代，没写的那个就不出现：
+
+<!-- sample: examples/eshop/basket/basket-api/src/main/kotlin/me/ahoo/wow/example/eshop/basket/api/basket/BasketCommands.kt#change-quantity -->
+
+```kotlin
+/** Changes the quantity of [productId] in the basket to [quantity]. */
+@Summary("Change an item's quantity")
+data class ChangeBasketItemQuantity(
+    @Summary("Product")
+    @Description("The id of the product whose quantity changes; it is in the basket.")
+    val productId: String,
+    @Summary("Quantity")
+    @field:Positive val quantity: Int,
+)
+```
+
+于是命令的 schema 中有 `"productId": {"type": "string", "title": "Product", "description": "The id of the product whose quantity changes; it is in the basket."}`。生成的 TypeScript 客户端把两者写成该属性的文档注释，OpenAPI 文档在命令的组件中带上它们，对端从契约生成的状态视图把状态的写成 KDoc。
+
+这两个注解可以标在 Kotlin 属性上（在构造函数或类体中声明的，或计算属性）、标在它的字段上（`@field:Summary`），也可以标在 Java 字段上，record 的组件即是。类型有名字的属性，自己的文字写在对该类型的引用旁边，类型的文字留在类型上。文字不是契约的一部分：改动摘要或描述，对[兼容检查](./manifest#the-compatibility-check)不是变更，也不改变任何状态的指纹。
 
 ### 在命令体中指明聚合 {#name-the-aggregate-in-the-body}
 

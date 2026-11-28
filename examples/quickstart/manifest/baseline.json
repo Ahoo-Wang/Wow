@@ -366,7 +366,7 @@
         }
       },
       "required" : [ "owner" ],
-      "description" : "An account was opened",
+      "title" : "An account was opened",
       "x-wow-class" : "me.ahoo.wow.example.quickstart.AccountOpened"
     },
     "me.ahoo.wow.example.quickstart.AccountState" : {
@@ -393,7 +393,7 @@
         }
       },
       "required" : [ "amount" ],
-      "description" : "Deposit money",
+      "title" : "Deposit money",
       "x-wow-class" : "me.ahoo.wow.example.quickstart.Deposit"
     },
     "me.ahoo.wow.example.quickstart.Deposited" : {
@@ -405,7 +405,7 @@
         }
       },
       "required" : [ "amount" ],
-      "description" : "Money was deposited",
+      "title" : "Money was deposited",
       "x-wow-class" : "me.ahoo.wow.example.quickstart.Deposited"
     },
     "me.ahoo.wow.example.quickstart.OpenAccount" : {
@@ -416,7 +416,7 @@
         }
       },
       "required" : [ "owner" ],
-      "description" : "Open an account",
+      "title" : "Open an account",
       "x-wow-class" : "me.ahoo.wow.example.quickstart.OpenAccount"
     },
     "me.ahoo.wow.example.quickstart.Withdraw" : {
@@ -429,7 +429,7 @@
         }
       },
       "required" : [ "amount" ],
-      "description" : "Withdraw money",
+      "title" : "Withdraw money",
       "x-wow-class" : "me.ahoo.wow.example.quickstart.Withdraw"
     },
     "me.ahoo.wow.example.quickstart.Withdrawn" : {
@@ -441,7 +441,7 @@
         }
       },
       "required" : [ "amount" ],
-      "description" : "Money was withdrawn",
+      "title" : "Money was withdrawn",
       "x-wow-class" : "me.ahoo.wow.example.quickstart.Withdrawn"
     },
     "wow.lifecycle.DeleteAggregate" : {
