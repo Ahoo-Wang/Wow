@@ -49,6 +49,7 @@ import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.EventManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.QueryManifest
 import me.ahoo.wow.manifest.QueryRoutes
@@ -115,6 +116,8 @@ class InProcessQueryApiTest {
         name,
         state = StateManifest(Manifest.schemaRef(name)),
         queries = listOf(QueryManifest(QueryRoutes.SNAPSHOT), QueryManifest(QueryRoutes.EVENTS)),
+        // Its events, as a generated Manifest lists them: an event the Manifest does not know is read masked whole.
+        events = listOf(EventManifest("item_added", schema = Manifest.schemaRef("ItemAdded"))),
     )
 
     private fun save(tenant: String, id: String, owner: String, items: Int = 1) {
@@ -505,8 +508,8 @@ class InProcessQueryApiTest {
         stream.events.map { it.name }.assert().containsExactly("item_added", "retired")
         stream.events[0].body.assert().isEqualTo(ItemAdded("s-1"))
         stream.events[0].revision.assert().isEqualTo(1)
-        // An event the model has no class of is its body as stored, as over HTTP.
-        (stream.events[1].body as ObjectNode)["a"].asInt().assert().isEqualTo(1)
+        // An event the Manifest does not know is masked whole, as over HTTP: its body the JSON null.
+        (stream.events[1].body as JsonNode).isNull.assert().isTrue()
         events.dynamic<ObjectNode>().single(SingleQuery(AggregateIdFilter("c-1")))!!["commandId"].asString()
             .assert().isEqualTo("cmd-1")
     }

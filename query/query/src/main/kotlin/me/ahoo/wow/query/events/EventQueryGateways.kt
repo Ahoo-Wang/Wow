@@ -175,7 +175,13 @@ object EventStreamRecords {
                     .put(EventFields.REVISION, read.revision)
                     .set(
                         EventFields.BODY,
-                        masks.event(type, read.name, WowJson.mapper.readTree(read.payload), revealsDisplay),
+                        masks.event(
+                            type,
+                            read.name,
+                            read.revision,
+                            WowJson.mapper.readTree(read.payload),
+                            revealsDisplay,
+                        ),
                     )
             }
         }

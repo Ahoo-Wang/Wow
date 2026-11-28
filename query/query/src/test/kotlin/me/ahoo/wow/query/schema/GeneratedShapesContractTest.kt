@@ -151,7 +151,7 @@ class GeneratedShapesContractTest {
             val masks = PayloadMasks(manifest(state, defs))
             val sample = WowJson.mapper.valueToTree<JsonNode>(ManifestFixtures.SHAPE_SAMPLES.getValue(state))
             listOf(
-                masks.event(type, "shop.order.Changed", sample.deepCopy()),
+                masks.event(type, "shop.order.Changed", 1, sample.deepCopy()),
                 masks.state(type, sample.deepCopy()),
             ).forEach { masked ->
                 masked.toString().assert().describedAs(state).doesNotContain(TOKEN)
