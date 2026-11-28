@@ -206,6 +206,8 @@ sms.send(customer.state.phone, text)
 
 直接读这些地方的人，无论用 SQL 还是存储的客户端，读到的都是原始值。
 
+读取只应答节点的 schema 声明的内容。封闭对象（类，或列出了属性的对象 schema，见 [Manifest 格式](../reference/manifest)）中节点的 schema 没有声明的属性，不会出现在状态读取、快照查询的记录、本节点所知修订号下的事件体以及定时的命令中，无论这个值从哪里来，比如滚动升级期间服务的新版本写下的快照。映射的条目和自由对象的属性按存储的样子应答。它堵不住的是：新版本新标为 `@Sensitive`、而旧版本的 schema 已经声明的字段，在旧节点全部下线之前，旧节点仍按它们的 schema 应答，若 schema 什么都没说就是原值。Wow 发布的是节点自己的序列化结果，只脱敏，不裁剪。
+
 [发布的事件流](./published-streams#sensitive-values) `wow.<context>.<aggregate>.state` 在写入时脱敏：状态和每个事件体里的每个 `@Sensitive` 值都按读取时的方式换成掩码，主题里不保存它。属主可以声明一个事件流揭示它的 `DISPLAY` 值（`@AggregateRoot(revealsDisplay = true)`）；它的 `CONFIDENTIAL` 值仍然脱敏。这样的事件流与揭示读取有三点不同：
 
 - **说出这个词的是属主，不是读方。** 一条记录只写一次，给所有读者，所以由属主在契约里决定。Manifest 的 `published` 和对端契约都带着这个声明，消费者由此知道它拿到的是不是原值。

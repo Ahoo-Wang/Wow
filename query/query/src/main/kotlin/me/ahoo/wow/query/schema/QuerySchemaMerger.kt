@@ -148,6 +148,8 @@ private fun QueryFieldDeclaration.materialize(): QueryValueSchema {
         throw QuerySchemaConflictException("Masked query schema field must have STRING value type.")
     }
     val branches = alternatives.valueOr(emptyList()).map { it.materialize() }
+    val names = properties.valueOr(emptyMap()).keys
+    val closes = valueKind == QueryValueKind.OBJECT && additionalProperties.valueOr(null) == null
     if (valueKind == QueryValueKind.UNION && nullable == DeclarationValue.Set(false) && branches.any { it.nullable }) {
         throw QuerySchemaConflictException("Union alternatives conflict with non-null query schema value.")
     }
@@ -175,6 +177,7 @@ private fun QueryFieldDeclaration.materialize(): QueryValueSchema {
                 null
             )?.copy(required = DeclarationValue.Set(false))?.materialize(),
             alternatives = branches,
+            declaredNames = closed.valueOr(null)?.takeIf { closes }?.let { names + it },
         )
     } catch (error: IllegalArgumentException) {
         throw QuerySchemaConflictException("Invalid query schema value structure: ${error.message}", error)

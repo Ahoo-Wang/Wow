@@ -206,6 +206,8 @@ So a secret the service must read back, such as the API key it presents to a thi
 
 Whoever reads one of these directly, with SQL or a store's client, reads the raw values.
 
+A read answers only what the node's schema declares. A property of a closed object, a class or an object schema that lists its properties ([Manifest Format](../reference/manifest)), that the node's schema does not declare is left out of a state read, a snapshot query's records, an event's body at a revision the node knows, and a scheduled command, wherever the value comes from: a snapshot a newer version of the service wrote during a rolling upgrade, say. A map's entries and a free object's properties are answered as stored. What it does not close: a field a newer version newly marks `@Sensitive`, which the older version's schema declares already, is answered by the older nodes as their schema says, raw if it says nothing, until they are gone. What Wow publishes is the node's own serialisation, and is masked, not trimmed.
+
 A [published stream](./published-streams#sensitive-values), `wow.<context>.<aggregate>.state`, is masked as it is written. Each `@Sensitive` value of the state and of every event's body is replaced by its mask, as a read masks it, so the topic does not hold it. The owner may declare that a stream reveals its `DISPLAY` values (`@AggregateRoot(revealsDisplay = true)`); its `CONFIDENTIAL` values stay masked. Such a stream differs from a revealing read in three ways:
 
 - **The owner says the word, not the reader.** A record is written once, for every reader, so the owner decides in its contract. The Manifest's `published` and the peer contract carry the declaration, so a consumer knows whether it receives the raw values.

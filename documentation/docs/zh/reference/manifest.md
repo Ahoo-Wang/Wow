@@ -9,6 +9,8 @@ description: "服务的 Manifest 写成的 JSON：每个对象及其键。"
 
 服务的 Manifest 是一份 JSON 文档（`format` 1）：它的限界上下文、上下文中的聚合及其命令与事件、订阅、框架的错误码，以及 `$defs` 之下每个载荷的 JSON Schema 2020-12。模块的片段（`META-INF/wow/manifest/<module>.json`）形状相同，只是没有 `service`。下面每个对象及其键的提纲，由写出它的代码 [`ManifestTree`](https://github.com/Ahoo-Wang/Wow/blob/main/api/manifest/src/main/kotlin/me/ahoo/wow/manifest/ManifestTree.kt) 生成；说明取自源码，为英文。
 
+Wow 读取 `$defs` 的 schema 时，无论是编译器写出的还是手写的（`schemaOverrides` 条目，或片段里已有的 schema），都遵循一条与 JSON Schema 默认不同的规则（JSON Schema 允许 schema 没有拒绝的任何属性）：写明类（`x-wow-class`）或列出 `properties`、且没有 `additionalProperties` 的对象 schema 是封闭的，脱敏读取只应答它声明的属性（[脱敏止步之处](../guide/queries#where-masking-stops)）。带 `additionalProperties` 的（映射的，或 Jackson 写出的不止其属性的类的：`@JsonAnyGetter`、`@JsonAppend`），以及既没有类也没有属性的（自由对象），是开放的。
+
 写出时省略的内容：
 
 Absent optional values (a null description, unknown `produces`, `derives`, `schedules` or `transformsTo`, a fragment's service, a subscription's `retry` or `job`) are left out, not written as null, and so are a subscription source's `nullableState` and a command's `mounted`, `system` and `internal` when false, an aggregate's `ownership` when it is `OWNER`, the default, its `idSource` when it is `ASSIGNED`, the default, its `retired` events and its `access` attributes when it has none, an access attribute's `multiple` when false, and the Manifest's `requires` when it has none.

@@ -20,6 +20,7 @@ import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.query.backend.single
 import me.ahoo.wow.query.descriptor.QueryModelDescriptor
+import me.ahoo.wow.query.mask.DeclaredOnly
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 
@@ -248,6 +249,15 @@ class QueryModelSchema(
 
     /** How responses are masked, or `null` when the model masks nothing. */
     internal val maskDefinition = QueryMaskDefinition.create(this)
+
+    /**
+     * The walk that answers only what the model's schema declares of a response ([DeclaredOnly]): `null` when no value
+     * of it can hold a closed object, or the model masks no response through its schema (the `events` model masks
+     * each event's body by its own event's schema). Compiled on first use.
+     */
+    internal val declaredOnly: DeclaredOnly? by lazy(LazyThreadSafetyMode.PUBLICATION) {
+        if (profile?.masksResponses == true) DeclaredOnly.of(root) else null
+    }
 
     /** Which events declare each path of their bodies, for an `events` model ([EventBodyDeclarations]); else `null`. */
     internal val eventBodies: EventBodyDeclarations? by lazy(LazyThreadSafetyMode.PUBLICATION) {

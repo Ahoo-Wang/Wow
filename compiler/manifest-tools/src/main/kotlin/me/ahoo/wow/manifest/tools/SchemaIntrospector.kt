@@ -44,6 +44,7 @@ import me.ahoo.wow.spi.SystemCommandGroups
 import me.ahoo.wow.spi.json.StateJson
 import tools.jackson.databind.BeanProperty
 import tools.jackson.databind.JavaType
+import tools.jackson.databind.annotation.JsonAppend
 import tools.jackson.databind.introspect.BeanPropertyDefinition
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.databind.jsonFormatVisitors.JsonFormatVisitorWrapper
@@ -296,6 +297,24 @@ internal class SchemaIntrospector(
         override fun applyToConfigBuilder(builder: SchemaGeneratorConfigBuilder) {
             super.applyToConfigBuilder(builder)
             builder.forMethods().withIgnoreCheck { computed(it) == null }
+            builder.forTypesInGeneral().withTypeAttributeOverride { attributes, scope, _ ->
+                if (attributes.has(SchemaShapes.PROPERTIES) && writesMore(scope.type)) {
+                    attributes.put(SchemaShapes.ADDITIONAL_PROPERTIES, true)
+                }
+            }
+        }
+
+        /**
+         * Whether Jackson writes more of [type] than its properties: the entries of an any-getter's map
+         * (`@JsonAnyGetter`, on a method or a property's getter) beside them, or the attributes and virtual properties
+         * of `@JsonAppend`, which a writer supplies. Such a class's schema allows additional properties of any value
+         * (`additionalProperties: true`): Wow reads a class's schema without it as closed (`ManifestSchemaReader` of
+         * `wow-query`), which a masked read answers only the properties of, while JSON Schema reads it as it reads
+         * their absence, so the compatibility gate sees no change.
+         */
+        private fun writesMore(type: ResolvedType): Boolean {
+            val description = getBeanDescriptionForClass(type)
+            return description.findAnyGetter() != null || description.classInfo.hasAnnotation(JsonAppend::class.java)
         }
 
         /** The names of the properties Wow's JSON writes of each class ([StateJson.mapper]), by class. */

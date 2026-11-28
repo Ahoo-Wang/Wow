@@ -145,7 +145,7 @@ const WORDS = {
       title: 'Manifest Format',
       description:
         "The JSON a service's Manifest is written as: every object and its keys.",
-      intro: `A service's Manifest is one JSON document (\`format\` 1): its bounded contexts, their aggregates with the commands and events they speak, their subscriptions, the framework's error codes, and the JSON Schema 2020-12 of every payload under \`$defs\`. A module's fragment (\`META-INF/wow/manifest/<module>.json\`) has the same shape without \`service\`. This outline of every object and its keys is generated from the code that writes it, [\`ManifestTree\`](${SOURCE}${MANIFEST_TREE}).`,
+      intro: `A service's Manifest is one JSON document (\`format\` 1): its bounded contexts, their aggregates with the commands and events they speak, their subscriptions, the framework's error codes, and the JSON Schema 2020-12 of every payload under \`$defs\`. A module's fragment (\`META-INF/wow/manifest/<module>.json\`) has the same shape without \`service\`. This outline of every object and its keys is generated from the code that writes it, [\`ManifestTree\`](${SOURCE}${MANIFEST_TREE}).\n\nWow reads a schema of \`$defs\`, the compiler's and a hand-written one alike (a \`schemaOverrides\` entry, or a schema a fragment holds already), by a rule that differs from JSON Schema's default, which allows any property a schema does not refuse: an object schema that names its class (\`x-wow-class\`) or lists \`properties\`, and has no \`additionalProperties\`, is closed, so a masked read answers only the properties it declares ([Where masking stops](../guide/queries#where-masking-stops)). One with \`additionalProperties\`, a map's or a class's that Jackson writes more of than its properties (\`@JsonAnyGetter\`, \`@JsonAppend\`), and one with neither class nor properties, a free object, are open.`,
       omitted: 'What the writer leaves out:',
       array: 'array of',
       arrayObjects: 'array of objects',
@@ -222,7 +222,7 @@ const WORDS = {
     manifest: {
       title: 'Manifest 格式',
       description: '服务的 Manifest 写成的 JSON：每个对象及其键。',
-      intro: `服务的 Manifest 是一份 JSON 文档（\`format\` 1）：它的限界上下文、上下文中的聚合及其命令与事件、订阅、框架的错误码，以及 \`$defs\` 之下每个载荷的 JSON Schema 2020-12。模块的片段（\`META-INF/wow/manifest/<module>.json\`）形状相同，只是没有 \`service\`。下面每个对象及其键的提纲，由写出它的代码 [\`ManifestTree\`](${SOURCE}${MANIFEST_TREE}) 生成；说明取自源码，为英文。`,
+      intro: `服务的 Manifest 是一份 JSON 文档（\`format\` 1）：它的限界上下文、上下文中的聚合及其命令与事件、订阅、框架的错误码，以及 \`$defs\` 之下每个载荷的 JSON Schema 2020-12。模块的片段（\`META-INF/wow/manifest/<module>.json\`）形状相同，只是没有 \`service\`。下面每个对象及其键的提纲，由写出它的代码 [\`ManifestTree\`](${SOURCE}${MANIFEST_TREE}) 生成；说明取自源码，为英文。\n\nWow 读取 \`$defs\` 的 schema 时，无论是编译器写出的还是手写的（\`schemaOverrides\` 条目，或片段里已有的 schema），都遵循一条与 JSON Schema 默认不同的规则（JSON Schema 允许 schema 没有拒绝的任何属性）：写明类（\`x-wow-class\`）或列出 \`properties\`、且没有 \`additionalProperties\` 的对象 schema 是封闭的，脱敏读取只应答它声明的属性（[脱敏止步之处](../guide/queries#where-masking-stops)）。带 \`additionalProperties\` 的（映射的，或 Jackson 写出的不止其属性的类的：\`@JsonAnyGetter\`、\`@JsonAppend\`），以及既没有类也没有属性的（自由对象），是开放的。`,
       omitted: '写出时省略的内容：',
       array: '数组，元素为',
       arrayObjects: '对象数组',
