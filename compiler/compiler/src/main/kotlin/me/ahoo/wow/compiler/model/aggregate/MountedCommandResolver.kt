@@ -18,6 +18,7 @@ import me.ahoo.wow.api.annotation.InternalCommand
 import me.ahoo.wow.api.annotation.MountedCommand
 import me.ahoo.wow.compiler.model.symbol.AnnotationSet
 import me.ahoo.wow.compiler.model.symbol.Descriptions
+import me.ahoo.wow.compiler.model.symbol.ModelNameCheck
 import me.ahoo.wow.compiler.model.symbol.argumentsOf
 import me.ahoo.wow.compiler.model.symbol.binaryName
 import me.ahoo.wow.compiler.model.symbol.commandClassesOf
@@ -56,9 +57,11 @@ internal object MountedCommandResolver {
         if (mounted != null && aggregate.isBlank()) {
             problems += "mounted command $name names no aggregate: @MountedCommand(aggregate) is its aggregate's name"
         }
+        val commandName = declaration.declaredName(problems)
+        ModelNameCheck.problem("mounted command $name", commandName, name)?.let { problems += it }
         return MountedBinding(
             command = declaration.sourceName()!!,
-            commandName = declaration.declaredName(problems),
+            commandName = commandName,
             aggregate = aggregate,
             type = declaration.binaryName(),
             transformsTo = transformsTo,

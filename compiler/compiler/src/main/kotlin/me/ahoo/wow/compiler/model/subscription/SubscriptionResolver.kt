@@ -36,6 +36,7 @@ import me.ahoo.wow.api.subscribe.SubscriptionContext
 import me.ahoo.wow.compiler.model.aggregate.Dependency
 import me.ahoo.wow.compiler.model.subscription.ReceiptHandlerResolver.receiptHandlers
 import me.ahoo.wow.compiler.model.symbol.AnnotationSet
+import me.ahoo.wow.compiler.model.symbol.ModelNameCheck
 import me.ahoo.wow.compiler.model.symbol.annotatedIn
 import me.ahoo.wow.compiler.model.symbol.argumentsOf
 import me.ahoo.wow.compiler.model.symbol.blocking
@@ -143,8 +144,10 @@ internal object SubscriptionResolver {
     ): SubscriptionBinding {
         val className = processor.simpleName.asString()
         val problems = AnnotationSet.problems(processor, "processor $className", processor = true).toMutableList()
-        val name = processor.declaredName(problems) ?: className
+        val declaredName = processor.declaredName(problems)
+        val name = declaredName ?: className
         problems += nameProblems(className, name)
+        ModelNameCheck.problem("processor $className", declaredName, className)?.let { problems += it }
         val processorRetry = RetryResolver.inherited(processor, "processor $className", problems)
         val kinds = Kind.entries.filter { kind -> processor.hasAnnotation(kind.annotation) }
         val kind = kinds.singleOrNull()

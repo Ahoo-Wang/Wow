@@ -28,6 +28,7 @@ import {
   routingCommands,
 } from './aggregates';
 import type { ContextModel, ManifestModel, TypeModel } from './model';
+import { checkNames } from './nameRules';
 import {
   checkGeneratedNames,
   contextTypeName,
@@ -54,6 +55,7 @@ export function analyzeManifest(document: ManifestDocument): {
   warnings: string[];
 } {
   const { manifest, warnings: unknown } = knownValues(document);
+  checkNames(manifest);
   checkGeneratedNames(manifest);
   const types = new SchemaTypes(manifest.$defs ?? {});
   const contexts = manifest.contexts;

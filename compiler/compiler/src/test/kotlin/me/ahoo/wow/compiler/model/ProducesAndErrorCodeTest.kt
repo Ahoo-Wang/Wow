@@ -103,7 +103,7 @@ class ProducesAndErrorCodeTest {
         }
 
         @ErrorCode(description = "Escapes are read")
-        const val ESCAPED = "orders.a\u0062c\${'$'}"
+        const val ESCAPED = "orders.a\u0062c"
 
         class Holder {
             companion object {
@@ -212,7 +212,7 @@ class ProducesAndErrorCodeTest {
         val (compilation, result) = compileModel("generate", context, order, errors)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         fragment(compilation).contexts.single().errors.assert().containsExactly(
-            ErrorManifest("orders.abc$", 422, "Escapes are read"),
+            ErrorManifest("orders.abc", 422, "Escapes are read"),
             ErrorManifest("orders.closed", 422),
             ErrorManifest("orders.invalid", 400),
             ErrorManifest("orders.out-of-stock", 409, "Out of stock"),
@@ -441,7 +441,7 @@ class ProducesAndErrorCodeTest {
 
                 @ErrorCode
                 public static final String PRICED =
-                    "orders.priced-in-$"; // A Java literal has no templates.
+                    "orders.priced-in-usd"; // The literal may follow on the next line.
 
                 private OrderJavaErrors() {
                 }
@@ -452,7 +452,7 @@ class ProducesAndErrorCodeTest {
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         fragment(compilation).contexts.single().errors.assert().containsExactly(
             ErrorManifest("orders.held", 409, "Read from Java"),
-            ErrorManifest("orders.priced-in-$", 422),
+            ErrorManifest("orders.priced-in-usd", 422),
         )
     }
 

@@ -83,7 +83,7 @@ class EscapedTypesTest {
                 fun onSourcing(event: Audited) { value = event.value }
             }
 
-            @Projection
+            @Projection @Name("counter-projection")
             class `$processor`(private val clock: `$service`) {
                 @OnEvent fun onEvent(event: StateEvent<`$state`>) = Unit
                 // A handler of an event class: the processor finds the class by the event's qualified name.

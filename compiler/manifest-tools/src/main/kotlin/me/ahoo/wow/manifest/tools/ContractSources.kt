@@ -59,6 +59,8 @@ import me.ahoo.wow.manifest.QueryFieldNames
  *   caller chains in a `WaitPlan` without writing a subscription's name. Two names of one constant fail the generation.
  *   The TypeScript generator's `<Context>Contract.Wait` builds the same hops.
  *
+ * A name or a code the compiler would refuse fails the generation, naming the entry ([ContractNames]).
+ *
  * Constants are `const val` or `@JvmField` and `ref` is `@JvmStatic`, so Java reads them as static members
  * (`EshopOrderingContract.Order.TYPE`). The views of the states are classes of their own beside it
  * ([StateViewSources]).
@@ -97,6 +99,7 @@ internal object ContractSources {
         queryFields: Boolean,
         onClassPath: (String) -> Boolean = { false },
     ): Source {
+        ContractNames.check(context)
         val views = StateViewSources(defs, contractPackages, onClassPath)
         val pkg = PeerContracts.contractPackageOf(context, contractPackages)
         val name = "${pascal(context.name)}Contract"

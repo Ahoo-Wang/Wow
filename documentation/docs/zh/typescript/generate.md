@@ -98,6 +98,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 
 错误码的常量按 Kotlin 契约的命名：取聚合（`context.aggregate.code`）或上下文之后的部分，以点分隔的每一段写成大写蛇形，用 `__` 连接，以数字开头时前加 `_`。`invalid-item` 是 `INVALID_ITEM`，`invalidURLValue` 是 `INVALID_URL_VALUE`，上下文 `analytics-catalog` 的 `analytics.catalog.incomplete` 是 `ANALYTICS__CATALOG__INCOMPLETE`。两个错误码的常量相同时，第一个保留它；两个错误码都留在 `<Context>ErrorCode` 里。名字与生成器在旁边声明的成员相同时，它得到自己的名字：方法或 `…Stream` 孪生方法已被占用的命令（`Start` 旁的 `StartStream`、`Commands`、`Then`，或生命周期命令的名字）加 `Command`，再占用就加 `Command2`（所以新增一条命令可能让原有的方法改名：单有 `StartStream` 时它是 `startStream`，加上 `Start` 之后 `startStream` 成了 `Start` 的孪生方法，`StartStream` 的方法变成 `startStreamCommand`；`tsc` 会指出每一处移动了的调用）；名为 `commands` 或 `routes` 的聚合在 `<Context>Client` 中是 `commandsAggregate`，名为 `errors` 或 `wait` 的聚合在契约中是 `ErrorsAggregate` 或 `WaitAggregate`，与 Kotlin 契约的对象同名；服务路由的方法与命令的方法同样命名（`export-orders` 是 `exportOrders`），名为 `routes` 的服务路由是 `routesRoute`。生成的类都不取成员 `then`：有它的对象会成为 thenable，`await` 会把它当作 promise。
 
+生成器按 Wow 编译器的规则核对 Manifest 里的名字，两者对同一个名字不会有不同的看法：聚合、命令或事件的名字是一个字母后接字母、数字、`_` 和 `-`（`[A-Za-z][A-Za-z0-9_-]*`），或者是框架自己的名字（`wow.lifecycle.DeleteAggregate`）；订阅的名字是处理器的名字与处理函数的名字以点相连；错误码是以点连接的若干段，每段是一个字母或数字后接字母、数字、`_` 和 `-`。编译器写出的 Manifest 总是合乎这些规则。由别的东西写出、不合规则的 Manifest 会作为文档的问题被拒绝，并点名那一项和规则：什么都不生成，不为取不出标识符的名字猜一个，像 `a/b` 这样的名字也不会被当作路径。
+
 eShop ordering 的契约。它的错误码只是领域的拒绝：违反约束的命令回答框架的 `wow.command.invalid`（`FrameworkErrorCodes.COMMAND_INVALID`）及其 `violations`（[发送命令](./commands)）。
 
 <!-- typecheck-generated: examples/eshop/web/src/generated/ordering -->

@@ -14,13 +14,14 @@
 /**
  * The names a Manifest's own names give in the generated client: as the
  * Kotlin contract writes them (#7059), apart from each other or refused as
- * the specification's (#7056), usable however a name is spelled (#7058),
+ * the specification's (#7056), usable however a name the rule accepts is
+ * spelled (#7058), refused when the Wow compiler would refuse it (D484 ⑧),
  * and never code where a comment holds them (#7075); and the facts an
  * aggregate's descriptor carries, as the Kotlin contract's KDoc says
  * (#7060).
  */
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { EXIT_CODES } from '../../src/api/errors';
@@ -123,20 +124,73 @@ describe('names a Manifest gives apart', () => {
 });
 
 describe('names however a Manifest spells them', () => {
-  it("assigns an aggregate whose member is no identifier (2fa) by its quoted name, and checks the output's syntax before writing it", async () => {
+  it('gives an aggregate whose name is no identifier (two-factor) a member that is one, its words joined (twoFactor)', async () => {
     const { read } = await generateCompiling(
       contexts({
         name: 'probe',
         aggregates: [
-          { name: '2fa', state: STATE },
-          { name: 'café', state: STATE },
+          { name: 'two-factor', state: STATE },
+          { name: 'cafe', state: STATE },
         ],
       }),
     );
     const client = read('probe/client.ts');
-    expect(client).not.toContain("this.'2fa'");
-    expect(client).toContain("this['2fa'] = {");
-    expect(client).toMatch(/this(\.café|\['café'\]) = \{/);
+    expect(client).toContain('readonly twoFactor: {');
+    expect(client).toContain('this.twoFactor = {');
+    expect(client).toContain('this.cafe = {');
+  });
+});
+
+describe('a name the Wow compiler refuses (D484 ⑧)', () => {
+  it('is refused as the specification, naming the aggregate: 2fa and café generated before (#7058)', async () => {
+    for (const name of ['2fa', 'café', '', '-']) {
+      const result = await generateCold(
+        contexts({ name: 'probe', aggregates: [{ name, state: STATE }] }),
+        directories,
+      );
+      expect(result.exitCode, name).toBe(EXIT_CODES.specification);
+      expect(result.errors.join('\n'), name).toContain(
+        `The aggregate ${JSON.stringify(name)} of the context probe is not a name`,
+      );
+      expect(result.errors.join('\n'), name).not.toContain('wow-generator bug');
+      expect(existsSync(result.output), name).toBe(false);
+    }
+  });
+
+  it('can no longer be a path: an aggregate a/b or ../escaped writes nothing, inside the output directory or outside it', async () => {
+    // Before, `a/b` was read as a path (its files under probe/a/), and an
+    // empty name put an aggregate's files into its context's own directory.
+    for (const name of ['a/b', '../escaped', '../../escaped', '.', '..']) {
+      const result = await generateCold(
+        contexts({ name: 'probe', aggregates: [{ name, state: STATE }] }),
+        directories,
+      );
+      expect(result.exitCode, name).toBe(EXIT_CODES.specification);
+      expect(result.errors.join('\n'), name).toContain(
+        `The aggregate ${JSON.stringify(name)} of the context probe is not a name`,
+      );
+      // Nothing but the document itself is in the probe's own directory.
+      expect(readdirSync(result.dir), name).toEqual(['openapi.json']);
+    }
+  });
+
+  it('is refused for a command, where a method `_` was guessed for a name without letters', async () => {
+    const result = await generateCold(
+      manifest({
+        commands: [
+          {
+            name: '-',
+            schema: schema('a.ThingState'),
+            routes: [{ method: 'POST', path: '/probe/thing/{id}/x' }],
+          },
+        ],
+      }),
+      directories,
+    );
+    expect(result.exitCode).toBe(EXIT_CODES.specification);
+    expect(result.errors.join('\n')).toContain(
+      'The command "-" of the aggregate thing of the context probe is not a name',
+    );
   });
 });
 

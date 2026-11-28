@@ -15,7 +15,13 @@ package me.ahoo.wow.api.annotation
 
 /**
  * The name of an aggregate, a processor, a command or an event, in place of the one derived
- * from the class's simple name. Commands and events are typed `context.aggregate.Name`.
+ * from the class's simple name: a letter followed by letters, digits, `_` and `-` (`[A-Za-z][A-Za-z0-9_-]*`).
+ * Commands and events are typed `context.aggregate.Name`.
+ *
+ * That form is the one rule of every name of a model, a handler's too, whether this annotation writes it or the
+ * class's or the function's own name gives it: a name is a segment of a topic, of a route and of a `Wow-Wait` hop, and
+ * the generated contracts take an identifier from it. The compiler refuses any other at its declaration; a class
+ * whose own name gives none (`` `1st thing` ``) takes one with this annotation.
  *
  * On a subscription handler (an [OnEvent], [OnRejected], [OnCommitted] or [OnSchedule] function), it is the handler's
  * name in its subscription, `processor.name`, in place of the function's: the subscription, its checkpoint and its
@@ -23,7 +29,7 @@ package me.ahoo.wow.api.annotation
  *
  * A parameter's dependency is named by [DependencyName], not by this.
  *
- * @param value the name.
+ * @param value the name: a letter followed by letters, digits, `_` and `-`; never a dot, which joins the names.
  */
 @Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
 @MustBeDocumented

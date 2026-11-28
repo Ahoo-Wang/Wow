@@ -160,7 +160,7 @@ A function that returns `Decision` (or `Any`, or a type parameter) and lists no 
 
 A return type that is an interface or abstract class, and not sealed, is a compile error. Such a function returns one of several implementations, and the type does not say which ones. List them instead: make the type a sealed interface whose subclasses are the events, return the event classes themselves, or return a `Decision` with `produces`. The same holds for an element type (`List<OrderEvent>`) and for a subclass of a sealed type.
 
-The aggregate is named after the root class in snake case (`Order` is `order`, `ViewPreferences` is `view_preferences`), or by `@Name`.
+The aggregate is named after the root class in snake case (`Order` is `order`, `ViewPreferences` is `view_preferences`), or by `@Name`. Either way the name is a letter followed by letters, digits, `_` and `-` (`[A-Za-z][A-Za-z0-9_-]*`), the one rule of every name of the model: an aggregate's, a command's, an event's, a processor's and a handler's. A name is a segment of a topic, of a route and of a `Wow-Wait` hop, and the generated contracts take an identifier from it, so the compiler refuses any other at the declaration, whether `@Name` wrote it or the class's own name gave it; a class whose name gives none takes one with `@Name`.
 
 ## Read the admitted command
 

@@ -160,7 +160,7 @@ fun onCommand(command: SubmitOrder): OrderSubmitted = OrderSubmitted(command.ite
 
 返回类型是接口或抽象类、又不是密封的，会导致编译错误。这样的函数返回的是几个实现中的一个，而这个类型说不出是哪几个。改为把它们列出来：把这个类型改成以这些事件为子类的密封接口，直接返回事件类本身，或者返回 `Decision` 并写上 `produces`。元素类型（`List<OrderEvent>`）和密封类型的子类也适用同样的规则。
 
-聚合以根类名的 snake case 命名（`Order` 是 `order`，`ViewPreferences` 是 `view_preferences`），或者用 `@Name` 指定。
+聚合以根类名的 snake case 命名（`Order` 是 `order`，`ViewPreferences` 是 `view_preferences`），或者用 `@Name` 指定。无论哪一种，名字都是一个字母后接字母、数字、`_` 和 `-`（`[A-Za-z][A-Za-z0-9_-]*`），这是模型里每个名字共守的一条规则：聚合、命令、事件、处理器和处理函数的名字都是如此。名字是主题、路由和 `Wow-Wait` 一跳中的一段，生成的契约也从它取标识符，所以编译器在声明处拒绝其他写法，不论它是 `@Name` 写的，还是取自类自己的名字；类名取不出名字时，用 `@Name` 给它一个。
 
 ## 读取准入后的命令 {#read-the-admitted-command}
 

@@ -19,7 +19,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { manifest, schema } from '../support/manifestProbes';
-import { generateCompiling } from '../support/probes';
+import { generateCompiling, generateFailing } from '../support/probes';
 
 const EMPTY = { 'a.Empty': { type: 'object', properties: {} } };
 
@@ -216,13 +216,16 @@ describe("the constants of a Manifest's error codes, as the Kotlin contract name
     );
   });
 
-  it('names a code with nothing after its aggregate ERROR', async () => {
-    const { read } = await generateCompiling(
+  it('refuses a code with nothing after its aggregate (probe.thing.) naming it, where it guessed the constant ERROR', async () => {
+    // D484 ⑧ amends #6939: no constant is guessed for a code no identifier
+    // comes from. The Kotlin contract threw NoSuchElementException for it.
+    const error = await generateFailing(
       withErrors({ code: 'probe.thing.', status: 409 }),
     );
-    expect(read('probe/thing/aggregate.ts')).toContain(
-      "ERROR: 'probe.thing.',",
+    expect(error).toContain(
+      'The error code "probe.thing." of the context probe is not a code: its last segment is empty (it ends in a dot)',
     );
+    expect(error).not.toContain('wow-generator bug');
   });
 
   it('keeps the first of two codes whose constants coincide, as distinctBy does, and both codes in the error code type', async () => {

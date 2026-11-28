@@ -88,7 +88,7 @@ The annotations of the programming model, in `me.ahoo.wow.api.annotation` (artif
 
 ## `@ErrorCode`
 
-[ErrorCode](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/ErrorCode.kt): A rejection code of the domain, on a `const val` of type `String`, top-level or in an `object`, that holds the code a command function rejects with (`Decision.reject(code, message)`).
+[ErrorCode](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/ErrorCode.kt): A rejection code of the domain, on a `const val` of type `String`, top-level or in an `object`, that holds the code a command function rejects with (`Decision.reject(code, message)`): segments joined by dots, each a letter or a digit followed by letters, digits, `_` and `-` (`[A-Za-z0-9][A-Za-z0-9_-]*`).
 
 - Targets: `PROPERTY`, `FIELD`
 - Parameters: `description: String = ""`, `status: Int = 422`
@@ -109,7 +109,7 @@ The annotations of the programming model, in `me.ahoo.wow.api.annotation` (artif
 
 ## `@Name`
 
-[Name](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Name.kt): The name of an aggregate, a processor, a command or an event, in place of the one derived from the class's simple name.
+[Name](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Name.kt): The name of an aggregate, a processor, a command or an event, in place of the one derived from the class's simple name: a letter followed by letters, digits, `_` and `-` (`[A-Za-z][A-Za-z0-9_-]*`).
 
 - Targets: `CLASS`, `FUNCTION`
 - Parameters: `value: String`

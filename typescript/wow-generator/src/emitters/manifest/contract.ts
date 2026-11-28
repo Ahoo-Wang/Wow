@@ -70,7 +70,7 @@ export function errorsOf(
   });
   const members = new Set<string>();
   return named.flatMap(({ local, error }) => {
-    const member = errorConstantName(local) || 'ERROR';
+    const member = errorConstantName(local);
     if (members.has(member)) return [];
     members.add(member);
     return [{ member, error }];

@@ -22,6 +22,7 @@ import com.google.devtools.ksp.symbol.Modifier
 import com.google.devtools.ksp.symbol.Origin
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.ErrorCode
+import me.ahoo.wow.api.naming.NameRules
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.compiler.model.symbol.argumentsOf
 import me.ahoo.wow.manifest.ErrorManifest
@@ -60,7 +61,9 @@ internal data class ErrorCodeBinding(
  * A code without a dot is a local name: it is declared within its `@AggregateRoot` class (in a Kotlin
  * `object` nested in it, its companion included, or as a Java field of it or of a class nested in it), and the
  * Manifest names it `context.aggregate.code` ([ErrorCodeBinding.qualified]). A code with a dot is a full code, as
- * written: one the context shares (`context.code`), or one declared outside an aggregate.
+ * written: one the context shares (`context.code`), or one declared outside an aggregate. Either is a code by the one
+ * rule of a code ([NameRules.codeProblem]): one that ends in a dot, or has an empty segment, is a problem here, not an
+ * exception of the contract generated from the Manifest.
  */
 internal object ErrorCodeResolver {
     val ERROR_CODE: String = ErrorCode::class.java.name
@@ -101,9 +104,12 @@ internal object ErrorCodeResolver {
                 ),
             )
         val aggregateRoot = aggregateRootOf(property)
+        val codeProblem = NameRules.codeProblem(code)
         val problems = buildList {
             if (code.isBlank()) {
                 add("@ErrorCode property $name holds a blank code")
+            } else if (codeProblem != null) {
+                add("error code \"$code\" of $name $codeProblem. Write a code of that form.")
             } else if (!isFull(code) && aggregateRoot == null) {
                 add(
                     "error code $code of $name is a local name, but $name is not declared within an @AggregateRoot " +

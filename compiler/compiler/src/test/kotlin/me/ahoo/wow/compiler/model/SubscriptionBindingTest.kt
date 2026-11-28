@@ -420,8 +420,8 @@ class SubscriptionBindingTest {
     }
 
     @Test
-    fun `a handler's @Name with a dollar should reach its binding as written`() {
-        // Written into the generated string literals escaped, as the processor's name is (#6833).
+    fun `a handler's @Name with a dollar should be refused, where it reached its binding as written`() {
+        // D484 ⑧ amends #6833: a name holds letters, digits, '_' and '-' only, so none needs escaping any more.
         val named = SourceFile.kotlin(
             "Dollar.kt",
             """
@@ -440,10 +440,9 @@ class SubscriptionBindingTest {
             }
             """.trimIndent(),
         )
-        val (compilation, result) = compile(named)
-        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
-        provider(compilation, result).processors(Dependencies.NONE).map { it.name }.assert()
-            .containsExactly("Board.on\$placed")
+        val (_, result) = compileModel("generate", options, named)
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        result.messages.assert().contains("@Name(\"on\$placed\") of handler Board.onPlaced is not a name")
     }
 
     @Test

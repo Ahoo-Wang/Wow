@@ -26,6 +26,7 @@ import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.lifecycle.RestoreAggregate
 import me.ahoo.wow.api.lifecycle.TransferOwner
+import me.ahoo.wow.api.naming.NameRules
 import me.ahoo.wow.api.naming.TypeNames
 import me.ahoo.wow.api.read.EventStream
 import me.ahoo.wow.spi.SystemCommandGroups
@@ -50,9 +51,17 @@ fun <S : Any> aggregate(
  * `@Name`, else its simple name, unless a name is given: the name the compiler gives them, so a model
  * written by hand stores what the Manifest says. A name given that disagrees with the class's `@Name`, or an aggregate
  * named otherwise than its `@AggregateRoot` state class, fails here: the log would hold names the Manifest does not.
+ * So does a name the compiler would refuse ([NameRules]): the aggregate's, and the last part of a command's or an
+ * event's, are names by the one rule, so a model written by hand takes no name the Manifest's readers cannot use.
  */
 class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Class<S>) {
     init {
+        NameRules.nameProblem(type.name)?.let { problem ->
+            throw IllegalArgumentException(
+                "The aggregate ${type.context}.${type.name} is named \"${type.name}\", which $problem. Give it a " +
+                    "name of that form.",
+            )
+        }
         annotatedAggregateName(stateType)?.let { declared ->
             require(type.name == declared) {
                 "The aggregate ${type.context}.${type.name} has the state ${stateType.name}, whose annotations name " +
@@ -493,8 +502,18 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         occurredAts = occurredAts.toMap(),
     )
 
-    /** A [name] given for a class that has a `@Name` must be the one that `@Name` gives. */
+    /**
+     * A [name] given for a class that has a `@Name` must be the one that `@Name` gives, and its last part is a name
+     * by the rule the compiler holds every name to ([NameRules]), unless it is one of the framework's own.
+     */
     private fun requireAnnotatedName(kind: String, typeClass: Class<*>, name: String) {
+        if (!NameRules.isFrameworkName(name)) {
+            val problem = NameRules.nameProblem(name.substringAfterLast('.'))
+            require(problem == null) {
+                "$type names the $kind ${typeClass.name} \"$name\", whose last part $problem. Give it a name of " +
+                    "that form."
+            }
+        }
         val annotated = typeClass.getDeclaredAnnotation(Name::class.java)?.value ?: return
         val expected = Lifecycle.nameOf(typeClass) ?: "$type.$annotated"
         require(name == expected) {

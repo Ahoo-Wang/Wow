@@ -157,16 +157,17 @@ describe('Manifest clients', () => {
     // trace and an event stream (08-data-protocols §2; edge/http's
     // HistoryRoutesTest reads `shop.cart.ItemAdded` from a trace), while the
     // Manifest declares it inside its aggregate by the short name. A name the
-    // Manifest already qualifies is kept as it is, as the server's
-    // ManifestCheck does. The union adds the system events every aggregate
-    // has (wow-client's SystemEvent).
+    // Manifest already qualifies, which only one of the framework's own is
+    // (D484 ⑧: a domain's name holds no dot), is kept as it is, as the
+    // server's ManifestCheck does. The union adds the system events every
+    // aggregate has (wow-client's SystemEvent).
     const { read } = await generateCompiling(
       manifest(
         {
           events: [
             { name: 'Shaped', schema: schema('b.Shape') },
             {
-              name: 'probe.thing.Reshaped',
+              name: 'wow.probe.Reshaped',
               revision: 2,
               schema: schema('b.Shape'),
             },
@@ -178,7 +179,7 @@ describe('Manifest clients', () => {
       ),
       `import type { ThingEvent } from './out/index.js';
        const traced: ThingEvent = { name: 'probe.thing.Shaped', revision: 1, body: { s: 'x' } };
-       const reshaped: ThingEvent = { name: 'probe.thing.Reshaped', revision: 2, body: {} };
+       const reshaped: ThingEvent = { name: 'wow.probe.Reshaped', revision: 2, body: {} };
        // @ts-expect-error the server never sends the short name
        const short: ThingEvent = { name: 'Shaped', revision: 1, body: {} };
        // The kernel's lifecycle and schedule events come in the same trace.
@@ -190,7 +191,7 @@ describe('Manifest clients', () => {
        void [traced, reshaped, short, owner, body];`,
     );
     expect(read('probe/thing/aggregate.ts')).toContain(
-      "export type ThingEvent = CommittedEvent<'probe.thing.Shaped', Shape> | CommittedEvent<'probe.thing.Reshaped', Shape> | SystemEvent;",
+      "export type ThingEvent = CommittedEvent<'probe.thing.Shaped', Shape> | CommittedEvent<'wow.probe.Reshaped', Shape> | SystemEvent;",
     );
   });
 });

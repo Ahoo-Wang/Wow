@@ -36,6 +36,7 @@ import me.ahoo.wow.compiler.model.source.AccessSource
 import me.ahoo.wow.compiler.model.symbol.AnnotationArguments
 import me.ahoo.wow.compiler.model.symbol.AnnotationSet
 import me.ahoo.wow.compiler.model.symbol.Descriptions
+import me.ahoo.wow.compiler.model.symbol.ModelNameCheck
 import me.ahoo.wow.compiler.model.symbol.ModelNames.AFTER_COMMAND_ANNOTATION
 import me.ahoo.wow.compiler.model.symbol.ModelNames.ANY
 import me.ahoo.wow.compiler.model.symbol.ModelNames.COMMAND
@@ -95,7 +96,7 @@ internal class AggregateAnalyzer(
             problems += RootStateResolver.misplacedProblems(root, state)
         }
         val aggregateName = root.toName(problems)
-        problems += aliasProblems(aggregateName, commands, sourcing)
+        problems += aliasProblems(aggregateName, commands, sourcing) + ModelNameCheck.problems(commands, sourcing)
         val upgradeBindings = upgradeBindings(sourcing, problems)
         val mounted = mountedOf(aggregateName, commands, problems)
         val ownership = AggregateRootArguments.ownership(rootArguments)

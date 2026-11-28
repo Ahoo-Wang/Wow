@@ -20,7 +20,6 @@ import {
   classMembers,
   memberName,
 } from '../../manifest/names';
-import { resolvePropertyName } from '../../naming/naming';
 import { textNumbersOption } from './commandClient';
 import { addStatement, doc, WOW_CLIENT } from './generatedModule';
 
@@ -66,16 +65,14 @@ export function emitContextClient(
       at('queryClient.ts'),
       members.slice(1).map(([, client]) => client),
     );
-    const property = resolvePropertyName(properties[index]);
+    // A name is a letter, then letters, digits, `_` and `-` (nameRules), so
+    // its member, the name's words joined, is always an identifier.
+    const property = properties[index];
     fields.push(
       `${doc([`The clients of \`${aggregate.context}.${aggregate.name}\`.`], '  ')}  readonly ${property}: {\n${members.map(([member, client]) => `    readonly ${member}: ${client};`).join('\n')}\n  };`,
     );
-    // An aggregate whose member is no identifier (`2fa`) is assigned by its
-    // quoted name, as it is declared.
-    const target =
-      property === properties[index] ? `this.${property}` : `this[${property}]`;
     assignments.push(
-      `    ${target} = {\n${members.map(([member, client]) => `      ${member}: new ${client}(options),`).join('\n')}\n    };`,
+      `    this.${property} = {\n${members.map(([member, client]) => `      ${member}: new ${client}(options),`).join('\n')}\n    };`,
     );
   }
   if (context.routes.length > 0) {

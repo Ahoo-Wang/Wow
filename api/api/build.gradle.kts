@@ -16,10 +16,14 @@ dependencies {
     api("tools.jackson.core:jackson-databind")
 }
 
-// TypeScriptWireNamesTest holds the TypeScript client's wire-names fixture to the Kotlin wire names (#6984): declared,
-// so a changed fixture runs it instead of reusing a cached result.
+// TypeScriptWireNamesTest holds the TypeScript client's wire-names fixture to the Kotlin wire names (#6984), and
+// NameRulesTest holds the naming rules to the table of cases the TypeScript generator's copy reads too: declared, so
+// a changed fixture runs them instead of reusing a cached result.
 tasks.named<Test>("test") {
     inputs.file(rootProject.file("typescript/wow-client/test/fixtures/wire-names.json"))
         .withPathSensitivity(PathSensitivity.RELATIVE)
         .withPropertyName("typeScriptWireNames")
+    inputs.file(rootProject.file("typescript/wow-generator/test/fixtures/name-rules.json"))
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+        .withPropertyName("typeScriptNameRules")
 }

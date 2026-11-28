@@ -26,10 +26,14 @@ import me.ahoo.wow.api.naming.TypeNames
 
 /**
  * The aggregate's name: its `@Name`, else its simple name in `snake_case` ([TypeNames.aggregateName]). A `@Name` with
- * no value is one of [problems] ([declaredName]).
+ * no value is one of [problems] ([declaredName]), and so is a name that is none ([ModelNameCheck]).
  */
-internal fun KSClassDeclaration.toName(problems: MutableList<String>): String =
-    TypeNames.aggregateName(simpleName.asString(), declaredName(problems))
+internal fun KSClassDeclaration.toName(problems: MutableList<String>): String {
+    val declared = declaredName(problems)
+    val derived = TypeNames.aggregateName(simpleName.asString(), null)
+    ModelNameCheck.problem("aggregate ${simpleName.asString()}", declared, derived)?.let { problems += it }
+    return declared ?: derived
+}
 
 /**
  * The value of this declaration's `@Name`; null without one, or, one of [problems], when KSP evaluated no value for it
