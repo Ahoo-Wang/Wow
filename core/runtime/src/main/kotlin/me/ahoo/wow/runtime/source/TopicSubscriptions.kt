@@ -353,28 +353,15 @@ class TopicSubscriptions internal constructor(
      * incarnations, which nothing reads any more ([TopicIncarnations.earlier]); [left] is the one they read until now.
      */
     private suspend fun tellEarlier(incarnation: String?, left: String?) {
-        val earlier = try {
-            incarnations.earlier(incarnation)
+        val report = try {
+            incarnations.earlierReport(incarnation, left)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (@Suppress("TooGenericExceptionCaught") failure: Exception) {
             logger.warn(failure) { "$node could not read the checkpoints of the earlier incarnations of $topic." }
             return
         }
-        if (earlier.isEmpty()) {
-            return
-        }
-        val kept = earlier.entries.joinToString("; ") { (id, saved) ->
-            val names = saved.map { it.subscription }.distinct().sorted().joinToString()
-            "${id.ifEmpty { "none named" }}: ${saved.size} ($names)"
-        }
-        val count = earlier.values.sumOf { it.size }
-        logger.warn {
-            (left?.let { "Topic $topic was created again: its subscriptions leave its incarnation $it and " } ?: "") +
-                "${if (left == null) "Its subscriptions read topic $topic" else "read"} at its incarnation " +
-                "$incarnation, each from where its start says. $count checkpoints of its earlier incarnations are " +
-                "kept and no longer read, by incarnation: $kept."
-        }
+        report?.let { logger.warn { it } }
     }
 
     /**

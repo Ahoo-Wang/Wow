@@ -79,18 +79,46 @@ internal class TopicIncarnations(
      * already at its offset reads on in it, until the refresh round joins the new incarnation.
      */
     fun guarded(source: PartitionedSource, incarnation: String?): PartitionedSource =
-        if (incarnation == null) source else Guarded(source, topic, incarnation)
+        if (incarnation == null) source else Guarded(source, topic, AT_REFRESH) { incarnation }
+
+    /**
+     * [source] guarded as [guarded] does, for an incarnation known only once [incarnation] answers it, which it is
+     * asked before each check: a reader whose incarnation is resolved when it first reads (a context's command intake,
+     * [me.ahoo.wow.runtime.command.IntakeIncarnation]). Nothing is checked while it answers none. A refusal says the
+     * reader joins the new incarnation [joins], when it does.
+     */
+    fun guarded(source: PartitionedSource, joins: String, incarnation: suspend () -> String?): PartitionedSource =
+        Guarded(source, topic, joins, incarnation)
+
+    /**
+     * What a join of [incarnation] tells of the checkpoints kept under the topic's other incarnations
+     * ([earlier]), which nothing reads any more, [left] being the one read until now; null when none is kept.
+     */
+    suspend fun earlierReport(incarnation: String?, left: String?): String? {
+        val earlier = earlier(incarnation).takeIf { it.isNotEmpty() } ?: return null
+        val kept = earlier.entries.joinToString("; ") { (id, saved) ->
+            val names = saved.map { it.subscription }.distinct().sorted().joinToString()
+            "${id.ifEmpty { "none named" }}: ${saved.size} ($names)"
+        }
+        val count = earlier.values.sumOf { it.size }
+        return (left?.let { "Topic $topic was created again: its subscriptions leave its incarnation $it and " } ?: "") +
+            "${if (left == null) "Its subscriptions read topic $topic" else "read"} at its incarnation " +
+            "$incarnation, each from where its start says. $count checkpoints of its earlier incarnations are " +
+            "kept and no longer read, by incarnation: $kept."
+    }
 
     private class Guarded(
         private val source: PartitionedSource,
         private val topic: String,
-        private val incarnation: String,
+        private val joins: String,
+        private val incarnation: suspend () -> String?,
     ) : PartitionedSource by source {
         private suspend fun check(topic: String) {
             if (topic != this.topic) return
+            val joined = incarnation() ?: return
             val current = source.incarnation(topic)
-            if (current != incarnation) {
-                throw TopicIncarnationException(topic, incarnation, current)
+            if (current != joined) {
+                throw TopicIncarnationException(topic, joined, current, joins)
             }
         }
 
@@ -127,20 +155,27 @@ internal class TopicIncarnations(
 
         /** The marker subscription of an incarnation recorded in the lease group ([record]). */
         const val MARKER = "wow.incarnation#"
+
+        /** When a topic's subscriptions join its new incarnation ([TopicIncarnationException.joins]). */
+        const val AT_REFRESH = "at the next refresh of the topic's partitions"
     }
 }
 
 /**
  * A read of [topic] placed by the subscriptions of its incarnation [joined], when the topic is [current] now (null:
- * it does not exist now). The read places nothing: the subscriptions join the new incarnation when they next read the
- * topic's partitions, and a node that starts joins the one it finds.
+ * it does not exist now). The read places nothing: the subscriptions join the new incarnation [joins], when they next
+ * read the topic's partitions for a topic subscription, and a node that starts joins the one it finds.
  */
-internal class TopicIncarnationException(val topic: String, val joined: String, val current: String?) :
-    IllegalStateException(
-        if (current == null) {
-            "Topic $topic does not exist now; its subscriptions read its incarnation $joined, and wait for it."
-        } else {
-            "Topic $topic was created again: it is incarnation $current now, and its subscriptions' offsets are of " +
-                "$joined. No read is placed until they join $current, at the next refresh of the topic's partitions."
-        },
-    )
+internal class TopicIncarnationException(
+    val topic: String,
+    val joined: String,
+    val current: String?,
+    val joins: String = TopicIncarnations.AT_REFRESH,
+) : IllegalStateException(
+    if (current == null) {
+        "Topic $topic does not exist now; its subscriptions read its incarnation $joined, and wait for it."
+    } else {
+        "Topic $topic was created again: it is incarnation $current now, and its subscriptions' offsets are of " +
+            "$joined. No read is placed until they join $current, $joins."
+    },
+)

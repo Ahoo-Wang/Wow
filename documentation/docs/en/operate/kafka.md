@@ -119,6 +119,16 @@ Only commands admitted at the edge take this route. A command a saga or a timer 
 
 A context whose aggregate types are routed through Kafka reads its command topic whatever `wow.kafka.command-intake.enabled` says. Otherwise, set `wow.kafka.command-intake.enabled: true` on a service that should execute the commands other contexts send it. The ops service's actions on parked aggregates arrive the same way, as `wow.ledger.*` commands on the service's command topic. A service that publishes its failure ledger reads them by itself, with intake off: it runs those commands alone, and passes over the others ([The Ops Service and Console](./ops-console)). Its command topic must then exist, with as many partitions as its log.
 
+A command topic deleted and created again loses what it held: a command on the old topic that the intake had not taken yet is never run. A caller that waited beyond `accepted` sees its wait time out, and a retry with the same request id sends it again, to the new topic. The intake keeps its checkpoints per topic id, as a subscription of another context's stream does, so it never reads the new topic from an offset of the old one; but a node reads the topic's id once, as its intake starts. So create a command topic again in this order:
+
+1. Stop sending commands to it and let the intake take those it holds, or accept that the commands it has not taken are gone.
+2. Delete the topic and create it again, with as many partitions as the log.
+3. Restart every node of the service. A node that starts takes every command of the new topic from its beginning.
+
+A node that is not restarted keeps the old topic's id. Usually it refuses each read of the new topic by name: its log has a warning at each attempt that names the topic and both its ids, then an error once the read's retries are spent, and it retries until it is restarted, taking none of the new topic's commands. Kafka fetches a running read by the topic's name, though, so in one case the node reads on: when that read's first fetch after the recreation finds the new partition already at the read's offset. The node then takes the new topic's commands from that offset until it is restarted; the commands before that offset are taken only at the restart, and those it took are taken again then: a command that committed is answered as a duplicate, by its request id, and one that did not is decided again.
+
+The intake's checkpoints are under `<service>/<context>#<topic id>`, the incarnation's marker under `<service>/<context>`; the warning at the start names those of the old topic, which the statements [below](#reading-other-contexts-streams) remove with these groups. The checkpoints a 10.0 pre-release kept for its intake are not read: an intake that kept them takes the command topic's retained commands again, each one that committed answered as a duplicate.
+
 ## Reading other contexts' streams
 
 A service reads other contexts' topics without a consumer group. Its leases assign the topic's partitions to its nodes, the same way they assign the log's, and the offsets are kept in the service's own checkpoint store, beside its other checkpoints. One consumer per node and topic feeds every subscription that reads the topic. So there is no consumer group to manage, reset or monitor in Kafka; a subscription's position is its checkpoint.

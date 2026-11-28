@@ -69,9 +69,11 @@ internal class MessageEntries private constructor(
     /** Whether [partitioner] is the broker's, which maps a key elsewhere once the topic gains partitions. */
     override val partitionsGrow: Boolean,
     /** The incarnation of [topic] its subscriptions read, recorded with each park; none if its source tells none. */
-    override val incarnation: String? = null,
+    private val incarnationOf: () -> String? = { null },
     private val decode: (Envelope) -> Decoded,
 ) : EntrySource {
+    override val incarnation: String? get() = incarnationOf()
+
     /** What a message holds: the aggregate whose lane it runs in, the command it is about, and the [message]. */
     class Decoded(
         val ref: AggregateRef,
@@ -176,6 +178,7 @@ internal class MessageEntries private constructor(
             source: PartitionedSource,
             partitions: Int,
             observer: Observer = Observer.NONE,
+            incarnation: () -> String? = { null },
         ): MessageEntries = MessageEntries(
             topic,
             source,
@@ -184,6 +187,7 @@ internal class MessageEntries private constructor(
             { Partitioner.partitionOf(it, partitions) },
             observer,
             partitionsGrow = false,
+            incarnationOf = incarnation,
         ) { envelope ->
             val wire = CommandMessages.commandOf(envelope)
             // A creation that names no aggregate runs, and parks, by its request.
@@ -209,7 +213,7 @@ internal class MessageEntries private constructor(
             { source.partitionOf(topic, it.toString()) },
             observer,
             partitionsGrow = true,
-            incarnation = incarnation,
+            incarnationOf = { incarnation },
         ) { envelope ->
             when (val receipt = CommandMessages.receiptOf(envelope)) {
                 is CommandReceipt.Committed<*> -> Decoded(
