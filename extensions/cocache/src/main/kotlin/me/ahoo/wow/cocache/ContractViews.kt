@@ -28,8 +28,7 @@ internal object ContractViews {
     /** The view class of each aggregate type the lists on [classLoader] name a view of. */
     fun onClassPath(classLoader: ClassLoader): Map<AggregateType, Class<*>> =
         classLoader.getResources(PeerContracts.STATE_VIEWS_RESOURCE).toList()
-            .flatMap { list -> namesOf(list).map { list to it } }
-            .distinctBy { it.second }
+            .flatMap { list -> namesOf(list).distinct().map { list to it } }
             .associate { (list, name) -> viewOf(list, name, classLoader) }
 
     private fun namesOf(list: URL): List<String> =
