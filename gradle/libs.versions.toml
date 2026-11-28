@@ -21,7 +21,7 @@ kotlinx-coroutines = "1.11.0"
 clickhouse-java = "0.11.2"
 # kafka-clients' compression codecs, at their patched versions until kafka-clients brings them (backends/kafka)
 snappy-java = "1.1.10.12"
-lz4-java = "1.11.4"
+lz4-java = "1.14.1"
 # testing
 junit = "6.1.3"
 fluent-assert = "1.3.1"
