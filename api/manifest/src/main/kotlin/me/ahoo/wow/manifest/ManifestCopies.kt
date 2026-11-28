@@ -54,7 +54,9 @@ fun ContextManifest.copyWith(
     errors: List<ErrorManifest> = this.errors,
     commands: List<CommandManifest> = this.commands,
     routes: List<ServiceRouteManifest> = this.routes,
-): ContextManifest = ContextManifest(name, description, aggregates, subscriptions, published, errors, commands, routes)
+    requires: List<String> = this.requires,
+): ContextManifest =
+    ContextManifest(name, description, aggregates, subscriptions, published, errors, commands, routes, requires)
 
 @InternalWowApi
 fun AggregateManifest.copyWith(
@@ -70,6 +72,7 @@ fun AggregateManifest.copyWith(
     retired: List<String> = this.retired,
     idSource: AggregateIdSource = this.idSource,
     access: List<AccessAttributeManifest> = this.access,
+    requires: List<String> = this.requires,
 ): AggregateManifest =
     AggregateManifest(
         name,
@@ -84,6 +87,7 @@ fun AggregateManifest.copyWith(
         retired,
         idSource,
         access,
+        requires,
     )
 
 @InternalWowApi

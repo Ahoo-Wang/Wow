@@ -27,8 +27,16 @@ import { addStatement, doc, WOW_CLIENT } from './generatedModule';
  * property of the body that names the aggregate of a command whose body does:
  * what a `CommandClient` over the whole Manifest routes by.
  * Its clients send by it, so they fetch no Manifest; it holds no schema.
+ * It keeps the markers (`requires`) of what it keeps, where they stand: the
+ * Manifest's (`requires`, the top level's), the context's and each
+ * aggregate's, so the client's `checkManifest` refuses what it does not
+ * understand.
  */
-export function emitRouting(context: ContextModel, modules: ModuleSet): void {
+export function emitRouting(
+  context: ContextModel,
+  modules: ModuleSet,
+  requires?: readonly string[],
+): void {
   const module = modules.module(`${context.directory}/manifest.ts`);
   const name = `${context.typeName}Manifest`;
   module.imports.add(WOW_CLIENT, ['MANIFEST_FORMAT', 'RoutingManifest']);
@@ -36,7 +44,7 @@ export function emitRouting(context: ContextModel, modules: ModuleSet): void {
     `${indent}{ name: ${quoteStringLiteral(item.name)}${item.aliases === undefined ? '' : `, aliases: [${item.aliases.map(quoteStringLiteral).join(', ')}]`}, routes: ${routesLiteral(item.routes)}${item.idProperty === undefined ? '' : `, idProperty: ${quoteStringLiteral(item.idProperty)}`} },`;
   const aggregates = context.aggregates.map(aggregate => {
     const commands = aggregate.routing.map(item => command(item, '          '));
-    return `      {\n        name: ${quoteStringLiteral(aggregate.name)},\n        commands: [\n${commands.join('\n')}\n        ],\n      },`;
+    return `      {\n        name: ${quoteStringLiteral(aggregate.name)},\n${requiresMember(aggregate.requires, '        ')}        commands: [\n${commands.join('\n')}\n        ],\n      },`;
   });
   const contextCommands =
     context.commands.length === 0
@@ -56,8 +64,18 @@ export function emitRouting(context: ContextModel, modules: ModuleSet): void {
       routes.length === 0
         ? `The routes of \`${context.name}\`'s commands, as its Manifest lists them: what its command clients send by, with no Manifest fetched and no schema.`
         : `The routes of \`${context.name}\`'s commands and service routes, as its Manifest lists them: what its clients send by, with no Manifest fetched and no schema.`,
-    ])}export const ${name}: RoutingManifest = {\n  format: MANIFEST_FORMAT,\n  contexts: [\n    {\n      name: ${quoteStringLiteral(context.name)},\n      aggregates: [\n${aggregates.join('\n')}\n      ],\n${contextCommands}${routesMember}    },\n  ],\n};`,
+    ])}export const ${name}: RoutingManifest = {\n  format: MANIFEST_FORMAT,\n${requiresMember(requires, '  ')}  contexts: [\n    {\n      name: ${quoteStringLiteral(context.name)},\n${requiresMember(context.requires, '      ')}      aggregates: [\n${aggregates.join('\n')}\n      ],\n${contextCommands}${routesMember}    },\n  ],\n};`,
   );
+}
+
+/** The `requires` member of markers at `indent`, a line of its own; none for none. */
+function requiresMember(
+  requires: readonly string[] | undefined,
+  indent: string,
+): string {
+  return requires === undefined || requires.length === 0
+    ? ''
+    : `${indent}requires: [${requires.map(quoteStringLiteral).join(', ')}],\n`;
 }
 
 /** The routes a generated method sends its command by, as a literal. */

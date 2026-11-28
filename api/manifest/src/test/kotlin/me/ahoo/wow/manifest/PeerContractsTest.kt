@@ -149,6 +149,57 @@ class PeerContractsTest {
             .containsExactly("sample.CreateCart", "sample.AddItem", "sample.CartCreated", "sample.ItemAdded")
     }
 
+    @Test
+    fun `a contract should keep the markers of what it keeps, where they stand`() {
+        val shop = fragment()
+        val marked = shop.copyWith(
+            requires = listOf("m"),
+            contexts = shop.contexts.map { context ->
+                context.copyWith(
+                    requires = listOf("c"),
+                    aggregates = context.aggregates.map { it.copyWith(requires = listOf("a")) },
+                )
+            },
+        )
+        // A fragment the contract keeps nothing of gives it no marker.
+        val contract = PeerContracts.contractOf(listOf(marked, Manifest(requires = listOf("unkept"))))
+        contract.requires.assert().containsExactly("m")
+        contract.contexts.single().requires.assert().containsExactly("c")
+        contract.contexts.single().aggregates.single().requires.assert().containsExactly("a")
+
+        val sales = ManifestFragment(
+            "sales",
+            PeerContracts.contractOf(listOf(fragment("sales").copyWith(requires = listOf("z", "m")))),
+        )
+        val foreign = ManifestFragment(
+            "audit",
+            Manifest(
+                requires = listOf("foreign"),
+                contexts = listOf(
+                    ContextManifest(
+                        "audit",
+                        requires = listOf("foreign-context"),
+                        aggregates = listOf(
+                            AggregateManifest(
+                                "log",
+                                state = StateManifest(Manifest.schemaRef("other.LogState")),
+                                commands = listOf(CommandManifest("Write", schema = Manifest.schemaRef("other.Write"))),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        val assembled = PeerContracts.assemble(":api", listOf(ManifestFragment("shop", contract), sales, foreign)) {
+            it.startsWith("sample.")
+        }!!
+        // The markers of the contracts it keeps a context of, united; none of the context it leaves out.
+        assembled.requires.assert().containsExactly("m", "z")
+        assembled.contexts.map { it.name to it.requires }.assert()
+            .containsExactly("sales" to emptyList(), "shop" to listOf("c"))
+        ManifestTree.write(assembled)["requires"].assert().isEqualTo(listOf("m", "z"))
+    }
+
     private fun contract(source: String, vararg contexts: String) = ManifestFragment(
         source,
         PeerContracts.contractOf(contexts.map { fragment(it) }),

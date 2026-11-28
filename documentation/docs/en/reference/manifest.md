@@ -13,12 +13,12 @@ Wow reads a schema of `$defs`, the compiler's and a hand-written one alike (a `s
 
 What the writer leaves out:
 
-Absent optional values (a null description, unknown `produces`, `derives`, `schedules` or `transformsTo`, a fragment's service, a subscription's `retry` or `job`) are left out, not written as null, and so are a subscription source's `nullableState` and a command's `mounted`, `system` and `internal` when false, an aggregate's `ownership` when it is `OWNER`, the default, its `idSource` when it is `ASSIGNED`, the default, its `retired` events and its `access` attributes when it has none, an access attribute's `multiple` when false, and the Manifest's `requires` when it has none.
+Absent optional values (a null description, unknown `produces`, `derives`, `schedules` or `transformsTo`, a fragment's service, a subscription's `retry` or `job`) are left out, not written as null, and so are a subscription source's `nullableState` and a command's `mounted`, `system` and `internal` when false, an aggregate's `ownership` when it is `OWNER`, the default, its `idSource` when it is `ASSIGNED`, the default, its `retired` events and its `access` attributes when it has none, an access attribute's `multiple` when false, and the `requires` of the Manifest, a context or an aggregate when it has none (written sorted and distinct, so the Manifest is byte-stable).
 
 ## `Manifest`
 
 - `format`
-- `requires`: left out when absent or at its default
+- `requires`
 - `service`: object; left out when absent or at its default
   - `name`
   - `version`
@@ -29,6 +29,7 @@ Absent optional values (a null description, unknown `produces`, `derives`, `sche
 ## `Context`
 
 - `name`
+- `requires`
 - `description`
 - `aggregates`: array of [`Aggregate`](#aggregate)
 - `subscriptions`: array of [`Subscription`](#subscription)
@@ -84,6 +85,7 @@ Absent optional values (a null description, unknown `produces`, `derives`, `sche
 ## `Aggregate`
 
 - `name`
+- `requires`
 - `description`
 - `state`: object
   - `schema`

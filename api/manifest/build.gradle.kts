@@ -13,3 +13,11 @@ dependencies {
     testImplementation(libs.json.schema.validator)
     // Only to hold the contract's vocabulary (error codes, Creation, Ownership) to the programming model's (D294).
 }
+
+// ManifestRequiresTest holds the Kotlin reader to the table of refused markers that wow-client's and wow-generator's
+// tests hold their readers to: declared, so a changed table runs it instead of reusing a cached result.
+tasks.named<Test>("test") {
+    inputs.file(rootProject.file("typescript/wow-client/fixtures/manifest-requires-cases.json"))
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+        .withPropertyName("manifestRequiresCases")
+}

@@ -18,6 +18,7 @@ import {
   type ManifestCommand,
   type ManifestContext,
   isObject,
+  requiresOf,
   schemaKey,
   typesOf,
 } from './document';
@@ -375,6 +376,7 @@ export function aggregateModel(
   return {
     context: context.name,
     name: aggregate.name,
+    ...requiresOf(aggregate.requires),
     ...(aggregate.description ? { description: aggregate.description } : {}),
     typeName,
     directory: `${context.name}/${aggregate.name}`,

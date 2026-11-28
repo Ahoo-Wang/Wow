@@ -2569,6 +2569,13 @@
             "type" : "string",
             "description" : "The bounded context's name: lower case words joined by hyphens."
           },
+          "requires" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            },
+            "description" : "The markers a reader must understand to read the context."
+          },
           "description" : {
             "type" : "string"
           },
@@ -2687,6 +2694,13 @@
         "properties" : {
           "name" : {
             "type" : "string"
+          },
+          "requires" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            },
+            "description" : "The markers a reader must understand to read the aggregate."
           },
           "description" : {
             "type" : "string"

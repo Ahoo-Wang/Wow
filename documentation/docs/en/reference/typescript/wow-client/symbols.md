@@ -61,7 +61,7 @@ Every name `@ahoo-wang/wow-client` exports — 129 — with its kind and the fir
 | `JobManifest` | interface | The scheduled job a subscription runs. | — |
 | `LifecycleCommand` | type | A `LifecycleCommands` value. | — |
 | `LifecycleCommands` | const | The lifecycle commands an aggregate may list. | — |
-| `MANIFEST_FEATURES` | const | The markers of a Manifest's `requires` this client understands, as the Kotlin reader's `ManifestFeatures`: none yet. | — |
+| `MANIFEST_FEATURES` | const | The markers of a `requires` this client understands, on the Manifest, a context or an aggregate, as the Kotlin reader's `ManifestFeatures`: none yet. | — |
 | `MANIFEST_FORMAT` | const | The format of the Manifest this client reads. | — |
 | `Manifest` | interface | A service's Manifest, or a module's fragment (without service), format 1. | — |
 | `NoAccess` | type | The access attributes of an aggregate that declares none: a record's `access` is then empty, and a query names no `access.<name>`. | — |

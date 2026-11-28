@@ -26,6 +26,8 @@ export interface ServiceManifest {
 export interface ContextManifest {
   /** The bounded context's name: lower case words joined by hyphens. */
   readonly name: string;
+  /** The markers a reader must understand to read the context. */
+  readonly requires?: readonly string[];
   readonly description?: string;
   readonly aggregates: readonly AggregateManifest[];
   readonly subscriptions: readonly SubscriptionManifest[];
@@ -69,6 +71,8 @@ export interface RouteParameterManifest {
 /** An aggregate type: its state, snapshots, commands, events and query models. */
 export interface AggregateManifest {
   readonly name: string;
+  /** The markers a reader must understand to read the aggregate. */
+  readonly requires?: readonly string[];
   readonly description?: string;
   readonly state: StateManifest;
   readonly snapshot: SnapshotManifest;

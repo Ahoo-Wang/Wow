@@ -100,7 +100,7 @@ object ManifestMerger {
             errors = FrameworkErrors.ALL,
             defs = defs,
             // A reader must understand what any fragment requires.
-            requires = fragments.flatMap { it.manifest.requires }.distinct().sorted(),
+            requires = ManifestFeatures.union(fragments.map { it.manifest.requires }),
         )
     }
 
@@ -126,6 +126,8 @@ object ManifestMerger {
         val context = owner.second.copyWith(
             errors = owner.second.errors + added.flatMap { it.second.errors },
             routes = owner.second.routes + added.flatMap { it.second.routes },
+            // One context of several declarations: a reader must understand what any of them requires.
+            requires = ManifestFeatures.union(listOf(owner.second.requires) + added.map { it.second.requires }),
         )
         listOf((listOf(owner) + added).joinToString(" and ") { it.first } to context) + others
     }

@@ -26,7 +26,8 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * with `ClassLoader.getResources(RESOURCE)`, one URL per jar or directory: no directory is listed.
  *
  * A shaded (uber) jar that merges its libraries' entries into one keeps only one [RESOURCE] unless it merges the files:
- * one JSON object whose `contexts` are those of every file and whose `$defs` and `errors` are their union; and one
+ * one JSON object whose `contexts` are those of every file and whose `$defs`, `errors` and `requires` are their union
+ * (each context and aggregate keeping its own `requires`); and one
  * [STATE_VIEWS_RESOURCE], whose files it concatenates. An executable Spring Boot jar keeps each library jar whole and
  * needs nothing.
  */
@@ -51,7 +52,9 @@ object PeerContracts {
      * and the commands they derive, call, handle the rejections of and the commits of: what a wait chain follows), published
      * streams and errors; the framework's errors; and the `$defs` these refer to, transitively. Routes, schedules,
      * retries and jobs are left out. The service is the one [service] names, the one that hosts the contexts, which a
-     * peer finds by its name: its name alone, none when not given.
+     * peer finds by its name: its name alone, none when not given. The markers a reader must understand are kept where
+     * they stand: each context's and aggregate's its own, and the contract's those of the fragments it keeps a context
+     * of ([ManifestFeatures.union]).
      *
      * The state schema is a peer's compile-time API (the api module's generated query fields come from
      * it), except that of an aggregate whose stream is published without its state (`@AggregateRoot(publishState =
@@ -67,6 +70,8 @@ object PeerContracts {
             service = service?.takeIf { it.isNotBlank() }?.let { ServiceInfo(it) },
             contexts = contexts,
             errors = errors,
+            // The markers of the fragments it keeps a context of; each context and aggregate keeps its own.
+            requires = ManifestFeatures.union(fragments.filter { it.contexts.isNotEmpty() }.map { it.requires }),
         )
         val withheld = contexts.flatMap(::withheldStates)
         // Each withheld state once: a command or an event may refer to the same class.
@@ -206,7 +211,8 @@ object PeerContracts {
      * The contract the api module [owner] carries: of the contexts of the domain modules' [contracts], those whose
      * command and event classes are its own ([owns], by binary name). A context with none of its classes is another
      * api module's, and is left out; a context with some of them and not others fails, as does a context two
-     * contracts declare. Null when no context is the api module's.
+     * contracts declare. Null when no context is the api module's. Each context and aggregate keeps its markers
+     * (`requires`), and the contract's are those of the contracts it keeps a context of.
      *
      * @throws IllegalStateException listing every problem.
      */
@@ -264,6 +270,8 @@ object PeerContracts {
             service = services.firstOrNull()?.let { ServiceInfo(it.first) },
             contexts = kept.map { it.second }.sortedBy { it.name },
             errors = kept.flatMap { it.first.manifest.errors }.distinctBy { it.code },
+            // The markers of the contracts it keeps a context of; each context and aggregate keeps its own.
+            requires = ManifestFeatures.union(kept.map { it.first }.distinct().map { it.manifest.requires }),
         )
         return contract.copyWith(defs = referenced(contract.schemaRefs, defs))
     }

@@ -89,4 +89,12 @@ class ClassPathContractsTest {
         problems[1].assert().contains("format/${PeerContracts.RESOURCE} is not a Manifest: Manifest format 2")
         problems[2].assert().contains("missing.json cannot be read")
     }
+
+    @Test
+    fun `a contract whose aggregate requires a marker this reader does not understand should be reported by name`() {
+        assertThrows<ContractException> { read(contractsLoader("requiring")) }.problems.single().assert().contains(
+            "requiring/${PeerContracts.RESOURCE} is not a Manifest: The aggregate shop.cart requires routes-v2, " +
+                "which this reader does not understand",
+        )
+    }
 }
