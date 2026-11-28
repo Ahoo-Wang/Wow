@@ -15,6 +15,8 @@ package me.ahoo.wow.query.mask
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.EventManifest
@@ -90,14 +92,14 @@ class PayloadMasksTest {
 
     @Test
     fun `an event body is masked by its event's schema, found by name or alias`() {
-        masks.event(ManifestFixtures.ORDER, "OrderPlaced", tree("""{"phone":"13812345678","sku":"s"}"""))
+        masks.event(ManifestFixtures.ORDER, "OrderPlaced", 1, tree("""{"phone":"13812345678","sku":"s"}"""))
             .toString().assert().isEqualTo("""{"phone":"138****5678","sku":"s"}""")
-        masks.event(ManifestFixtures.ORDER, "order_placed", tree("""{"phone":"13812345678"}"""))["phone"]
+        masks.event(ManifestFixtures.ORDER, "order_placed", 1, tree("""{"phone":"13812345678"}"""))["phone"]
             .asString().assert().isEqualTo("138****5678")
         // The log's name of the event, qualified by its aggregate (decision D55), and a qualified alias.
-        masks.event(ManifestFixtures.ORDER, "shop.order.OrderPlaced", tree("""{"phone":"13812345678"}"""))["phone"]
+        masks.event(ManifestFixtures.ORDER, "shop.order.OrderPlaced", 1, tree("""{"phone":"13812345678"}"""))["phone"]
             .asString().assert().isEqualTo("138****5678")
-        masks.event(ManifestFixtures.ORDER, "shop.order.order_placed", tree("""{"phone":"13812345678"}"""))["phone"]
+        masks.event(ManifestFixtures.ORDER, "shop.order.order_placed", 1, tree("""{"phone":"13812345678"}"""))["phone"]
             .asString().assert().isEqualTo("138****5678")
     }
 
@@ -110,23 +112,44 @@ class PayloadMasksTest {
         )
         state.toString().assert()
             .isEqualTo("""{"password":"******","phone":"13812345678","email":"a@b.c","address":{"street":"****"}}""")
-        masks.event(ManifestFixtures.ORDER, "OrderPlaced", tree("""{"phone":"13812345678","sku":"s"}"""), true)
+        masks.event(ManifestFixtures.ORDER, "OrderPlaced", 1, tree("""{"phone":"13812345678","sku":"s"}"""), true)
             .toString().assert().isEqualTo("""{"phone":"13812345678","sku":"s"}""")
         // The masks a read that does not ask is given are compiled apart, and stay whole.
         masks.state(ManifestFixtures.ORDER, tree("""{"phone":"13812345678"}"""))["phone"].asString().assert()
             .isEqualTo("138****5678")
-        masks.event(ManifestFixtures.ORDER, "OrderPlaced", tree("""{"phone":"13812345678"}"""))["phone"]
+        masks.event(ManifestFixtures.ORDER, "OrderPlaced", 1, tree("""{"phone":"13812345678"}"""))["phone"]
             .asString().assert().isEqualTo("138****5678")
     }
 
     @Test
     fun `a payload without a sensitive schema is returned as it is`() {
         val body = tree("""{"phone":"13812345678"}""")
-        masks.event(ManifestFixtures.ORDER, "OrderNoted", body).assert().isSameAs(body)
-        masks.event(ManifestFixtures.ORDER, "OrderLost", body).assert().isSameAs(body)
-        masks.event(ManifestFixtures.ORDER, "Unknown", body).assert().isSameAs(body)
+        masks.event(ManifestFixtures.ORDER, "OrderNoted", 1, body).assert().isSameAs(body)
+        // An event the Manifest lists without carrying its schema declares nothing sensitive.
+        masks.event(ManifestFixtures.ORDER, "OrderLost", 1, body).assert().isSameAs(body)
+        masks.eventMaskOf(ManifestFixtures.ORDER, "OrderLost", revealsDisplay = false).assert().isNull()
         masks.state(AggregateType("shop", "other"), body).assert().isSameAs(body)
         PayloadMasks.NONE.state(ManifestFixtures.ORDER, body).assert().isSameAs(body)
+        // Wow's own events, which every node knows, whatever the Manifest lists.
+        masks.event(ManifestFixtures.ORDER, Lifecycle.OWNER_TRANSFERRED, 1, body).assert().isSameAs(body)
+        masks.event(ManifestFixtures.ORDER, ScheduleJobs.JOB_TICKED, 1, body).assert().isSameAs(body)
+        masks.eventMaskOf(ManifestFixtures.ORDER, Lifecycle.OWNER_TRANSFERRED, revealsDisplay = false).assert().isNull()
+    }
+
+    @Test
+    fun `an event the Manifest does not know, by name or revision, is masked whole (D485)`() {
+        val body = tree("""{"phone":"13812345678"}""")
+        // A new name, a newer revision than the Manifest's, an aggregate type it does not have.
+        masks.event(ManifestFixtures.ORDER, "OrderRefunded", 1, body).isNull.assert().isTrue()
+        masks.event(ManifestFixtures.ORDER, "shop.order.OrderNoted", 2, body).isNull.assert().isTrue()
+        masks.event(AggregateType("shop", "other"), "OrderPlaced", 1, body).isNull.assert().isTrue()
+        // A revealing read is no exception, and the mask a writer takes is the same.
+        masks.event(ManifestFixtures.ORDER, "OrderRefunded", 1, body, revealsDisplay = true).isNull.assert().isTrue()
+        val published = masks.eventMaskOf(ManifestFixtures.ORDER, "OrderRefunded", revealsDisplay = true)!!
+        published(body).isNull.assert().isTrue()
+        // What masks nothing masks nothing it does not know either.
+        PayloadMasks.NONE.event(ManifestFixtures.ORDER, "OrderRefunded", 1, body).assert().isSameAs(body)
+        PayloadMasks.NONE.eventMaskOf(ManifestFixtures.ORDER, "OrderRefunded", revealsDisplay = false).assert().isNull()
     }
 
     @Test
@@ -149,15 +172,12 @@ class PayloadMasksTest {
         val raw = """{"phone":"13812345678","sku":"s"}"""
         listOf("OrderPlaced", "order_placed", "shop.order.OrderPlaced", "shop.order.order_placed").forEach { name ->
             val mask = masks.eventMaskOf(ManifestFixtures.ORDER, name, revealsDisplay = false)!!
-            mask(tree(raw)).assert().isEqualTo(masks.event(ManifestFixtures.ORDER, name, tree(raw)))
+            mask(tree(raw)).assert().isEqualTo(masks.event(ManifestFixtures.ORDER, name, 1, tree(raw)))
             mask(tree(raw))["phone"].asString().assert().isEqualTo("138****5678")
         }
         // Its one sensitive value is DISPLAY: the masks of a read that reveals DISPLAY values mask nothing of it.
         masks.eventMaskOf(ManifestFixtures.ORDER, "shop.order.OrderPlaced", revealsDisplay = true).assert().isNull()
         masks.eventMaskOf(ManifestFixtures.ORDER, "OrderNoted", revealsDisplay = false).assert().isNull()
-        masks.eventMaskOf(ManifestFixtures.ORDER, "OrderLost", revealsDisplay = false).assert().isNull()
-        masks.eventMaskOf(ManifestFixtures.ORDER, "Unknown", revealsDisplay = false).assert().isNull()
-        masks.eventMaskOf(AggregateType("shop", "other"), "OrderPlaced", revealsDisplay = false).assert().isNull()
         PayloadMasks.NONE.eventMaskOf(ManifestFixtures.ORDER, "OrderPlaced", revealsDisplay = false).assert().isNull()
     }
 

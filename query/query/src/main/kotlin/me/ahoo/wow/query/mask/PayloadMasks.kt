@@ -15,7 +15,9 @@ package me.ahoo.wow.query.mask
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.Manifest
@@ -38,8 +40,15 @@ import java.util.concurrent.ConcurrentHashMap
  * The response masks of the payloads a state read and the `events` model return outside a snapshot query:
  * an aggregate's [state] and an event's [body], masked by the `x-wow-sensitive` and `x-wow-mask`
  * keywords of their schemas in [manifest]'s `$defs`, as a snapshot query masks its records ([SchemaMasker]): every
- * sensitive value, whatever its level, is replaced by its mask for every caller. A payload whose schema the Manifest
- * does not carry, or that declares nothing sensitive, is returned as it is.
+ * sensitive value, whatever its level, is replaced by its mask for every caller. A payload that declares nothing
+ * sensitive is returned as it is.
+ *
+ * **What the node finds no schema for is masked whole**: an event the Manifest does not know, by
+ * its name or by a revision newer than the Manifest's ([EventManifest.revision][me.ahoo.wow.manifest.EventManifest]),
+ * such as one a newer node wrote during a rolling upgrade, is answered with the body JSON `null`, never as it is: the
+ * node cannot tell what in it is sensitive. An event the Manifest lists without carrying its schema declares nothing
+ * sensitive, and is returned as it is. Wow's own events
+ * (`wow.lifecycle.*`, `wow.schedule.*`) are known to every node, whatever the Manifest lists.
  *
  * Each schema is compiled once, on first use; [strategies] resolves the custom mask strategies, and one it does not
  * know fails the read rather than return the raw value. A read that reveals `DISPLAY` values
@@ -53,13 +62,18 @@ import java.util.concurrent.ConcurrentHashMap
  * A schedule's event, `wow.schedule.ScheduleSet`, holds the body of the command it will send: that `command` is masked
  * as a body of its command type (`commandType`, `context.aggregate.Command`) is, by its schema in [manifest] or, for a
  * command of another context, in one of [peers], the contracts of the contexts the node sends commands to. A command
- * type none of them names is left as it is, as an event whose schema the Manifest does not carry is.
+ * whose type none of them names, or that names no type, or that is not an object, is masked whole, `null`, as an event
+ * the Manifest does not know is.
+ *
+ * [NONE] masks nothing, not even what it knows no schema for ([masksUnknown] false): it is for a read that is not
+ * masked at all.
  */
 @InternalWowApi
 class PayloadMasks(
     private val manifest: Manifest,
     private val strategies: MaskStrategyResolver = MaskStrategyResolver.NONE,
     peers: List<Manifest> = emptyList(),
+    private val masksUnknown: Boolean = true,
 ) : StateMasks {
     /** The node's Manifest, then its peers': where a scheduled command's schema is found, by [MaskKey.source]. */
     private val manifests: List<Manifest> = listOf(manifest) + peers
@@ -70,7 +84,7 @@ class PayloadMasks(
     private val commandSchemas = ConcurrentHashMap<String, Optional<CommandSchema>>()
 
     /** The schema of each event by the type and the name it was asked by; empty when the Manifest has none. */
-    private val eventSchemas = ConcurrentHashMap<EventKey, Optional<String>>()
+    private val eventSchemas = ConcurrentHashMap<EventKey, Optional<EventSchema>>()
 
     /**
      * [state], a state of [type], masked in place where it can be; the masked value. With [revealsDisplay], its
@@ -88,36 +102,59 @@ class PayloadMasks(
     }
 
     /**
-     * [body], the body of [type]'s event named [name], masked in place where it can be. [name] is the event's name in
-     * the log (`<context>.<aggregate>.<Name>`) or the Manifest's, or one of its aliases. With [revealsDisplay], its
-     * `DISPLAY` values are left raw.
+     * [body], the body of [type]'s event named [name] stored at [revision], masked in place where it can be; `null`
+     * when the Manifest does not know the event at that revision. [name] is the event's name in the log
+     * (`<context>.<aggregate>.<Name>`) or the Manifest's, or one of its aliases. With [revealsDisplay], its `DISPLAY`
+     * values are left raw.
      */
     @JvmOverloads
-    fun event(type: AggregateType, name: String, body: JsonNode, revealsDisplay: Boolean = false): JsonNode {
+    fun event(
+        type: AggregateType,
+        name: String,
+        revision: Int,
+        body: JsonNode,
+        revealsDisplay: Boolean = false,
+    ): JsonNode {
         if (name == Schedules.SCHEDULE_SET) {
             return scheduled(body, revealsDisplay)
         }
-        val schema = eventSchema(type, name) ?: return body
-        return mask(MaskKey(type.context, schema, revealsDisplay), body)
+        if (name in FRAMEWORK_EVENTS) {
+            return body
+        }
+        val schema = eventSchema(type, name)?.takeIf { revision <= it.revision } ?: return unknown(body)
+        return mask(MaskKey(type.context, schema.ref, revealsDisplay), body)
     }
 
+    /**
+     * The mask of the body of [type]'s event named [event], at its current revision, as [event] masks it: one that
+     * masks the body whole when the Manifest does not know the event; null when its schema masks nothing.
+     */
     override fun eventMaskOf(type: AggregateType, event: String, revealsDisplay: Boolean): ((JsonNode) -> JsonNode)? {
         if (event == Schedules.SCHEDULE_SET) {
             return { body -> scheduled(body, revealsDisplay) }
         }
-        val schema = eventSchema(type, event) ?: return null
-        return maskOf(MaskKey(type.context, schema, revealsDisplay))
+        if (event in FRAMEWORK_EVENTS) {
+            return null
+        }
+        val schema = eventSchema(type, event) ?: return if (masksUnknown) WHOLE else null
+        return maskOf(MaskKey(type.context, schema.ref, revealsDisplay))
     }
 
     /** [body], a schedule's event, with the command it holds masked as a body of its command type; masked in place. */
     private fun scheduled(body: JsonNode, revealsDisplay: Boolean): JsonNode {
-        val event = body as? ObjectNode ?: return body
-        val command = event.get(COMMAND)?.takeIf { it.isObject } ?: return event
-        val type = event.get(COMMAND_TYPE)?.takeIf { it.isString }?.stringValue() ?: return event
-        val schema = commandSchema(type) ?: return event
+        val event = body as? ObjectNode ?: return unknown(body)
+        val command = event.get(COMMAND) ?: return event
+        val schema = event.get(COMMAND_TYPE)?.takeIf { it.isString }?.stringValue()?.let(::commandSchema)
+        if (schema == null || !command.isObject) {
+            event.set(COMMAND, unknown(command))
+            return event
+        }
         event.set(COMMAND, mask(MaskKey(schema.context, schema.ref, revealsDisplay, schema.source), command))
         return event
     }
+
+    /** [payload] masked whole, as what the node finds no schema for is; as it is for [NONE]. */
+    private fun unknown(payload: JsonNode): JsonNode = if (masksUnknown) WHOLE(payload) else payload
 
     /**
      * The schema of the command type named [name] (`context.aggregate.Command`, or a former name), in the first
@@ -145,13 +182,13 @@ class PayloadMasks(
         return { payload -> mask(masker, payload) }
     }
 
-    private fun eventSchema(type: AggregateType, name: String): String? =
+    private fun eventSchema(type: AggregateType, name: String): EventSchema? =
         eventSchemas.computeIfAbsent(EventKey(type, name)) { key ->
             val local = key.name.removePrefix("${type.context}.${type.name}.")
             val event = aggregate(type)?.events?.firstOrNull { event ->
                 event.name == local || key.name in event.aliases || local in event.aliases
             }
-            Optional.ofNullable(event?.schema)
+            Optional.ofNullable(event?.let { EventSchema(it.schema, it.revision) })
         }.orElse(null)
 
     private fun aggregate(type: AggregateType): AggregateManifest? =
@@ -201,11 +238,21 @@ class PayloadMasks(
 
     private data class EventKey(val type: AggregateType, val name: String)
 
+    /** An event's schema [ref] and the [revision] the Manifest knows it at. */
+    private data class EventSchema(val ref: String, val revision: Int)
+
     @InternalWowApi
     companion object {
-        /** Masks nothing. */
+        /** Masks nothing, not even what it knows no schema for. */
         @JvmField
-        val NONE: PayloadMasks = PayloadMasks(Manifest())
+        val NONE: PayloadMasks = PayloadMasks(Manifest(), masksUnknown = false)
+
+        /** The events of Wow's own aggregates and lifecycle, which every node knows, beside the schedule's. */
+        private val FRAMEWORK_EVENTS: Set<String> =
+            (Lifecycle.EVENTS.keys + Schedules.EVENTS.keys + ScheduleJobs.EVENTS.keys) - Schedules.SCHEDULE_SET
+
+        /** What the node finds no schema for, masked whole: `null`, whatever it was. */
+        private val WHOLE: (JsonNode) -> JsonNode = { JsonNodeFactory.instance.nullNode() }
 
         private const val REF = "\$ref"
         private const val COMMAND = "command"

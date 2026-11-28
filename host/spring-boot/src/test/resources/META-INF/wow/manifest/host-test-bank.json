@@ -73,7 +73,8 @@
           "method" : "GET",
           "path" : "/bank/account/events/query"
         } ]
-      } ]
+      } ],
+      "retired" : [ "bank.account.Closed" ]
     } ],
     "subscriptions" : [ ],
     "errors" : [ {

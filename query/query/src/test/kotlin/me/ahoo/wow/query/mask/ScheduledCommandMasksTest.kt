@@ -29,8 +29,8 @@ import tools.jackson.databind.JsonNode
 /**
  * A schedule's event, `wow.schedule.ScheduleSet`, holds the body of the command it will send: masked as a body of its
  * command type is (#7066), by its schema in the node's Manifest or, for a command of another context, in a peer's
- * contract, wherever the event is read ([PayloadMasks.event]: a state trace, an events query) or published
- * ([PayloadMasks.eventMaskOf]: the state topic).
+ * contract, and masked whole when none of them has its schema (D485 ⑩), wherever the event is read
+ * ([PayloadMasks.event]: a state trace, an events query) or published ([PayloadMasks.eventMaskOf]: the state topic).
  */
 class ScheduledCommandMasksTest {
     private fun sensitive(level: String) = mapOf(
@@ -97,7 +97,7 @@ class ScheduledCommandMasksTest {
         )
 
     private fun read(body: JsonNode, revealsDisplay: Boolean = false): JsonNode =
-        masks.event(ManifestFixtures.ORDER, Schedules.SCHEDULE_SET, body, revealsDisplay)["command"]
+        masks.event(ManifestFixtures.ORDER, Schedules.SCHEDULE_SET, 1, body, revealsDisplay)["command"]
 
     @Test
     fun `the command a schedule holds is masked as its command's schema says, on a read`() {
@@ -137,22 +137,30 @@ class ScheduledCommandMasksTest {
     }
 
     @Test
-    fun `a command type no Manifest names, or a schedule without a command, is left as it is`() {
-        read(scheduleSet("shop.order.Unknown"))["phone"].asString().assert().isEqualTo("13812345678")
-        read(scheduleSet("RemindBuyer"))["phone"].asString().assert().isEqualTo("13812345678")
-        // A command whose schema the Manifest does not carry.
-        read(scheduleSet("shop.order.Ghost"))["phone"].asString().assert().isEqualTo("13812345678")
-        val text = WowJson.mapper.readTree("\"not an event\"")
-        masks.event(ManifestFixtures.ORDER, Schedules.SCHEDULE_SET, text).assert().isEqualTo(text)
+    fun `a command the node has no schema for is masked whole, never left raw (D485)`() {
+        // A type no Manifest names, and one named without its context and aggregate.
+        listOf("shop.order.Unknown", "RemindBuyer").forEach { type ->
+            read(scheduleSet(type)).isNull.assert().isTrue()
+            read(scheduleSet(type), revealsDisplay = true).isNull.assert().isTrue()
+            val published = masks.eventMaskOf(ManifestFixtures.ORDER, Schedules.SCHEDULE_SET, revealsDisplay = false)!!
+            published(scheduleSet(type))["command"].isNull.assert().isTrue()
+        }
+        // A command that is not an object, or of a type that is not a name, or none.
         val scalar = WowJson.mapper.readTree("""{"commandType":"shop.order.RemindBuyer","command":"13812345678"}""")
-        masks.event(ManifestFixtures.ORDER, Schedules.SCHEDULE_SET, scalar).assert().isEqualTo(scalar)
+        masks.event(ManifestFixtures.ORDER, Schedules.SCHEDULE_SET, 1, scalar)["command"].isNull.assert().isTrue()
         val numbered = WowJson.mapper.readTree("""{"commandType":7,"command":{"phone":"13812345678"}}""")
-        masks.event(ManifestFixtures.ORDER, Schedules.SCHEDULE_SET, numbered)["command"]["phone"].asString().assert()
-            .isEqualTo("13812345678")
-        val noCommand = WowJson.mapper.readTree("""{"key":"k","commandType":"shop.order.RemindBuyer"}""")
-        masks.event(ManifestFixtures.ORDER, Schedules.SCHEDULE_SET, noCommand).assert().isEqualTo(noCommand)
+        masks.event(ManifestFixtures.ORDER, Schedules.SCHEDULE_SET, 1, numbered)["command"].isNull.assert().isTrue()
         val unnamed = WowJson.mapper.readTree("""{"key":"k","command":{"phone":"13812345678"}}""")
-        masks.event(ManifestFixtures.ORDER, Schedules.SCHEDULE_SET, unnamed)["command"]["phone"].asString().assert()
-            .isEqualTo("13812345678")
+        masks.event(ManifestFixtures.ORDER, Schedules.SCHEDULE_SET, 1, unnamed)["command"].isNull.assert().isTrue()
+        // A schedule's event that is not an object is masked whole too.
+        val text = WowJson.mapper.readTree("\"13812345678\"")
+        masks.event(ManifestFixtures.ORDER, Schedules.SCHEDULE_SET, 1, text).isNull.assert().isTrue()
+    }
+
+    @Test
+    fun `a schedule without a command, or of a command whose schema is not carried, is left as it is`() {
+        read(scheduleSet("shop.order.Ghost"))["phone"].asString().assert().isEqualTo("13812345678")
+        val noCommand = WowJson.mapper.readTree("""{"key":"k","commandType":"shop.order.RemindBuyer"}""")
+        masks.event(ManifestFixtures.ORDER, Schedules.SCHEDULE_SET, 1, noCommand).assert().isEqualTo(noCommand)
     }
 }
