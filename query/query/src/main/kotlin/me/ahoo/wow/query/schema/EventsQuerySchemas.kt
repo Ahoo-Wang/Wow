@@ -89,15 +89,13 @@ class EventsQuerySchemas(
             val schema = event.schema.takeIf { Manifest.schemaKey(it) in manifest.defs }?.let { mapOf(REF to it) }
             type.eventName(event.name) to variant(type.eventName(event.name), schema ?: UNDESCRIBED)
         } + SYSTEM_EVENTS.map { it to variant(it, UNDESCRIBED) }
-        val items = if (aggregate == null) {
-            variant(null, null)
+        val field = QueryField(EventStreamFields.EVENTS)
+        // Each event's body is masked by its own event's schema: its variants may mask one path by different rules.
+        val events = if (aggregate == null) {
+            reader.declaration(mapOf("type" to "array", "items" to variant(null, null)), field)
         } else {
-            mapOf("oneOf" to variants.map { it.second })
+            reader.variants(variants.map { it.second }, field)
         }
-        val events = reader.declaration(
-            mapOf("type" to "array", "items" to items),
-            QueryField(EventStreamFields.EVENTS)
-        )
         val names = variants.map { it.first }
         val structure = events.copy(
             nullable = DeclarationValue.Unset,
@@ -105,7 +103,7 @@ class EventsQuerySchemas(
             items = DeclarationValue.Set(events.items.valueOr(null)?.withVariants(names)),
         )
         return listOfNotNull(
-            QuerySchemaDeclaration(mapOf(QueryField(EventStreamFields.EVENTS) to structure)),
+            QuerySchemaDeclaration(mapOf(field to structure)),
             aggregate?.let { accessDeclaration(it.access, EventStreamFields.ACCESS) },
         )
     }

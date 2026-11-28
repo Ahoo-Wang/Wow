@@ -58,6 +58,8 @@ Events are read at their current revision, upgraded as the aggregate reads them.
 
 A field of an event's body means that field in the events whose schema declares it, at a revision this node knows: a condition on it, a group by it, a metric of it and the expansion of an array in it read those events only. Any other event is read as if it had no such field, as a masked read shows it: an event this node's Manifest does not know or at a newer revision than it lists (its body `null`), and an older revision of an event that no longer declares the field. So `eq`, a range or a string operator never matches such an event, while `ne`, `not-in`, `is-null` and `not-exists` do; a group by a body field holds only the events that declare it, its `null` group (or `missingKey`) those of them without a value; a sum or an average of a body field reads only them. Counting the expanded events counts every event, as a list shows each.
 
+Each event's body is masked by its own event's schema. Two events may mask a field of one name by different rules, a prefix kept in one and a suffix in the other, and each event's value is answered by its own. A condition on such a field and a group by it are held to the most protective of the events that declare it: a field one of them marks `CONFIDENTIAL` is compared in none of them, and one that an event marks `DISPLAY` and another leaves plain is compared in both and grouped in neither.
+
 ## Who sees what
 
 An events query shows only the commits of aggregates the caller may see now. Each stream records its aggregate's current access attributes, `access`, its owner and space among them, and the node filters the streams on them as it filters the snapshots:
