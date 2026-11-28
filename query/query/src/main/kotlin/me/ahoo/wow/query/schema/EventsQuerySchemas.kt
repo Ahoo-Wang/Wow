@@ -231,3 +231,59 @@ class EventsQuerySchemas(
         )
     }
 }
+
+/**
+ * Which events of one aggregate declare each path of their bodies, as the variants of its `events[]` state them (the
+ * variants [EventsQuerySchemas.adapter]'s revision rule reads too) and its profile names and revises them. A body path means that path in the events that declare it, at a revision this node knows:
+ * admission reads a condition, a group or a metric on it only on the elements of those events
+ * ([me.ahoo.wow.query.resolve.QueryResolver.storedEvents]), never on the stored body of an event the Manifest does not
+ * know, of one at a newer revision, or of an older revision of an event that no longer declares the path.
+ *
+ * Built once per compiled schema ([QueryModelSchema.eventBodies]); each path's events are found on its first use.
+ */
+internal class EventBodyDeclarations private constructor(
+    /** The model's `events` array, the element scope whose body paths these are. */
+    val events: QueryField<*>,
+    private val variants: List<Variant>,
+) {
+    /** One event of the aggregate: the names the log stores it under, its current revision and its body's schema. */
+    private class Variant(val storedNames: Set<String>, val revision: Int, val body: QueryValueSchema)
+
+    private val declaring = ConcurrentHashMap<QueryPathTemplate, Map<Int, Set<String>>>()
+
+    /**
+     * The events that declare [path], a path below `body` (`owner`, `address.city`, a map's key): the names they are
+     * stored under, by the revision each is at now, in revision order; empty when none does. An event declares a
+     * path its body's schema reaches, or reaches a value of unknown shape on the way to (a free value it declares
+     * open, whose reads answer it as stored); a system event's body and one the Manifest does not describe declare
+     * none, nor does the variant of any name of an aggregate the Manifest does not hold.
+     */
+    fun declaring(path: QueryPathTemplate): Map<Int, Set<String>> {
+        if (declaring.size >= MAX_CACHED_PATHS) declaring.clear()
+        return declaring.computeIfAbsent(path) {
+            variants.filter { it.body.lookup(path).isNotEmpty() }
+                .groupBy(Variant::revision) { it.storedNames }
+                .mapValues { (_, names) -> names.flatMapTo(linkedSetOf()) { it } }
+                .toSortedMap()
+        }
+    }
+
+    internal companion object {
+        /** A map's keys make the paths of a body unbounded: past this many, the found ones are found again. */
+        const val MAX_CACHED_PATHS = 1024
+
+        /** The declarations of the events of [root], an `events` model's logical root, as [profile] names them. */
+        fun of(root: QueryValueSchema, profile: EventsQueryModelProfile): EventBodyDeclarations = EventBodyDeclarations(
+            profile.eventsField,
+            // Every variant of an event is an object of a name; the one of any name, and the system events', have no
+            // revision of the aggregate's.
+            listOfNotNull(root.properties.getValue(EventStreamFields.EVENTS).items)
+                .flatMap { it.alternativesOrSelf() }
+                .mapNotNull { variant ->
+                    val name = variant.variant ?: return@mapNotNull null
+                    val revision = profile.revisions[name] ?: return@mapNotNull null
+                    Variant(profile.storedNamesOf(name), revision, variant.properties.getValue(EventFields.BODY))
+                },
+        )
+    }
+}

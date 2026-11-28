@@ -232,6 +232,21 @@ abstract class EventQueryFixtures internal constructor() {
         ),
     )
 
+    /**
+     * The streams of the body-path cases, one event each, every body holding `sku` and `qty` but `u5`'s: `u1` an
+     * `ItemAdded`, the one event that declares them, at the Manifest's revision; `u2` an event the Manifest does not
+     * know (`Renamed`, as a newer node writes it); `u3` an `ItemAdded` at revision 2, newer than the Manifest's 1;
+     * `u4` an `OrderPaid` stored at revision 1, an older revision of an event that no longer declares them (its
+     * revision 2 holds `amount`); `u5` an `OrderCreated`, which declares neither.
+     */
+    internal fun undeclaredStreams(): List<EventStreamRecord> = listOf(
+        stream("u1", 1, T0, listOf(event("ItemAdded", """{"sku":"A","qty":1}"""))),
+        stream("u2", 1, T0 + 1, listOf(event("Renamed", """{"sku":"$UNKNOWN_SKU","qty":5}"""))),
+        stream("u3", 1, T0 + 2, listOf(event("ItemAdded", """{"sku":"$NEWER_SKU","qty":7}""", revision = 2))),
+        stream("u4", 1, T0 + 3, listOf(event("OrderPaid", """{"sku":"$OLDER_SKU","qty":9}"""))),
+        stream("u5", 1, T0 + 4, listOf(event("OrderCreated", """{"customerId":"c-five","amount":3}"""))),
+    )
+
     internal fun <T> blocking(block: suspend () -> T): T = runBlocking { block() }
 
     internal fun name(local: String) = EqualFilter(QueryField("name"), "${type.context}.${type.name}.$local")
@@ -299,6 +314,15 @@ abstract class EventQueryFixtures internal constructor() {
         const val CONTEXT_SUFFIX = 12
         const val MAX_LIST = 100
         val EVENTS = QueryField("events")
+
+        /** The body paths only `ItemAdded` declares ([undeclaredStreams]). */
+        val SKU = QueryField("body.sku")
+        val QTY = QueryField("body.qty")
+
+        /** The `sku` each event of [undeclaredStreams] that does not declare it holds. */
+        const val UNKNOWN_SKU = "sku-of-an-unknown-event"
+        const val NEWER_SKU = "sku-of-a-newer-revision"
+        const val OLDER_SKU = "sku-of-an-older-revision"
 
         /** A transport as the runtime appends it: a wait past COMMITTED, keys reserved and released, a trace. */
         val TRANSPORT: ByteArray = TransportCodec.encode(

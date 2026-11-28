@@ -203,7 +203,9 @@ public abstract class me/ahoo/wow/query/tck/EventAnalyticsCases : me/ahoo/wow/qu
 	public final fun a root metric over an event field is rejected ()V
 	public final fun an aggregation counts commits at the root ()V
 	public final fun an expanded aggregation counts the events, retired ones left out ()V
+	public final fun an expanded aggregation groups by a body path only the events that declare it ()V
 	public final fun an expanded aggregation groups events by a field of their commit ()V
+	public final fun an expanded aggregation measures a body path only on the events that declare it ()V
 	public final fun an expanded aggregation sums an event field per event, aliases included ()V
 }
 
@@ -213,7 +215,10 @@ public abstract class me/ahoo/wow/query/tck/EventQueryBackendSpec : me/ahoo/wow/
 	public static final field T0 J
 	public static final field TENANT Ljava/lang/String;
 	public fun <init> ()V
+	public final fun a body condition does not match an older revision of an event that no longer declares its path ()V
+	public final fun a body condition matches only the events that declare its path, at a revision the node knows ()V
 	public final fun a body field an upgraded event declares is not filtered ()V
+	public final fun a condition that matches an absent field reads the path as absent on the events that do not declare it ()V
 	public final fun a cursor traverses every commit once by tenant, aggregate and version ()V
 	public final fun a projection drops or keeps the events as a whole ()V
 	public final fun a projection inside the events is rejected ()V

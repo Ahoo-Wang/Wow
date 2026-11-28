@@ -21,6 +21,7 @@ import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationGroupScope
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.TenantIdFilter
@@ -78,6 +79,45 @@ abstract class EventAnalyticsCases internal constructor() : EventQueryFixtures()
         ).single()
         row.path("items").longValue().assert().isEqualTo(3L)
         row.path("qty").doubleValue().assert().isEqualTo(6.0)
+        Unit
+    }
+
+    @Test
+    fun `an expanded aggregation groups by a body path only the events that declare it`() = blocking {
+        val fixture = given(undeclaredStreams())
+        val rows = fixture.aggregate(
+            AggregationQuery(
+                elements = listOf(AggregationElement(EVENTS)),
+                groupBy = listOf(AggregationGroup.Terms(SKU, "sku")),
+                metrics = listOf(AggregationMetric.Count("events")),
+            ),
+        )
+        // Not the events that do not declare it, whatever their bodies hold: no key of theirs, and no null one.
+        rows.map { it.path("sku").stringValue() to it.path("events").longValue() }.assert().containsExactly("A" to 1L)
+        Unit
+    }
+
+    @Test
+    fun `an expanded aggregation measures a body path only on the events that declare it`() = blocking {
+        val fixture = given(undeclaredStreams())
+        val row = fixture.aggregate(
+            AggregationQuery(
+                elements = listOf(AggregationElement(EVENTS)),
+                metrics = listOf(
+                    AggregationMetric.Count("events"),
+                    AggregationMetric.Numeric(
+                        AggregationFunction.SUM,
+                        AggregationExpression.Field(QTY),
+                        "qty",
+                    ),
+                    AggregationMetric.Count("unknown", EqualFilter(SKU, UNKNOWN_SKU)),
+                ),
+            ),
+        ).single()
+        // Every event is counted, as a list shows each; only the one that declares the path is measured by it.
+        row.path("events").longValue().assert().isEqualTo(5L)
+        row.path("qty").doubleValue().assert().isEqualTo(1.0)
+        row.path("unknown").longValue().assert().isEqualTo(0L)
         Unit
     }
 

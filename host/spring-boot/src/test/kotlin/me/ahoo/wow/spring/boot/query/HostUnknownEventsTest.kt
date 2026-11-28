@@ -32,7 +32,7 @@ import org.junit.jupiter.api.Test
  * newer node wrote during a rolling upgrade, under a name this node's Manifest does not know or at a newer revision of
  * one it knows, and a schedule's command of a type no Manifest names, are masked whole (`null`) by the `events` query;
  * the state's history, which replays the events, refuses rather than answer them. Through 10.0.0-beta.21 the events
- * query returned them as stored.
+ * query returned them as stored. Nor does a condition or a group of the events query read their bodies (#7235).
  */
 class HostUnknownEventsTest {
     /** Appends, after [id]'s opening, a commit of [events]: by default the one a newer node of the service wrote. */
@@ -113,6 +113,42 @@ class HostUnknownEventsTest {
             trace.body.toString().assert().doesNotContain(SECRET)
             trace.body!!["commits"][1]["events"].values().map { it["name"].asString() }.assert()
                 .containsExactly("bank.account.Deposited")
+        }
+    }
+
+    @Test
+    fun `a body condition and a group of the events query read no body of an event this node's Manifest does not know`() {
+        startHost().use { host ->
+            val id = host.openAccount("mona")
+            host.newerCommit(
+                id,
+                listOf(
+                    EventRecord("bank.account.Frozen", 1, """{"owner":"$SECRET"}"""),
+                    EventRecord("bank.account.AccountOpened", 9, """{"owner":"$SECRET"}"""),
+                ),
+            )
+            fun count(owner: String): Long {
+                val events = """{"op":"element-match","field":"events","predicate":""" +
+                    """{"op":"eq","field":"body.owner","value":"$owner"}}"""
+                val answer = host.post(
+                    "/bank/account/events/query",
+                    """{"kind":"count","filter":{"op":"and","operands":[{"op":"id","value":"$id"},$events]}}""",
+                )
+                answer.status.assert().describedAs("${answer.body}").isEqualTo(200)
+                return answer.body!!["count"].asLong()
+            }
+            count("mona").assert().isEqualTo(1)
+            count(SECRET).assert().isZero()
+            val groups = host.post(
+                "/bank/account/events/query",
+                """{"kind":"aggregate","filter":{"op":"id","value":"$id"},"elements":[{"path":"events"}],""" +
+                    """"groupBy":[{"type":"terms","field":"body.owner","alias":"owner"}],""" +
+                    """"metrics":[{"type":"count","alias":"n"}]}""",
+            )
+            groups.status.assert().describedAs("${groups.body}").isEqualTo(200)
+            groups.body.toString().assert().doesNotContain(SECRET)
+            groups.body!!.values().map { it["owner"].asString() to it["n"].asLong() }.assert()
+                .containsExactly("mona" to 1L)
         }
     }
 
