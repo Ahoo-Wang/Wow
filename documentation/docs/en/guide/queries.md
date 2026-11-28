@@ -78,7 +78,7 @@ val streamed = events.dropLast(1).map { (_, data) -> WowJson.mapper.readTree(dat
 streamed.assert().containsExactlyInAnyOrderElementsOf(filed)
 ```
 
-Each `row` event's `id` is its position. A stream ends with `{"reason":"complete"}`, or, after `wow.query.stream.max-hold` (30 s), with `{"reason":"hold-expired","resumable":true}`; the client resumes it by sending the last id as `Last-Event-ID`.
+Each `row` event's `id` is its position. A stream ends with `{"reason":"complete","resumable":false}`, or, after `wow.query.stream.max-hold` (30 s), with `{"reason":"hold-expired","resumable":true}`; the client resumes it by sending the last id as `Last-Event-ID`.
 
 ## Who sees what
 

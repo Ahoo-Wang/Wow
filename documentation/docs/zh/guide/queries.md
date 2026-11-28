@@ -78,7 +78,7 @@ val streamed = events.dropLast(1).map { (_, data) -> WowJson.mapper.readTree(dat
 streamed.assert().containsExactlyInAnyOrderElementsOf(filed)
 ```
 
-每个 `row` 事件的 `id` 就是它的位置。流以 `{"reason":"complete"}` 结束；或者在 `wow.query.stream.max-hold`（30 秒）之后以 `{"reason":"hold-expired","resumable":true}` 结束，客户端把最后一个 id 作为 `Last-Event-ID` 发送来续读。
+每个 `row` 事件的 `id` 就是它的位置。流以 `{"reason":"complete","resumable":false}` 结束；或者在 `wow.query.stream.max-hold`（30 秒）之后以 `{"reason":"hold-expired","resumable":true}` 结束，客户端把最后一个 id 作为 `Last-Event-ID` 发送来续读。
 
 ## 谁能看到什么 {#who-sees-what}
 

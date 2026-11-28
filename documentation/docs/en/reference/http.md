@@ -67,7 +67,7 @@ Any other request under a context's path is a `404` problem.
 
 The headers `wow.http.request-facts` lists are copied into the command and written into its event stream.
 
-The prefix `Wow-` is Wow's. Besides the headers above, the public port takes `Wow-Service`, which it does not read, and the development identity headers (`Wow-User`, `Wow-Owner`, `Wow-Roles`, `Wow-Tenant`, `Wow-App`), which it reads in a development profile alone. Nodes are upgraded before the clients: a client that sends a `Wow-` header of a newer Wow is refused by an older node. The internal port keeps reading what a peer of the next minor version sends.
+The prefix `Wow-` is Wow's. Besides the headers above, the public port takes `Wow-Service`, which it does not read, and the development identity headers (`Wow-User`, `Wow-Owner`, `Wow-Roles`, `Wow-Tenant`, `Wow-App`), which it reads in a development profile alone. Nodes are upgraded before the clients: a client that sends a `Wow-` header of a newer Wow is refused by an older node. A service that calls another through its public port, in user mode, is a client of it, so the called service's nodes are upgraded first. The internal port keeps reading what a peer of the next minor version sends.
 
 ### What the public port refuses {#refused}
 
