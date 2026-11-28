@@ -64,7 +64,7 @@ curl -X POST "http://<service>/<context>/<aggregate>/wow.snapshot.rebuild-snapsh
 
 ClickHouse Sink 也是一个订阅：它的表从日志派生，同一次提交到达它两次时，它也能让表保持精确（[ClickHouse](./clickhouse#delivered-once-read-once)）。
 
-不是 Sink 以当前形状建的表（注释没有写明 Sink 的格式、列不同，或缺少计算列）会让 Sink 的写入失败，并指明是哪张表（[schema 管理](./clickhouse#schema-management)）。它保存的都是日志里有的内容，所以删掉它，再重置这个 Sink 的订阅，它就会从日志重新填充。
+不是 Sink 以当前形状建的表（注释没有写明 Sink 的格式、列不同，或缺少计算列）会让 Sink 的写入失败，并指明是哪张表（[schema 管理](./clickhouse#schema-management)）。它保存的都是日志里有的内容，所以删掉它，再调高这个 Sink 的代数，新一代的订阅就会从日志重新填满它（[重建数仓](./clickhouse#rebuild-the-warehouse)）。
 
 ## 停放的聚合 {#parked-aggregates}
 

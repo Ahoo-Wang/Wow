@@ -56,8 +56,9 @@ internal object NodeTopics {
 
     /**
      * Prepares [requirements] in [topics]: under [Ddl.AUTO], creates the missing ones, then, under it or
-     * [Ddl.VALIDATE], fails unless each exists, with exactly its partitions when [TopicRequirement.exact], saying
-     * every topic that is not as [node] needs it. Under [Ddl.NONE], does nothing.
+     * [Ddl.VALIDATE], fails unless each exists with a count of partitions its [TopicRequirement.count] takes (exactly
+     * its partitions, at least them, or any), saying every topic that is not as [node] needs it. A topic that exists is
+     * never altered. Under [Ddl.NONE], does nothing.
      */
     suspend fun prepare(node: String, topics: SourceTopics, requirements: List<TopicRequirement>) {
         if (!topics.ddl.checks || requirements.isEmpty()) {
