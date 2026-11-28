@@ -202,7 +202,8 @@ class StateViewSourcesTest {
                 "code" to mapOf("type" to "string", "title" to "Code", "description" to "Its */ code,\n  as printed."),
                 "item" to mapOf("\$ref" to Manifest.schemaRef(Item::class.java.name), "title" to "Its item"),
                 "name" to mapOf("type" to "string", "description" to "Its name."),
-                "plain" to mapOf("type" to "string", "title" to " "),
+                // A blank word, and one that is no text, say nothing.
+                "plain" to mapOf("type" to "string", "title" to " ", "description" to 7),
             ),
         )
         val contract = contract(CartState::class.java, "cart").let {

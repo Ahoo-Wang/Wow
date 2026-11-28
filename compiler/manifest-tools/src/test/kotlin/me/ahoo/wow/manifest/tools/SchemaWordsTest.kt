@@ -220,8 +220,13 @@ class SchemaWordsTest {
         SchemaWords.inPlace(three).assert().isEqualTo(three)
         val beside = mapOf("allOf" to listOf(mapOf("title" to "A"), mapOf("title" to "B")), "type" to "string")
         SchemaWords.inPlace(beside).assert().isEqualTo(beside)
-        val schemaless = mapOf("allOf" to listOf(true, mapOf("title" to "B")))
-        SchemaWords.inPlace(schemaless).assert().isEqualTo(schemaless)
+        // A part that is no object schema is not the generator's either, whichever of the two it is.
+        listOf(listOf(true, mapOf("title" to "B")), listOf(mapOf("title" to "A"), true)).forEach { parts ->
+            SchemaWords.inPlace(mapOf("allOf" to parts)).assert().isEqualTo(mapOf("allOf" to parts))
+        }
+        // A property that says nothing leaves its type's schema as it is.
+        SchemaWords.inPlace(mapOf("allOf" to listOf(mapOf("title" to "A"), emptyMap<String, Any?>())))
+            .assert().isEqualTo(mapOf("title" to "A"))
     }
 
     @Summary("Ship")
