@@ -53,6 +53,8 @@ internal class PostgresFailureLedgerTables(val name: String) {
      */
     val ddls = listOf(
         ddl,
+        // The incarnation of the topic whose offset `from_position` is: a column added within the format (PostgresKeys).
+        "ALTER TABLE $table ADD COLUMN IF NOT EXISTS from_incarnation text",
         "CREATE INDEX IF NOT EXISTS \"${name}_due\" ON $table ($SUBSCRIPTION_COLUMNS, partition, next_attempt_at)",
         "CREATE INDEX IF NOT EXISTS \"${name}_tenant\" ON $table ($SUBSCRIPTION_COLUMNS, tenant_id, $ORDER)",
     )
@@ -65,10 +67,11 @@ internal class PostgresFailureLedgerTables(val name: String) {
      */
     val park = """
         INSERT INTO $table AS parked ($KEY, $PLACE, $RETRY_STATE)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT ($KEY) DO UPDATE
         SET partition = excluded.partition, from_version = excluded.from_version, reason = excluded.reason,
             failed_at = excluded.failed_at, from_position = excluded.from_position, skip_only = excluded.skip_only,
+            from_incarnation = excluded.from_incarnation,
             request = CASE WHEN parked.failed_at = excluded.failed_at THEN parked.request END,
             $UNSCHEDULED, revision = parked.revision + 1
         WHERE excluded.from_version < parked.from_version
@@ -81,7 +84,7 @@ internal class PostgresFailureLedgerTables(val name: String) {
      * operator's request left for a parking of another failure time: the place, the failure time again, the key, the
      * partition.
      */
-    val repark = "UPDATE $table SET ($PLACE) = (?, ?, ?, ?, ?, ?), " +
+    val repark = "UPDATE $table SET ($PLACE) = (?, ?, ?, ?, ?, ?, ?), " +
         "request = CASE WHEN failed_at = ? THEN request END, $UNSCHEDULED, $NEXT_REVISION WHERE $MATCH AND partition = ?"
 
     val parked = "SELECT * FROM $table WHERE $MATCH"
@@ -145,7 +148,7 @@ internal class PostgresFailureLedgerTables(val name: String) {
      * later version stored, which this one read as `unknown` or as none, is kept ([KEPT_RECOVERABLE], [KEPT_REQUEST]).
      */
     val replace = "UPDATE $table SET ($PLACE, $RETRY_STATE, revision) = " +
-        "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, $KEPT_RECOVERABLE, $KEPT_REQUEST, ?, ?) WHERE $MATCH AND revision = ?"
+        "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, $KEPT_RECOVERABLE, $KEPT_REQUEST, ?, ?) WHERE $MATCH AND revision = ?"
 
     /** Takes a request: the key, then the revision read. */
     val takeRequest = "UPDATE $table SET request = NULL, $NEXT_REVISION WHERE $MATCH AND revision = ? RETURNING *"
@@ -177,8 +180,11 @@ internal class PostgresFailureLedgerTables(val name: String) {
             revision bigint NOT NULL DEFAULT 0
         """.trimIndent()
 
-        /** Where an entry is parked and why: its partition, from version, reason, time, position, and `skip_only`. */
-        private const val PLACE = "partition, from_version, reason, failed_at, from_position, skip_only"
+        /**
+         * Where an entry is parked and why: its partition, from version, reason, time, position, `skip_only`, and the
+         * incarnation of the topic its position is of.
+         */
+        private const val PLACE = "partition, from_version, reason, failed_at, from_position, skip_only, from_incarnation"
 
         /** The parking an operator's amendment names, by its failure time; any parking for null. */
         private const val OF_PARKING = "failed_at = coalesce(?::bigint, failed_at)"

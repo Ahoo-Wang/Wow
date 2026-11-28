@@ -54,15 +54,33 @@ internal class ParkedAtStart(
 
     private class Moved(val entry: ParkedAggregate, val now: Int)
 
-    /** [subscription]'s parked aggregates in [partitions], by partition, with the ordinal each is parked from. */
+    /**
+     * [subscription]'s parked aggregates in [partitions], by partition, with the ordinal each is parked from. An entry
+     * parked in another incarnation of the topic ([EntrySource.ofAnotherIncarnation]) holds nothing back: it is marked
+     * skip-only, its reason saying why, and its skip drops nothing this incarnation's partitions hold.
+     */
     suspend fun parkedIn(subscription: Subscription, partitions: Collection<Int>): Map<Int, Map<AggregateRef, Long>> {
         val parked = HashMap<Int, HashMap<AggregateRef, Long>>()
+        val earlier = ArrayList<ParkedAggregate>()
         var after: AggregateRef? = null
         do {
             val page = ledger.due(subscription.id, partitions, ParkedAggregate.NEVER, after)
-            page.forEach { parked.getOrPut(it.partition) { HashMap() }[it.ref] = source.ordinalOf(it) }
+            page.forEach {
+                if (source.ofAnotherIncarnation(it)) {
+                    earlier += it
+                } else {
+                    parked.getOrPut(it.partition) { HashMap() }[it.ref] = source.ordinalOf(it)
+                }
+            }
             after = page.lastOrNull()?.ref
         } while (page.size == FailureLedger.DEFAULT_PAGE)
+        earlier.filterNot { it.skipOnly }.forEach { entry ->
+            val reason = source.anotherIncarnationOf(entry)
+            // A false repark: resolved, or moved by another start, since the listing.
+            if (ledger.repark(entry.copyWith(reason = reason, skipOnly = true))) {
+                logger.warn { "${subscription.name} can only skip ${entry.ref}: $reason" }
+            }
+        }
         if (source.partitionsGrow) {
             movedOf(subscription.id).filter { it.now in partitions }.forEach { moved ->
                 val entry = rehomed(checkNotNull(source.topic), moved.entry, moved.now)
@@ -90,7 +108,9 @@ internal class ParkedAtStart(
         var after: AggregateRef? = null
         do {
             val page = ledger.list(subscription, after)
-            page.zip(source.partitionsOf(page)).forEach { (entry, now) ->
+            // An entry of another incarnation is not read again: its position names other records.
+            val own = page.filterNot { source.ofAnotherIncarnation(it) }
+            own.zip(source.partitionsOf(own)).forEach { (entry, now) ->
                 if (now != entry.partition) {
                     add(Moved(entry, now))
                 }

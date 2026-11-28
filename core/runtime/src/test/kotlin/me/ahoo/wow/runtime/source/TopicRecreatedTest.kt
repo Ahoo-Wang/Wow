@@ -151,6 +151,58 @@ class TopicRecreatedTest : TopicSubscriptionsFixtures() {
                 .contains("incarnation $B").contains("$A: 4 ($BOARD)").doesNotContain("created again")
         }
 
+    /** Parks `o-1` at version 2 in incarnation A, read from the topic, and lets it succeed from then on. */
+    private suspend fun parkedInA(refresh: Duration): TopicSubscriptions {
+        failing = "o-1" to 2
+        val subscriptions = reading(refresh).also {
+            it.start()
+            it.awaitStarted()
+        }
+        source.current.publish(orderRecord("o-1", 1), orderRecord("o-1", 2))
+        eventually { ledger.parked(BOARD_ID, order("o-1")) != null }
+        val parked = ledger.parked(BOARD_ID, order("o-1"))!!
+        parked.fromIncarnation.assert().isEqualTo(A)
+        parked.fromPosition.assert().isEqualTo(1L)
+        handled.versionsOf("o-1").assert().containsExactly(1)
+        failing = null
+        return subscriptions
+    }
+
+    @Test
+    fun `an aggregate parked in the old incarnation holds back nothing of the new one, and its skip drops nothing`(): Unit =
+        runBlocking {
+            val subscriptions = parkedInA(refresh = 20.milliseconds)
+
+            source.recreate(B)
+            source.current.publish(orderRecord("o-1", 3), orderRecord("o-1", 4))
+
+            // Read at once, not held behind the park of an offset the new topic gives to other records.
+            eventually { handled.versionsOf("o-1") == listOf(1, 3, 4) }
+            val left = ledger.parked(BOARD_ID, order("o-1"))!!
+            left.skipOnly.assert().isTrue()
+            left.fromIncarnation.assert().isEqualTo(A)
+            left.reason.assert().contains("earlier incarnation of topic $ORDER_TOPIC ($A)").contains(B)
+            subscriptions.skip(BOARD, order("o-1")).assert().isTrue()
+            ledger.parked(BOARD_ID, order("o-1")).assert().isNull()
+            source.current.publish(orderRecord("o-1", 5))
+            eventually { handled.versionsOf("o-1") == listOf(1, 3, 4, 5) }
+        }
+
+    @Test
+    fun `a retry of an aggregate parked in the old incarnation does not re-scan the new topic at its old offset`(): Unit =
+        runBlocking {
+            val subscriptions = parkedInA(refresh = 20.milliseconds)
+
+            source.recreate(B)
+            // At offsets 0 and 1 of the new topic: the old entry's offset, 1, is the second of them.
+            source.current.publish(orderRecord("o-1", 3), orderRecord("o-1", 4))
+            eventually { handled.versionsOf("o-1") == listOf(1, 3, 4) }
+
+            subscriptions.retry(BOARD, order("o-1")).assert().isFalse()
+            handled.versionsOf("o-1").assert().containsExactly(1, 3, 4)
+            ledger.parked(BOARD_ID, order("o-1"))!!.skipOnly.assert().isTrue()
+        }
+
     @Test
     fun `a source that tells no incarnation keeps its checkpoints under the lease group's name, with no marker`(): Unit =
         runBlocking {

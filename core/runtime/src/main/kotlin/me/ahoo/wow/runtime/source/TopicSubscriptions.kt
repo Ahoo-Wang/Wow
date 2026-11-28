@@ -111,10 +111,10 @@ class TopicSubscriptions internal constructor(
     private val context: CoroutineContext,
     private val signals: SignalSender,
     /**
-     * How the topic's partitions are read, given the source of the incarnation joined and their number: as published
-     * streams, or commands, or receipts.
+     * How the topic's partitions are read, given the source of the incarnation joined, their number and that
+     * incarnation: as published streams, or commands, or receipts.
      */
-    private val entries: (PartitionedSource, Int) -> EntrySource,
+    private val entries: (PartitionedSource, Int, String?) -> EntrySource,
     /** Hears what the parked entries come to. */
     private val notifier: ParkedNotifier = ParkedNotifier.NONE,
     /** How often the topic's partitions are read again, for those added; never when infinite. */
@@ -171,7 +171,7 @@ class TopicSubscriptions internal constructor(
         clock,
         context,
         signals,
-        { guarded, partitions -> TopicEntries(topic, guarded, partitions, observer) },
+        { guarded, partitions, incarnation -> TopicEntries(topic, guarded, partitions, observer, incarnation) },
         notifier,
         partitionRefreshInterval,
         observer,
@@ -310,7 +310,7 @@ class TopicSubscriptions internal constructor(
         incarnations.record(incarnation)
         val runtime = SubscriptionRuntime(
             incarnations.groupOf(incarnation),
-            entries(incarnations.guarded(source, incarnation), partitions),
+            entries(incarnations.guarded(source, incarnation), partitions, incarnation),
             checkpoints,
             ledger,
             subscriptions,

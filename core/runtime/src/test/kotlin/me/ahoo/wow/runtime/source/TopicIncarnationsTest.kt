@@ -24,7 +24,11 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
 import me.ahoo.wow.kernel.memory.InMemoryTopics
+import me.ahoo.wow.runtime.command.MessageEntries
+import me.ahoo.wow.runtime.subscription.UnrecoverableException
+import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.subscription.Checkpoint
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.TopicMessage
 import org.junit.jupiter.api.Test
@@ -128,6 +132,36 @@ class TopicIncarnationsTest {
                 A to listOf(Checkpoint.of("Board.onOrder", 0, 7)),
             ),
         )
+    }
+
+    @Test
+    fun `an entry parked in another incarnation is neither re-scanned nor read again where its key maps, by either source`():
+        Unit = runBlocking {
+        write(3)
+        val subscription = SubscriptionId("sales", "Board.onOrder")
+        val ofA = ParkedAggregate.of(
+            subscription,
+            order("o-1"),
+            0,
+            2,
+            "failed",
+            1,
+            fromPosition = 1,
+            fromIncarnation = A
+        )
+        val unnamed = ofA.copyWith(fromIncarnation = null)
+        val entries = TopicEntries(TOPIC, told, 1, incarnation = B)
+        val receipts = MessageEntries.receipts(TOPIC, told, 1, incarnation = B)
+        listOf(ofA, unnamed).forEach { parked ->
+            entries.ofAnotherIncarnation(parked).assert().isTrue()
+            assertThrownBy<UnrecoverableException> { runBlocking { entries.retryEntries(parked) } }
+                .hasMessageContaining("earlier incarnation of topic $TOPIC").hasMessageContaining(B)
+            assertThrownBy<UnrecoverableException> { runBlocking { receipts.retryEntries(parked) } }
+        }
+        // Where it is parked: its position is not read again in the new incarnation.
+        entries.partitionsOf(listOf(ofA.copyWith(partition = 7))).assert().containsExactly(7)
+        entries.ofAnotherIncarnation(ofA.copyWith(fromIncarnation = B)).assert().isFalse()
+        TopicEntries(TOPIC, told, 1).ofAnotherIncarnation(unnamed).assert().isFalse()
     }
 
     private companion object {

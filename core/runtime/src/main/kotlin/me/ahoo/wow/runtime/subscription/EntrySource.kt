@@ -62,6 +62,22 @@ internal interface EntrySource {
     /** The topic the source reads, null for the context's log: its entries are consumed messages. */
     val topic: String? get() = null
 
+    /**
+     * The incarnation of the [topic] it reads ([me.ahoo.wow.spi.transport.PartitionedSource.incarnation]), whose
+     * offsets [sourcePosition] gives: what a park records with them ([ParkedAggregate.fromIncarnation]). Null for the
+     * context's log, and for a source that tells none.
+     */
+    val incarnation: String? get() = null
+
+    /**
+     * Whether [parked] was parked in another incarnation of the topic than the one this source reads: its position
+     * names other records, so it is neither held back nor retried here, only skipped ([ParkedAtStart],
+     * [requireIncarnationOf]). One that records none counts as another: a version before it was recorded parked it,
+     * which is a pre-release, whose stores are not carried over, on a state topic a 10.0 release creates again.
+     */
+    fun ofAnotherIncarnation(parked: ParkedAggregate): Boolean =
+        incarnation != null && parked.fromIncarnation != incarnation
+
     /** Fails unless [partition] is one of the source's. */
     fun requirePartition(partition: Int)
 
@@ -136,6 +152,18 @@ internal interface EntrySource {
  * names, never a value read from a record.
  */
 internal class UnrecoverableException(message: String) : IllegalStateException(message)
+
+/** Refuses a retry of [parked] when it was parked in another incarnation of the topic ([EntrySource.ofAnotherIncarnation]). */
+internal fun EntrySource.requireIncarnationOf(parked: ParkedAggregate) {
+    if (ofAnotherIncarnation(parked)) {
+        throw UnrecoverableException(anotherIncarnationOf(parked))
+    }
+}
+
+/** Why [parked], of another incarnation of the topic, can only be skipped: names and positions, no value. */
+internal fun EntrySource.anotherIncarnationOf(parked: ParkedAggregate): String =
+    "Its position is an offset of an earlier incarnation of topic $topic (${parked.fromIncarnation ?: "none named"}), " +
+        "not of the topic it is now ($incarnation): it can only be skipped, and its skip drops nothing read since."
 
 /**
  * Fails with an [UnrecoverableException] when [parked]'s aggregate maps to [partition] of [topic] now, not to the
