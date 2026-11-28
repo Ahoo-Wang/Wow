@@ -16,7 +16,6 @@ package me.ahoo.wow.runtime.source
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.onEach
 import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.transport.PartitionOffsets
@@ -67,16 +66,17 @@ internal class TopicIncarnations(
     }
 
     /**
-     * [source] as the subscriptions of [incarnation] read it: each read it places, and each read of a partition's
-     * offsets, first asks the source which incarnation the topic is now, and a read asks again at its first message,
-     * so neither the offset it starts from nor the first message it hands on belongs to another incarnation. Another
-     * one is refused by name ([TopicIncarnationException]) until the subscriptions join it. [source] itself for a
-     * source that tells no incarnation: nothing is asked then.
+     * [source] as the subscriptions of [incarnation] read it: each read it places, each read of a partition's offsets
+     * and each read at offsets first asks the source which incarnation the topic is now, so none is placed in another
+     * incarnation; a read at offsets asks again once it has read, before it answers. Another incarnation is refused by
+     * name ([TopicIncarnationException]) until the subscriptions join it. [source] itself for a source that tells no
+     * incarnation: nothing is asked then.
      *
-     * A read already running is asked nothing more, never per message. One of Kafka goes on fetching its offset under
-     * the topic's name when the topic is deleted and created again, and ends on an offset out of range once the new
-     * partition is shorter than it, as a topic just created is; only one whose first fetch after the recreation finds
-     * the new partition already at its offset reads on in it, until the refresh round joins the new incarnation.
+     * A read placed hands the source's messages on as they are, asked nothing more: nothing is added per message. A
+     * topic deleted and created again after the read's check is met as the source meets it. One of Kafka goes on
+     * fetching its offset under the topic's name, and ends on an offset out of range once the new partition is shorter
+     * than it, as a topic just created is; only one whose first fetch after the recreation finds the new partition
+     * already at its offset reads on in it, until the refresh round joins the new incarnation.
      */
     fun guarded(source: PartitionedSource, incarnation: String?): PartitionedSource =
         if (incarnation == null) source else Guarded(source, topic, incarnation)
@@ -94,17 +94,10 @@ internal class TopicIncarnations(
             }
         }
 
+        /** [read] once [topic] is checked, its messages handed on as the source's flow emits them. */
         private fun guarded(topic: String, read: () -> Flow<SourceMessage>): Flow<SourceMessage> = flow {
             check(topic)
-            var first = true
-            emitAll(
-                read().onEach {
-                    if (first) {
-                        check(topic)
-                        first = false
-                    }
-                },
-            )
+            emitAll(read())
         }
 
         override fun read(topic: String, partition: Int, from: Long): Flow<SourceMessage> =

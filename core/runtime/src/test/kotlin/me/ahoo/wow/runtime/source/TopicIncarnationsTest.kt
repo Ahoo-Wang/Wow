@@ -32,6 +32,7 @@ import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.TopicMessage
 import org.junit.jupiter.api.Test
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -47,7 +48,10 @@ class TopicIncarnationsTest {
         @Volatile
         var incarnation = A
 
-        override suspend fun incarnation(topic: String): String = incarnation
+        /** How often the incarnation was asked. */
+        val asked = AtomicInteger()
+
+        override suspend fun incarnation(topic: String): String = incarnation.also { asked.incrementAndGet() }
     }
     private val checkpoints = InMemoryCheckpointStore()
     private val incarnations = TopicIncarnations(TOPIC, BASE, checkpoints)
@@ -80,24 +84,27 @@ class TopicIncarnationsTest {
         }
 
     @Test
-    fun `a read placed in its incarnation is refused at its first message when the topic was created again meanwhile`():
+    fun `a read placed in its incarnation is checked once, at its placement, and hands the source's messages on as they are`():
         Unit = runBlocking {
         val guarded = incarnations.guarded(told, A)
-        // Placed while the topic is still A: the first message comes once it is B.
-        val placed = guarded.read(TOPIC, 0, 0).take(1)
-        val read = runCatching {
+        val placed = guarded.read(TOPIC, 0, 0).take(3)
+        val read = coroutineScope {
+            val reading = async { placed.toList() }
+            // Placed: the topic's incarnation was asked once.
             withTimeout(10.seconds) {
-                coroutineScope {
-                    val reading = async { placed.toList() }
-                    delay(50)
-                    told.incarnation = B
-                    write(1)
-                    reading.await()
+                while (told.asked.get() < 1) {
+                    delay(1)
                 }
             }
+            // Created again after the check: what the source emits then is the source's (the window of a running read).
+            told.incarnation = B
+            write(3)
+            withTimeout(10.seconds) { reading.await() }
         }
 
-        read.exceptionOrNull().assert().isInstanceOf(TopicIncarnationException::class.java)
+        read.map { it.offset }.assert().containsExactly(0L, 1L, 2L)
+        // Asked at the placement alone: nothing per message.
+        told.asked.get().assert().isEqualTo(1)
     }
 
     @Test
