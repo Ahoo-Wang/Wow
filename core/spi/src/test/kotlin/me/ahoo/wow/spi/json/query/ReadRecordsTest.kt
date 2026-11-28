@@ -21,7 +21,9 @@ import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.JsonNode
+import tools.jackson.databind.node.ObjectNode
 
 /** A snapshot as the record a snapshot query and a state read answer, and back. */
 class ReadRecordsTest {
@@ -131,5 +133,24 @@ class ReadRecordsTest {
         val record = Snapshot.of(ref, 1, Scope.NONE, emptyMap(), false, null, 1, 2, state, null, emptyMap()).toRecord()
         record.putObject(SnapshotFields.OPERATOR).put(OperatorFields.ID, "alice").put(OperatorFields.TENANT_ID, "acme")
         record.toSnapshot(type, JsonNode::class.java).operator.assert().isEqualTo(Operator.of("alice", "acme"))
+    }
+
+    @Test
+    fun `an events record should keep a body masked whole as null, and refuse an event whose body it does not hold`() {
+        fun record(vararg events: String) = WowJson.mapper.readTree(
+            """{"tenantId":"acme","aggregateId":"c-1","version":2,"commitTime":5,"commandId":"c","requestId":"r",""" +
+                """"commandType":"shop.cart.Add","events":[${events.joinToString(",")}]}""",
+        ) as ObjectNode
+        val stream = record(
+            """{"name":"shop.cart.Frozen","revision":1,"body":null}""",
+            """{"name":"shop.cart.Noted","revision":1,"body":{"n":1}}""",
+        ).toEventStream(type) { null }
+        // A body the node masked whole stays the JSON null; one of no class is the tree.
+        (stream.events[0].body as JsonNode).isNull.assert().isTrue()
+        (stream.events[1].body as ObjectNode)["n"].asInt().assert().isEqualTo(1)
+        // A record a projection left without the body is no masked event: a typed row refuses it.
+        assertThrows<IllegalStateException> {
+            record("""{"name":"shop.cart.Noted","revision":1}""").toEventStream(type) { null }
+        }.message.assert().isEqualTo("A typed row needs the field body: query it through dynamic().")
     }
 }

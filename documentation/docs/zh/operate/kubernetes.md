@@ -78,6 +78,17 @@ resources:
     memory: 768Mi
   limits:
     memory: 1Gi
+# The public port admits the CoSec gateway's pods (app.kubernetes.io/component: gateway) of the release's own
+# namespace, where this deployment runs its gateway: the chart renders only once the gateway's namespace is named. A
+# gateway in a namespace of its own is named by it, in the entry's namespaceSelector:
+#   matchLabels:
+#     kubernetes.io/metadata.name: <the gateway's namespace>
+networkPolicy:
+  public:
+    from:
+      - podSelector:
+          matchLabels:
+            app.kubernetes.io/component: gateway
 ```
 
 然后从 OCI 仓库按服务构建所用的 Wow 版本安装，或从仓库的检出（`deploy/helm/wow-service`）安装：
@@ -251,12 +262,19 @@ networkPolicy:
     # (COSEC_PIPELINE_IDENTITY_ONLYGATEWAYCANREACH=true), the statement a service in wow.cosec.mode: gateway needs to
     # start. It holds only while `from` names the gateway's pods alone: each pod `from` admits can claim any identity to
     # such a service. The chart refuses it for an entry of `from` that names no pods by their labels (an empty or no
-    # podSelector, an ipBlock), which admits every pod it reaches. Set it false when `from` admits anything else; a
-    # service in gateway mode then does not start until you state it yourself (where it is true) or change its mode.
+    # podSelector, an ipBlock), which admits every pod it reaches, and for an entry that names no namespace: pod labels
+    # are their namespace's owner's to set, so a rule by labels in any namespace lets each namespace's owner pass as the
+    # gateway. Set it false when `from` admits anything else; a service in gateway mode then does not start until you
+    # state it yourself (where it is true) or change its mode.
     onlyGateway: true
-    # Who reaches the public port: the gateway's pods by default, in any namespace.
+    # Who reaches the public port: the gateway's pods, labelled app.kubernetes.io/component: gateway, in the gateway's
+    # namespace, which you name here (the chart does not render while onlyGateway is true and an entry names none). An
+    # entry names its namespace by kubernetes.io/metadata.name, the label Kubernetes sets to the namespace's name; leave
+    # the namespaceSelector out when the gateway runs in the release's own namespace.
     from:
-      - namespaceSelector: {}
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: ""
         podSelector:
           matchLabels:
             app.kubernetes.io/component: gateway
@@ -270,9 +288,22 @@ networkPolicy:
         podSelector:
           matchLabels:
             app.kubernetes.io/name: prometheus
+
 ```
 
-- `<name>-public` 只放行网关的 Pod（任意命名空间中带 `app.kubernetes.io/component: gateway` 标签的）访问 HTTP 端口。给你的网关 Pod 打上这个标签，或者设置 `networkPolicy.public.from` 去匹配它们；空列表会放行所有 Pod，因此被拒绝。
+- `<name>-public` 只放行网关所在命名空间中、带 `app.kubernetes.io/component: gateway` 标签的网关 Pod 访问 HTTP 端口。要点名这个命名空间：不点名 chart 就不渲染，因为只按 Pod 标签、不限命名空间的规则让每个命名空间的所有者都能给一个 Pod 打上网关的标签，而在网关模式下这条规则是服务唯一的认证。一个条目用 `kubernetes.io/metadata.name`（Kubernetes 设为命名空间名字的标签）点名命名空间，写在它的 `namespaceSelector` 的 `matchLabels` 里，或写成 `In` 表达式；不带 `namespaceSelector` 的条目放行 release 自己命名空间的 Pod。`onlyGateway` 为真时每个条目都要点名命名空间；为假时任何规则都能渲染，只有默认值里未点名的那条不行，它不放行任何 Pod。给你的网关 Pod 打上这个标签，或者设置 `networkPolicy.public.from` 去匹配它们；空列表会放行所有 Pod，因此被拒绝。
+
+  ```yaml
+  networkPolicy:
+    public:
+      from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: gateway
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/component: gateway
+  ```
 - `<name>-internal` 放行以下 Pod 访问内部端口：本服务的节点、它所属平台的 Pod（`partOf`，它给每个对象打上 `app.kubernetes.io/part-of` 标签）、它调用的对端的 Pod（对端会回送等待信号），以及 `networkPolicy.internal.from`。
 
 网络插件不执行 NetworkPolicy 时，这些策略不起作用；这时要用别的办法，让内部端口只在平台自己的网络上可达。

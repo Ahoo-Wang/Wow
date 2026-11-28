@@ -12,6 +12,7 @@ Wow 服务有两扇门：公开端口，调用方在这里发送命令和查询�
 - 只有网关能访问公开端口。
 - 平台之外永远访问不到内部端口、Kafka 和存储：用网络策略只让平台自己的 Pod 访问它们。`deploy/` 里的网络策略覆盖 MongoDB 和 migrate-data（`deploy/mongodb/networkpolicy.yaml`、`deploy/migrate-data/networkpolicy.yaml`），chart 为每个服务生成它自己的；Kafka 和其他存储的网络策略由平台自己提供。
 - 网关自己写转发头，并去掉客户端发来的 `CoSec-Identity`；它从不把客户端发来的传下去。
+- ops 控制台与数据目录控制台的安全响应头由它们前面的网关或 Ingress 设置；服务自己不设置（[把网关放在前面](#put-the-gateway-in-front)）。
 - 调用方解析器认证发往公开端口的每个请求；CoSec 提供了一个。
 - 第一个请求到达之前，CoSec 的文档已经发布到一个以 `maxmemory-policy noeviction` 运行的 Redis。
 - 只按路由授权不够的地方，命令按动作授权。
@@ -174,6 +175,8 @@ Wow 信任网关转发的身份，所以网关本身就是一条边界。每个�
 
 宿主看不到网络，所以启动时不检查这两条。
 
+**控制台的安全响应头由网关或 Ingress 设置。** [ops 控制台](./ops-console)和[数据目录控制台](./analytics-catalog-console)是单页应用，由各自的服务从发行包的 `ui/` 目录以静态文件提供。这两个服务都不设置安全响应头，视图存储服务和其他任何 Wow 服务也不设置：没有 `Content-Security-Policy`、`Strict-Transport-Security`、`X-Content-Type-Options`，也没有防嵌入的头（`X-Frame-Options` 或策略里的 `frame-ancestors`）。请在访问控制台的地方设置它们，也就是控制台前面的网关或 Ingress。
+
 再次发送的命令，只有带着同一个请求 ID 才是同一条命令。客户端在丢失应答后重发命令时，要带上同一个 `Wow-Request-Id`，服务会把它当作重复请求应答，而不会执行两次。CoSec 开启时，没有 `Wow-Request-Id` 的命令取请求的 `CoSec-Request-Id` 作为请求 ID；CoSec 关闭时（`wow.cosec.mode: disabled`），不读 CoSec 的任何头。CoSec 网关为它转发的每个请求设置一次这个头，请求的重试（例如 Spring Cloud Gateway 在连接重置后的重试）会再次发送同一个值，所以服务把重试当作重复请求应答。请求同时带有两者时，以 `Wow-Request-Id` 为准。
 
 ### 以网关模式运行服务 {#run-services-in-gateway-mode}
@@ -188,7 +191,7 @@ wow:
 
 网关认证并授权每个请求，把它校验过的内容放在 `CoSec-Identity` 中转发：主体、主体的租户，以及作用域的应用、空间和角色。服务从中读取调用方。它不持有 CoSec 的签名密钥、文档或 Redis，也没有 `AuthorizationChecker`：在网关的决定之外，调用方还能做什么，由服务自己的授权器决定。`wow.cosec.mode: disabled` 关闭 CoSec（`cosec.enabled=false`），用于不带网关运行的服务。eShop 的服务和 Wow 的平台服务（ops 服务、视图存储和分析目录）在 `cosec` profile 下以网关模式运行。
 
-**只有网关能访问网关模式的服务。** 它相信收到的任何 `CoSec-Identity`：其他能给它发请求的人，声称是谁就是谁。要在网络上保证这一点：像部署清单那样，用只放行网关 Pod 的网络策略，然后声明它：在 `cosec.pipeline.identity.only-gateway-can-reach: true`（`COSEC_PIPELINE_IDENTITY_ONLYGATEWAYCANREACH=true`）声明只有网关能访问它之前，服务不会启动；开着隐藏方法过滤器（`spring.webflux.hiddenmethod.filter.enabled`）时也不会启动。`wow-service` chart 在它的公共 NetworkPolicy 开启（`networkPolicy.enabled`，默认开启），且 `networkPolicy.public.onlyGateway`（默认 true）表明那条策略放行的 `networkPolicy.public.from` 只有网关的 Pod 时，写出这个声明。`from` 放行的每个 Pod 都能向服务声称任何身份：`from` 中有条目不按标签指明 Pod（`podSelector` 为空或没有、`ipBlock`）时，它放行所到之处的每个 Pod，chart 拒绝写出这个声明；它还放行别的 Pod 时，把 `onlyGateway` 设为 false，服务在你于声明成立之处自己写出它、或改变它的模式之前不会启动。以其他方式部署的服务，在它的网络让这句话成立之后自己写出它。不带这个请求头的请求是匿名的，解析器以 401 回答；CoSec 以 400 回答无法读取的请求头，以 401 回答早于 `cosec.pipeline.identity.max-age`（60 秒）的请求头。详情见 CoSec 的指南：[网关之后的服务](https://cosec.ahoo.me/integration/web#services-behind-the-gateway)、[信任边界](https://cosec.ahoo.me/guide/security-model#trust-boundaries)。
+**只有网关能访问网关模式的服务。** 它相信收到的任何 `CoSec-Identity`：其他能给它发请求的人，声称是谁就是谁。要在网络上保证这一点：像部署清单那样，用只放行网关 Pod 的网络策略，然后声明它：在 `cosec.pipeline.identity.only-gateway-can-reach: true`（`COSEC_PIPELINE_IDENTITY_ONLYGATEWAYCANREACH=true`）声明只有网关能访问它之前，服务不会启动；开着隐藏方法过滤器（`spring.webflux.hiddenmethod.filter.enabled`）时也不会启动。`wow-service` chart 在它的公共 NetworkPolicy 开启（`networkPolicy.enabled`，默认开启），且 `networkPolicy.public.onlyGateway`（默认 true）表明那条策略放行的 `networkPolicy.public.from` 只有网关的 Pod 时，写出这个声明。`from` 放行的每个 Pod 都能向服务声称任何身份：`from` 中有条目不按标签指明 Pod（`podSelector` 为空或没有、`ipBlock`）时，它放行所到之处的每个 Pod，chart 拒绝写出这个声明；条目不点名命名空间时也拒绝：Pod 的标签由它所在命名空间的所有者设置，只按标签、不限命名空间的规则让每个命名空间的所有者都能冒充网关。条目在 `namespaceSelector` 里用 `kubernetes.io/metadata.name` 点名网关的命名空间，或者不带 `namespaceSelector`，表示 release 自己的命名空间；chart 的默认值没有点名，所以在你点名之前不渲染（[网络策略](./kubernetes#network-policies)）；`from` 还放行别的 Pod 时，把 `onlyGateway` 设为 false，服务在你于声明成立之处自己写出它、或改变它的模式之前不会启动。以其他方式部署的服务，在它的网络让这句话成立之后自己写出它。不带这个请求头的请求是匿名的，解析器以 401 回答；CoSec 以 400 回答无法读取的请求头，以 401 回答早于 `cosec.pipeline.identity.max-age`（60 秒）的请求头。详情见 CoSec 的指南：[网关之后的服务](https://cosec.ahoo.me/integration/web#services-behind-the-gateway)、[信任边界](https://cosec.ahoo.me/guide/security-model#trust-boundaries)。
 
 ### 配置 CoSec Gateway {#configure-the-cosec-gateway}
 
@@ -273,7 +276,7 @@ routes:
 
 网关用 CoSec 的签名密钥（`cosec.jwt.secret`）校验每个请求的令牌，按文档决定请求，并转发身份。它的设置和文档的格式属于 CoSec：[部署网关服务](https://cosec.ahoo.me/operations/deployment)、[第一批文档](https://cosec.ahoo.me/operations/storage#the-first-documents)、[配置](https://cosec.ahoo.me/operations/configuration)。网关上粗粒度的文档，例如让任何已认证主体通过的文档，把每个调用方能做什么留给服务自己的授权器决定。
 
-网关的 Pod 带有 `app.kubernetes.io/component: gateway` 标签，也就是服务公开端口的网络策略所放行的标签。
+网关的 Pod 带有 `app.kubernetes.io/component: gateway` 标签，也就是服务公开端口的网络策略在网关的命名空间里所放行的标签，这个命名空间由每个服务的 values 点名。
 
 ## 关上内部端口 {#close-the-internal-port}
 
@@ -317,7 +320,7 @@ wow:
 {{- if .Values.networkPolicy.enabled }}
 {{- $name := include "wow-service.name" . -}}
 # The public port: reachable from networkPolicy.public.from alone, the gateway's pods by default (labelled
-# app.kubernetes.io/component: gateway, in any namespace), which verify the callers. Enforced where the cluster's
+# app.kubernetes.io/component: gateway, in the namespace the values name), which verify the callers. Enforced where the cluster's
 # network plugin enforces NetworkPolicy.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

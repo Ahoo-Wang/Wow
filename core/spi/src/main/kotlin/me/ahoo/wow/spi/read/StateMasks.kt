@@ -41,7 +41,8 @@ interface StateMasks {
     /**
      * The mask of the body of [type]'s event named [event], its name in the log (`<context>.<aggregate>.<Name>`) or
      * the Manifest's, or one of its aliases: as [stateMaskOf]'s, in place where it can. Null when the event's schema
-     * masks nothing, or the Manifest has none, so such a body is written as it is.
+     * masks nothing, so such a body is written as it is. An event the Manifest has no schema for is masked whole: the
+     * node cannot tell what in it is sensitive.
      */
     fun eventMaskOf(type: AggregateType, event: String, revealsDisplay: Boolean): ((JsonNode) -> JsonNode)?
 }

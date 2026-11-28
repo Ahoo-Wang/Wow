@@ -155,6 +155,11 @@ interface DecideScope {
      * not a failure. Its scope is this commit's, its causation this commit. A target of another context needs its
      * context's Manifest.
      *
+     * [target] names its tenant too: a ref of another tenant's aggregate schedules the command into that tenant, as a
+     * saga's request names its `targetTenant`, but for a type of a fixed tenant, which refuses another. Which tenants a
+     * schedule may reach is the domain's to decide: build [target] from what the aggregate holds, or check one that
+     * comes from the command before it is scheduled.
+     *
      * A cron rule whose expression or time zone cannot be read, or that names no time that ever comes (`0 0 0 30 2 *`),
      * is the code's mistake: the command fails and commits nothing. A rule from input is checked by the domain
      * before it is scheduled, so that its decide function rejects it with a rejection of its own.

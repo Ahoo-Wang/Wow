@@ -26,8 +26,8 @@ import kotlin.time.Duration
  * When a schedule is due: [At] an instant, [After] a delay counted from the commit that sets it, or
  * by a [Cron] expression. A schedule is an aggregate's, under a key: set again, it is replaced; cancelled, it is gone.
  *
- * Kinds may be added, each read by every node before one writes it, so a `when` over them keeps an `else` branch;
- * [firstDue] answers for any kind.
+ * Kinds may be added, each read by every node before one writes it, in two steps as [Misfire]'s cases are, so a `when`
+ * over them keeps an `else` branch; [firstDue] answers for any kind.
  *
  * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
  */
@@ -174,7 +174,13 @@ sealed interface ScheduleRule {
 /**
  * What a recurring schedule does with the times it missed.
  *
- * Cases may be added in a minor release, so a `when` over it keeps an `else` branch.
+ * Cases may be added in a minor release, so a `when` over it keeps an `else` branch. Each new case is read by every
+ * node before one writes it, as a [ScheduleRule]'s kinds are, since a node that cannot read a rule cannot load the
+ * aggregate that set it: a case is added in two steps. In the minor whose nodes first read it, an application cannot
+ * name it, Kotlin sources by an opt-in error on the entry and `wow.schedules.<name>.misfire` by a refusal at start; the
+ * next minor lifts both. So in a rollout between adjacent minors, and in a rollback one minor down, every node reads
+ * what any node writes. Java sources are outside the guard, as they are outside the 10.0 source promise. The minor that
+ * adds a case brings that marker and that refusal, with their tests.
  */
 enum class Misfire {
     /** Fires the latest missed time only, and counts the others as skipped: the default. */

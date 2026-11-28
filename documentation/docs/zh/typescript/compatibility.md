@@ -132,6 +132,10 @@ pnpm add -D --save-exact @ahoo-wang/wow-generator
 
 这些包遵循 Wow 其余部分的支持策略，见[安全策略](https://github.com/Ahoo-Wang/Wow/blob/main/SECURITY.md)：修复进入最新的稳定版本线，较旧版本线的修复逐个决定。
 
+### `theme-check` 命令 {#the-theme-check-command}
+
+视图引擎的命令 `wow-view-engine theme-check` 属于 10.0 的接口面，连同[检查一套主题](./view-engine/theming#检查一套主题)所写的选项与退出码。`--json` 打印的形状在 10.0 不作承诺：10.x 的版本可能增加、改名或重新组织它的成员。CI 的步骤按退出码判断；要读 JSON 的步骤请固定包的版本。
+
 ## 运行时与 peer 依赖 {#runtimes-and-peers}
 
 | 要求 | 版本 | 说明 |
@@ -140,6 +144,7 @@ pnpm add -D --save-exact @ahoo-wang/wow-generator
 | 浏览器 | 当前的常青浏览器 | 这些包使用 `fetch`、`ReadableStream`、`TextDecoderStream` 和 `AbortSignal.any`（Chrome 116、Firefox 124、Safari 17.4） |
 | React 和 React DOM（`wow-react`、视图引擎的界面） | `^19.0.0` | 不支持 React 18：构建会导入 `react/compiler-runtime` |
 | React Router（只有 `wow-view-engine/react-router`） | `^7.0.0 \|\| ^8.0.0` | 可选的 peer 依赖：只有那个入口导入它 |
+| mingo（只有 `wow-view-engine/testing`） | `^7.2.4` | 可选的 peer 依赖：只有那个入口导入它，用于 `memorySource` 的查询语义；由宿主的测试安装 |
 | TypeScript | `>=6.0` | CI 以使用者的身份，在 TypeScript 6.0 和最新的 7.x 上对打包后的包做类型检查；`moduleResolution` 为 `Bundler`、`NodeNext` 或 `Node16` |
 | `@ahoo-wang/fetcher`、`fetcher-eventstream`、`fetcher-decorator` | `^5.1.5 \|\| ^6.0.0 \|\| ^8.0.0-rc.1` | 由应用安装的 peer 依赖。fetcher 没有 7；8 从第一个候选版本起即被接受。CI 在 fetcher 8 上构建和测试，下限作业在 5.1.5 上重新运行测试和包检查（[见下](#fetcher-versions-ci-covers)）；包检查的消费者安装范围内、且是 fetcher `latest` 的最新版本。只有从 OpenAPI 文档生成的客户端才需要 `fetcher-decorator` |
 | `@ahoo-wang/wow-client`（用于其他 Wow 包） | `~x.y.z` | 同一个次版本 |

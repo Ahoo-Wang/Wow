@@ -9,6 +9,14 @@ set:
   image.repository: ghcr.io/example/eshop-ordering-server
   autoscaling.keda.enabled: true
   autoscaling.keda.prometheus.serverAddress: http://prometheus.monitoring:9090
+  # The gateway's pods in the gateway's namespace, named: the chart renders nothing without it.
+  networkPolicy.public.from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: gateway
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/component: gateway
 tests:
   - it: refuses a minimum of zero replicas, from which the backlog it scales on cannot bring the service back
     set:

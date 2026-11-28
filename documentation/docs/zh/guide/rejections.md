@@ -20,7 +20,9 @@ outline: deep
 | 调用 `check`、`checkNotNull` 或 `error`（`IllegalStateException`） | `wow.command.refused`（409）：聚合的当前状态拒绝该命令 |
 | 抛出其他任何异常 | 命令以 `wow.command.failed`（500）**失败**：什么都不写，重试也同样失败 |
 
-只有这两个类本身才算拒绝：它们的子类，例如 `NumberFormatException` 或某个库自己的异常，是失败，取消也是。失败是程序或它的服务的缺陷，绝不是对调用方请求的回答。不要用 `catch (e: Exception)` 包住 `reject`、`require` 或 `check`：那会吞掉拒绝，命令照常继续。
+只有这两个类本身才算拒绝：它们的子类，例如 `NumberFormatException` 或某个库自己的异常类，是失败，取消也是。失败是程序或它的服务的缺陷，绝不是对调用方请求的回答。
+
+看的是类，不是谁抛出的：库自己抛出 `IllegalArgumentException` 时（`URI.create` 读不出文本时就是这样），命令和 `require` 一样被拒绝为 `wow.command.invalid`（400），它的消息（可能引用那个值）去往拒绝去往的地方：调用方、回执、等待者，以及派生命令被停放的原因。Wow 不靠调用栈猜测来源，同一个调用也可能两者都有：`UUID.fromString` 对形状不对的文本抛出 `IllegalArgumentException`，是拒绝；对形状对但含非十六进制数字的文本抛出 `NumberFormatException`（一个子类），是失败。所以把状态里的值交给库之前先检查它，并决定它读不出来意味着什么：用聚合的错误码拒绝，或者由领域抛出一个失败；来自命令的值在聚合决定之前由命令的约束检查。不要用 `catch (e: Exception)` 包住 `reject`、`require` 或 `check`：那会吞掉拒绝，命令照常继续。
 
 决策函数调用另一个系统时，由它决定那次调用的失败对命令意味着什么：捕获失败，再用聚合的错误码拒绝。应用的 problem 映射器（[HTTP API](../reference/http#mapped-failures)）绝不回答命令的失败：那是命令的结果。
 

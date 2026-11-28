@@ -24,7 +24,7 @@ The build writes the values it knows from the service's contract (`generateWowHe
 
 2. Provide MongoDB and ClickHouse: the replica set of [`deploy/mongodb`](../mongodb/README.md) (the service's database is `wow_analytics_catalog`) and `http://clickhouse:8123`. Apply `secret.yaml`, or on PostgreSQL instead `postgres-secret.yaml` with `values-postgres.yaml` passed after `values.yaml`, which expects `postgres:5432` (database `wow_analytics_catalog`). The host creates its collections or tables at startup; the catalog creates none in ClickHouse.
 
-3. Put the CoSec gateway in front, its pods labelled `app.kubernetes.io/component: gateway`: it verifies each request's access token and forwards the identity it verified in `CoSec-Identity`, which the service reads (CoSec's gateway mode, `wow.cosec.mode: gateway`), holding no secret. The service believes any such header, so only the gateway may reach its HTTP port (the chart's `analytics-catalog-service-public` NetworkPolicy).
+3. Put the CoSec gateway in front, its pods labelled `app.kubernetes.io/component: gateway` in the release's namespace (`values.yaml` names another in `networkPolicy.public.from`): it verifies each request's access token and forwards the identity it verified in `CoSec-Identity`, which the service reads (CoSec's gateway mode, `wow.cosec.mode: gateway`), holding no secret. The service believes any such header, so only the gateway may reach its HTTP port (the chart's `analytics-catalog-service-public` NetworkPolicy).
 
 ## Install and check
 

@@ -2170,9 +2170,9 @@ export class MemoryViewStore implements ViewStore {
     // (undocumented)
     delete(id: string, revision: string, context: WriteOptions): Promise<void>;
     // (undocumented)
-    get(id: string): Promise<ViewInstance>;
+    get(id: string, options?: ReadOptions): Promise<ViewInstance>;
     // (undocumented)
-    getPreferences(definitionId: string): Promise<ViewPreferences>;
+    getPreferences(definitionId: string, options?: ReadOptions): Promise<ViewPreferences>;
     list(definitionId: string, options?: ViewListOptions): Promise<ViewListPage>;
     readonly local?: boolean;
     // (undocumented)

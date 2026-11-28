@@ -85,6 +85,8 @@ class BankModels : ModelProvider {
                 }
                 evolve<AccountOpened> { owner = it.owner }
                 evolve<Deposited> { balance += it.amount }
+                // An event the account no longer has: its records are skipped, never decoded.
+                retired("bank.account.Closed")
             },
         )
     }

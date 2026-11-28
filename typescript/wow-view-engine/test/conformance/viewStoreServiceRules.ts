@@ -15,7 +15,8 @@
  * The view store service's rules the port's stores answer alike: what the
  * Wow view store service (`platform/view-store`) refuses or records nothing
  * for, which `MemoryViewStore` answers as it does, so a test on the memory
- * sees what production gives (#7067, D482 ⑧), and the page bound of a list
+ * sees what production gives (#7067, D482 ⑧), a call whose signal is
+ * aborted, which reaches nothing, and the page bound of a list
  * across the system views (#7041). Run beside the port's suite
  * (`viewStoreConformance.ts`) by every subject that stands for the service:
  * `MemoryViewStore` here, **WowViewStore** on the store's fake service and
@@ -137,6 +138,131 @@ export function describeViewStoreServiceRules(
         alice.list(definitionId, { cursor: 'not-a-cursor' }),
         'INVALID',
       );
+    });
+
+    it('refuses a call whose signal is aborted as UNAVAILABLE, and writes nothing', async () => {
+      // WowViewStore hands the signal to fetch: such a call never reaches
+      // the service, and a request that reached nothing is UNAVAILABLE.
+      const { alice, definitionId, create } = await setup();
+      const made = await create('Kept');
+      const renaming = write();
+      const renamed = await alice.rename(
+        made.id,
+        'Kept again',
+        made.revision,
+        renaming,
+      );
+      const preferences = await alice.setPreferences(
+        definitionId,
+        { order: [made.id], defaultInstanceId: null, revision: '0' },
+        write(),
+      );
+      const signal = AbortSignal.abort(new Error('The host left the page'));
+      const aborted = { ...write(), signal };
+      const calls: [string, () => Promise<unknown>][] = [
+        ['get', () => alice.get(made.id, { signal })],
+        ['list', () => alice.list(definitionId, { signal })],
+        [
+          'getPreferences',
+          () => alice.getPreferences(definitionId, { signal }),
+        ],
+        [
+          'create',
+          () =>
+            alice.create(
+              {
+                definitionId,
+                title: 'Never',
+                scope: own,
+                config: recordConfig(),
+              },
+              aborted,
+            ),
+        ],
+        [
+          'save',
+          () =>
+            alice.save(made.id, recordConfig(50), renamed.revision, aborted),
+        ],
+        [
+          'rename',
+          () => alice.rename(made.id, 'Gone', renamed.revision, aborted),
+        ],
+        // A replay of a write that landed is sent again: it is no answer
+        // the store may give without asking the service.
+        [
+          'rename replayed',
+          () =>
+            alice.rename(made.id, 'Kept again', made.revision, {
+              ...renaming,
+              signal,
+            }),
+        ],
+        ['delete', () => alice.delete(made.id, renamed.revision, aborted)],
+        [
+          'setPreferences',
+          () =>
+            alice.setPreferences(
+              definitionId,
+              { ...preferences, defaultInstanceId: made.id },
+              aborted,
+            ),
+        ],
+      ];
+      if (capabilities.changeAudience && alice.changeAudience) {
+        const changeAudience = alice.changeAudience.bind(alice);
+        const other = own === 'personal' ? 'shared' : 'personal';
+        calls.push([
+          'changeAudience',
+          () => changeAudience(made.id, other, renamed.revision, aborted),
+        ]);
+      }
+      // The port promises the code. What `cause` holds is what the request
+      // threw, which WowViewStore's clients do not all throw alike (the
+      // preferences' snapshot query wraps the reason in fetcher's
+      // ExchangeError), so no cause is asserted.
+      for (const [, call] of calls) await refusal(call(), 'UNAVAILABLE');
+      const read = await alice.get(made.id);
+      expect([read.title, read.revision, read.scope]).toEqual([
+        'Kept again',
+        renamed.revision,
+        own,
+      ]);
+      expect(
+        (await everyView(alice, definitionId)).map(view => view.id),
+      ).toEqual([made.id]);
+      expect(await alice.getPreferences(definitionId)).toEqual(preferences);
+    });
+
+    it('reads a list cursor before the signal: one it did not issue is INVALID, aborted or not', async () => {
+      // WowViewStore reads its cursor before it sends anything.
+      const { alice, definitionId } = await setup();
+      await refusal(
+        alice.list(definitionId, {
+          cursor: 'not-a-cursor',
+          signal: AbortSignal.abort(),
+        }),
+        'INVALID',
+      );
+    });
+
+    it('answers an id the service never serves as NOT_FOUND, before it reads the signal', async () => {
+      // WowViewStore refuses a reserved or blank id before it sends anything:
+      // the service serves neither.
+      const { alice, definitionId } = await setup();
+      const signal = AbortSignal.abort();
+      for (const id of [`system:${definitionId}:declared`, '', '.', '..']) {
+        await refusal(alice.get(id), 'NOT_FOUND');
+        await refusal(alice.get(id, { signal }), 'NOT_FOUND');
+        await refusal(
+          alice.rename(id, 'Gone', '1', { ...write(), signal }),
+          'NOT_FOUND',
+        );
+        await refusal(
+          alice.delete(id, '1', { ...write(), signal }),
+          'NOT_FOUND',
+        );
+      }
     });
 
     it.skipIf(

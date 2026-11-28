@@ -7,6 +7,16 @@ ordering:
   image:
     repository: ghcr.io/example/eshop-ordering-server
   partOf: eshop
+  # The gateway's pods, in the namespace they run in.
+  networkPolicy:
+    public:
+      from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: gateway
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/component: gateway
 basket:
   service:
     name: eshop-basket-service
@@ -16,3 +26,13 @@ basket:
   image:
     repository: ghcr.io/example/eshop-basket-server
   partOf: eshop
+  # The gateway's pods, in the namespace they run in.
+  networkPolicy:
+    public:
+      from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: gateway
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/component: gateway

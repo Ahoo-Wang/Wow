@@ -3,7 +3,7 @@
 {{- $name := include "wow-service.name" . -}}
 # region public
 # The public port: reachable from networkPolicy.public.from alone, the gateway's pods by default (labelled
-# app.kubernetes.io/component: gateway, in any namespace), which verify the callers. Enforced where the cluster's
+# app.kubernetes.io/component: gateway, in the namespace the values name), which verify the callers. Enforced where the cluster's
 # network plugin enforces NetworkPolicy.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

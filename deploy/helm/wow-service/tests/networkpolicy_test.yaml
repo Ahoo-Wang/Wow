@@ -6,6 +6,14 @@ release:
 set:
   service.name: eshop-basket-service
   image.repository: ghcr.io/example/eshop-basket-server
+  # The gateway's pods in the gateway's namespace, named: the chart renders nothing without it.
+  networkPolicy.public.from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: gateway
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/component: gateway
 tests:
   - it: admits the gateway's pods alone to the public port
     documentSelector:
@@ -16,7 +24,9 @@ tests:
           path: spec.ingress
           value:
             - from:
-                - namespaceSelector: {}
+                - namespaceSelector:
+                    matchLabels:
+                      kubernetes.io/metadata.name: gateway
                   podSelector:
                     matchLabels:
                       app.kubernetes.io/component: gateway
