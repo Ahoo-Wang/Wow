@@ -52,7 +52,7 @@ class KafkaTopicAdminTest {
         }
 
     @Test
-    fun `a topic's id is the broker's, another once it is created again, and a topic the broker does not know fails`():
+    fun `a topic's id is the broker's, the same at each ask, and a topic the broker does not know fails`():
         Unit = runBlocking {
         val topic = KafkaFixture.newTopic(1, "wow.it.admin")
         val first = admin.topicId(topic)
