@@ -26,6 +26,8 @@ import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.cluster.fastOptions
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.subscription.testOptions
+import me.ahoo.wow.spi.subscription.Checkpoint
+import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.transport.PartitionOffsets
 import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.SourceMessage
@@ -46,7 +48,11 @@ class TopicRecreatedTest : TopicSubscriptionsFixtures() {
     private fun groupOf(subscriptions: TopicSubscriptions, incarnation: String) =
         "${subscriptions.group.name}${TopicIncarnations.SEPARATOR}$incarnation"
 
-    private fun reading(refresh: Duration = Duration.INFINITE, node: String = "node-1") = TopicSubscriptions(
+    private fun reading(
+        refresh: Duration = Duration.INFINITE,
+        node: String = "node-1",
+        checkpoints: CheckpointStore = this.checkpoints,
+    ) = TopicSubscriptions(
         service = SERVICE,
         topic = ORDER_TOPIC,
         node = node,
@@ -135,6 +141,8 @@ class TopicRecreatedTest : TopicSubscriptionsFixtures() {
             eventually { handled.size == 3 }
             eventually { checkpoints.list(groupOf(first, A)).sumOf { it.position } == 3L }
             first.stop()
+            // A checkpoint a pre-release, or a source that told no incarnation, saved under the lease group's name.
+            checkpoints.save(first.group.name, BOARD, 0, 9)
             source.recreate(B)
             write(*(10 until 30).map { "o-$it" }.toTypedArray())
             val warnings = warningsOf<TopicSubscriptions>()
@@ -148,7 +156,8 @@ class TopicRecreatedTest : TopicSubscriptionsFixtures() {
             (10 until 30).forEach { handled.versionsOf("o-$it").assert().containsExactly(1) }
             eventually { warnings.list.any { "earlier incarnations" in it.formattedMessage } }
             warnings.list.single { "earlier incarnations" in it.formattedMessage }.formattedMessage.assert()
-                .contains("incarnation $B").contains("$A: 4 ($BOARD)").doesNotContain("created again")
+                .contains("incarnation $B").contains("$A: 4 ($BOARD)").contains("none named: 1 ($BOARD)")
+                .doesNotContain("created again")
         }
 
     /** Parks `o-1` at version 2 in incarnation A, read from the topic, and lets it succeed from then on. */
@@ -204,6 +213,49 @@ class TopicRecreatedTest : TopicSubscriptionsFixtures() {
         }
 
     @Test
+    fun `a node that cannot read the earlier incarnations' checkpoints reads the topic all the same, and says so`(): Unit =
+        runBlocking {
+            val warnings = warningsOf<TopicSubscriptions>()
+            val base = reading().group.name
+            val failing = object : CheckpointStore by checkpoints {
+                override suspend fun list(group: String): List<Checkpoint> =
+                    if (group == base) throw IllegalStateException("The store is down.") else checkpoints.list(group)
+            }
+            reading(checkpoints = failing).also {
+                it.start()
+                it.awaitStarted()
+            }
+            write("o-1")
+            eventually { handled.size == 1 }
+            warnings.list.any { "could not read the checkpoints of the earlier incarnations" in it.formattedMessage }
+                .assert().isTrue()
+        }
+
+    @Test
+    fun `a refresh that fails to read the topic tries again, and a topic created again without partitions yet waits`():
+        Unit = runBlocking {
+        val warnings = warningsOf<TopicSubscriptions>()
+        reading(refresh = 20.milliseconds).also {
+            it.start()
+            it.awaitStarted()
+        }
+        write("o-1")
+        eventually { handled.size == 1 }
+        source.failing = true
+        eventually { warnings.list.any { "failed to read the partitions or the incarnation" in it.formattedMessage } }
+        source.failing = false
+
+        // Created again, and its partitions not seen yet: the refresh waits for them.
+        source.recreate(B, visible = false)
+        write("o-2")
+        val asked = source.partitionsAsked.get()
+        eventually { source.partitionsAsked.get() >= asked + 3 }
+        handled.versionsOf("o-2").assert().isEmpty()
+        source.visible = true
+        eventually { handled.versionsOf("o-2") == listOf(1) }
+    }
+
+    @Test
     fun `a source that tells no incarnation keeps its checkpoints under the lease group's name, with no marker`(): Unit =
         runBlocking {
             val subscriptions = start("node-1")
@@ -239,7 +291,19 @@ class TopicRecreatedTest : TopicSubscriptionsFixtures() {
         @Volatile
         private var recreatedAt = 0
 
-        fun recreate(next: String) {
+        /** While set, the incarnation cannot be read, as of a broker that does not answer. */
+        @Volatile
+        var failing = false
+
+        /** While unset, the topic shows no partitions yet: created, and not yet in the metadata read. */
+        @Volatile
+        var visible = true
+
+        /** How often the topic's partitions were asked: a refresh round asks once. */
+        val partitionsAsked = AtomicInteger()
+
+        fun recreate(next: String, visible: Boolean = true) {
+            this.visible = visible
             current = InMemoryTopics(PARTITIONS).also { it.create(ORDER_TOPIC, PARTITIONS) }
             incarnation = next
             recreatedAt = placed.get()
@@ -251,9 +315,15 @@ class TopicRecreatedTest : TopicSubscriptionsFixtures() {
          */
         fun placedSince(): Int = placed.get() - recreatedAt
 
-        override suspend fun incarnation(topic: String): String = incarnation.also { placed.incrementAndGet() }
+        override suspend fun incarnation(topic: String): String {
+            check(!failing) { "The broker does not answer." }
+            return incarnation.also { placed.incrementAndGet() }
+        }
 
-        override suspend fun partitions(topic: String): List<Int> = current.partitions(topic)
+        override suspend fun partitions(topic: String): List<Int> {
+            partitionsAsked.incrementAndGet()
+            return if (visible) current.partitions(topic) else emptyList()
+        }
 
         override suspend fun partitionOf(topic: String, key: String): Int = current.partitionOf(topic, key)
 

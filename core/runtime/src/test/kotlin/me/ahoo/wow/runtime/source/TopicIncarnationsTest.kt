@@ -113,6 +113,27 @@ class TopicIncarnationsTest {
         }
 
     @Test
+    fun `a guarded source reads another topic, and its own incarnation's offsets and empty reads, as the source does`():
+        Unit = runBlocking {
+        topics.create(OTHER, 1)
+        topics.send(OTHER, listOf(TopicMessage.of("k", byteArrayOf(1), emptyMap(), 0)))
+        val guarded = incarnations.guarded(told, A)
+        guarded.offsets(TOPIC, 0).end.assert().isEqualTo(0L)
+        guarded.readAt(TOPIC, 0, listOf(0L)).assert().isEmpty()
+        // The topic is another incarnation now: a read of another topic of the source is not its concern.
+        told.incarnation = B
+        guarded.offsets(OTHER, 0).end.assert().isEqualTo(1L)
+        guarded.read(OTHER, 0, 0, 1).toList().map { it.offset }.assert().containsExactly(0L)
+        guarded.readAt(OTHER, 0, listOf(0L)).keys.assert().containsExactly(0L)
+    }
+
+    @Test
+    fun `a refusal names the topic and both incarnations, or says the topic does not exist now`() {
+        TopicIncarnationException(TOPIC, A, B).message.assert().contains(TOPIC).contains("incarnation $B").contains(A)
+        TopicIncarnationException(TOPIC, A, null).message.assert().contains("does not exist now").contains(A)
+    }
+
+    @Test
     fun `each incarnation has its own checkpoint group, and the ones before the current are told with their checkpoints`():
         Unit = runBlocking {
         incarnations.groupOf(A).assert().isEqualTo("$BASE#$A")
@@ -166,6 +187,7 @@ class TopicIncarnationsTest {
 
     private companion object {
         const val TOPIC = "wow.sales.order.state"
+        const val OTHER = "wow.sales.other.state"
         const val BASE = "board-service/topic:wow.sales.order.state"
         const val A = "incarnation-a"
         const val B = "incarnation-b"
