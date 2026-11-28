@@ -18,7 +18,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 432 — with its kind and th
 | `ActionConfirm` | interface | The question an action asks before it runs. | [Host Wiring](./host#api-actions) |
 | `ActionContext` | interface | What an action's rules are asked with: the time they are asked at — the engine's clock, a harness's own in a test — and, where one is known, the input the command would run with (a choice's option, a filled form). | — |
 | `ActionForm` | type | An action's form, by field name: what `run` receives as its input. | — |
-| `ActionFormField` | interface | One field of an action's form, drawn by the condition editor's own value controls (`FilterValueEditor`): a list of options, a number, a yes/no or a line of text. | [Host Wiring](./host#api-actions) |
+| `ActionFormField` | interface | One field of an action's form, drawn by the condition editor's own value controls: a list of options, a number, a yes/no or a line of text. | [Host Wiring](./host#api-actions) |
 | `ActionInput` | type | What a form (or a choice) gave, by field name. | — |
 | `ActionInputError` | class | What an action's `run` throws when the source refused what the form gave — a value it cannot read, a number past its range — rather than the record. | [Host Wiring](./host#api-ActionInputError) |
 | `ActionPlace` | type | Where a declared action is offered. | — |

@@ -104,7 +104,7 @@ export interface NewAnalysisDialogProps {
 /**
  * A new analysis made inside the dashboard: a large dialog that is
  * the analysis view itself — first the data it is about, then the same tray
- * and the same result as the workbench's (`AnalysisParts`), running as it is
+ * and the same result as the workbench's, running as it is
  * edited under the reader's own 「改了就跑」 — and a title that follows what
  * it shows until its author names it. 「放进仪表盘」 puts it on the board as
  * a view the board owns: saved, shared and deleted with it, never listed.

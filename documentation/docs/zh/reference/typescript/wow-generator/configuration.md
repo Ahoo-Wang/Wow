@@ -5,7 +5,7 @@ description: '生成器配置 — @ahoo-wang/wow-generator'
 
 # 生成器配置
 
-生成器有两类独立输入：构造器/CLI 的执行选项，以及可选的 JSON/YAML 自定义配置文件。这个文件影响 OpenAPI 文档生成的 API 客户端；Manifest 生成的客户端不读它，带着 `apiClients` 的 Manifest 运行会告警说一个都不读。自定义文件不能覆盖 inputPath、outputDir、logger 或 tsconfig。
+生成器有两类独立输入：构造器/CLI 的执行选项，以及可选的 JSON/YAML 自定义配置文件。这个文件影响 OpenAPI 文档生成的 API 客户端；Manifest 生成的客户端不读它，带着 `apiClients` 的 Manifest 运行会告警说一个都不读。自定义文件不能覆盖 inputPath、outputDir 或 logger。
 
 ## 配置契约
 
