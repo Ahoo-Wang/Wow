@@ -43,6 +43,37 @@ class SchemaComponentsTest {
     }
 
     @Test
+    fun `a property's words should stay beside its reference, and a type's on its component`() {
+        // OpenAPI 3.1's schemas are JSON Schema 2020-12, which reads the keywords beside a `$ref` (#7262).
+        val line = mapOf(
+            "type" to "object",
+            "title" to "Line",
+            "description" to "A line of an order.",
+            "properties" to mapOf(
+                "price" to mapOf("\$ref" to Manifest.schemaRef("a.Price"), "title" to "Unit price"),
+                "discount" to mapOf(
+                    "anyOf" to listOf(mapOf("type" to "null"), mapOf("\$ref" to Manifest.schemaRef("a.Price"))),
+                    "description" to "What the buyer saves.",
+                ),
+            ),
+        )
+        val price = mapOf("type" to "integer", "title" to "Price")
+        val schemas = SchemaComponents(mapOf("a.Line" to line, "a.Price" to price), emptySet()).schemas
+        schemas["a.Price"].assert().isEqualTo(price)
+        schemas["a.Line"].assert().isEqualTo(
+            line + (
+                "properties" to mapOf(
+                    "price" to ref("schemas", "a.Price") + ("title" to "Unit price"),
+                    "discount" to mapOf(
+                        "anyOf" to listOf(mapOf("type" to "null"), ref("schemas", "a.Price")),
+                        "description" to "What the buyer saves.",
+                    ),
+                )
+                ),
+        )
+    }
+
+    @Test
     fun `a nullable type argument should name a component apart from its non-null sibling`() {
         val strict = "a.Box(java.lang.String)"
         val nullable = "a.Box(java.lang.String?)"

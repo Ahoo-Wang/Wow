@@ -342,7 +342,8 @@ internal class StateViewSources(
         fun kdoc(words: List<String>, indent: String): String = when (words.size) {
             0 -> ""
             1 -> "$indent/** ${comment(words.single())} */\n"
-            else -> "$indent/**\n$indent * ${comment(words.first())}\n$indent *\n$indent * ${comment(words.last())}\n$indent */\n"
+            else -> listOf("/**", " * ${comment(words.first())}", " *", " * ${comment(words.last())}", " */")
+                .joinToString("") { "$indent$it\n" }
         }
 
         /** The Kotlin name of the field [name], between backticks when it is not a plain name. */

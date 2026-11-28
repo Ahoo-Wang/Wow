@@ -78,7 +78,9 @@ class SchemaWordsTest {
 
     private fun properties(schema: Any?): Map<*, *> = (schema as Map<*, *>)["properties"] as Map<*, *>
 
-    private val line: Map<*, *> by lazy { properties(defOf(complete(Order::class.java), Order::class.java))["line"] as Map<*, *> }
+    private val order: Manifest by lazy { complete(Order::class.java) }
+
+    private val line: Map<*, *> by lazy { properties(defOf(order, Order::class.java))["line"] as Map<*, *> }
 
     private fun property(name: String): Map<*, *> = properties(line)[name] as Map<*, *>
 
@@ -87,7 +89,7 @@ class SchemaWordsTest {
     @Test
     fun `a type's summary should be its title beside its description, both trimmed`() {
         words(line).assert().isEqualTo("Order line" to "One line of an order.")
-        words(defOf(complete(Order::class.java), Price::class.java)).assert().isEqualTo("Price" to "An amount in cents.")
+        words(defOf(order, Price::class.java)).assert().isEqualTo("Price" to "An amount in cents.")
     }
 
     @Test
@@ -130,7 +132,10 @@ class SchemaWordsTest {
         val price = schemaRef(Price::class.java.name)
         property("price").assert().isEqualTo(mapOf("\$ref" to price, "title" to "Unit price"))
         property("discount").assert().isEqualTo(
-            mapOf("anyOf" to listOf(mapOf("type" to "null"), mapOf("\$ref" to price)), "description" to "What the buyer saves."),
+            mapOf(
+                "anyOf" to listOf(mapOf("type" to "null"), mapOf("\$ref" to price)),
+                "description" to "What the buyer saves."
+            ),
         )
         property("listPrice").assert().isEqualTo(mapOf("\$ref" to price))
     }
@@ -149,7 +154,12 @@ class SchemaWordsTest {
     @Test
     fun `a container's words should be the property's, not each item's`() {
         property("tags").assert().isEqualTo(
-            mapOf("type" to "array", "items" to mapOf("type" to "string"), "title" to "Tags", "description" to "Its tags."),
+            mapOf(
+                "type" to "array",
+                "items" to mapOf("type" to "string"),
+                "title" to "Tags",
+                "description" to "Its tags."
+            ),
         )
         // A primitive array's items are a member of their own to the generator, which asks the property's words of it.
         property("sizes").assert().isEqualTo(
@@ -236,9 +246,15 @@ class SchemaWordsTest {
                 // As the compiler writes them: the @Description, else the KDoc, else the @Summary.
                 CommandManifest("Ship", schema = schemaRef(Ship::class.java.name), description = "Ships the order."),
                 CommandManifest("Track", schema = schemaRef(Track::class.java.name), description = "Track"),
-                CommandManifest("Deliver", schema = schemaRef(Deliver::class.java.name), description = "From the KDoc."),
+                CommandManifest(
+                    "Deliver",
+                    schema = schemaRef(Deliver::class.java.name),
+                    description = "From the KDoc."
+                ),
             ),
-            events = listOf(EventManifest("Shipped", schema = schemaRef(Shipped::class.java.name), description = "Shipped")),
+            events = listOf(
+                EventManifest("Shipped", schema = schemaRef(Shipped::class.java.name), description = "Shipped")
+            ),
         )
         val fragment = Manifest(contexts = listOf(ContextManifest("shop", aggregates = listOf(aggregate))))
         val completed = SchemaIntrospector(javaClass.classLoader, overrides).complete(fragment)

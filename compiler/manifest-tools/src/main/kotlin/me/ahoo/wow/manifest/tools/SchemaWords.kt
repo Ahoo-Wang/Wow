@@ -74,14 +74,11 @@ internal object SchemaWords {
     private fun folded(node: Any?): Any? = when (node) {
         is Map<*, *> -> {
             val written = node.entries.associate { (key, value) -> key.toString() to folded(value) }
-            val parts = (written[SchemaShapes.ALL_OF] as? List<*>)?.map { it as? Map<*, *> }
-            val type = parts?.firstOrNull()
-            val own = parts?.lastOrNull()
-            if (written.size == 1 && parts?.size == 2 && type != null && own != null && sameButWords(type, own)) {
-                type + own
-            } else {
-                written
-            }
+            // The generator's conjunction is the schema's one keyword, of two parts: the type's, then the property's.
+            val parts = (written[SchemaShapes.ALL_OF] as? List<*>)?.takeIf { written.size == 1 && it.size == 2 }
+            val type = parts?.first() as? Map<*, *>
+            val own = parts?.last() as? Map<*, *>
+            if (type != null && own != null && sameButWords(type, own)) type + own else written
         }
 
         is List<*> -> node.map(::folded)

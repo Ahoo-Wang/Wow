@@ -462,6 +462,7 @@ internal class SchemaIntrospector(
 
     private companion object {
         const val DEFS = "\$defs"
+
         /** The body classes of the system commands a fragment may list, by their full names. */
         val SYSTEM_BODIES: Map<String, Class<*>> = SystemCommandGroups.LISTED_BY_A_CONTRACT.commands
 
