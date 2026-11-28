@@ -120,6 +120,12 @@ class QueryFieldDeclaration @InternalWowApi constructor(
     val deprecated: DeclarationValue<QueryDeprecation?> = DeclarationValue.Unset,
     /** Whether this string value is prose a reader searches by words (the Manifest's `x-wow-text`). */
     val text: DeclarationValue<Boolean> = DeclarationValue.Unset,
+    /**
+     * Set when this object's schema closes it ([ManifestSchemaReader]): it holds no property but its [properties] and
+     * these names, which the schema declares and no query path names (one that is no path segment, a `writeOnly` one),
+     * so a masked read answers no other. Unset for an open object, and where a declaration says nothing of it.
+     */
+    val closed: DeclarationValue<Set<String>> = DeclarationValue.Unset,
 ) {
     /** This QueryFieldDeclaration with the given values replaced; for Wow's own query rewriting. */
     @InternalWowApi
@@ -142,6 +148,7 @@ class QueryFieldDeclaration @InternalWowApi constructor(
         aliases: DeclarationValue<Set<QueryField<*>>> = this.aliases,
         deprecated: DeclarationValue<QueryDeprecation?> = this.deprecated,
         text: DeclarationValue<Boolean> = this.text,
+        closed: DeclarationValue<Set<String>> = this.closed,
     ): QueryFieldDeclaration = QueryFieldDeclaration(
         title,
         description,
@@ -161,6 +168,7 @@ class QueryFieldDeclaration @InternalWowApi constructor(
         aliases,
         deprecated,
         text,
+        closed,
     )
 
     override fun equals(other: Any?): Boolean =
@@ -173,7 +181,7 @@ class QueryFieldDeclaration @InternalWowApi constructor(
             "enumDescriptions=$enumDescriptions, valueTypes=$valueTypes, nullable=$nullable, required=$required, " +
             "kind=$kind, properties=$properties, items=$items, additionalProperties=$additionalProperties, " +
             "alternatives=$alternatives, semanticType=$semanticType, maskRule=$maskRule, variant=$variant, " +
-            "aliases=$aliases, deprecated=$deprecated, text=$text)"
+            "aliases=$aliases, deprecated=$deprecated, text=$text, closed=$closed)"
 
     private fun valueFields(): List<Any?> = listOf(
         title,
@@ -194,6 +202,7 @@ class QueryFieldDeclaration @InternalWowApi constructor(
         aliases,
         deprecated,
         text,
+        closed,
     )
 
     companion object {
@@ -219,6 +228,7 @@ class QueryFieldDeclaration @InternalWowApi constructor(
             aliases: DeclarationValue<Set<QueryField<*>>> = DeclarationValue.Unset,
             deprecated: DeclarationValue<QueryDeprecation?> = DeclarationValue.Unset,
             text: DeclarationValue<Boolean> = DeclarationValue.Unset,
+            closed: DeclarationValue<Set<String>> = DeclarationValue.Unset,
         ): QueryFieldDeclaration = QueryFieldDeclaration(
             title,
             description,
@@ -238,6 +248,7 @@ class QueryFieldDeclaration @InternalWowApi constructor(
             aliases,
             deprecated,
             text,
+            closed,
         )
     }
 }
@@ -312,6 +323,7 @@ internal fun QueryFieldDeclaration.merge(
     aliases = aliases.merge(higher.aliases, field, "aliases", rejectDifferent),
     deprecated = deprecated.merge(higher.deprecated, field, "deprecated", rejectDifferent),
     text = text.merge(higher.text, field, "text", rejectDifferent),
+    closed = closed.mergeClosed(higher.closed),
 )
 
 /**
@@ -328,6 +340,16 @@ private fun QueryFieldDeclaration.openedValueTypes(
         lower.kind == DeclarationValue.Set(QueryValueKind.UNKNOWN)
     return if (opensOpaqueValue) DeclarationValue.Set(setOf(QueryValueType.OBJECT)) else valueTypes
 }
+
+/** What closes an object, merged: the names of each declaration that closes it, one that says nothing left out. */
+private fun DeclarationValue<Set<String>>.mergeClosed(
+    higher: DeclarationValue<Set<String>>,
+): DeclarationValue<Set<String>> =
+    when {
+        this is DeclarationValue.Unset -> higher
+        higher is DeclarationValue.Unset -> this
+        else -> DeclarationValue.Set(valueOr(emptySet()) + higher.valueOr(emptySet()))
+    }
 
 private fun DeclarationValue<MaskRule>.mergeMaskRule(
     higher: DeclarationValue<MaskRule>,

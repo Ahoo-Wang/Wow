@@ -28,9 +28,17 @@ import tools.jackson.databind.node.ArrayNode
 import tools.jackson.databind.node.JsonNodeFactory
 import tools.jackson.databind.node.ObjectNode
 
-internal class SchemaMasker private constructor(private val definition: QueryMaskDefinition) {
+/**
+ * Masks a response record of a schema in place: first removes what the schema does not declare (its `declared` walk,
+ * [DeclaredOnly]), then replaces each sensitive value by its mask (its `definition`, [QueryMaskDefinition]).
+ */
+internal class SchemaMasker private constructor(
+    private val definition: QueryMaskDefinition?,
+    private val declared: DeclaredOnly?,
+) {
     fun mask(node: ObjectNode): ObjectNode {
-        visitSingle(node, definition.root)
+        declared?.prune(node)
+        definition?.let { visitSingle(node, it.root) }
         return node
     }
 
@@ -169,10 +177,15 @@ internal class SchemaMasker private constructor(private val definition: QueryMas
     companion object {
         /**
          * The masker of [schema]'s responses, or `null` when they mask nothing; with [revealsDisplay], of a query that
-         * reveals `DISPLAY` values, which masks `CONFIDENTIAL` ones alone.
+         * reveals `DISPLAY` values, which masks `CONFIDENTIAL` ones alone. A read's masker answers only what the schema
+         * declares ([QueryModelSchema.declaredOnly]); a writer's, which stores or publishes the node's own
+         * serialisation, does not ([prunes] false).
          */
-        fun create(schema: QueryModelSchema, revealsDisplay: Boolean = false): SchemaMasker? =
-            (if (revealsDisplay) schema.revealedMaskDefinition else schema.maskDefinition)?.let(::SchemaMasker)
+        fun create(schema: QueryModelSchema, revealsDisplay: Boolean = false, prunes: Boolean = true): SchemaMasker? {
+            val definition = if (revealsDisplay) schema.revealedMaskDefinition else schema.maskDefinition
+            val declared = if (prunes) schema.declaredOnly else null
+            return if (definition == null && declared == null) null else SchemaMasker(definition, declared)
+        }
     }
 }
 

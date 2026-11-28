@@ -23,37 +23,10 @@ import me.ahoo.wow.query.backend.single
 import me.ahoo.wow.query.resolve.jsonValue
 import tools.jackson.databind.JsonNode
 
-/**
- * The `x-wow-*` keywords of a Manifest property schema (#4332, `QueryKeywords` of `manifest-tools`), each the 1:1
- * image of a `:query-api` annotation and of the 9.x schema declaration it stands for:
- *
- * | Keyword | Declaration |
- * | --- | --- |
- * | `x-wow-sensitive` `{level}` | [MaskRule.level] |
- * | `x-wow-mask` `{keepPrefix, keepSuffix}` / `{strategy}` | [MaskRule.mask] ([QueryMask.Keep] / [QueryMask.Strategy]) |
- * | `x-wow-alias` `[path, ...]` | [QueryFieldDeclaration.aliases] |
- * | `x-wow-temporal` `{unit}` / `{pattern}` | [Temporal.Epoch] / [Temporal.Formatted] |
- * | `x-wow-decimal` `{scale}` | [NumericFormat.Decimal] |
- * | `x-wow-money` `{currency \| currencyField, scale?}` | [NumericFormat.Money.of] |
- * | `x-wow-duration` `{unit}` | [TimeSpan] |
- * | `x-wow-reference` `{aggregate, context?}` | [Reference] (the declaring context when omitted) |
- * | `x-wow-text` `{}` | [QueryFieldDeclaration.text], on each string leaf (an array's items, a union's strings) |
- * | `x-wow-index` (state root) | informational: the storage's index DDL reads it, the query schema does not |
- */
-internal object ManifestQueryKeywords {
-    const val SENSITIVE: String = "x-wow-sensitive"
-    const val MASK: String = "x-wow-mask"
-    const val ALIAS: String = "x-wow-alias"
-    const val TEMPORAL: String = "x-wow-temporal"
-    const val DECIMAL: String = "x-wow-decimal"
-    const val MONEY: String = "x-wow-money"
-    const val DURATION: String = "x-wow-duration"
-    const val REFERENCE: String = "x-wow-reference"
-    const val TEXT: String = "x-wow-text"
-    const val INDEX: String = "x-wow-index"
-}
-
 private const val REF = "\$ref"
+
+/** The class a value is written from, as `manifest-tools` writes it: an object of one closes it ([closes]). */
+private const val CLASS = "x-wow-class"
 
 /**
  * Reads a JSON Schema 2020-12 of the Manifest's `$defs`, as `manifest-tools` writes them with Jackson's own
@@ -184,35 +157,55 @@ internal class ManifestSchemaReader(
     private fun obj(schema: Map<*, *>, field: String, resolving: Set<String>, nullable: Boolean?): QueryFieldDeclaration {
         val required = schema.list("required").mapNotNull { it as? String }.toSet()
         val properties = linkedMapOf<String, QueryFieldDeclaration>()
+        // The names the schema declares that no query path names: a closed object holds them too.
+        val unqueried = linkedSetOf<String>()
         (schema["properties"] as? Map<*, *>)?.forEach { (name, child) ->
             name as String
             val property = child.asSchema("$field.$name")
-            if (property["writeOnly"] == true) return@forEach
+            if (property["writeOnly"] == true) {
+                unqueried += name
+                return@forEach
+            }
             if (!name.isValidQueryPathSegment()) {
                 if (property.hasSensitiveValues(emptySet())) {
                     throw QuerySchemaConflictException(
                         "Masked query schema property is not a valid QueryField: [$field[\"$name\"]].",
                     )
                 }
+                unqueried += name
                 return@forEach
             }
             // Only a listed property states it: the `required` of `allOf` is that of all its parts together.
             properties[name] = read(property, "$field.$name", resolving)
                 .let { if (name in required) it.copy(required = DeclarationValue.Set(true)) else it }
         }
-        val additional = when (val values = schema["additionalProperties"]) {
-            is Map<*, *> -> read(values, "$field.{key}", resolving)
-            true -> QueryFieldDeclaration(kind = DeclarationValue.Set(QueryValueKind.UNKNOWN))
-            else -> null
-        }
+        val additional = additional(schema, field, resolving)
         return QueryFieldDeclaration(
             kind = DeclarationValue.Set(QueryValueKind.OBJECT),
             valueTypes = DeclarationValue.Set(setOf(QueryValueType.OBJECT)),
             nullable = nullable?.let { DeclarationValue.Set(it) } ?: DeclarationValue.Unset,
             properties = DeclarationValue.Set(properties),
             additionalProperties = additional?.let { DeclarationValue.Set(it) } ?: DeclarationValue.Unset,
+            closed = if (schema.closes()) DeclarationValue.Set(unqueried) else DeclarationValue.Unset,
         )
     }
+
+    /** The values of an object schema's other properties (`additionalProperties`): null when it allows none. */
+    private fun additional(schema: Map<*, *>, field: String, resolving: Set<String>): QueryFieldDeclaration? =
+        when (val values = schema["additionalProperties"]) {
+            is Map<*, *> -> read(values, "$field.{key}", resolving)
+            true -> QueryFieldDeclaration(kind = DeclarationValue.Set(QueryValueKind.UNKNOWN))
+            else -> null
+        }
+
+    /**
+     * Whether this object schema closes its object: Wow's reading, not JSON Schema's, which allows any property a
+     * schema does not refuse. A class (`x-wow-class`), or a schema that lists `properties`, holds only the properties
+     * it declares, unless it allows others (`additionalProperties`, which a typed map and a class Jackson writes more
+     * of than its properties carry); a schema of neither, a free object, is open.
+     */
+    private fun Map<*, *>.closes(): Boolean =
+        (this[CLASS] is String || "properties" in this) && this["additionalProperties"].let { it == null || it == false }
 
     private fun array(schema: Map<*, *>, field: String, resolving: Set<String>, nullable: Boolean?): QueryFieldDeclaration {
         val items = (schema["items"] as? Map<*, *>)?.let { read(it, field, resolving) }

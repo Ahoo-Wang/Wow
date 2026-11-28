@@ -54,7 +54,15 @@ class QueryValueSchema @InternalWowApi constructor(
      * string leaf carries it, never an enumeration, a semantic type's value, a sensitive value or a map's values.
      */
     val text: Boolean = false,
+    declaredNames: Set<String>? = null,
 ) {
+    /**
+     * The names of every property this object may hold when its schema closes it: its [properties]' and those the
+     * schema declares that no query path names. A masked read answers no other (`DeclaredOnly`). Null for an open
+     * object, a typed map's or a free one, and for any other value.
+     */
+    val declaredNames: Set<String>? = declaredNames?.let { java.util.Collections.unmodifiableSet(LinkedHashSet(it)) }
+
     /** Other logical paths that name this value. */
     val aliases: Set<QueryField<*>> = java.util.Collections.unmodifiableSet(LinkedHashSet(aliases))
 
@@ -79,6 +87,9 @@ class QueryValueSchema @InternalWowApi constructor(
         require((kind == QueryValueKind.ARRAY) == (items != null)) { "Only an array value must have items." }
         require(kind == QueryValueKind.OBJECT || this.properties.isEmpty() && additionalProperties == null) {
             "Only an object value can have named or dynamic properties."
+        }
+        require(this.declaredNames == null || kind == QueryValueKind.OBJECT && additionalProperties == null) {
+            "Only an object value without dynamic properties is closed."
         }
         require((kind == QueryValueKind.UNION) == this.alternatives.isNotEmpty()) {
             "Only a union value must have alternatives."
@@ -118,7 +129,7 @@ class QueryValueSchema @InternalWowApi constructor(
             title == other.title && description == other.description && valueTypes == other.valueTypes &&
             semanticType == other.semanticType && maskRule == other.maskRule && variant == other.variant &&
             aliases == other.aliases && deprecated == other.deprecated && text == other.text &&
-            enumSnapshot == other.enumSnapshot &&
+            declaredNames == other.declaredNames && enumSnapshot == other.enumSnapshot &&
             enumDescriptions == other.enumDescriptions &&
             sameDefinition(items, other.items) &&
             sameDefinition(additionalProperties, other.additionalProperties) &&

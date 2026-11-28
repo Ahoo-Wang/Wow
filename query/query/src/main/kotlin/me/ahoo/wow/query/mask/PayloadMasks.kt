@@ -55,9 +55,16 @@ import java.util.concurrent.ConcurrentHashMap
  * ([me.ahoo.wow.query.QueryCaller.revealsDisplay]) is masked by the schema's `CONFIDENTIAL` masks alone, compiled on
  * its first such read.
  *
+ * **A read answers only what its schema declares** ([DeclaredOnly]): a property of a closed object that the schema
+ * does not declare is removed from a state, from the body of an event the Manifest knows at its revision, and from a
+ * scheduled command, such as one a newer node's version added, which could be sensitive there. An open object, a typed
+ * map's or a free one, keeps its properties.
+ *
  * They are the node's [StateMasks] too ([stateMaskOf], [eventMaskOf]): a writer that stores or publishes a state or an
  * event's body where a reader takes it as a read, the state view cache's sink or the transport sink, masks it by the
- * very function a read applies. An event is found by its name once, then by the name it was asked by.
+ * very masks a read applies, without removing what the schema does not declare: what it publishes is the node's own
+ * serialisation, and a state of nothing sensitive is published as its text. An event is found by its name once, then
+ * by the name it was asked by.
  *
  * A schedule's event, `wow.schedule.ScheduleSet`, holds the body of the command it will send: that `command` is masked
  * as a body of its command type (`commandType`, `context.aggregate.Command`) is, by its schema in [manifest] or, for a
@@ -98,7 +105,7 @@ class PayloadMasks(
 
     override fun stateMaskOf(type: AggregateType, revealsDisplay: Boolean): ((JsonNode) -> JsonNode)? {
         val aggregate = aggregate(type) ?: return null
-        return maskOf(MaskKey(type.context, aggregate.state.schema, revealsDisplay))
+        return maskOf(MaskKey(type.context, aggregate.state.schema, revealsDisplay, prunes = false))
     }
 
     /**
@@ -131,17 +138,20 @@ class PayloadMasks(
      */
     override fun eventMaskOf(type: AggregateType, event: String, revealsDisplay: Boolean): ((JsonNode) -> JsonNode)? {
         if (event == Schedules.SCHEDULE_SET) {
-            return { body -> scheduled(body, revealsDisplay) }
+            return { body -> scheduled(body, revealsDisplay, prunes = false) }
         }
         if (event in FRAMEWORK_EVENTS) {
             return null
         }
         val schema = eventSchema(type, event) ?: return if (masksUnknown) WHOLE else null
-        return maskOf(MaskKey(type.context, schema.ref, revealsDisplay))
+        return maskOf(MaskKey(type.context, schema.ref, revealsDisplay, prunes = false))
     }
 
-    /** [body], a schedule's event, with the command it holds masked as a body of its command type; masked in place. */
-    private fun scheduled(body: JsonNode, revealsDisplay: Boolean): JsonNode {
+    /**
+     * [body], a schedule's event, with the command it holds masked as a body of its command type; masked in place, and
+     * answering only what that schema declares when it [prunes] (a read).
+     */
+    private fun scheduled(body: JsonNode, revealsDisplay: Boolean, prunes: Boolean = true): JsonNode {
         val event = body as? ObjectNode ?: return unknown(body)
         val command = event.get(COMMAND) ?: return event
         val schema = event.get(COMMAND_TYPE)?.takeIf { it.isString }?.stringValue()?.let(::commandSchema)
@@ -149,7 +159,7 @@ class PayloadMasks(
             event.set(COMMAND, unknown(command))
             return event
         }
-        event.set(COMMAND, mask(MaskKey(schema.context, schema.ref, revealsDisplay, schema.source), command))
+        event.set(COMMAND, mask(MaskKey(schema.context, schema.ref, revealsDisplay, schema.source, prunes), command))
         return event
     }
 
@@ -222,15 +232,19 @@ class PayloadMasks(
             extensionRoots = null,
         )
         val schema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), logical, emptyMap())
-        return SchemaMasker.create(schema, key.revealsDisplay)
+        return SchemaMasker.create(schema, key.revealsDisplay, key.prunes)
     }
 
-    /** A schema to mask by: [schema] of [context], in the Manifest [source] of [manifests] (the node's own: 0). */
+    /**
+     * A schema to mask by: [schema] of [context], in the Manifest [source] of [manifests] (the node's own: 0); a read's
+     * mask answers only what it declares, a writer's does not ([prunes] false).
+     */
     private data class MaskKey(
         val context: String,
         val schema: String,
         val revealsDisplay: Boolean = false,
         val source: Int = 0,
+        val prunes: Boolean = true,
     )
 
     /** A command type's schema [ref] in [context], declared by the Manifest [source] of [manifests]. */
