@@ -17,6 +17,8 @@ import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import tools.jackson.module.kotlin.jacksonObjectMapper
+import java.nio.file.Path
+import kotlin.io.path.readText
 
 /**
  * The markers of `requires` on the Manifest, a context and an aggregate (D484 ⑦ F13): a reader refuses the whole
@@ -24,13 +26,19 @@ import tools.jackson.module.kotlin.jacksonObjectMapper
  * sorted and distinct.
  */
 class ManifestRequiresTest {
+    private companion object {
+        /**
+         * The table, in wow-client's `fixtures/` (not its `test/`: two TypeScript packages read it, and CI reruns only
+         * the owning package for a change under `test/`); the module's directory is the test's working directory.
+         */
+        val CASES: Path =
+            Path.of("..", "..", "typescript", "wow-client", "fixtures", "manifest-requires-cases.json")
+    }
+
     @Test
     fun `a marker this reader does not understand should refuse the Manifest wherever it stands, naming where`() {
         // The table every Manifest reader holds to: wow-client's checkManifest, wow-generator's validateManifest too.
-        val table = jacksonObjectMapper().readValue(
-            requireNotNull(javaClass.getResource("/manifest-requires-cases.json")).readText(),
-            Map::class.java,
-        )
+        val table = jacksonObjectMapper().readValue(CASES.readText(), Map::class.java)
         val cases = table["cases"] as List<*>
         cases.size.assert().isEqualTo(7)
         cases.map { it as Map<*, *> }.forEach { case ->

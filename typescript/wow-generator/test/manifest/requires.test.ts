@@ -32,10 +32,10 @@ import {
   validateManifest,
 } from '../../src/manifest/document';
 
-/** The table of `api/manifest`, which the Kotlin and the client's readers hold to too. */
+/** wow-client's table, which the Kotlin reader's and the client's tests hold their readers to too. */
 const CASES = join(
   import.meta.dirname,
-  '../../../../api/manifest/src/test/resources/manifest-requires-cases.json',
+  '../../../wow-client/fixtures/manifest-requires-cases.json',
 );
 
 const { cases } = JSON.parse(readFileSync(CASES, 'utf8')) as {

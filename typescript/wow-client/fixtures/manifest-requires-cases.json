@@ -1,5 +1,5 @@
 {
-  "description": "Manifests that require a marker no reader understands yet, and what each reader refuses them for. Every Manifest reader holds to this table: ManifestTree.read (ManifestRequiresCasesTest), @ahoo-wang/wow-client's checkManifest and @ahoo-wang/wow-generator's validateManifest. Each refusal names the level and the node, and the markers sorted and distinct; the first marker the walk meets (the Manifest's, then each context in order, its own before its aggregates') is the one refused.",
+  "description": "Manifests that require a marker no reader understands yet, and what each reader refuses them for. Every Manifest reader holds to this table: ManifestTree.read (api/manifest's ManifestRequiresTest), @ahoo-wang/wow-client's checkManifest and @ahoo-wang/wow-generator's validateManifest. Each refusal names the level and the node, and the markers sorted and distinct; the first marker the walk meets (the Manifest's, then each context in order, its own before its aggregates') is the one refused.",
   "cases": [
     {
       "name": "the Manifest",

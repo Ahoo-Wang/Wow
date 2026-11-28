@@ -18,14 +18,13 @@
  */
 
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { checkManifest, type RoutingManifest } from '../src/manifest.js';
 
-/** The table of `api/manifest`, which the Kotlin and the generator's readers hold to too. */
-const CASES = join(
-  import.meta.dirname,
-  '../../../api/manifest/src/test/resources/manifest-requires-cases.json',
+/** The table the Kotlin reader's and the generator's tests hold their readers to too. */
+const CASES = new URL(
+  '../fixtures/manifest-requires-cases.json',
+  import.meta.url,
 );
 
 interface RequiresCase {
