@@ -19,8 +19,10 @@ import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationGroupScope
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.fields
 import me.ahoo.wow.api.query.inputExpression
 import me.ahoo.wow.query.aggregation.PreviousStep
 import me.ahoo.wow.query.aggregation.requireSupported
@@ -46,18 +48,39 @@ internal class AggregationResolution(private val resolver: QueryResolver) {
         requireSupported(query, resolver.schema.storage)
         val filter = resolver.filter(query.filter, At(ROOT))
         var scope = ROOT
-        val elements = query.elements.map { element ->
+        // What each element's expansion keeps besides its own filter: the events an inner element or a group reads.
+        val guards = ArrayList<MutableList<FilterExpression>>()
+        val elements = query.elements.mapIndexed { index, element ->
             val reference = resolver.reference(element.path, scope, QueryCapability.ELEMENT_SCOPE)
             val path = resolver.register(reference, scope)
+            // An expansion below a body array expands only the events that declare it.
+            resolver.declaredBodies(scope)?.guard(listOf(path))?.let { guards[index - 1] += it }
             scope = resolver.elementScope(reference, path)
+            guards += ArrayList<FilterExpression>()
             AggregationElement(path, resolver.storedEvents(resolver.filter(element.filter, At(scope)), scope))
         }
         val inner = scope
+        // A ROOT group reads its field on the record the elements belong to (AggregationGroup.scope).
+        val groupBy = query.groupBy.map { group(it, if (it.scope == AggregationGroupScope.ROOT) ROOT else inner) }
+        // A group over a body path groups only the events that declare it: the others hold no key, not the null one.
+        resolver.declaredBodies(inner)?.let { bodies ->
+            groupBy.filter { it.scope != AggregationGroupScope.ROOT }
+                .mapNotNull { bodies.guard(it.reads()) }
+                .let(guards.last()::addAll)
+        }
         val aggregation = query.copy(
             filter = filter,
-            elements = elements,
-            // A ROOT group reads its field on the record the elements belong to (AggregationGroup.scope).
-            groupBy = query.groupBy.map { group(it, if (it.scope == AggregationGroupScope.ROOT) ROOT else inner) },
+            elements = elements.mapIndexed { index, element ->
+                if (guards[index].isEmpty()) {
+                    element
+                } else {
+                    AggregationElement(
+                        element.path,
+                        QueryResolver.normalizer.simplifyAnd(listOf(element.filter) + guards[index]),
+                    )
+                }
+            },
+            groupBy = groupBy,
             metrics = query.metrics.map { metric(it, inner) },
         )
         PreviousStep.of(aggregation).forEach { step ->
@@ -99,8 +122,19 @@ internal class AggregationResolution(private val resolver: QueryResolver) {
         }
     }
 
-    /** A metric: its filter first, then its inputs. */
+    /**
+     * A metric: its filter first, then its inputs; in the `events` scope, its filter then holds it to the events that
+     * declare the body paths it reads and filters on ([DeclaredBodies]).
+     */
     private fun metric(metric: AggregationMetric, scope: Scope): AggregationMetric {
+        val resolved = inputs(metric, scope)
+        val bodies = resolver.declaredBodies(scope) ?: return resolved
+        val own = if (resolved.filter === MatchAllFilter) resolved.filter else bodies.filter(resolved.filter)
+        val filter = bodies.guard(resolved.reads())?.let { QueryResolver.normalizer.simplifyAnd(listOf(own, it)) } ?: own
+        return if (filter === resolved.filter) resolved else resolved.withFilter(filter)
+    }
+
+    private fun inputs(metric: AggregationMetric, scope: Scope): AggregationMetric {
         val filter = if (metric.filter === MatchAllFilter) {
             metric.filter
         } else {
@@ -141,6 +175,31 @@ internal class AggregationResolution(private val resolver: QueryResolver) {
             }
             is AggregationMetric.Derived -> metric
         }
+    }
+
+    /** The fields this resolved group reads its keys from. */
+    private fun AggregationGroup.reads(): List<QueryField<*>> =
+        inputExpression?.fields ?: listOfNotNull(field)
+
+    /** The fields this resolved metric reads its values from (an edge's order among them). */
+    private fun AggregationMetric.reads(): List<QueryField<*>> = when (this) {
+        is AggregationMetric.Count, is AggregationMetric.Derived -> emptyList()
+        is AggregationMetric.Any -> listOf(field)
+        is AggregationMetric.Numeric -> expression.fields
+        is AggregationMetric.Percentile -> expression.fields
+        is AggregationMetric.DistinctCount -> expression.fields
+        is AggregationMetric.Edge -> listOfNotNull(field, orderBy)
+    }
+
+    private fun AggregationMetric.withFilter(filter: FilterExpression): AggregationMetric = when (this) {
+        is AggregationMetric.Count -> copy(filter = filter)
+        is AggregationMetric.Any -> copy(filter = filter)
+        is AggregationMetric.Numeric -> copy(filter = filter)
+        is AggregationMetric.Percentile -> copy(filter = filter)
+        is AggregationMetric.DistinctCount -> copy(filter = filter)
+        is AggregationMetric.First -> copy(filter = filter)
+        is AggregationMetric.Last -> copy(filter = filter)
+        is AggregationMetric.Derived -> this
     }
 
     /** FIRST / LAST read one single value and order by one single sortable value, neither of them protected. */

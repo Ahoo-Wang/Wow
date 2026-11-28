@@ -27,12 +27,16 @@ import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CountResult
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.EqualFilter
+import me.ahoo.wow.api.query.GreaterThanFilter
 import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
 import me.ahoo.wow.api.query.InFilter
 import me.ahoo.wow.api.query.IsNotNullFilter
 import me.ahoo.wow.api.query.IsNullFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.NotEqualFilter
+import me.ahoo.wow.api.query.NotExistsFilter
+import me.ahoo.wow.api.query.NotInFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
@@ -40,6 +44,7 @@ import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.TotalMode
 import me.ahoo.wow.query.QueryCaller
@@ -206,6 +211,39 @@ abstract class EventQueryBackendSpec : EventAnalyticsCases() {
             given().list(ListQuery(events(EqualFilter(QueryField("body.amount"), 10))))
         }
     }
+
+    // A body path means that path in the events that declare it, at a revision this node knows
+
+    @Test
+    fun `a body condition matches only the events that declare its path, at a revision the node knows`() = blocking {
+        val fixture = given(undeclaredStreams())
+        fixture.keys(events(EqualFilter(SKU, "A"))).assert().containsExactly("u1@1")
+        fixture.keys(events(EqualFilter(SKU, UNKNOWN_SKU))).assert().isEmpty()
+        fixture.keys(events(EqualFilter(SKU, NEWER_SKU))).assert().isEmpty()
+        fixture.keys(events(StartsWithFilter(SKU, "sku-of-"))).assert().isEmpty()
+        fixture.keys(events(GreaterThanOrEqualFilter(QTY, 5))).assert().isEmpty()
+        Unit
+    }
+
+    @Test
+    fun `a body condition does not match an older revision of an event that no longer declares its path`() = blocking {
+        val fixture = given(undeclaredStreams())
+        fixture.keys(events(EqualFilter(SKU, OLDER_SKU))).assert().isEmpty()
+        fixture.keys(events(AndFilter(listOf(name("OrderPaid"), GreaterThanFilter(QTY, 8))))).assert().isEmpty()
+        Unit
+    }
+
+    @Test
+    fun `a condition that matches an absent field reads the path as absent on the events that do not declare it`() =
+        blocking {
+            val fixture = given(undeclaredStreams())
+            val undeclared = arrayOf("u2@1", "u3@1", "u4@1", "u5@1")
+            fixture.keys(events(NotEqualFilter(SKU, UNKNOWN_SKU))).assert().containsExactly("u1@1", *undeclared)
+            fixture.keys(events(NotInFilter(SKU, listOf("A", NEWER_SKU)))).assert().containsExactly(*undeclared)
+            fixture.keys(events(NotExistsFilter(SKU))).assert().containsExactly(*undeclared)
+            fixture.keys(events(IsNullFilter(SKU))).assert().containsExactly(*undeclared)
+            Unit
+        }
 
     @Test
     fun `an event field outside its element scope is rejected`() {

@@ -249,6 +249,11 @@ class QueryModelSchema(
     /** How responses are masked, or `null` when the model masks nothing. */
     internal val maskDefinition = QueryMaskDefinition.create(this)
 
+    /** Which events declare each path of their bodies, for an `events` model ([EventBodyDeclarations]); else `null`. */
+    internal val eventBodies: EventBodyDeclarations? by lazy(LazyThreadSafetyMode.PUBLICATION) {
+        (profile as? EventsQueryModelProfile)?.let { EventBodyDeclarations.of(root, it) }
+    }
+
     /**
      * How the responses of a query that reveals `DISPLAY` values are masked ([QueryCaller.revealsDisplay][me.ahoo.wow.
      * query.QueryCaller.revealsDisplay]), or `null` when the model masks nothing else: compiled on the first such query.

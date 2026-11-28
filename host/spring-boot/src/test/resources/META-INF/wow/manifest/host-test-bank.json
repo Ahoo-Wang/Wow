@@ -100,6 +100,27 @@
         "name" : "ix_account_owner",
         "keys" : [ "state.owner" ]
       } ]
+    },
+    "AccountOpened" : {
+      "type" : "object",
+      "properties" : {
+        "owner" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "owner" ],
+      "x-wow-class" : "me.ahoo.wow.spring.boot.AccountOpened"
+    },
+    "Deposited" : {
+      "type" : "object",
+      "properties" : {
+        "amount" : {
+          "type" : "integer",
+          "format" : "int64"
+        }
+      },
+      "required" : [ "amount" ],
+      "x-wow-class" : "me.ahoo.wow.spring.boot.Deposited"
     }
   }
 }

@@ -342,17 +342,25 @@ internal class QueryResolver(
     /**
      * [predicate], resolved in [scope], as the events model's log stores the events when [scope] is its `events`
      * array ([EventsQueryModelProfile]): a condition on an event's name also matches the names the event is stored
-     * under (its aliases), and an event of a retired name never matches, since a record never shows
+     * under (its aliases), a condition on its body reads only the events that declare the path, at a revision this
+     * node knows ([DeclaredBodies]), and an event of a retired name never matches, since a record never shows
      * one. Any other scope keeps [predicate].
      */
     internal fun storedEvents(predicate: FilterExpression, scope: Scope): FilterExpression {
-        val profile = schema.profile as? EventsQueryModelProfile ?: return predicate
-        if (scope.logical != profile.eventsField) return predicate
-        val named = storedNames(predicate, profile)
+        val bodies = declaredBodies(scope) ?: return predicate
+        val profile = schema.profile as EventsQueryModelProfile
+        val named = bodies.filter(storedNames(predicate, profile))
         if (profile.retired.isEmpty()) return named
         val name = reference(profile.nameField, scope, QueryCapability.EXACT_MATCH)
         val retired = NotInFilter(register(name, scope), profile.retired.toList())
         return normalizer.simplifyAnd(listOf(named, retired))
+    }
+
+    /** The rule of the `events` model's body paths in [scope] ([DeclaredBodies]); `null` in any other scope or model. */
+    internal fun declaredBodies(scope: Scope): DeclaredBodies? {
+        val bodies = schema.eventBodies ?: return null
+        if (scope.logical != bodies.events) return null
+        return DeclaredBodies(this, bodies, scope)
     }
 
     /** [filter] with each equality of an event's name widened to the names the event is stored under. */
