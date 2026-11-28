@@ -56,10 +56,21 @@ internal class ElasticsearchIndices(private val client: ElasticsearchAsyncClient
      * Either way it returns once the index's primary shard serves requests ([awaitActive]): an index just created,
      * here or by another node a moment ago, recovers its primary before it takes a read or a write, and a first write
      * that races the recovery is answered `503`.
+     *
+     * A missing alias that [removed] says was removed under its owner's record is neither created nor refused: the
+     * answer is then false, true otherwise (`none` included, which checks nothing).
      */
-    suspend fun ensure(index: String, kind: String, format: Int, definition: String, ddl: Ddl) {
-        if (!ddl.checks) return
+    suspend fun ensure(
+        index: String,
+        kind: String,
+        format: Int,
+        definition: String,
+        ddl: Ddl,
+        removed: suspend () -> Boolean = { false },
+    ): Boolean {
+        if (!ddl.checks) return true
         var found = resolve(index)
+        if (found == Found.Missing && removed()) return false
         if (found == Found.Missing && ddl.creates) {
             create(index, definition)
             found = resolve(index)
@@ -77,6 +88,7 @@ internal class ElasticsearchIndices(private val client: ElasticsearchAsyncClient
             }
         }
         awaitActive(index)
+        return true
     }
 
     /**

@@ -1449,11 +1449,13 @@ public final class me/ahoo/wow/spi/snapshot/SnapshotTable {
 	public final fun getCatchingUp ()Z
 	public final fun getFill ()Lme/ahoo/wow/spi/snapshot/SnapshotFill;
 	public final fun getRebuilding ()Z
+	public final fun getRemoved ()Z
 	public final fun getRevision ()I
 	public fun hashCode ()I
 	public static final fun of (ILme/ahoo/wow/spi/snapshot/SnapshotFill;)Lme/ahoo/wow/spi/snapshot/SnapshotTable;
 	public static final fun of (IZLme/ahoo/wow/spi/snapshot/SnapshotFill;)Lme/ahoo/wow/spi/snapshot/SnapshotTable;
 	public static final fun of (IZZLme/ahoo/wow/spi/snapshot/SnapshotFill;)Lme/ahoo/wow/spi/snapshot/SnapshotTable;
+	public static final fun of (IZZLme/ahoo/wow/spi/snapshot/SnapshotFill;Z)Lme/ahoo/wow/spi/snapshot/SnapshotTable;
 	public fun toString ()Ljava/lang/String;
 }
 
@@ -1461,7 +1463,8 @@ public final class me/ahoo/wow/spi/snapshot/SnapshotTable$Companion {
 	public final fun of (ILme/ahoo/wow/spi/snapshot/SnapshotFill;)Lme/ahoo/wow/spi/snapshot/SnapshotTable;
 	public final fun of (IZLme/ahoo/wow/spi/snapshot/SnapshotFill;)Lme/ahoo/wow/spi/snapshot/SnapshotTable;
 	public final fun of (IZZLme/ahoo/wow/spi/snapshot/SnapshotFill;)Lme/ahoo/wow/spi/snapshot/SnapshotTable;
-	public static synthetic fun of$default (Lme/ahoo/wow/spi/snapshot/SnapshotTable$Companion;IZZLme/ahoo/wow/spi/snapshot/SnapshotFill;ILjava/lang/Object;)Lme/ahoo/wow/spi/snapshot/SnapshotTable;
+	public final fun of (IZZLme/ahoo/wow/spi/snapshot/SnapshotFill;Z)Lme/ahoo/wow/spi/snapshot/SnapshotTable;
+	public static synthetic fun of$default (Lme/ahoo/wow/spi/snapshot/SnapshotTable$Companion;IZZLme/ahoo/wow/spi/snapshot/SnapshotFill;ZILjava/lang/Object;)Lme/ahoo/wow/spi/snapshot/SnapshotTable;
 }
 
 public final class me/ahoo/wow/spi/state/PublishedState {

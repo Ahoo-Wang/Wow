@@ -525,6 +525,45 @@ abstract class SnapshotStoreSpec {
         claimed.map { it.fill }.distinct().assert().containsExactly(recorded)
     }
 
+    /**
+     * Removes [aggregate]'s table, its index, table or collection, under its record, as an operator would; false when
+     * the store cannot, which skips the cases that need it.
+     */
+    protected open suspend fun removeTable(aggregate: AggregateType): Boolean = false
+
+    @Test
+    fun `a table removed under its record should be served no more, its record saying removed from then on`(): Unit =
+        runBlocking {
+            val store = createStore()
+            val claimedOnly = AggregateType(context, "claimed")
+            store.rebuild.claim(type, 1, SUBSCRIPTION)
+            store.rebuild.claim(claimedOnly, 1, SUBSCRIPTION)
+            store.rebuild.mark(type, 1, backfilled = true)
+            store.save(snapshot("a", 1)).assert().isTrue()
+            assumeTrue(removeTable(type), "The store cannot remove a table.")
+            // As a node that starts again finds it.
+            val restarted = createStore()
+            restarted.rebuild.table(type).assert().isEqualTo(SnapshotTable(1, fill = SUBSCRIPTION, removed = true))
+            // The first claim made the table before recording it: one claimed and never written is not removed.
+            restarted.rebuild.table(claimedOnly)!!.removed.assert().isFalse()
+            val ref = type.ref("tenant", "a")
+            restarted.save(snapshot("a", 2)).assert().isFalse()
+            restarted.saveAll(listOf(snapshot("a", 3), snapshot("b", 1))).map { it.written }.assert()
+                .containsExactly(false, false)
+            restarted.rebuild.rewrite(snapshot("a", 3)).assert().isFalse()
+            restarted.rebuild.markStale(ref).assert().isFalse()
+            restarted.load(ref).assert().isNull()
+            restarted.rebuild.pending(type, 2, limit = 10).assert().isEmpty()
+            restarted.rebuild.claim(type, 2, SUBSCRIPTION).removed.assert().isTrue()
+            restarted.rebuild.mark(type, 2, rebuilding = false, backfilled = true)!!.removed.assert().isTrue()
+            // Recorded, it stays removed for every store after, which does not create it again.
+            val later = createStore()
+            later.rebuild.table(type)!!.removed.assert().isTrue()
+            later.save(snapshot("a", 4)).assert().isFalse()
+            later.load(ref).assert().isNull()
+            later.rebuild.table(claimedOnly)!!.removed.assert().isFalse()
+        }
+
     protected companion object {
         private const val CONTEXT_SUFFIX = 12
         private const val CONCURRENT_VERSIONS = 32

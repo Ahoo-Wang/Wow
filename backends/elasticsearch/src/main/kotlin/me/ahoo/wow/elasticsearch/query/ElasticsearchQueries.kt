@@ -23,6 +23,7 @@ import me.ahoo.wow.elasticsearch.maxConnectionsPerRoute
 import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapter
 import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotDocuments
 import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotIndex
+import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotTables
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.query.index.QueryIndexPlan
@@ -111,13 +112,14 @@ internal class ElasticsearchSnapshotQueries(
     override fun prepare(type: AggregateType) {
         if (!indexDdl.creates) return
         runBlocking {
+            // One missing under its table's record was removed: it is not created again (the store finds it so).
             ElasticsearchIndices(client).ensure(
                 names.snapshots(type.context, type.name),
                 ElasticsearchSnapshotIndex.KIND,
                 ElasticsearchSnapshotIndex.FORMAT,
                 ElasticsearchSnapshotIndex.DEFINITION,
                 indexDdl,
-            )
+            ) { ElasticsearchSnapshotTables.recorded(client, names, type.context, type.name) }
         }
     }
 

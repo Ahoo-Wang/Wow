@@ -44,6 +44,18 @@ curl -X POST "http://<service>/<context>/<aggregate>/wow.snapshot.rebuild-snapsh
 
 类型的快照首次写入的存储，会从日志开头填充。这包括类型自己的存储换成另一个（`wow.snapshot.store`，或 `wow.aggregates.[<context>.<aggregate>].snapshot.store`），也包括它的查询读取的一份副本（`.query.snapshot.store`），例如在 PostgreSQL 旁边加一个 Elasticsearch 索引。新存储自己的快照订阅从开头开始；订阅早已越过开头的存储（包括默认存储），则由一个它自己的订阅填充，存储追平后这个订阅就停止。在此期间，这个类型的快照查询回答 `rebuilding`。所以换存储就是从日志回填：在某个聚合的快照写到新存储之前加载它的命令，会重放它的历史，旧存储保持原样。
 
+## 在记录之下被删除的快照表 {#a-snapshot-table-removed-under-its-record}
+
+存储会先建出聚合类型的快照表（Elasticsearch 索引、PostgreSQL 表、MongoDB 集合），再把这张表记录到 `wow_snapshot_table`，此后不再建它。记录还在而表不在，就是表在记录之下被删除了：它不含日志之前提交的任何内容，所以绝不会以空表对外服务。
+
+- **它的查询被拒绝**，回答 `wow.query.dataset-unavailable`（409），并说明原因。不会从它回答任何内容。
+- **它的加载读日志**，所以这个类型的命令和状态读取照常进行，每次都重放聚合的历史。
+- **不向它写入任何内容。**存储的快照订阅越过这个类型的条目，不停放任何条目：它们属于日志。[重建请求](#snapshots-rebuild-some-on-request)或提高的状态修订号同样不向它写入，也从不把它标记为已重建。
+- **节点记录一条错误**，在启动时和发现这张表被删除时，指名类型、存储以及恢复它的办法。此后这张表的记录对每个节点都标明 `removed`。
+- **把表放回去也不会让它重新对外服务**，无论是从备份还是手工：一旦记录，它就保持删除状态，直到从日志开头重新填充。
+
+存储在启动后第一次使用这张表时发现它。在运行中的节点上，Elasticsearch 在写入错过索引时发现，MongoDB 在下一轮维护时发现（`wow.snapshot.maintenance-interval`）。在那一轮之前，写入会重新建出集合（MongoDB 对任何写入都会这样做），这个类型的查询回答此后写入的内容。PostgreSQL 在下次启动时发现，在那之前它的写入失败。`ddl: none` 下的存储无从判断；原地清空的表（按查询删除、`TRUNCATE`、`deleteMany`）也不算不在。
+
 ## 访问属性 {#access-attributes}
 
 每条流都记下聚合在这次提交之后的访问属性（属主与空间也在其中），快照和各 Sink 的记录也一样。一次提交改变了它们时，内置订阅 `wow.access` 把新的属性盖到该聚合更早的流上，所以它的整段历史都按聚合现在的样子授权。Elasticsearch 存储的事件索引也同样跟随：它的 Sink 把变化盖到之前写下的文档上，下面的遍历连同日志一起为索引盖章。不论盖章以什么顺序到达，每一份副本都保留版本更晚的属性（`accessVersion`）。

@@ -36,7 +36,6 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.mongo.ExactBson
 import me.ahoo.wow.mongo.MongoDatabases
 import me.ahoo.wow.mongo.MongoFailures
@@ -48,7 +47,6 @@ import me.ahoo.wow.mongo.MongoSharding
 import me.ahoo.wow.mongo.MongoShards
 import me.ahoo.wow.mongo.MongoTimeouts
 import me.ahoo.wow.mongo.conditionalUpsert
-import me.ahoo.wow.mongo.isDuplicateKey
 import me.ahoo.wow.mongo.mongo
 import me.ahoo.wow.mongo.mongoRead
 import me.ahoo.wow.spi.Ddl
@@ -71,6 +69,7 @@ import org.bson.BsonMinKey
 import org.bson.BsonString
 import org.bson.Document
 import org.bson.conversions.Bson
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration
 
 /**
@@ -132,6 +131,12 @@ class MongoSnapshotStore(
     /** The collections whose key and format this store has made sure of, by aggregate name, each once. */
     private val ensured = EnsuredOnce<String, MongoCollection<Document>>()
 
+    /** The aggregate types whose collection was removed under its record: served no more ([SnapshotTable.removed]). */
+    private val removed = ConcurrentHashMap.newKeySet<String>()
+
+    /** The registry of the snapshot collections, [TABLES]. */
+    private val tables = MongoSnapshotTables(database, ddl)
+
     /**
      * Nothing to create up front: each aggregate type's collection is created on its first use ([createCollection]),
      * since the store does not know the context's aggregate types. Kept for the host, which calls it at startup.
@@ -146,8 +151,20 @@ class MongoSnapshotStore(
         collectionOf(aggregateName)
     }
 
-    private fun collectionOf(aggregate: String): MongoCollection<Document> =
-        ensured.get(aggregate) { ensure(aggregate) }
+    /** [aggregate]'s collection, made sure of once; null once it was removed under its record. */
+    private fun collectionOf(aggregate: String): MongoCollection<Document>? {
+        val collection = ensured.get(aggregate) {
+            val name = collectionName(context, aggregate)
+            // Read before anything creates it: a collection or its index missing under a record was removed.
+            if (tables.checked(name)?.removed == true) {
+                removed += aggregate
+                database.getCollection(name)
+            } else {
+                ensure(aggregate)
+            }
+        }
+        return collection.takeIf { aggregate !in removed }
+    }
 
     private fun ensure(aggregate: String): MongoCollection<Document> =
         ensure(database, context, aggregate, ddl).also { collection ->
@@ -159,7 +176,7 @@ class MongoSnapshotStore(
 
     override suspend fun save(snapshot: SnapshotRecord): Boolean = dispatcher.mongo {
         require(snapshot.ref.type.context == context) { "${snapshot.ref} is not in context $context." }
-        val snapshots = collectionOf(snapshot.ref.type.name)
+        val snapshots = collectionOf(snapshot.ref.type.name) ?: return@mongo false
         MongoFailures.refusing("the snapshot of ${snapshot.ref}") { saveNow(snapshots, snapshot) }
     }
 
@@ -207,7 +224,12 @@ class MongoSnapshotStore(
             try {
                 SnapshotSaveOutcome.rounds(snapshots).forEach { round ->
                     round.groupBy { snapshots[it].ref.type.name }.forEach { (aggregate, indexes) ->
-                        saveRound(collectionOf(aggregate), indexes, snapshots, outcomes, marks)
+                        val collection = collectionOf(aggregate)
+                        if (collection == null) {
+                            indexes.forEach { outcomes[it] = SnapshotSaveOutcome.of(false) }
+                        } else {
+                            saveRound(collection, indexes, snapshots, outcomes, marks)
+                        }
                     }
                 }
                 marks?.read()
@@ -287,7 +309,7 @@ class MongoSnapshotStore(
 
     override suspend fun rewrite(snapshot: SnapshotRecord): Boolean = dispatcher.mongo {
         require(snapshot.ref.type.context == context) { "${snapshot.ref} is not in context $context." }
-        val snapshots = collectionOf(snapshot.ref.type.name)
+        val snapshots = collectionOf(snapshot.ref.type.name) ?: return@mongo false
         upsert(snapshots, Filters.and(keyFilter(snapshot.ref), Filters.lte(VERSION, snapshot.version)), snapshot)
     }
 
@@ -326,7 +348,8 @@ class MongoSnapshotStore(
     override suspend fun markStale(ref: AggregateRef): Boolean = dispatcher.mongo {
         require(ref.type.context == context) { "$ref is not in context $context." }
         val stale = Document("\$max", listOf("\$$STALE_VERSION", "\$$VERSION"))
-        collectionOf(ref.type.name).updateOne(
+        val snapshots = collectionOf(ref.type.name) ?: return@mongo false
+        snapshots.updateOne(
             keyFilter(ref),
             listOf(Document("\$set", Document(STALE_VERSION, stale))),
         ).matchedCount > 0
@@ -346,7 +369,8 @@ class MongoSnapshotStore(
         } else {
             Filters.and(pending, Filters.gt(ID, keyOf(after)))
         }
-        collectionOf(type.name).find(filter)
+        val snapshots = collectionOf(type.name) ?: return@mongo emptyList()
+        snapshots.find(filter)
             .projection(Projections.include(TENANT_ID, AGGREGATE_ID))
             .sort(Sorts.ascending(ID))
             .limit(limit)
@@ -356,7 +380,8 @@ class MongoSnapshotStore(
 
     override suspend fun table(type: AggregateType): SnapshotTable? = dispatcher.mongo {
         require(type.context == context) { "$type is not in context $context." }
-        tables.find(Filters.eq(ID, collectionName(context, type.name))).first()?.let(::tableOf)
+        // Each round reads whether the collection is still there: an insert recreates a dropped one, without its index.
+        tables.checked(collectionName(context, type.name))?.also { if (it.removed) removed += type.name }
     }
 
     override suspend fun claim(
@@ -367,23 +392,9 @@ class MongoSnapshotStore(
     ): SnapshotTable = dispatcher.mongo {
         require(type.context == context) { "$type is not in context $context." }
         require(revision >= 1) { "A state revision starts at 1." }
-        val structure = collectionName(context, type.name)
-        try {
-            tables.insertOne(
-                Document(ID, structure).append(REVISION, revision).append(REBUILDING, revision != 1)
-                    .append(BACKFILLED, false).append(FILL, WireNames.of(fill)),
-            )
-        } catch (failure: MongoWriteException) {
-            if (!failure.isDuplicateKey()) {
-                throw failure
-            }
-            val changes = if (lower) Filters.ne(REVISION, revision) else Filters.lt(REVISION, revision)
-            tables.updateOne(
-                Filters.and(Filters.eq(ID, structure), changes),
-                Updates.combine(Updates.set(REVISION, revision), Updates.set(REBUILDING, true)),
-            )
-        }
-        tableOf(checkNotNull(tables.find(Filters.eq(ID, structure)).first()))
+        // The collection before the record: one missing under a record was removed, not yet created.
+        collectionOf(type.name)
+        tables.claim(collectionName(context, type.name), revision, fill, lower)
     }
 
     override suspend fun mark(
@@ -393,48 +404,13 @@ class MongoSnapshotStore(
         backfilled: Boolean?,
     ): SnapshotTable? = dispatcher.mongo {
         require(type.context == context) { "$type is not in context $context." }
-        val filter = Filters.and(Filters.eq(ID, collectionName(context, type.name)), Filters.eq(REVISION, revision))
-        val changes = listOfNotNull(
-            rebuilding?.let { Updates.set(REBUILDING, it) },
-            backfilled?.let { Updates.set(BACKFILLED, it) },
-        )
-        val marked = if (changes.isEmpty()) {
-            tables.find(filter).first()
-        } else {
-            tables.findOneAndUpdate(
-                filter,
-                Updates.combine(changes),
-                FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER),
-            )
-        }
-        marked?.let(::tableOf)
+        tables.mark(collectionName(context, type.name), revision, rebuilding, backfilled)
     }
-
-    /**
-     * The registry of the snapshot collections, its format record claimed before this store first reads or writes it:
-     * a revision's claim may come before any snapshot collection is made sure of, and its insert would create the
-     * registry without its record.
-     */
-    private val tables: MongoCollection<Document> by lazy {
-        MongoFormat.claim(database, TABLES, FORMAT, ddl)
-        database.getCollection(TABLES)
-    }
-
-    private fun tableOf(document: Document) = SnapshotTable(
-        revision = document.getInteger(REVISION),
-        rebuilding = document.getBoolean(REBUILDING),
-        backfilled = document.getBoolean(BACKFILLED),
-        fill = checkNotNull(WireNames.entryOf<SnapshotFill>(document.getString(FILL))) {
-            // By its wire name; no case is added within 10.x (SnapshotFill), so one this version does not know is
-            // refused, naming it.
-            "A snapshot table's fill ${document.getString(FILL)} is not one this version of Wow reads."
-        },
-    )
 
     // Interruptible: the kernel gives up on a load past its timeout, and the read ends with it.
     override suspend fun load(ref: AggregateRef): SnapshotRecord? = dispatcher.mongoRead {
         require(ref.type.context == context) { "$ref is not in context $context." }
-        collectionOf(ref.type.name).find(keyFilter(ref)).first()?.let { snapshotOf(ref.type, it) }
+        collectionOf(ref.type.name)?.find(keyFilter(ref))?.first()?.let { snapshotOf(ref.type, it) }
     }
 
     private fun keyFilter(ref: AggregateRef): Bson = Filters.and(
@@ -561,9 +537,5 @@ class MongoSnapshotStore(
         const val ID = "_id"
         private const val KEY_TENANT = "t"
         private const val KEY_AGGREGATE = "a"
-        private const val REVISION = "revision"
-        private const val REBUILDING = "rebuilding"
-        private const val BACKFILLED = "backfilled"
-        private const val FILL = "fill"
     }
 }

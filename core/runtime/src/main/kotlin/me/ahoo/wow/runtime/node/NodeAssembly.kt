@@ -13,7 +13,9 @@
 
 package me.ahoo.wow.runtime.node
 
+import java.time.Clock
 import kotlinx.coroutines.Dispatchers
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.ContextQueries
 import me.ahoo.wow.kernel.EventCodec
@@ -71,7 +73,6 @@ import me.ahoo.wow.spi.subscription.FailureDescriber
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.wait.Origin
-import java.time.Clock
 
 /**
  * The composition root of a [ServiceNode]: it builds every part of the node, in this order, from what the host gives
@@ -356,11 +357,16 @@ internal class NodeAssembly(
     val hostedContexts: Set<String> get() = contexts.keys
 
     /**
-     * Whether the snapshots of an aggregate type are being rebuilt or backfilled on its primary target:
-     * its context's [SnapshotMaintenance.rebuilding]; false for a type whose snapshots are not kept here.
+     * Whether the snapshots of an aggregate type are being rebuilt or backfilled on its primary target, or its table was
+     * removed: its context's [SnapshotMaintenance.rebuilding] and [SnapshotMaintenance.removed]; false for a type whose
+     * snapshots are not kept here.
      */
-    val snapshotStatus: SnapshotStatus = SnapshotStatus { type ->
-        contexts[type.context]?.snapshotMaintenance?.rebuilding(type) ?: false
+    val snapshotStatus: SnapshotStatus = object : SnapshotStatus {
+        override fun rebuilding(type: AggregateType): Boolean =
+            contexts[type.context]?.snapshotMaintenance?.rebuilding(type) ?: false
+
+        override fun removed(type: AggregateType): Boolean =
+            contexts[type.context]?.snapshotMaintenance?.removed(type) ?: false
     }
 
     /** Admits the commands of every context. */

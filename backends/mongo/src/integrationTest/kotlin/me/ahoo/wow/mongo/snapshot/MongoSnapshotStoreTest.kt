@@ -39,6 +39,31 @@ import org.junit.jupiter.api.Test
 class MongoSnapshotStoreTest : SnapshotStoreSpec() {
     override fun createStore(context: String): SnapshotStore = store(context)
 
+    override suspend fun removeTable(aggregate: AggregateType): Boolean {
+        MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE)
+            .getCollection(MongoSnapshotStore.collectionName(aggregate.context, aggregate.name)).drop()
+        return true
+    }
+
+    @Test
+    fun `a collection dropped under a running store's record should be found removed by the next round`(): Unit =
+        runBlocking {
+            val context = MongoLogFixture.newContext()
+            val store = store(context)
+            val type = AggregateType(context, "aggregate")
+            store.claim(type, 1, SnapshotFill.SUBSCRIPTION, lower = false)
+            store.save(snapshot("a", 1, aggregate = type)).assert().isTrue()
+            removeTable(type)
+            // Until the round, an insert recreates the collection, without its index: MongoDB creates one for any write.
+            store.save(snapshot("b", 1, aggregate = type)).assert().isTrue()
+            store.table(type)!!.removed.assert().isTrue()
+            store.save(snapshot("b", 2, aggregate = type)).assert().isFalse()
+            store.saveAll(listOf(snapshot("c", 1, aggregate = type))).assert().containsExactly(SnapshotSaveOutcome.Refused)
+            store.load(type.ref("tenant", "b")).assert().isNull()
+            // Read at a start, the index tells it although the collection is there again.
+            store(context).table(type)!!.removed.assert().isTrue()
+        }
+
     private fun store(context: String = MongoLogFixture.newContext()) =
         MongoSnapshotStore(MongoLogFixture.client, MongoLogFixture.DATABASE, context)
             .also { it.createCollection("aggregate") }

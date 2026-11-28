@@ -48,6 +48,7 @@ import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.sql.SQLException
 import java.sql.Types
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 import javax.sql.DataSource
 
@@ -96,6 +97,9 @@ class PostgresSnapshotStore(
 
     private val created = EnsuredOnce<String, PostgresSnapshotTables>()
 
+    /** The aggregate types whose table was removed under its record: served no more ([SnapshotTable.removed]). */
+    private val removed = ConcurrentHashMap.newKeySet<String>()
+
     /**
      * Nothing to create up front: each aggregate type's table is created on its first use ([createTable]), since the
      * store does not know the context's aggregate types. Kept for the host, which calls it at startup.
@@ -117,6 +121,11 @@ class PostgresSnapshotStore(
     private fun tables(aggregateName: String): PostgresSnapshotTables = created.get(aggregateName) {
         PostgresSnapshotTables(context, aggregateName).also { tables ->
             dataSource.autoCommitted { connection ->
+                // A table missing under its record was removed, and is not created again.
+                if (ddl.checks && tables.removedUnder(connection)) {
+                    removed += aggregateName
+                    return@autoCommitted
+                }
                 PostgresFormat.schema(
                     connection,
                     ddl,
@@ -132,10 +141,14 @@ class PostgresSnapshotStore(
         }
     }
 
+    /** Whether [aggregateName]'s table was removed under its record ([SnapshotTable.removed]): it is not indexed. */
+    internal fun removed(aggregateName: String): Boolean = tables(aggregateName).let { aggregateName in removed }
+
     override suspend fun save(snapshot: SnapshotRecord): Boolean = dispatcher.jdbc {
         require(snapshot.ref.type.context == context) { "${snapshot.ref} is not in context $context." }
         val tables = tables(snapshot.ref.type.name)
-        dataSource.autoCommitted { connection -> saveIn(connection, tables, snapshot) }
+        snapshot.ref.type.name !in removed &&
+            dataSource.autoCommitted { connection -> saveIn(connection, tables, snapshot) }
     }
 
     /** The version-guarded save of [snapshot] on [connection]; a refused one marks a higher state revision stale. */
@@ -155,7 +168,8 @@ class PostgresSnapshotStore(
 
     override suspend fun rewrite(snapshot: SnapshotRecord): Boolean = dispatcher.jdbc {
         require(snapshot.ref.type.context == context) { "${snapshot.ref} is not in context $context." }
-        dataSource.autoCommitted { upsert(it, tables(snapshot.ref.type.name).rewrite, snapshot) }
+        val tables = tables(snapshot.ref.type.name)
+        snapshot.ref.type.name !in removed && dataSource.autoCommitted { upsert(it, tables.rewrite, snapshot) }
     }
 
     /**
@@ -227,6 +241,10 @@ class PostgresSnapshotStore(
         val outcomes = arrayOfNulls<SnapshotSaveOutcome>(snapshots.size)
         SnapshotSaveOutcome.rounds(snapshots).forEach { round ->
             round.groupBy { snapshots[it].ref.type.name }.toSortedMap().forEach { (aggregate, indexes) ->
+                if (aggregate in removed) {
+                    indexes.forEach { outcomes[it] = SnapshotSaveOutcome.of(false) }
+                    return@forEach
+                }
                 // In key order, so concurrent statements lock their common rows in the same order.
                 val ordered = indexes.sortedWith(compareBy(KEY_ORDER) { snapshots[it] })
                 ordered.chunked(PostgresSnapshotTables.MAX_ROWS).forEach { chunk ->
@@ -362,8 +380,9 @@ class PostgresSnapshotStore(
 
     override suspend fun markStale(ref: AggregateRef): Boolean = dispatcher.jdbc {
         require(ref.type.context == context) { "$ref is not in context $context." }
-        dataSource.autoCommitted { connection ->
-            connection.prepareStatement(tables(ref.type.name).markStale).use { mark ->
+        val tables = tables(ref.type.name)
+        ref.type.name !in removed && dataSource.autoCommitted { connection ->
+            connection.prepareStatement(tables.markStale).use { mark ->
                 mark.setString(1, ref.tenantId)
                 mark.setString(2, ref.id)
                 mark.executeUpdate() > 0
@@ -380,6 +399,7 @@ class PostgresSnapshotStore(
         require(type.context == context) { "$type is not in context $context." }
         require(limit >= 1) { "A page holds at least one ref." }
         val tables = tables(type.name)
+        if (type.name in removed) return@jdbc emptyList()
         dataSource.autoCommitted { connection ->
             connection.prepareStatement(if (after == null) tables.pendingFirst else tables.pendingAfter).use { query ->
                 query.setInt(1, revision)
@@ -404,7 +424,10 @@ class PostgresSnapshotStore(
     override suspend fun table(type: AggregateType): SnapshotTable? = dispatcher.jdbc {
         require(type.context == context) { "$type is not in context $context." }
         val tables = tables(type.name)
-        dataSource.autoCommitted { connection -> recorded(connection, tables) }
+        dataSource.autoCommitted { connection -> recorded(connection, tables) }?.also { table ->
+            // A record says removed whatever is there now: a table put back is not served.
+            if (table.removed) removed += type.name
+        }
     }
 
     override suspend fun claim(
@@ -462,13 +485,16 @@ class PostgresSnapshotStore(
             // refused, naming it.
             "A snapshot table's fill ${row.getString("fill")} is not one this version of Wow reads."
         },
+        removed = row.getBoolean("removed"),
     )
 
     // Interruptible: the kernel gives up on a load past its timeout, and the read ends with it.
     override suspend fun load(ref: AggregateRef): SnapshotRecord? = dispatcher.jdbcRead {
         require(ref.type.context == context) { "$ref is not in context $context." }
+        val tables = tables(ref.type.name)
+        if (ref.type.name in removed) return@jdbcRead null
         dataSource.autoCommitted { connection ->
-            connection.prepareStatement(tables(ref.type.name).load).use { query ->
+            connection.prepareStatement(tables.load).use { query ->
                 query.setString(1, ref.tenantId)
                 query.setString(2, ref.id)
                 query.executeQuery().use { rows -> if (rows.next()) snapshotOf(ref.type, rows) else null }

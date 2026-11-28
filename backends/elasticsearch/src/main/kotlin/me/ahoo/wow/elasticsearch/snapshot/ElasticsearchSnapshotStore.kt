@@ -60,8 +60,10 @@ import java.util.concurrent.ConcurrentHashMap
  * holding one document per aggregate, its id the tenant and the aggregate id ([ElasticsearchNames.documentId]), laid
  * out as [ElasticsearchSnapshotDocuments] and [ElasticsearchSnapshotIndex] say. An aggregate type's index is an alias
  * of one concrete index ([ElasticsearchIndices]), made sure of the first time this store touches the type, as [ddl]
- * says. Every write carries `require_alias`: a write to a missing alias is refused, naming it, instead of having
- * Elasticsearch create an index with a mapping it guesses, and under `auto` the next use creates the pair again.
+ * says ([ElasticsearchSnapshotIndexes]). Every write carries `require_alias`: a write to a missing alias is refused,
+ * naming it, instead of having Elasticsearch create an index with a mapping it guesses. Under `auto` the next use
+ * creates the pair again while its table has no record; one missing under its record was removed, and the store
+ * serves it no more ([SnapshotRebuildStore]'s **A table removed under its record**).
  *
  * Every write is a whole document, guarded by the sequence number of the one it replaces (`if_seq_no`,
  * `if_primary_term`), or created only when there is none (`op_type=create`): the store reads the document in real
@@ -93,13 +95,7 @@ class ElasticsearchSnapshotStore internal constructor(
     override val writesInFlight: Int
         get() = if (refresh == Refresh.WaitFor) WAIT_FOR_WRITES_IN_FLIGHT else SnapshotStore.DEFAULT_WRITES_IN_FLIGHT
 
-    private val indices = ElasticsearchIndices(client)
-
-    /** The indices whose definition this store has made sure of. */
-    private val ensured = ConcurrentHashMap.newKeySet<String>()
-
-    @Volatile
-    private var tablesEnsured = false
+    private val indexes = ElasticsearchSnapshotIndexes(ElasticsearchIndices(client), names, context, ddl, ::removedUnder)
 
     /**
      * Nothing to create up front: each aggregate type's index is created on its first use, since the store does not
@@ -109,55 +105,60 @@ class ElasticsearchSnapshotStore internal constructor(
 
     /** Makes sure of [aggregate]'s snapshot index, as the store's DDL mode says. */
     suspend fun createIndex(aggregate: String) {
-        indexOf(aggregate)
-    }
-
-    private suspend fun indexOf(aggregate: String): String {
-        val index = names.snapshots(context, aggregate)
-        if (index !in ensured) {
-            indices.ensure(
-                index,
-                ElasticsearchSnapshotIndex.KIND,
-                ElasticsearchSnapshotIndex.FORMAT,
-                ElasticsearchSnapshotIndex.DEFINITION,
-                ddl,
-            )
-            ensured += index
-        }
-        return index
-    }
-
-    /**
-     * Forgets that [index] was made sure of: its alias is gone (deleted under a running node, or never created under
-     * `none`), and the next use makes sure of it again, which under `auto` creates the pair afresh, empty.
-     */
-    private fun forget(index: String) {
-        if (index == names.snapshotTables) tablesEnsured = false else ensured -= index
-        if (ddl.creates) {
-            logger.warn {
-                "The Elasticsearch alias [$index] is missing, its index deleted under a running node: ddl auto " +
-                    "creates it again at the next write, empty, and what it held comes back only from a rebuild."
-            }
-        }
+        indexes.of(aggregate)
     }
 
     /** The refusal of a write to [index], whose alias does not exist. */
-    private fun missingAlias(index: String) = IllegalStateException(ElasticsearchIndices.missingAlias(index))
+    private fun missingAlias(index: String) = MissingAliasException(index)
 
-    private suspend fun tablesIndex(): String {
-        val index = names.snapshotTables
-        if (!tablesEnsured) {
-            indices.ensure(index, TABLE_KIND, TABLE_FORMAT, TABLE_DEFINITION, ddl)
-            tablesEnsured = true
+    /**
+     * [write]'s answer, or [removed] when its write missed [aggregate]'s index and its table has a record ([missed]):
+     * what the write would have written is the log's, which a refill from it writes again.
+     */
+    private suspend inline fun <T> unlessRemoved(aggregate: String, removed: T, write: () -> T): T = try {
+        write()
+    } catch (missing: MissingAliasException) {
+        if (missed(aggregate)) removed else throw missing
+    }
+
+    /**
+     * Whether [aggregate]'s index, which a write missed, was removed under its table's record, then served no more;
+     * creating nothing, so that one with no record is created by its next use, as before.
+     */
+    private suspend fun missed(aggregate: String): Boolean =
+        removedUnder(aggregate).also { if (it) indexes.removed(aggregate) }
+
+    /**
+     * Whether [aggregate]'s table has a record, its index found missing: it was then removed under it, which its record
+     * says from now on ([SnapshotTable.removed]).
+     */
+    private suspend fun removedUnder(aggregate: String): Boolean {
+        val index = indexes.tables()
+        var recorded = false
+        decide(index, names.snapshots(context, aggregate)) { stored ->
+            val table = stored?.source?.let(ElasticsearchSnapshotTables::tableOf)
+            recorded = table != null
+            if (table == null || table.removed) {
+                Decision.Keep(true)
+            } else {
+                Decision.Write(ElasticsearchSnapshotTables.document(table.copyWith(removed = true)), true)
+            }
         }
-        return index
+        if (recorded) {
+            logger.warn {
+                "The Elasticsearch alias [${names.snapshots(context, aggregate)}] is missing under its table's record " +
+                    "in [$index]: the snapshots it held were removed, and the store serves it no more."
+            }
+        }
+        return recorded
     }
 
     override suspend fun save(snapshot: SnapshotRecord): Boolean {
         checkContext(snapshot.ref)
-        val index = indexOf(snapshot.ref.type.name)
+        val aggregate = snapshot.ref.type.name
+        val index = indexes.of(aggregate) ?: return false
         val id = ElasticsearchNames.documentId(snapshot.ref)
-        return decide(index, id) { stored -> saveOver(snapshot, stored) }
+        return unlessRemoved(aggregate, false) { decide(index, id) { stored -> saveOver(snapshot, stored) } }
     }
 
     /** What a save of [snapshot] decides over [stored]: the version guard, a stale mark for a higher state revision. */
@@ -192,10 +193,21 @@ class ElasticsearchSnapshotStore internal constructor(
         snapshots.forEach { checkContext(it.ref) }
         val outcomes = arrayOfNulls<SnapshotSaveOutcome>(snapshots.size)
         SnapshotSaveOutcome.rounds(snapshots).forEach { round ->
-            round.groupBy { snapshots[it].ref.type.name }.forEach { (aggregate, indexes) ->
-                saveRound(indexOf(aggregate), indexes, snapshots, outcomes)
+            round.groupBy { snapshots[it].ref.type.name }.forEach { (aggregate, positions) ->
+                val index = indexes.of(aggregate)
+                if (index == null) {
+                    positions.forEach { outcomes[it] = SnapshotSaveOutcome.of(false) }
+                } else {
+                    saveRound(index, positions, snapshots, outcomes)
+                }
             }
         }
+        // A write that missed its index, found removed under its table's record, wrote nothing the log does not hold.
+        snapshots.indices.filter { (outcomes[it] as? SnapshotSaveOutcome.Failed)?.cause is MissingAliasException }
+            .groupBy { snapshots[it].ref.type.name }
+            .forEach { (aggregate, positions) ->
+                if (missed(aggregate)) positions.forEach { outcomes[it] = SnapshotSaveOutcome.of(false) }
+            }
         return outcomes.map { checkNotNull(it) }
     }
 
@@ -280,7 +292,7 @@ class ElasticsearchSnapshotStore internal constructor(
                 error == null -> outcomes[write.position] = SnapshotSaveOutcome.of(write.decision.result)
                 item.status() == ElasticsearchFailures.CONFLICT -> beaten += write.position
                 ElasticsearchFailures.isMissingAlias(item.status(), error.type()) -> {
-                    forget(index)
+                    indexes.forget(index)
                     outcomes[write.position] = SnapshotSaveOutcome.Failed(missingAlias(index))
                 }
                 else -> outcomes[write.position] = SnapshotSaveOutcome.Failed(
@@ -307,13 +319,16 @@ class ElasticsearchSnapshotStore internal constructor(
 
     override suspend fun rewrite(snapshot: SnapshotRecord): Boolean {
         checkContext(snapshot.ref)
-        val index = indexOf(snapshot.ref.type.name)
+        val aggregate = snapshot.ref.type.name
+        val index = indexes.of(aggregate) ?: return false
         val id = ElasticsearchNames.documentId(snapshot.ref)
-        return decide(index, id) { stored ->
-            when {
-                stored == null -> Decision.Write(ElasticsearchSnapshotDocuments.document(snapshot), true)
-                ElasticsearchSnapshotDocuments.versionOf(stored.source) > snapshot.version -> Decision.Keep(false)
-                else -> Decision.Write(replacement(snapshot, stored.source), true)
+        return unlessRemoved(aggregate, false) {
+            decide(index, id) { stored ->
+                when {
+                    stored == null -> Decision.Write(ElasticsearchSnapshotDocuments.document(snapshot), true)
+                    ElasticsearchSnapshotDocuments.versionOf(stored.source) > snapshot.version -> Decision.Keep(false)
+                    else -> Decision.Write(replacement(snapshot, stored.source), true)
+                }
             }
         }
     }
@@ -326,7 +341,11 @@ class ElasticsearchSnapshotStore internal constructor(
 
     override suspend fun markStale(ref: AggregateRef): Boolean {
         checkContext(ref)
-        val index = indexOf(ref.type.name)
+        val index = indexes.of(ref.type.name) ?: return false
+        return unlessRemoved(ref.type.name, false) { markStaleIn(index, ref) }
+    }
+
+    private suspend fun markStaleIn(index: String, ref: AggregateRef): Boolean {
         return decide(index, ElasticsearchNames.documentId(ref)) { stored ->
             if (stored == null) {
                 Decision.Keep(false)
@@ -340,7 +359,8 @@ class ElasticsearchSnapshotStore internal constructor(
 
     override suspend fun load(ref: AggregateRef): SnapshotRecord? {
         checkContext(ref)
-        val stored = read(indexOf(ref.type.name), ElasticsearchNames.documentId(ref)) ?: return null
+        val index = indexes.of(ref.type.name) ?: return null
+        val stored = read(index, ElasticsearchNames.documentId(ref)) ?: return null
         return ElasticsearchSnapshotDocuments.snapshot(ref.type, stored.source)
     }
 
@@ -352,7 +372,7 @@ class ElasticsearchSnapshotStore internal constructor(
     ): List<AggregateRef> {
         require(type.context == context) { "$type is not in context $context." }
         require(limit >= 1) { "A page holds at least one ref." }
-        val index = indexOf(type.name)
+        val index = indexes.of(type.name) ?: return emptyList()
         val request = SearchRequest.of { search ->
             search.index(index)
                 .query(pendingAt(revision))
@@ -374,32 +394,42 @@ class ElasticsearchSnapshotStore internal constructor(
 
     override suspend fun table(type: AggregateType): SnapshotTable? {
         require(type.context == context) { "$type is not in context $context." }
-        return read(tablesIndex(), names.snapshots(context, type.name))?.source?.let(::tableOf)
+        val stored = read(indexes.tables(), names.snapshots(context, type.name)) ?: return null
+        val table = ElasticsearchSnapshotTables.tableOf(stored.source)
+        // A record says removed whatever is behind the alias now: an index put back is not served.
+        if (table.removed) {
+            indexes.removed(type.name)
+            return table
+        }
+        // Its index is made sure of once it has a record: one found missing records it removed.
+        return if (indexes.of(type.name) != null) table else table.copyWith(removed = true)
     }
 
     override suspend fun claim(type: AggregateType, revision: Int, fill: SnapshotFill, lower: Boolean): SnapshotTable {
         require(type.context == context) { "$type is not in context $context." }
         require(revision >= 1) { "A state revision starts at 1." }
-        val index = tablesIndex()
+        // The index before the record: an index missing under a record was removed, not yet created.
+        indexes.of(type.name)
+        val index = indexes.tables()
         val id = names.snapshots(context, type.name)
         decide(index, id) { stored ->
             when {
                 stored == null -> {
                     val created = SnapshotTable(revision, rebuilding = revision != 1, backfilled = false, fill = fill)
-                    Decision.Write(tableDocument(created), true)
+                    Decision.Write(ElasticsearchSnapshotTables.document(created), true)
                 }
                 else -> {
-                    val claimed = tableOf(stored.source)
+                    val claimed = ElasticsearchSnapshotTables.tableOf(stored.source)
                     val changes = if (lower) claimed.revision != revision else claimed.revision < revision
                     if (changes) {
-                        Decision.Write(tableDocument(claimed.copyWith(revision = revision, rebuilding = true)), true)
+                        Decision.Write(ElasticsearchSnapshotTables.document(claimed.copyWith(revision = revision, rebuilding = true)), true)
                     } else {
                         Decision.Keep(true)
                     }
                 }
             }
         }
-        return tableOf(checkNotNull(read(index, id)).source)
+        return ElasticsearchSnapshotTables.tableOf(checkNotNull(read(index, id)).source)
     }
 
     override suspend fun mark(
@@ -409,11 +439,11 @@ class ElasticsearchSnapshotStore internal constructor(
         backfilled: Boolean?,
     ): SnapshotTable? {
         require(type.context == context) { "$type is not in context $context." }
-        val index = tablesIndex()
+        val index = indexes.tables()
         val id = names.snapshots(context, type.name)
         var marked: SnapshotTable? = null
         decide(index, id) { stored ->
-            val claimed = stored?.source?.let(::tableOf)
+            val claimed = stored?.source?.let(ElasticsearchSnapshotTables::tableOf)
             if (claimed == null || claimed.revision != revision) {
                 marked = null
                 Decision.Keep(false)
@@ -423,7 +453,7 @@ class ElasticsearchSnapshotStore internal constructor(
                     backfilled = backfilled ?: claimed.backfilled,
                 )
                 marked = changed
-                if (changed == claimed) Decision.Keep(true) else Decision.Write(tableDocument(changed), true)
+                if (changed == claimed) Decision.Keep(true) else Decision.Write(ElasticsearchSnapshotTables.document(changed), true)
             }
         }
         return marked
@@ -525,7 +555,7 @@ class ElasticsearchSnapshotStore internal constructor(
             }
             throw when {
                 ElasticsearchFailures.isIndexNotFound(failure) -> {
-                    forget(index)
+                    indexes.forget(index)
                     missingAlias(index)
                 }
                 // A document Elasticsearch cannot take (a field name it refuses, say) is refused as a value.
@@ -536,52 +566,16 @@ class ElasticsearchSnapshotStore internal constructor(
         }
     }
 
-    private fun tableOf(source: ObjectNode) = SnapshotTable(
-        revision = source.path(REVISION).intValue(),
-        rebuilding = source.path(REBUILDING).booleanValue(),
-        backfilled = source.path(BACKFILLED).booleanValue(),
-        fill = checkNotNull(WireNames.entryOf<SnapshotFill>(source.path(FILL).textValue())) {
-            // By its wire name; no case is added within 10.x (SnapshotFill), so one this version does not know is
-            // refused, naming it.
-            "A snapshot table's fill ${source.path(FILL).textValue()} is not one this version of Wow reads."
-        },
-    )
-
-    private fun tableDocument(table: SnapshotTable): ObjectNode = JsonNodeFactory.instance.objectNode()
-        .put(REVISION, table.revision)
-        .put(REBUILDING, table.rebuilding)
-        .put(BACKFILLED, table.backfilled)
-        .put(FILL, WireNames.of(table.fill))
-
     internal companion object {
         /** [writesInFlight] with `refresh: wait_for`. */
         const val WAIT_FOR_WRITES_IN_FLIGHT = 4
 
         /** How many times a write is decided again before the store gives up: each retry means another write landed. */
         const val MAX_ATTEMPTS = 128
-
-        const val TABLE_KIND = "snapshot_table"
-        const val TABLE_FORMAT = 1
-        private const val REVISION = "revision"
-        private const val REBUILDING = "rebuilding"
-        private const val BACKFILLED = "backfilled"
-        private const val FILL = "fill"
-
-        val TABLE_DEFINITION: String = """
-            {
-              "mappings": {
-                "_meta": { "wow_index": "$TABLE_KIND", "wow_format": $TABLE_FORMAT },
-                "dynamic": false,
-                "properties": {
-                  "$REVISION": { "type": "integer" },
-                  "$REBUILDING": { "type": "boolean" },
-                  "$BACKFILLED": { "type": "boolean" },
-                  "$FILL": { "type": "keyword" }
-                }
-              }
-            }
-        """.trimIndent()
     }
 }
 
 private val logger = KotlinLogging.logger {}
+
+/** A write to [index], whose alias does not exist. */
+private class MissingAliasException(index: String) : IllegalStateException(ElasticsearchIndices.missingAlias(index))

@@ -48,6 +48,7 @@ import me.ahoo.wow.query.backend.streamsByKeyset
 import me.ahoo.wow.query.cache.QueryCountCache
 import me.ahoo.wow.query.descriptor.ConstraintDescriptor
 import me.ahoo.wow.query.descriptor.QueryModelDescriptor
+import me.ahoo.wow.query.error.QueryDatasetUnavailableException
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.mask.SchemaMasker
@@ -201,6 +202,11 @@ class DefaultQueryGateway(
     private val model: QueryModel = QueryModel.SNAPSHOT,
     /** Who may read the model at all ([ReadAuthorizer]): asked once per query, before anything is read. */
     authorizer: ReadAuthorizer = ReadAuthorizer.ALLOW_ALL,
+    /**
+     * Why the model cannot be queried now, fixed words, or null while it can: asked of each query once it is admitted,
+     * which is then answered `wow.query.dataset-unavailable` with that reason ([QueryDatasetUnavailableException]).
+     */
+    private val unavailable: () -> String? = { null },
 ) : QueryGateway {
     private val admission = QueryAdmission(aggregateType, filters, policies, entryPolicy, authorizer, model)
 
@@ -336,6 +342,7 @@ class DefaultQueryGateway(
             try {
                 val admitted = admission.admit(operation, query, caller, schemaProvider::schema, trail)
                 trail?.admitted(admitted.query)
+                refuseUnavailable()
                 execute(admitted, observation).also { result ->
                     trail?.rows(rows(result))
                     finished(operation.queryType, trail, null)
@@ -361,6 +368,7 @@ class DefaultQueryGateway(
         try {
             val admitted = admission.admit(operation, query, caller, schemaProvider::schema, trail)
             trail?.admitted(admitted.query)
+            refuseUnavailable()
             execute(admitted).collect { row ->
                 trail?.rows(1)
                 emit(row)
@@ -373,6 +381,11 @@ class DefaultQueryGateway(
         } finally {
             observed.end()
         }
+    }
+
+    /** Refuses a query admitted while the model is [unavailable], naming why. */
+    private fun refuseUnavailable() {
+        unavailable()?.let { throw QueryDatasetUnavailableException(aggregateType, it) }
     }
 
     private fun trail(queryType: QueryType, query: Any, caller: QueryCaller): QueryAuditTrail? =

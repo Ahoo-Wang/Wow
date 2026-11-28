@@ -19,6 +19,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
+import me.ahoo.wow.mongo.snapshot.MongoSnapshotTables
 import me.ahoo.wow.query.backend.CachedQueryBindings
 import me.ahoo.wow.query.backend.QueryBackendBinding
 import me.ahoo.wow.spi.VirtualThreads
@@ -71,7 +72,9 @@ class MongoSnapshotQueryStorage @JvmOverloads constructor(
                 it.context == context
             ) { "${it.collection} is not a snapshot collection of context $context." }
         }
-        return MongoQueryIndexes.manage(database, options.indexDdl, indexes) { index ->
+        // A collection removed under its table's record is not created again, nor indexed.
+        val kept = indexes.filterNot { MongoSnapshotTables.removedUnder(database, it.collection) }
+        return MongoQueryIndexes.manage(database, options.indexDdl, kept) { index ->
             MongoSnapshotStore.ensure(database, context, index.aggregate)
         }
     }

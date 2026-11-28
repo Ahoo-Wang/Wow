@@ -13,7 +13,10 @@
 
 package me.ahoo.wow.postgres.snapshot
 
+import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.PostgresIdentifiers
+import org.slf4j.LoggerFactory
+import java.sql.Connection
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -83,7 +86,8 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
             revision integer NOT NULL,
             rebuilding boolean NOT NULL,
             backfilled boolean NOT NULL,
-            fill text NOT NULL
+            fill text NOT NULL,
+            removed boolean NOT NULL DEFAULT false
         )
         """.trimIndent(),
     )
@@ -205,8 +209,38 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
 
     val load = "SELECT * FROM $snapshot WHERE tenant_id = ? AND aggregate_id = ?"
 
+    /**
+     * Whether this table is missing under its record on [connection]: then it was removed, which its record says from
+     * now on ([me.ahoo.wow.spi.snapshot.SnapshotTable.removed]). Asked only of a store that manages its structures.
+     */
+    fun removedUnder(connection: Connection): Boolean {
+        if (!PostgresFormat.tableExists(connection, TABLES)) return false
+        val removed = connection.prepareStatement(markRemoved).use { update ->
+            update.setString(1, base)
+            update.setString(2, snapshot)
+            update.executeQuery().use { it.next() }
+        }
+        if (removed) {
+            logger.warn(
+                "The table {} is missing under its record in {}: the snapshots it held were removed, and the store " +
+                    "serves it no more.",
+                base,
+                TABLES,
+            )
+        }
+        return removed
+    }
+
     /** The table's record. */
-    val table = "SELECT revision, rebuilding, backfilled, fill FROM $TABLES WHERE structure = ?"
+    val table = "SELECT revision, rebuilding, backfilled, fill, removed FROM $TABLES WHERE structure = ?"
+
+    /**
+     * Records the table removed when it has a record and its own table is missing (the second parameter, its quoted
+     * name); returns a row when it has a record so.
+     */
+    private val markRemoved = """
+        UPDATE $TABLES SET removed = true WHERE structure = ? AND to_regclass(?) IS NULL RETURNING structure
+    """.trimIndent()
 
     /**
      * A claim: records the table with who fills it, or raises its revision, or lowers it when the claim says so (the
@@ -217,14 +251,14 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
         INSERT INTO $TABLES AS recorded (structure, revision, rebuilding, backfilled, fill) VALUES (?, ?, ?, false, ?)
         ON CONFLICT (structure) DO UPDATE SET revision = excluded.revision, rebuilding = true
         WHERE excluded.revision > recorded.revision OR (?::boolean AND excluded.revision < recorded.revision)
-        RETURNING revision, rebuilding, backfilled, fill
+        RETURNING revision, rebuilding, backfilled, fill, removed
     """.trimIndent()
 
     /** Sets the flags given (null keeps one) while the table is claimed at a revision. */
     val mark = """
         UPDATE $TABLES SET rebuilding = COALESCE(?::boolean, rebuilding), backfilled = COALESCE(?::boolean, backfilled)
         WHERE structure = ? AND revision = ?
-        RETURNING revision, rebuilding, backfilled, fill
+        RETURNING revision, rebuilding, backfilled, fill, removed
     """.trimIndent()
 
     companion object {
@@ -275,3 +309,6 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
         const val TABLES = "wow_snapshot_table"
     }
 }
+
+/** The store's own: these lines moved from it, and an operator's filter names it. */
+private val logger = LoggerFactory.getLogger(PostgresSnapshotStore::class.java)

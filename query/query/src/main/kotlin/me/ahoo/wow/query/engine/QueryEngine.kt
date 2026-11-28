@@ -144,6 +144,7 @@ class QueryEngine private constructor(
         private var contexts: Set<String> = manifest.contexts.map { it.name }.toSet()
         private var snapshotBackend: QueryBindings<AggregateType>? = null
         private var servesSnapshots: (AggregateType) -> Boolean = { snapshotBackend != null }
+        private var snapshotsRemoved: (AggregateType) -> Boolean = { false }
         private var eventBackend: QueryBindings<AggregateType>? = null
         private var datasets: QueryDatasets = QueryDatasets.NONE
         private var datasetBackend: QueryBindings<QueryDataset>? = null
@@ -180,6 +181,13 @@ class QueryEngine private constructor(
             }
 
         /** The `events` query backend of each aggregate type, none for a type it does not serve. */
+        /**
+         * Whether the table a type's snapshot queries read was removed under its record, so that it holds nothing the
+         * log committed before: asked of each admitted snapshot query, which is then answered
+         * `wow.query.dataset-unavailable` ([SNAPSHOTS_REMOVED]). None is by default.
+         */
+        fun snapshotsRemoved(removed: (AggregateType) -> Boolean) = apply { snapshotsRemoved = removed }
+
         fun events(backend: QueryBindings<AggregateType>?) = apply { eventBackend = backend }
 
         /** The datasets and their backend; without one, no dataset is served. */
@@ -427,6 +435,7 @@ class QueryEngine private constructor(
                     entryPolicy = entryPolicy,
                     counts = snapshotCounts,
                     authorizer = readAuthorizer,
+                    unavailable = { SNAPSHOTS_REMOVED.takeIf { snapshotsRemoved(type) } },
                 )
             }
         }
@@ -473,3 +482,7 @@ class QueryEngine private constructor(
         val logger = KotlinLogging.logger {}
     }
 }
+
+/** Why a type's snapshots cannot be queried while their table is removed under its record: fixed words. */
+internal const val SNAPSHOTS_REMOVED: String =
+    "its snapshots were removed from their store, and are not served until they are filled again from the log"

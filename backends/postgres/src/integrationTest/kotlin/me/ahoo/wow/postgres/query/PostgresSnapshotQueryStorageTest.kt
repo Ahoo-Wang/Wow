@@ -46,6 +46,10 @@ import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.TotalMode
 import me.ahoo.wow.postgres.PostgresFixture
+import me.ahoo.wow.postgres.PostgresFormat
+import me.ahoo.wow.postgres.PostgresStore
+import me.ahoo.wow.postgres.PostgresStoreProvider
+import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotTables
 import me.ahoo.wow.query.admission.QueryAdmission
 import me.ahoo.wow.query.backend.GroupWindow
@@ -61,8 +65,14 @@ import me.ahoo.wow.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryViolation
+import me.ahoo.wow.query.store.QueryIndexReport
+import me.ahoo.wow.query.store.StoreQueries
+import me.ahoo.wow.query.store.StoreQueryOptions
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.StorageTimeoutException
+import me.ahoo.wow.spi.snapshot.SnapshotFill
+import me.ahoo.wow.spi.store.StoreConfig
+import me.ahoo.wow.spi.store.facet
 import org.junit.jupiter.api.Test
 import java.time.Duration
 import java.util.UUID
@@ -201,6 +211,23 @@ class PostgresSnapshotQueryStorageTest {
         }
         // Without a timeout the same statement runs to the end.
         backend.count(QueryAdmission.Trusted.count(CountQuery(slow, limit = 10), schema)).assert().isEqualTo(11L)
+    }
+
+    @Test
+    fun `a table dropped under its record should be neither created again nor indexed`(): Unit = runBlocking {
+        val type = newType()
+        val declared = listOf(QueryIndexDeclaration("ix_removed_state_status", listOf("state.status")))
+        val plan = QueryIndexPlan.of(schema(type), declared)
+        PostgresSnapshotStore(PostgresFixture.dataSource, type.context).claim(type, 1, SnapshotFill.SUBSCRIPTION, false)
+        val table = PostgresSnapshotTables(type.context, type.name)
+        PostgresFixture.dataSource.connection.use { connection ->
+            connection.createStatement().use { it.execute("DROP TABLE ${table.snapshot}") }
+        }
+        val store = PostgresStore(StoreConfig("removed", PostgresStoreProvider.TYPE), PostgresFixture.dataSource)
+        val queries = checkNotNull(checkNotNull(store.facet<StoreQueries>()).snapshots(StoreQueryOptions.DEFAULT))
+        queries.prepare(type)
+        queries.manageIndexes(type, plan).assert().isEqualTo(QueryIndexReport.NONE)
+        PostgresFixture.dataSource.connection.use { PostgresFormat.tableExists(it, table.base) }.assert().isFalse()
     }
 
     @Test

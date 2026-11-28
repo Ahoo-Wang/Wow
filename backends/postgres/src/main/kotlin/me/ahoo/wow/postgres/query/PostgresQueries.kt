@@ -126,6 +126,10 @@ private class PostgresSnapshotQueries(private val store: PostgresStore, options:
     }
 
     override fun manageIndexes(type: AggregateType, plan: QueryIndexPlan): QueryIndexReport {
+        // A table removed under its record is not created again, nor indexed.
+        if ((store.snapshots(type.context) as? PostgresSnapshotStore)?.removed(type.name) == true) {
+            return QueryIndexReport.NONE
+        }
         val indexes = PostgresQueryIndexes.plan(type.context, type.name, plan)
         val report = storage(type.context).manageIndexes(indexes)
         return QueryIndexReport(report.created, report.missing, report.invalid)

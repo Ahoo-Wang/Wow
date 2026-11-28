@@ -27,6 +27,16 @@ import me.ahoo.wow.api.annotation.WowSpi
  * [table]), and the snapshots of another revision or marked stale ([markStale]) are [pending] until a rebuild
  * [rewrite]s them from the log, in place, whatever their revision. The TCK's `SnapshotStoreSpec` checks it for a store
  * that has it.
+ *
+ * **A table removed under its record**: the store creates a table's structure (its index, table or collection) before
+ * the first [claim] records it, and never again after that. So a structure missing while its record is kept was removed
+ * (an operator deleted the index, dropped the table or the collection): it holds nothing the log committed before. The
+ * store records it [SnapshotTable.removed] when it finds it so, at its first use of the table, or later on a path it
+ * already takes (a write that misses the structure, its maintenance round), never by the structure's identity, and
+ * serves it no more: a save, a batch's snapshots and a [rewrite] of it write nothing and answer not written, [markStale]
+ * answers false, [pending] lists none and a load answers null, so a load reads the log. The record keeps `removed`
+ * through every [claim] and [mark]. A store whose structures it does not manage (`ddl: none`) cannot tell, and a
+ * structure emptied in place is not missing.
  */
 @WowSpi
 interface SnapshotRebuildStore {
@@ -92,6 +102,11 @@ class SnapshotTable @InternalWowApi constructor(
     val backfilled: Boolean = true,
     /** Who fills the table from the log's beginning, recorded by its first claim and never changed. */
     val fill: SnapshotFill,
+    /**
+     * Whether the table's structure was removed under this record ([SnapshotRebuildStore]'s **A table removed under its
+     * record**): the store serves it no more, and a query of it is refused.
+     */
+    val removed: Boolean = false,
 ) {
     init {
         require(revision >= 1) { "A state revision starts at 1." }
@@ -107,7 +122,8 @@ class SnapshotTable @InternalWowApi constructor(
         rebuilding: Boolean = this.rebuilding,
         backfilled: Boolean = this.backfilled,
         fill: SnapshotFill = this.fill,
-    ): SnapshotTable = SnapshotTable(revision, rebuilding, backfilled, fill)
+        removed: Boolean = this.removed,
+    ): SnapshotTable = SnapshotTable(revision, rebuilding, backfilled, fill, removed)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is SnapshotTable && valueFields() == other.valueFields()
@@ -115,9 +131,9 @@ class SnapshotTable @InternalWowApi constructor(
     override fun hashCode(): Int = valueFields().hashCode()
 
     override fun toString(): String =
-        "SnapshotTable(revision=$revision, rebuilding=$rebuilding, backfilled=$backfilled, fill=$fill)"
+        "SnapshotTable(revision=$revision, rebuilding=$rebuilding, backfilled=$backfilled, fill=$fill, removed=$removed)"
 
-    private fun valueFields(): List<Any?> = listOf(revision, rebuilding, backfilled, fill)
+    private fun valueFields(): List<Any?> = listOf(revision, rebuilding, backfilled, fill, removed)
 
     companion object {
         /**
@@ -131,6 +147,7 @@ class SnapshotTable @InternalWowApi constructor(
             rebuilding: Boolean = false,
             backfilled: Boolean = true,
             fill: SnapshotFill,
-        ): SnapshotTable = SnapshotTable(revision, rebuilding, backfilled, fill)
+            removed: Boolean = false,
+        ): SnapshotTable = SnapshotTable(revision, rebuilding, backfilled, fill, removed)
     }
 }

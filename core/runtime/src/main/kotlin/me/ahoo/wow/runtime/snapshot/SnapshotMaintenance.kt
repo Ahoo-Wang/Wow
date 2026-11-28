@@ -97,7 +97,12 @@ class LogProgress(val group: String, val log: EventLog, val checkpoints: Checkpo
  *   a node of the claimed revision, else marked stale (or written at its own revision when missing) for the rebuild.
  *
  * It answers [rebuilding] for a type while the table of the store its queries read (its copy when it has one, else
- * its own store) is rebuilding or not backfilled.
+ * its own store) is rebuilding or not backfilled, and [removed] once that table's record says it was removed.
+ *
+ * - **A removed table**: a table whose record says its structure was removed under it ([SnapshotTable.removed]) holds
+ *   nothing the log committed before, and its store serves it no more. The maintenance neither rebuilds it nor checks
+ *   or marks its backfill, so no revision's rebuild reports it rebuilt; it logs an error once a node meets it, naming
+ *   the type, the store and what restores it, and queries of it are refused.
  *
  * The claims, rebuilds and backfill checks need a target store's rebuild control plane ([SnapshotStore.rebuilds]): a
  * store without one is left out of them, with a warning when the node prepares and a count of the fallback (the
@@ -135,6 +140,9 @@ class SnapshotMaintenance(
     private val backfills =
         SnapshotBackfills(context, this.models, targets, kernel, codec, log, progress, options, gate)
 
+    /** The removed tables this node told of, by store and aggregate type. */
+    private val told: MutableSet<Pair<String, AggregateType>> = ConcurrentHashMap.newKeySet()
+
     /** Where each table's rebuild stopped, by store and aggregate type. */
     private val cursors = ConcurrentHashMap<Pair<String, AggregateType>, RebuildCursor>()
 
@@ -165,6 +173,9 @@ class SnapshotMaintenance(
         return tables[queried to type]?.catchingUp ?: (queried in placed)
     }
 
+    override fun removed(type: AggregateType): Boolean =
+        type in models && tables[targets.placementOf(type).query to type]?.removed == true
+
     /**
      * Claims every target's table at this node's revisions, and gives the subscriptions that backfill the targets
      * whose store subscription is already past the beginning of the log: register them before the node starts.
@@ -188,7 +199,7 @@ class SnapshotMaintenance(
      */
     private suspend fun backfillToStart(store: String, type: AggregateType): SnapshotSubscription? {
         val table = claim(store, type)
-        if (table.backfilled) {
+        if (table.backfilled || table.removed) {
             return null
         }
         return backfills.prepared(store, type, table, empty = { heads().isEmpty() }) { marked(store, type, table) }
@@ -234,11 +245,16 @@ class SnapshotMaintenance(
         skips?.refresh()
         // The heads serve the backfill checks alone: read while a target has not caught up, or before its table is known
         // (Once every target caught up, a run reads no partition counter.)
-        val catchingUp = placed.any { (store, types) -> types.any { tables[store to it]?.backfilled != true } }
+        val catchingUp = placed.any { (store, types) ->
+            types.any { type -> tables[store to type]?.let { it.backfilled || it.removed } != true }
+        }
         val heads = if (catchingUp) heads() else null
         placed.forEach { (store, types) ->
             types.forEach { type ->
                 val table = claim(store, type)
+                if (table.removed) {
+                    return@forEach
+                }
                 val revision = revisionOf(type)
                 if (table.revision == revision) {
                     if (table.rebuilding) {
@@ -377,6 +393,14 @@ class SnapshotMaintenance(
             else -> table
         }
         tables[store to type] = claimed
+        if (claimed.removed && told.add(store to type)) {
+            logger.error {
+                "The snapshot table of $type in the store $store was removed under its record: its structure is " +
+                    "missing, so it holds nothing the log committed before. Its queries are refused " +
+                    "(wow.query.dataset-unavailable), its loads read the log, and nothing is written to it until it " +
+                    "is filled again from the log's beginning."
+            }
+        }
         return claimed
     }
 

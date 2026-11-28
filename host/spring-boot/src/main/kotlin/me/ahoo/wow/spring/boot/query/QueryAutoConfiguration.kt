@@ -263,6 +263,7 @@ class QueryAutoConfiguration {
         ): QueryEngine = QueryEngine.Builder(manifest)
             .contexts(node.contexts.keys)
             .snapshots(backend.bindings, backend::serves)
+            .snapshotsRemoved(node.snapshotStatus::removed)
             .events(events.bindings)
             .datasets(datasets, beans.datasetBindings.bindings)
             .datasetVisibility(beans.datasetVisibility.ifAvailable)

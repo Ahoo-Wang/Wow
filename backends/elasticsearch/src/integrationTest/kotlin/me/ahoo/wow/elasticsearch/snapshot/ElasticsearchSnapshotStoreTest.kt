@@ -236,6 +236,46 @@ class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
         ElasticsearchFixture.client.indices().existsAlias { it.name(index) }.get().value().assert().isTrue()
     }
 
+    override suspend fun removeTable(aggregate: AggregateType): Boolean {
+        val index = ElasticsearchFixture.names.snapshots(aggregate.context, aggregate.name)
+        ElasticsearchFixture.client.indices().delete { it.index(ElasticsearchIndices.concreteOf(index)) }.await()
+        return true
+    }
+
+    @Test
+    fun `an index deleted under a running store's table record should be found removed by the write that misses it`():
+        Unit = runBlocking {
+        val context = ElasticsearchFixture.newContext()
+        val store = createStore(context)
+        val type = AggregateType(context, "aggregate")
+        val index = ElasticsearchFixture.names.snapshots(context, "aggregate")
+        store.rebuilds!!.claim(type, 1, SnapshotFill.SUBSCRIPTION)
+        store.save(snapshot("a", 1, aggregate = type)).assert().isTrue()
+        removeTable(type)
+        // The write that misses it writes nothing, and is not a failure: what it held is the log's.
+        store.save(snapshot("a", 2, aggregate = type)).assert().isFalse()
+        store.saveAll(listOf(snapshot("b", 1, aggregate = type))).assert().containsExactly(SnapshotSaveOutcome.Refused)
+        store.load(type.ref("tenant", "a")).assert().isNull()
+        store.rebuilds!!.table(type)!!.removed.assert().isTrue()
+        // Not created again under auto.
+        ElasticsearchFixture.client.indices().existsAlias { it.name(index) }.get().value().assert().isFalse()
+    }
+
+    @Test
+    fun `a batch missing a running store's table record index should be found removed, not failed`(): Unit =
+        runBlocking {
+            val context = ElasticsearchFixture.newContext()
+            val store = createStore(context)
+            val type = AggregateType(context, "aggregate")
+            store.rebuilds!!.claim(type, 1, SnapshotFill.SUBSCRIPTION)
+            store.saveAll(listOf(snapshot("a", 1, aggregate = type))).assert()
+                .containsExactly(SnapshotSaveOutcome.Written)
+            removeTable(type)
+            store.saveAll(listOf(snapshot("a", 2, aggregate = type), snapshot("b", 1, aggregate = type))).assert()
+                .containsExactly(SnapshotSaveOutcome.Refused, SnapshotSaveOutcome.Refused)
+            store.rebuilds!!.table(type)!!.removed.assert().isTrue()
+        }
+
     @Test
     fun `many first writes to a fresh index, from several stores at once, all land`(): Unit = runBlocking {
         repeat(ROUNDS) {

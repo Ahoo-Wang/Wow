@@ -148,7 +148,8 @@ internal object PostgresFormat {
             query.executeQuery().use { rows -> if (rows.next()) rows.getInt(1) else null }
         }
 
-    private fun tableExists(connection: Connection, table: String): Boolean =
+    /** Whether [table] exists in the current schema. */
+    internal fun tableExists(connection: Connection, table: String): Boolean =
         connection.prepareStatement(
             "SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = ?",
         ).use { query ->

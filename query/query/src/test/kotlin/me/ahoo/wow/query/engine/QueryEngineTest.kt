@@ -42,6 +42,7 @@ import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.admission.QueryBulkhead
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
 import me.ahoo.wow.query.dataset.QueryDatasets
+import me.ahoo.wow.query.error.QueryDatasetUnavailableException
 import me.ahoo.wow.query.error.QueryError
 import me.ahoo.wow.query.events.UnpinnedEvents
 import me.ahoo.wow.query.events.UnpinnedEventsPolicy
@@ -53,6 +54,7 @@ import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.state.SnapshotPolicyGateway
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.JsonNode
 
 /** The read side composed once (decision D237): which gateways the builder gives, and its fail-closed rules (R3.3-3). */
@@ -143,6 +145,26 @@ class QueryEngineTest {
                 .build()
             engine.events.map { it.aggregateType }.assert().containsExactly(cart)
             engine.catalog.assert().isNotNull()
+        }
+
+    @Test
+    fun `the snapshot queries of a type whose table was removed should be refused by name, its state reads kept`():
+        Unit = runBlocking {
+            var removed = false
+            val engine = builder().snapshotsRemoved { it == order && removed }.build()
+            val gateway = engine.snapshots(order)!!
+            gateway.count(CountQuery(MatchAllFilter), alice).count.assert().isZero()
+            removed = true
+            val counted = assertThrows<QueryDatasetUnavailableException> {
+                runBlocking { gateway.count(CountQuery(MatchAllFilter), alice) }
+            }
+            counted.errorCode.assert().isEqualTo(FrameworkCodes.QUERY_DATASET_UNAVAILABLE)
+            counted.message.assert().contains("removed from their store")
+            assertThrows<QueryDatasetUnavailableException> {
+                runBlocking { gateway.list(ListQuery(MatchAllFilter, limit = 10), alice).toList() }
+            }
+            // A state read is the log's: its visibility is still decided.
+            engine.reads.admitted(alice, state(order, "east"))!!["items"].asInt().assert().isEqualTo(2)
         }
 
     @Test

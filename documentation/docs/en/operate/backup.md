@@ -23,7 +23,7 @@ One consistent backup of each service's database, on PostgreSQL or MongoDB, take
 
 Take them together: a backup of the log without its checkpoints restores subscriptions that do not know where they were. [PostgreSQL](./postgresql#the-tables) and [MongoDB](./mongodb#the-collections) list the tables and collections.
 
-The snapshots live in the same database, and a database backup takes them too: restored with the log, they match it. They are not what the backup protects, though, and a restore never needs them to be current.
+The snapshots live in the same database, and a database backup takes them too: restored with the log, they match it, and the records of their tables with them. They are not what the backup protects, though, and a restore never needs them to be current. A snapshot table put back alone after a node found it removed stays removed ([A snapshot table removed under its record](./replay#a-snapshot-table-removed-under-its-record)).
 
 ## What not to back up
 
@@ -39,7 +39,7 @@ Rebuilding is slower than restoring, so a large read model may still deserve a b
 A projection's view, a snapshot table or a search index that is lost or wrong is rebuilt, not restored ([Rebuild and Replay](./replay)):
 
 - a projection: deploy it under a new subscription name, which starts from the beginning of the log, and switch readers to its new view once it has caught up;
-- snapshots: rebuild them from the log, for chosen aggregates or for a new store;
+- snapshots: rebuild them from the log, for chosen aggregates or for a new store; a table deleted or dropped under its record is served no more until it is filled again from the log's beginning ([A snapshot table removed under its record](./replay#a-snapshot-table-removed-under-its-record));
 - the warehouse and the search index: empty them and raise their sink's generation, which fills them again from the beginning of the log ([ClickHouse](./clickhouse#rebuild-the-warehouse), [Elasticsearch](./elasticsearch#rebuild)).
 
 The service keeps serving commands meanwhile.

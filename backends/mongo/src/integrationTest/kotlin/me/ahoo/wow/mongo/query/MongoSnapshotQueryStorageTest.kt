@@ -72,6 +72,7 @@ import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.StorageTimeoutException
+import me.ahoo.wow.spi.snapshot.SnapshotFill
 import org.bson.Document
 import org.bson.conversions.Bson
 import org.junit.jupiter.api.Test
@@ -262,6 +263,19 @@ class MongoSnapshotQueryStorageTest {
         // Without a timeout the same command runs to the end, and a bounded count stops one past its limit.
         backend.count(QueryAdmission.Trusted.count(CountQuery(slow, limit = 10), schema)).assert().isEqualTo(11L)
     }
+
+    @Test
+    fun `a collection dropped under its table's record should be neither created again nor indexed`(): Unit =
+        runBlocking {
+            val type = newType()
+            val indexes = MongoQueryIndexes.plan(type.context, type.name, QueryIndexPlan.of(schema(type), listOf(STATUS_INDEX)))
+            store(type).claim(type, 1, SnapshotFill.SUBSCRIPTION, lower = false)
+            database.getCollection(MongoSnapshotStore.collectionName(type.context, type.name)).drop()
+            storage(type).manageIndexes(indexes).assert().isEqualTo(MongoQueryIndexReport())
+            database.listCollectionNames().toList().assert()
+                .doesNotContain(MongoSnapshotStore.collectionName(type.context, type.name))
+            store(type).table(type)!!.removed.assert().isTrue()
+        }
 
     @Test
     fun `auto creates the indexes, validate and none only look`(): Unit = runBlocking {

@@ -91,11 +91,15 @@ class SnapshotOptions @InternalWowApi constructor(
 
 /**
  * Whether the snapshots of an aggregate type are being rebuilt or backfilled: its primary target is
- * not caught up, so a query of them answers with `rebuilding`.
+ * not caught up, so a query of them answers with `rebuilding`; and whether that target's table was [removed] under
+ * its record, so a query of them is refused.
  */
 @InternalWowApi
 fun interface SnapshotStatus {
     fun rebuilding(type: AggregateType): Boolean
+
+    /** Whether the table [type]'s snapshot queries read was removed under its record; none is by default. */
+    fun removed(type: AggregateType): Boolean = false
 
     @InternalWowApi
     companion object {

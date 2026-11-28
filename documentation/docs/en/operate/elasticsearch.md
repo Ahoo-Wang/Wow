@@ -55,7 +55,7 @@ The store's indices are each aggregate's snapshots, `[<prefix>_]wow_snapshot__<c
 - `ddl: validate` refuses a store whose alias is missing, naming the pair, and checks the layout of the index behind it.
 - `ddl: none` checks nothing, and a write to a missing alias fails, naming it.
 - An alias that points at more than one index, or is not its index's write alias, is refused, naming it. Wow writes through no such alias.
-- **An index deleted under a running node** fails the next write instead of being created again with a guessed mapping. Under `ddl: auto`, the write after it creates the pair again, empty, with a warning naming the alias. What it held comes back from a [rebuild](#rebuild).
+- **An index deleted under a running node** fails the next write instead of being created again with a guessed mapping. A snapshot index whose table has a record in `wow_snapshot_table` is not created again: its table was removed under its record, and is served no more ([A snapshot table removed under its record](./replay#a-snapshot-table-removed-under-its-record)). Any other index is created again under `ddl: auto` by the write after it, empty, with a warning naming the alias.
 - **An index an earlier pre-release created** is a concrete index of the alias's own name. The store refuses it, naming it: delete it and fill it again from the log ([Rebuild](#rebuild)).
 
 The `--1` leaves room for a later version to reindex behind the same alias; nothing in 10.0 moves it. For a node whose account may not create indices, create the pair once with `ddl: auto` from an account that may. Or create it by hand: `<name>--1` with the mapping `ddl: auto` gives it, and `"aliases": {"<name>": {"is_write_index": true}}`.
@@ -186,7 +186,7 @@ Each aggregate type picks its stores: its log on PostgreSQL or MongoDB, its snap
 
 ## Rebuild
 
-Both copies come from the log. A snapshot index is rebuilt by rebuilding the aggregates' snapshots ([Rebuild and Replay](./replay)). An events index is filled again by a new generation of its sink, which starts from the beginning of the log:
+Both copies come from the log. A snapshot index is rewritten by rebuilding the aggregates' snapshots ([Rebuild and Replay](./replay)). A deleted one is a table removed under its record, which no rebuild writes ([A snapshot table removed under its record](./replay#a-snapshot-table-removed-under-its-record)). An events index is filled again by a new generation of its sink, which starts from the beginning of the log:
 
 1. Empty the index: delete its concrete index, `<name>--1`, since Elasticsearch deletes no index through an alias.
 2. Raise the store's sink generation by one: `wow.stores.<name>.sink.generation`, 1 by default.

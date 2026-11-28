@@ -39,6 +39,14 @@ import org.junit.jupiter.api.Test
 class PostgresSnapshotStoreTest : SnapshotStoreSpec() {
     override fun createStore(context: String): SnapshotStore = PostgresFixture.snapshotStore(context)
 
+    override suspend fun removeTable(aggregate: AggregateType): Boolean {
+        val table = PostgresSnapshotTables(aggregate.context, aggregate.name).snapshot
+        PostgresFixture.dataSource.connection.use { connection ->
+            connection.createStatement().use { it.execute("DROP TABLE $table") }
+        }
+        return true
+    }
+
     @Test
     fun `a clocked save should mark each instant only the store sees, in order, its driver reporting nothing`(): Unit =
         runBlocking {

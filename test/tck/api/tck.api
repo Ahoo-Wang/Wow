@@ -311,6 +311,7 @@ public abstract class me/ahoo/wow/tck/snapshot/SnapshotStoreSpec {
 	public final fun a snapshot loads back as saved ()V
 	public final fun a stale mark keeps a snapshot pending until a rewrite reaches its version ()V
 	public final fun a state with a NUL character loads back as saved, or is refused as a value ()V
+	public final fun a table removed under its record should be served no more, its record saying removed from then on ()V
 	public final fun a table's first claim records it at the revision, not yet backfilled, with who fills it ()V
 	public final fun absent access facts and the deleted mark load back as saved ()V
 	public final fun an empty batch saves nothing ()V
@@ -321,6 +322,7 @@ public abstract class me/ahoo/wow/tck/snapshot/SnapshotStoreSpec {
 	protected abstract fun createStore (Ljava/lang/String;)Lme/ahoo/wow/spi/snapshot/SnapshotStore;
 	public final fun only a higher version replaces a snapshot ()V
 	public final fun pending snapshots come in key order, page by page, of one type ()V
+	protected fun removeTable (Lme/ahoo/wow/api/aggregate/AggregateType;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	protected final fun snapshot (Ljava/lang/String;ILjava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/api/aggregate/Scope;ZLjava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;)Lme/ahoo/wow/spi/snapshot/SnapshotRecord;
 	public static synthetic fun snapshot$default (Lme/ahoo/wow/tck/snapshot/SnapshotStoreSpec;Ljava/lang/String;ILjava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/api/aggregate/Scope;ZLjava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/spi/snapshot/SnapshotRecord;
 	public final fun state numbers in exponent form load back with their value ()V

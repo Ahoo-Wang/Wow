@@ -44,6 +44,18 @@ The route sends the system command `wow.snapshot.RebuildSnapshot` to the context
 
 A store a type's snapshots are first written to is filled from the beginning of the log. That is a type's own store changed to another (`wow.snapshot.store`, or `wow.aggregates.[<context>.<aggregate>].snapshot.store`), or a copy its queries read (`.query.snapshot.store`), an Elasticsearch index beside PostgreSQL, say. A new store's own snapshot subscription starts at the beginning. For a store whose subscription is already past it, the default store's included, a subscription of its own does, and stops once the store has caught up. Meanwhile the type's snapshot queries answer `rebuilding`. A changed store is so a backfill from the log: the commands that load an aggregate before its snapshot is written there replay its history, and the old store is left as it was.
 
+## A snapshot table removed under its record
+
+A store creates an aggregate type's snapshot table (an Elasticsearch index, a PostgreSQL table, a MongoDB collection) before it records the table in `wow_snapshot_table`, and never creates it again after that. A table missing while its record is kept was removed under it: it holds nothing the log committed before, so it is never served empty.
+
+- **Its queries are refused** with `wow.query.dataset-unavailable` (409), which says why. Nothing is answered from it.
+- **Its loads read the log**, so the type's commands and state reads go on, each replaying the aggregate's history.
+- **Nothing is written to it.** The store's snapshot subscription passes the type's entries over and parks none: they are the log's. A [rebuild request](#snapshots-rebuild-some-on-request) or a raised state revision writes nothing to it either, and never marks it rebuilt.
+- **The node logs an error** at its start and when it finds the table removed, naming the type, the store and what restores it. The table's record says `removed` from then on, for every node.
+- **Putting the table back does not serve it**, from a backup or by hand: once recorded, it stays removed until it is filled again from the log's beginning.
+
+A store finds it at its first use of the table after a start. On a running node, Elasticsearch finds it at the write that misses the index, and MongoDB at its next maintenance round (`wow.snapshot.maintenance-interval`). Until that round a write recreates the collection, as MongoDB does for any write, and the type's queries answer from what was written since. PostgreSQL finds it at the next start, and until then its writes fail. A store under `ddl: none` cannot tell, and a table emptied in place (a delete by query, a `TRUNCATE`, a `deleteMany`) is not missing.
+
 ## Access attributes
 
 Each stream records the aggregate's access attributes after its commit, its owner and space among them, and so do the snapshots and the Sinks' records. When a commit changes them, the built-in subscription `wow.access` stamps the new ones over the aggregate's earlier streams, so its whole history is authorized by what the aggregate is now. An Elasticsearch store's events index follows them the same way: its Sink stamps a change over the documents it wrote before, and the walks below stamp the index with the log. Every copy keeps the attributes of the later version (`accessVersion`), whatever order the stamps arrive in.
