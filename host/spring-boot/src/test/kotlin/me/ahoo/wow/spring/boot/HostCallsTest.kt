@@ -273,7 +273,8 @@ class HostCallsTest {
             PeerEndpoints.of(
                 properties,
                 PeerDiscoveries.load(javaClass.classLoader),
-                providerSettings()
+                providerSettings(),
+                emptySet(),
             ) { null }
         }.message.assert().contains("Peer mail has no url")
     }

@@ -419,19 +419,22 @@ internal class PeerEndpoints(
         /**
          * The endpoints of [properties]' peers, their internal ports found as `wow.peer.discovery` says among
          * [discoveries], [serviceOf] each context. A peer of `wow.peers` called in service mode that nothing can find
-         * (no `url`, and either the `static` discovery or no service name for it) refuses the start.
+         * (no `url`, and either the `static` discovery or no service name for it) refuses the start; an entry for one
+         * of [localContexts], the contexts the node serves and never calls over HTTP, is not checked: several services
+         * share one file of peers.
          */
         fun of(
             properties: WowProperties,
             discoveries: PeerDiscoveries,
             settings: ProviderSettingsSource,
+            localContexts: Set<String>,
             serviceOf: (context: String) -> String?,
         ): PeerEndpoints {
             val type = properties.peer.discovery.trim().lowercase()
             val discovery = discoveries.of(type)
             val discovers = discovery !== StaticPeerDiscovery
             // A peer called in user mode goes to its public routes, whose own URL it has.
-            val unlisted = properties.peers.filterValues {
+            val unlisted = properties.peers.filterKeys { it !in localContexts }.filterValues {
                 it.url == null && (it.mode ?: properties.peer.mode) == PeerMode.SERVICE
             }.keys
             unlisted.forEach { context ->

@@ -22,13 +22,23 @@ import me.ahoo.wow.api.result.CommandResult
 import org.junit.jupiter.api.Test
 
 /**
- * An entry of `wow.peers` for a context the node serves routes no call (D484 ③): several services share one file of
- * peers, which lists each one's own context beside the others', at its own address.
+ * An entry of `wow.peers` for a context the node serves is ignored (D484 ③): several services share one file of
+ * peers, which lists each one's own context beside the others'.
  */
 class HostOwnContextPeerTest {
     @Test
     fun `an entry for a context the node serves, at an address nothing listens on, should route no call`() {
         startHost("wow.peers.$BANK.url" to "http://127.0.0.1:1", "wow.peers.$BANK.timeout" to "1s").use { host ->
+            val commands = host.context.getBean(CommandClient::class.java).of(Caller.ofService("host-test"))
+            runBlocking { commands.wait(CommandRequest.of(OpenAccount("own"))) }.status.assert()
+                .isEqualTo(CommandResult.Status.SUCCEEDED)
+        }
+    }
+
+    @Test
+    fun `an entry for a context the node serves, without a url, should not refuse the start`() {
+        // As a shared file lists a peer that DNS finds: a setting of its own, no url.
+        startHost("wow.peers.$BANK.timeout" to "5s").use { host ->
             val commands = host.context.getBean(CommandClient::class.java).of(Caller.ofService("host-test"))
             runBlocking { commands.wait(CommandRequest.of(OpenAccount("own"))) }.status.assert()
                 .isEqualTo(CommandResult.Status.SUCCEEDED)

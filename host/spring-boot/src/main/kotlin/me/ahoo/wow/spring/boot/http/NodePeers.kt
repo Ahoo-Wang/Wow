@@ -74,6 +74,7 @@ internal class NodePeers {
         properties,
         PeerDiscoveries.load(context.classLoader, discoveries.orderedStream().toList()),
         ProviderSettingsSource(environment),
+        contracts.localContexts,
         { peer -> serviceOf(contracts, peer) },
     )
 

@@ -405,6 +405,7 @@ class HostClientsTest {
             properties,
             PeerDiscoveries.load(javaClass.classLoader),
             providerSettings(),
+            emptySet(),
         ) { null }
         resolver.resolve("mail", Port.PUBLIC).assert().isEqualTo(URI.create("http://mail:8080"))
         resolver.resolve("mail", Port.INTERNAL).assert().isEqualTo(URI.create("http://mail:9090"))

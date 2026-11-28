@@ -153,7 +153,7 @@ class WowProperties {
      * context and the typed clients of it go to its service, at its `url` when one is set, else where `wow.peer.discovery`
      * finds the service its contract names (DNS by default). A node whose saga calls a context it cannot reach does not
      * start. A context this node serves is never called over HTTP: an entry for it, as in a file several services
-     * share, routes no call.
+     * share, is ignored, a missing `url` included.
      */
     var peers: MutableMap<String, PeerTargetProperties> = LinkedHashMap()
 
