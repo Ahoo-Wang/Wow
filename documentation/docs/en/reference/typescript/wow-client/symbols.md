@@ -100,7 +100,7 @@ Every name `@ahoo-wang/wow-client` exports — 129 — with its kind and the fir
 | `SpaceTransferred` | interface | The body of `wow.lifecycle.SpaceTransferred`: the aggregate's new space. | — |
 | `Stage` | type, const | A `Stage` value. | — |
 | `StateClient` | class | Reads an aggregate type's states: `GET /{context}/{aggregate}/{id}/state` with `?version=`, `?at=` or `?minVersion=`, and its trace, `…/state/trace`; `OwnStateClient` reads the caller's own of a type whose id is its owner's. | — |
-| `StateManifest` | interface | An aggregate's state: its schema, the fingerprint of its shape and, in a contract, its view. | — |
+| `StateManifest` | interface | An aggregate's state: its schema and the fingerprint of its shape. | — |
 | `StateReadOptions` | type | Which state a read asks for, one way at most: the latest; the committed state at a `version`; the committed state as of a time, `at`; or the latest at `minVersion` or later. | — |
 | `StateReadResult` | type | A state read: the snapshot and its entity tag, or `notModified` when the state held is current, with its tag and the version the tag names. | — |
 | `StateTrace` | interface | What `GET /{context}/{aggregate}/{id}/state/trace` answers: the aggregate and its commits in version order. | — |

@@ -14,6 +14,7 @@
 package me.ahoo.wow.gradle
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.manifest.PeerContracts
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
@@ -129,6 +130,11 @@ class WowContractSourcesFunctionalTest {
         ).doesNotContain("secret")
         ZipFile(File(projectDir, "shop-api/build/libs/shop-api-1.0.0-contract.jar")).use { jar ->
             jar.getEntry("shopapi/CartStateView.class").assert().isNotNull()
+            // The jar lists the view it carries, by which a consumer finds it; the contract does not name it.
+            jar.getInputStream(jar.getEntry(PeerContracts.STATE_VIEWS_RESOURCE)).reader().readText()
+                .assert().isEqualTo("shopapi.CartStateView\n")
+            jar.getInputStream(jar.getEntry(PeerContracts.RESOURCE)).reader().readText()
+                .assert().doesNotContain("CartStateView")
         }
         // The api's sources jar holds its own sources alone.
         ZipFile(File(projectDir, "repo/sample/shop-api/1.0.0/shop-api-1.0.0-sources.jar")).use { sources ->

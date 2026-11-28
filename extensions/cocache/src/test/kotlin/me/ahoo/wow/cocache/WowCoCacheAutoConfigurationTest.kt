@@ -37,7 +37,7 @@ import java.time.Duration
 /** The extension on CoCache's starter, its memory backend, with the contract of `shop` on the class path. */
 class WowCoCacheAutoConfigurationTest {
     private val runner = ApplicationContextRunner()
-        .withClassLoader(ContractClassLoader(shopManifest(), javaClass.classLoader))
+        .withClassLoader(ContractClassLoader(javaClass.classLoader, ORDER_VIEWS))
         .withConfiguration(
             AutoConfigurations.of(CoCacheAutoConfiguration::class.java, WowCoCacheAutoConfiguration::class.java),
         )
@@ -60,6 +60,16 @@ class WowCoCacheAutoConfigurationTest {
             runtime.policy("wow.shop.order")!!.ttl.assert().isEqualTo(Duration.ofMinutes(5))
             context.getBeansOfType(PublishedSinks::class.java).assert().isEmpty()
         }
+    }
+
+    @Test
+    fun `a service on contract jars that list no view, as an api module without Kotlin builds, should start`() {
+        // The api module of such a contract generates no view, so its contract jar holds the contract alone.
+        runner.withClassLoader(ContractClassLoader(javaClass.classLoader)).withPropertyValues("cocache.backend=memory")
+            .run { context ->
+                context.startupFailure.assert().isNull()
+                context.getBeanNamesForType(StateViewCache::class.java).assert().isEmpty()
+            }
     }
 
     @Test
@@ -89,7 +99,7 @@ class WowCoCacheAutoConfigurationTest {
     fun `a service with a runtime of its own, without CoCache's starter, should get the caches on that runtime`() {
         val runtime = runtimeOn(me.ahoo.cocache.core.memory.InMemoryBackend())
         ApplicationContextRunner()
-            .withClassLoader(ContractClassLoader(shopManifest(), javaClass.classLoader))
+            .withClassLoader(ContractClassLoader(javaClass.classLoader, ORDER_VIEWS))
             .withConfiguration(AutoConfigurations.of(WowCoCacheAutoConfiguration::class.java))
             .withBean(QueryApi::class.java, { mockk<QueryApi>() })
             .withBean(CacheRuntime::class.java, { runtime })

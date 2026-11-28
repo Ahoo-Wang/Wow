@@ -35,7 +35,8 @@ import javax.inject.Inject
  * ownership, snapshot and query models, and the `QueryField` constants of its state's paths, named as the compiler
  * names the domain module's `<State>Properties`; and per state the aggregate publishes, the view `<State>View` another
  * context reads it as, which references the classes of the [classpath] and copies the domain's own. The api module
- * compiles them in its [WowPlugin.CONTRACT_SOURCE_SET] source set and its jar carries them. No contract, no source.
+ * compiles them in its [WowPlugin.CONTRACT_SOURCE_SET] source set and its jar carries them, with the list of the views
+ * (`META-INF/wow/state-views.txt`, under [resourcesDirectory]) by which a consumer finds them. No contract, no source.
  *
  * The query fields need `wow-query-api`, as the compiler's do: they are generated only when the [classpath] the code
  * compiles against holds it. The generator runs in a worker over [tools] (`wow-manifest-tools`).
@@ -69,18 +70,23 @@ internal abstract class GenerateContractSources @Inject constructor(
     @get:OutputDirectory
     abstract val outputDirectory: DirectoryProperty
 
+    /** The root of the generated resources: the list of the views. */
+    @get:OutputDirectory
+    abstract val resourcesDirectory: DirectoryProperty
+
     @TaskAction
     fun generate() {
         submit(workers.classLoaderIsolation { spec -> spec.classpath.from(tools) })
     }
 
-    /** One work item, writing the sources of [contract] into [outputDirectory]. */
+    /** One work item: the sources of [contract] into [outputDirectory], its views' list into [resourcesDirectory]. */
     internal fun submit(queue: WorkQueue) {
         queue.submit(ManifestToolsWork.GenerateContractSources::class.java) { parameters ->
             parameters.contracts.from(contract)
             parameters.contractPackages.from(contractPackages)
             parameters.classpath.from(classpath)
             parameters.output.set(outputDirectory)
+            parameters.resources.set(resourcesDirectory)
         }
     }
 }

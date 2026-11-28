@@ -23,6 +23,7 @@ import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.read.StateView
 import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.read.TenantSnapshotQueries
+import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.spi.read.TenantQueryApi
 
 /** A generated view, as an api module holds one: of the aggregate `shop.order`. */
@@ -51,8 +52,8 @@ fun snapshotOf(id: String, version: Int, item: String, deleted: Boolean = false,
 /** A node's CoCache runtime on [backend]: nodes that share a backend share the cache, as they share Redis. */
 fun runtimeOn(backend: InMemoryBackend): CacheRuntime = CacheRuntime.builder().backend(backend).build()
 
-/** A Manifest of the context `shop` and its aggregate `order`, whose state the contract views as [OrderView]. */
-fun shopManifest(view: String? = OrderView::class.java.name): me.ahoo.wow.manifest.Manifest =
+/** A Manifest of the context `shop` and its aggregate `order`, whose state its api views as [OrderView]. */
+fun shopManifest(): me.ahoo.wow.manifest.Manifest =
     me.ahoo.wow.manifest.Manifest(
         contexts = listOf(
             me.ahoo.wow.manifest.ContextManifest(
@@ -62,7 +63,6 @@ fun shopManifest(view: String? = OrderView::class.java.name): me.ahoo.wow.manife
                         name = "order",
                         state = me.ahoo.wow.manifest.StateManifest(
                             me.ahoo.wow.manifest.Manifest.schemaRef("shop.OrderState"),
-                            view = view,
                         ),
                     ),
                 ),
@@ -71,22 +71,28 @@ fun shopManifest(view: String? = OrderView::class.java.name): me.ahoo.wow.manife
         defs = mapOf("shop.OrderState" to mapOf("type" to "object")),
     )
 
-/** A class loader whose class path carries [contract] as an api jar's peer contract, and nothing else of the kind. */
-class ContractClassLoader(contract: me.ahoo.wow.manifest.Manifest, parent: ClassLoader) : ClassLoader(parent) {
-    private val file: java.io.File = java.io.File.createTempFile("contract", ".json").apply {
-        deleteOnExit()
-        writeBytes(
-            me.ahoo.wow.spi.json.WowJson.mapper.writeValueAsBytes(me.ahoo.wow.manifest.ManifestTree.write(contract))
-        )
+/**
+ * A class loader whose class path carries one contract jar's list of views ([PeerContracts.STATE_VIEWS_RESOURCE]) per
+ * text of [lists], and no other list.
+ */
+class ContractClassLoader(parent: ClassLoader, vararg lists: String) : ClassLoader(parent) {
+    private val files: List<java.net.URL> = lists.map { text ->
+        java.io.File.createTempFile("state-views", ".txt").apply {
+            deleteOnExit()
+            writeText(text)
+        }.toURI().toURL()
     }
 
     override fun getResources(name: String): java.util.Enumeration<java.net.URL> =
-        if (name == me.ahoo.wow.manifest.PeerContracts.RESOURCE) {
-            java.util.Collections.enumeration(listOf(file.toURI().toURL()))
+        if (name == PeerContracts.STATE_VIEWS_RESOURCE) {
+            java.util.Collections.enumeration(files)
         } else {
             super.getResources(name)
         }
 }
+
+/** The list of a contract jar that generates [OrderView]. */
+val ORDER_VIEWS: String = OrderView::class.java.name + "\n"
 
 /** A generated view of the aggregate `shop.customer`, whose state holds a `DISPLAY` and a `CONFIDENTIAL` field. */
 @StateView("shop.customer")
@@ -109,7 +115,6 @@ fun customerManifest(secretMask: Map<String, Any?> = emptyMap()): me.ahoo.wow.ma
                         name = "customer",
                         state = me.ahoo.wow.manifest.StateManifest(
                             me.ahoo.wow.manifest.Manifest.schemaRef("shop.CustomerState"),
-                            view = CustomerView::class.java.name,
                         ),
                         queries = listOf(me.ahoo.wow.manifest.QueryManifest(me.ahoo.wow.manifest.QueryRoutes.SNAPSHOT)),
                     ),

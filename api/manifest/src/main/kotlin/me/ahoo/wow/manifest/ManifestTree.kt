@@ -121,7 +121,6 @@ object ManifestTree {
         "state" to obj(
             "schema" to aggregate.state.schema,
             "fingerprint" to aggregate.state.fingerprint,
-            "view" to aggregate.state.view,
         ),
         "snapshot" to obj(
             "enabled" to aggregate.snapshot.enabled,
@@ -335,7 +334,6 @@ object ManifestTree {
             state = StateManifest(
                 state.string("schema"),
                 state.stringOrNull("fingerprint"),
-                state.stringOrNull("view")
             ),
             snapshot = node.objOrNull("snapshot").let { snapshot ->
                 SnapshotManifest(

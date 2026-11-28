@@ -136,25 +136,24 @@ class AccessAttributeManifest @InternalWowApi constructor(
 
 /**
  * The aggregate's state: its [schema], and the [fingerprint] a snapshot written under it carries;
- * the fingerprint is null until the schemas are generated. In a peer contract, [view] is the binary name of the
- * `<State>View` the api module generates of it ([PeerContracts.viewsOf]), which a reader finds the view by: null for
- * a state the contract has no view of, and in a service's own Manifest.
+ * the fingerprint is null until the schemas are generated. The `<State>View` a JVM api module generates of it is not
+ * part of the Manifest, which every language reads: its contract jar lists the views beside the contract
+ * ([PeerContracts.STATE_VIEWS_RESOURCE]).
  *
  * Fields may be added: pass the constructor's arguments by name.
  */
 class StateManifest @InternalWowApi constructor(
     val schema: String,
     val fingerprint: String? = null,
-    val view: String? = null,
 ) {
     override fun equals(other: Any?): Boolean =
         this === other || other is StateManifest && valueFields() == other.valueFields()
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "StateManifest(schema=$schema, fingerprint=$fingerprint, view=$view)"
+    override fun toString(): String = "StateManifest(schema=$schema, fingerprint=$fingerprint)"
 
-    private fun valueFields(): List<Any?> = listOf(schema, fingerprint, view)
+    private fun valueFields(): List<Any?> = listOf(schema, fingerprint)
 }
 
 /**

@@ -124,8 +124,8 @@ class StateViewMasksTest {
         }.message.assert().contains("wow.cocache.publish", "shop.order, shop.customer", StateMasks::class.java.name)
     }
 
-    private fun publishing(contract: Manifest, type: String) = ApplicationContextRunner()
-        .withClassLoader(ContractClassLoader(contract, javaClass.classLoader))
+    private fun publishing(contract: Manifest, view: Class<*>, type: String) = ApplicationContextRunner()
+        .withClassLoader(ContractClassLoader(javaClass.classLoader, view.name))
         .withConfiguration(
             AutoConfigurations.of(CoCacheAutoConfiguration::class.java, WowCoCacheAutoConfiguration::class.java),
         )
@@ -136,13 +136,14 @@ class StateViewMasksTest {
     @Test
     fun `the owner's sinks should take the node's state masks, and fail the start without them, whatever the schema`() {
         // A type that masks nothing needs the masks too: whether it masks anything is the masks' to say.
-        publishing(shopManifest(), "shop.order").run { context ->
+        publishing(shopManifest(), OrderView::class.java, "shop.order").run { context ->
             generateSequence(context.startupFailure) { it.cause }.filterIsInstance<WowConfigurationException>()
                 .first().message.assert().contains("wow.cocache.publish", StateMasks::class.java.name)
         }
-        publishing(shopManifest(), "shop.order").withBean(StateMasks::class.java, { NO_MASKS })
+        publishing(shopManifest(), OrderView::class.java, "shop.order").withBean(StateMasks::class.java, { NO_MASKS })
             .run { context -> context.startupFailure.assert().isNull() }
-        publishing(manifest, "shop.customer").withBean(PayloadMasks::class.java, { PayloadMasks(manifest) })
+        publishing(manifest, CustomerView::class.java, "shop.customer")
+            .withBean(PayloadMasks::class.java, { PayloadMasks(manifest) })
             .run { context ->
                 context.startupFailure.assert().isNull()
                 context.getBean(PublishedSinks::class.java).assert().isNotNull()

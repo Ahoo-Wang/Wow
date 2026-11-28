@@ -1981,8 +1981,6 @@ export interface StateManifest {
     // (undocumented)
     readonly fingerprint?: string;
     readonly schema: string;
-    // (undocumented)
-    readonly view?: string;
 }
 
 // @public

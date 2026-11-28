@@ -36,14 +36,6 @@ internal abstract class AssembleContract @Inject constructor(private val workers
     @get:PathSensitive(PathSensitivity.NONE)
     abstract val contracts: ConfigurableFileCollection
 
-    /**
-     * The package of each context's generated code that the domain modules' contract variants carry beside their
-     * contracts ([GenerateContract.packagesFile]): the fallback of a state's view, which the contract names.
-     */
-    @get:InputFiles
-    @get:PathSensitive(PathSensitivity.NONE)
-    abstract val contractPackages: ConfigurableFileCollection
-
     /** The domain module each of [contracts] comes from, by the contract's path, as a failure names it. */
     @get:Internal
     abstract val owners: MapProperty<String, String>
@@ -72,7 +64,6 @@ internal abstract class AssembleContract @Inject constructor(private val workers
     internal fun submit(queue: WorkQueue) {
         queue.submit(ManifestToolsWork.AssembleContract::class.java) { parameters ->
             parameters.contracts.from(contracts)
-            parameters.contractPackages.from(contractPackages)
             parameters.owners.set(owners)
             parameters.classes.from(classes)
             parameters.owner.set(owner.map { "project '$it'" })

@@ -275,10 +275,8 @@ class ManifestToolsTest {
             .writeText("")
         val output = File(directory, "api")
         val owners = mapOf(contractFile.path to "project ':shop-domain'")
-        val packages = listOf(packagesFile)
         ManifestTools.assembleContract(
             listOf(contractFile),
-            packages,
             owners,
             listOf(classes),
             "project ':shop-api'",
@@ -287,11 +285,15 @@ class ManifestToolsTest {
             .assert().isTrue()
         ManifestJson.read(File(output, PeerContracts.RESOURCE)).contexts.single().aggregates.single().commands
             .map { it.name }.assert().containsExactly("CreateCart")
+        // The contract names no view of the state, which has a field: what an api module without the Kotlin plugin
+        // packs is the contract alone, and only the code generator, which writes the views, lists them.
+        File(output, PeerContracts.RESOURCE).readText().assert().contains("\"state\"").doesNotContain("\"view\"")
+        output.walk().filter { it.isFile }.map { it.relativeTo(output).invariantSeparatorsPath }.toList()
+            .assert().containsExactly(PeerContracts.RESOURCE)
 
         // The classes are in another api module: it carries no contract, and clears what it carried.
         ManifestTools.assembleContract(
             listOf(contractFile),
-            packages,
             owners,
             emptyList(),
             "project ':other-api'",
@@ -317,7 +319,6 @@ class ManifestToolsTest {
         assertThrows<IllegalStateException> {
             ManifestTools.assembleContract(
                 listOf(empty),
-                emptyList(),
                 mapOf(empty.path to "project ':empty-domain'"),
                 emptyList(),
                 "project ':shop-api'",

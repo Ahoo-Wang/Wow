@@ -5471,7 +5471,7 @@
       },
       "wow.Manifest.State" : {
         "type" : "object",
-        "description" : "An aggregate's state: its schema, the fingerprint of its shape and, in a contract, its view.",
+        "description" : "An aggregate's state: its schema and the fingerprint of its shape.",
         "required" : [ "schema" ],
         "properties" : {
           "schema" : {
@@ -5480,9 +5480,6 @@
             "description" : "#/$defs/<key>"
           },
           "fingerprint" : {
-            "type" : "string"
-          },
-          "view" : {
             "type" : "string"
           }
         }

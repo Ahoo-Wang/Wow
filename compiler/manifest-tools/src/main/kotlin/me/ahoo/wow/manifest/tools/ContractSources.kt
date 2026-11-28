@@ -90,6 +90,15 @@ internal object ContractSources {
         }
     }
 
+    /**
+     * The binary names of the views [of] generates of [contract]'s states, sorted: what the contract jar lists at
+     * [PeerContracts.STATE_VIEWS_RESOURCE].
+     */
+    fun viewsOf(contract: Manifest, contractPackages: Map<String, String>): List<String> {
+        val views = StateViewSources(contract.defs, contractPackages) { false }
+        return contract.contexts.flatMap(views::namesOf).sorted()
+    }
+
     fun of(
         context: ContextManifest,
         defs: Map<String, Any?>,

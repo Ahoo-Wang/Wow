@@ -134,7 +134,6 @@ internal object ManifestToolsWork {
     abstract class AssembleContract : WorkAction<AssembleContract.Parameters> {
         interface Parameters : WorkParameters {
             val contracts: ConfigurableFileCollection
-            val contractPackages: ConfigurableFileCollection
             val owners: MapProperty<String, String>
             val classes: ConfigurableFileCollection
             val owner: Property<String>
@@ -146,7 +145,6 @@ internal object ManifestToolsWork {
                 javaClass.classLoader,
                 "assembleContract",
                 parameters.contracts.files.toList<File>(),
-                parameters.contractPackages.files.toList<File>(),
                 parameters.owners.get(),
                 parameters.classes.files.toList<File>(),
                 parameters.owner.get(),
@@ -199,6 +197,7 @@ internal object ManifestToolsWork {
             val contractPackages: ConfigurableFileCollection
             val classpath: ConfigurableFileCollection
             val output: DirectoryProperty
+            val resources: DirectoryProperty
         }
 
         override fun execute() {
@@ -209,6 +208,7 @@ internal object ManifestToolsWork {
                 parameters.contractPackages.files.toList<File>(),
                 parameters.classpath.files.toList<File>(),
                 parameters.output.get().asFile,
+                parameters.resources.get().asFile,
             )
         }
     }
