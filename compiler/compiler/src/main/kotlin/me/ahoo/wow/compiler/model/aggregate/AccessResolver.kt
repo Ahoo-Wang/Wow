@@ -175,6 +175,7 @@ internal object AccessResolver {
             "$where is private: the generated model calls it".takeIf { function.isPrivate() },
             "$where is protected: the generated model calls it from outside the state, so it is public or internal"
                 .takeIf { function.isKotlinProtected() },
+            sensitivityOf(function)?.let { "$where $it: $SENSITIVE_FIX" },
         )
         problems += found
         val returned = function.returnType?.resolve()
@@ -307,9 +308,24 @@ internal object AccessResolver {
      * @Sensitive`): its own annotation, on its field or its getter, or one of the members it overrides; null when
      * none is.
      */
-    private fun sensitivityOf(property: KSPropertyDeclaration): String? {
-        val marked = property.declarations().firstOrNull { it.isSensitive() } ?: return null
-        if (marked === property) {
+    private fun sensitivityOf(property: KSPropertyDeclaration): String? =
+        said(property, property.declarations().firstOrNull { it.isSensitive() })
+
+    /**
+     * What makes [function] `@Sensitive`, as [sensitivityOf] a property says it: its own annotation, a Java method's
+     * (which `@Sensitive`'s getter target allows), or the one of a function it overrides; null when none is.
+     */
+    private fun sensitivityOf(function: KSFunctionDeclaration): String? = said(
+        function,
+        generateSequence(function) { it.findOverridee() as? KSFunctionDeclaration }.firstOrNull { it.isSensitive() },
+    )
+
+    /** What makes [member] `@Sensitive`, [marked] being itself or a member it overrides; null when nothing is. */
+    private fun said(member: KSDeclaration, marked: KSDeclaration?): String? {
+        if (marked == null) {
+            return null
+        }
+        if (marked === member) {
             return "is @Sensitive"
         }
         val owner = marked.parentDeclaration?.simpleName?.asString()

@@ -374,6 +374,59 @@ class AccessTest {
     }
 
     @Test
+    fun `an access attribute of a @Sensitive enum, its values written by a @JsonValue member, is a compile error`() {
+        val sensitive = "me.ahoo.wow.api.query.annotation.Sensitive"
+        val level = "me.ahoo.wow.api.query.annotation.SensitivityLevel"
+        // A value type, serialized as a string by its @JsonValue member: what @Sensitive on a class takes.
+        val grade = "@$sensitive($level.DISPLAY)\n" +
+            "enum class Grade(@get:com.fasterxml.jackson.annotation.JsonValue val code: String) { TOP(\"t\") }"
+        listOf(
+            "@Access val grade: Grade get() = Grade.TOP" to "@Access property grade returns Grade",
+            "@Access fun grades(): Set<Grade> = setOf(Grade.TOP)" to "@Access function grades returns Set<Grade>",
+        ).forEach { (member, where) ->
+            failing(member, extra = grade).assert()
+                .contains("$where, whose values are @Sensitive (Grade): $SENSITIVE_FIX")
+        }
+    }
+
+    @Test
+    fun `an access function that is, or overrides, a Java method marked @Sensitive is a compile error`() {
+        // A Java supertype of the state: its getters carry @Sensitive as Java's METHOD target allows.
+        val contactable = SourceFile.java(
+            "Contactable.java",
+            """
+            package sample;
+
+            import me.ahoo.wow.api.annotation.Access;
+            import me.ahoo.wow.api.query.annotation.Sensitive;
+            import me.ahoo.wow.api.query.annotation.SensitivityLevel;
+
+            public abstract class Contactable {
+                @Access
+                @Sensitive(level = SensitivityLevel.DISPLAY)
+                public String phone() {
+                    return "";
+                }
+
+                @Access
+                @Sensitive(level = SensitivityLevel.CONFIDENTIAL)
+                public abstract String pin();
+            }
+            """.trimIndent(),
+        )
+        val (_, result) = compileModel(
+            "generate",
+            document("override fun pin(): String = department", supertypes = " : Contactable()"),
+            contactable,
+        )
+        result.exitCode.assert().withFailMessage { result.messages }
+            .isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        result.messages.assert()
+            .contains("@Access function phone is @Sensitive: $SENSITIVE_FIX")
+            .contains("@Access function pin overrides Contactable.pin, which is @Sensitive: $SENSITIVE_FIX")
+    }
+
+    @Test
     fun `a misplaced or impure access member is a compile error`() {
         mapOf(
             "@Access fun withParameter(prefix: String): String = prefix" to
@@ -448,5 +501,11 @@ class AccessTest {
             "aggregate root Document's field rootDepartment is annotated @Access, which only a member of an " +
                 "aggregate's state takes",
         )
+    }
+
+    private companion object {
+        const val SENSITIVE_FIX = "an access attribute is answered raw on every read and published stream, and " +
+            "queries compare and group it, so it holds no sensitive value: remove @Access, or derive the attribute " +
+            "from a value that is not sensitive"
     }
 }
