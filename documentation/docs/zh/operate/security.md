@@ -12,6 +12,7 @@ Wow 服务有两扇门：公开端口，调用方在这里发送命令和查询�
 - 只有网关能访问公开端口。
 - 平台之外永远访问不到内部端口、Kafka 和存储：用网络策略只让平台自己的 Pod 访问它们。`deploy/` 里的网络策略覆盖 MongoDB 和 migrate-data（`deploy/mongodb/networkpolicy.yaml`、`deploy/migrate-data/networkpolicy.yaml`），chart 为每个服务生成它自己的；Kafka 和其他存储的网络策略由平台自己提供。
 - 网关自己写转发头，并去掉客户端发来的 `CoSec-Identity`；它从不把客户端发来的传下去。
+- ops 控制台与数据目录控制台的安全响应头由它们前面的网关或 Ingress 设置；服务自己不设置（[把网关放在前面](#put-the-gateway-in-front)）。
 - 调用方解析器认证发往公开端口的每个请求；CoSec 提供了一个。
 - 第一个请求到达之前，CoSec 的文档已经发布到一个以 `maxmemory-policy noeviction` 运行的 Redis。
 - 只按路由授权不够的地方，命令按动作授权。
@@ -173,6 +174,8 @@ Wow 信任网关转发的身份，所以网关本身就是一条边界。每个�
 2. **网关覆盖服务信任的请求头。** 它根据自己接受的连接设置转发头 `X-Forwarded-For` 和 `Forwarded`，而不是把客户端发来的传下去或在后面追加；它还去掉客户端发来的 `CoSec-Identity`，只转发它自己校验过的身份，CoSec 网关在每条路由上都这样做，与配置无关。否则客户端可以自己选择地址或身份。
 
 宿主看不到网络，所以启动时不检查这两条。
+
+**控制台的安全响应头由网关或 Ingress 设置。** [ops 控制台](./ops-console)和[数据目录控制台](./analytics-catalog-console)是单页应用，由各自的服务从发行包的 `ui/` 目录以静态文件提供。这两个服务都不设置安全响应头，视图存储服务和其他任何 Wow 服务也不设置：没有 `Content-Security-Policy`、`Strict-Transport-Security`、`X-Content-Type-Options`，也没有防嵌入的头（`X-Frame-Options` 或策略里的 `frame-ancestors`）。请在访问控制台的地方设置它们，也就是控制台前面的网关或 Ingress。
 
 再次发送的命令，只有带着同一个请求 ID 才是同一条命令。客户端在丢失应答后重发命令时，要带上同一个 `Wow-Request-Id`，服务会把它当作重复请求应答，而不会执行两次。CoSec 开启时，没有 `Wow-Request-Id` 的命令取请求的 `CoSec-Request-Id` 作为请求 ID；CoSec 关闭时（`wow.cosec.mode: disabled`），不读 CoSec 的任何头。CoSec 网关为它转发的每个请求设置一次这个头，请求的重试（例如 Spring Cloud Gateway 在连接重置后的重试）会再次发送同一个值，所以服务把重试当作重复请求应答。请求同时带有两者时，以 `Wow-Request-Id` 为准。
 

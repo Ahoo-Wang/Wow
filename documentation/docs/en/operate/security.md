@@ -12,6 +12,7 @@ A Wow service has two doors: the public port, where callers send commands and qu
 - The public port is reachable from the gateway alone.
 - The internal port, Kafka and the stores are never reachable from outside the platform: network policies let only the platform's own pods reach them. Those in `deploy/` cover MongoDB and migrate-data (`deploy/mongodb/networkpolicy.yaml`, `deploy/migrate-data/networkpolicy.yaml`), and the chart writes each service's own; Kafka's and the other stores' are the platform's to provide.
 - The gateway writes the forwarded headers itself and removes any `CoSec-Identity` a client sends; it never passes a client's on.
+- The gateway or the Ingress in front of the ops console and the analytics catalog console sets their security response headers; the services set none ([Put the gateway in front](#put-the-gateway-in-front)).
 - A caller resolver authenticates every request to the public port; CoSec provides one.
 - CoSec's documents are published, to a Redis that runs with `maxmemory-policy noeviction`, before the first request.
 - Commands are authorized per action, not only per route, where routes alone are not enough.
@@ -173,6 +174,8 @@ Wow trusts the identity the gateway forwards, so the gateway is a boundary of it
 2. **The gateway overwrites the headers the service trusts.** It sets the forwarded headers, `X-Forwarded-For` and `Forwarded`, from the connection it accepted, instead of passing a client's on or appending to them, and it removes any `CoSec-Identity` the client sent, forwarding only the identity it verified; the CoSec gateway does the latter on every route, whatever its configuration. Otherwise a client chooses its own address or identity.
 
 The host cannot see the network, so it does not check either at startup.
+
+**The consoles' security response headers are the gateway's or the Ingress's.** The [ops console](./ops-console) and the [analytics catalog console](./analytics-catalog-console) are single-page applications their services serve as static files, from the distribution's `ui/` folder. Neither service sets a security response header, and neither does the view store or any other Wow service: no `Content-Security-Policy`, no `Strict-Transport-Security`, no `X-Content-Type-Options`, no frame options (`X-Frame-Options` or a policy's `frame-ancestors`). Set them where the consoles are reached, on the gateway or the Ingress in front of them.
 
 A command sent again is the same command only under the same request id. A client that resends a command after losing its answer sends it with the same `Wow-Request-Id`, and the service answers it as a duplicate instead of running it twice. With CoSec on, a command without `Wow-Request-Id` takes the request's `CoSec-Request-Id`; with CoSec off (`wow.cosec.mode: disabled`), no header of CoSec's is read. The CoSec gateway sets it once on each request it forwards, and a retry of the request, such as Spring Cloud Gateway's after a connection reset, resends the same one, so the service answers the retry as a duplicate. `Wow-Request-Id` wins when a request carries both.
 
